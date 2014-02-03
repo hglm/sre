@@ -1,0 +1,313 @@
+SRE (Shadow Rendering Engine) is a 3D rendering using OpenGL or
+OpenGL-ES 2.0 with several device-specific back-ends.
+
+Edit Makefile.conf to edit the configuration. It is possible to
+compile the library and demo program without installing by setting
+the library configuration to STATIC.
+
+NOTE: The current initial code drop as of Feb 2014 has only been tested
+with OpenGL on a PC platform; the OpenGL-ES 2.0 X11 front-end most likely
+does not compile due to restructuring of the front-end interface and may
+have bugs. A previous version of SRE worked correctly with OpenGL-ES 2.0,
+and it should not be a lot of work to make it compile and work correctly
+again. Framebuffer OpenGL-ES front-ends may require more work.
+
+Running "make" compiles the library.
+Running "make demo" compiles the demo application, which will be
+called sre-demo.
+Running "make install" (usually as superuser) installs the library
+and header file into the directories specified in the configuration
+file.
+Run "make dep" and "make rules" may be necessary after source changes.
+
+The demo program supports a few options, run it without arguments
+for help. There are about 15 different demo scenes/tests present,
+one of which must be supplied as an argument. For example,
+"./sre-demo demo10".
+
+demo3 is a small solar system simulator that is not up-to-date with the
+current code base.
+
+demo4 is a sophisticated Earth terrain demo that needs some fixes to
+work correctly with the current code base, and requires certain large
+textures that are not included.
+
+game is simple game in which a ball must be pushed onto the ground; it
+should work in the current code base.
+
+Other demos, including demo1, demo2, demo5, demo5, demo7, demo8, demo10,
+demo11, and textdemo should work correctly.
+
+--- Requirements ---
+
+OpenGL or OpenGL-ES 2.0 development libraries need to be installed
+in order to compile.
+
+For most practical purposes the game physics library Bullet is
+required. It can be disabled but is needed for proper scene
+navigation. Recently it has become available on some Debian
+repositories (including x86 and armhf). Install the libbullet-dev
+package.
+
+Platform specific development libraries are needed to compile the
+back-end. This includes:
+
+- X11 development libraries for pure X11 support (should not be needed
+  for GLFW/GLUT in X11 environment).
+- GFLW development library for GLFW support.
+- GLUT/freeglut for GLUT support.
+- Device-specific EGL/GLES2 development libraries for OpenGL-ES 2.0
+  back-ends.
+
+Another dependency is libpng (development package).
+
+The Makefile uses sed and awk.
+
+--- Shadows ---
+
+SRE support both stencil shadow volumes and shadow mapping. Shadows
+are supported for most of the light types, including directional,
+point-source, spotlight and beam light. Shadow volumes are sharply
+defined (it's a geometrical, pixel-precise techique), whereas shadow
+mapping may show pixelization in the shadows but is move versatile.
+
+The shadow volumes implementation is highly optimized including a
+shadow volume cache as well as geometrical and scissors optimizations
+including object (geometry)-based scissors. Moving point source lights
+and moving objects near point-source lights can present a problem for
+shadow volumes because the CPU has to calculate the silhouettes/shadow
+volume every frame; this is mainly a problem when the triangle count
+for shadow casting objects is high. In other situation (for example
+with a directional light), the shadow cache ensures good peformance.
+
+The shadow mapping implementation uses a regular shadow map with
+configurable resolution as well as cube shadow maps for point lights
+and spot lights. It is fairly optimized with regard to only rendering
+objects that can cast a shadow. There might be some pixelization near
+the shadow edges. Increasing the resolution of the shadow map helps
+but has limitations. In some cases "shadow acne" may be observed. The
+advantage of shadow mapping is that it is much less affected by slow
+downs with moving objects near point source lights or moving lights.
+
+--- Models/Objects ---
+
+Functions that generate models of geometrical shapes such as a sphere
+and a torus are provided by the library. Currently the OBJ format
+is the only supported model format, although there is code to support
+the assimp library that needs to be revalidated.
+
+- A model (sreModel) is a polygonal model consisting of triangles that
+  is uploaded to the GPU. The model can have different vertex
+  attributes associated with it: position (always enabled), texcoords,
+  normal, tangent, and color (special color attribute for each vertex).
+  Models that have texcoords can have a texture associated with it.
+  Normals are required for any kind of lighting/reflection model.
+  Tangents allow normal mapping, and are also required for certain
+  features in the micro-facet reflection model. Most, but not all,
+  of the standard objects provided by the library (sphere, torus etc)
+  have tangents. It possible to create a model that shares one or more
+  vertex attributes with another model.
+
+- A model may have several LOD (Level-Of-Detail) objects which are
+  models with a progressively smaller amount of triangles. As the
+  object's distance from the camera viewpoint increases, a less
+  detailed model can be used.
+
+- An object (SceneObject) is an object placed in the scene that refers
+  to an sreModel for the object's polygonal model. You can create many
+  objects all referring to the same model, while only one set of model
+  data is required on the GPU. It is possible to change the scaling and
+  rotation for each object individually.
+
+- Object properties can be changed in real-time after initialization;
+  the InvalidateShader() function in the Scene class should be called
+  for the object when a shader change is possible. Changing most
+  object-specific texture, color or reflection model parameters does
+  not require a new shader. However changing the object's flags field
+  may require a shader change.
+
+- When the library's initial max capacity for objects, models or lights
+  in a scene is reached, the capacity is automatically doubled. That
+  means the size of the scene is almost unlimited.
+
+--- Textures ---
+
+Any texture map, normal map, specularity map or emission map
+used for an object can be seperately selected, as long as the model
+has texture coordinates. Except in the case of multi-mesh models with
+seperate textures for each mesh (a special case), models have texcoords
+but do not have texture information.
+
+Textures can be loaded from PNG, DDS or KTX files and may have alpha
+transparency. A limited number of compressed texture formats is
+supported.
+
+A UV (texture coordinate) transformation matrix is seperately defined
+for every object. By default the standard transformation matrix is used,
+whichs flips the V coordinate so that texture position (0, 0) maps to the
+top-left corner of the texture in OpenGL shaders.
+
+Models are expected to have texcoords that assume that the top-left corner
+of the texture has coordinates of (0, 0). However, a UV transformation
+matrix that does not flip the V coordinate can be used.
+
+The UV transformation matrix can be used for any kind of mirroring, and
+can also be used to select a region of a texture map that will be mapped
+to coordinates ([0,1], [0,1]) in the model. This allows the use of the
+same texture atlas (a texture that contains multiple different textures),
+even for objects that do not share any texture. This can potentially
+improve performance, especially when several small textures are used,
+by significantly reducing the number of texture binds for the GPU.
+
+--- Debugging ---
+
+Setting LIBRARY_CONFIGURATION to DEBUG will compile the library and
+demo with full debugging and no optimization. gdb can be useful.
+
+For detailed render logs, set DEBUG_RENDER_LOG to YES and run the
+demo application with the --debug2 or --debug3 option. This will show
+when new shaders are selected for each object (--debug2) or log
+every draw request for an object (--debug3).
+
+The DEBUG_OPENGL setting can be useful to trace OpenGL-related
+errors.
+
+--- Issues/limitations/ideas ---
+
+1. Optimizations that are implemented but not yet (fully) tested.
+
+- Interleaved vertex buffer are supported (it may help with some
+  lower-end devices like OpenGL-ES 2.0). Not tested yet.
+
+- A 3D UV transformation matrix is defined for every object that uses any
+  kind of texture (texture map, normal map, specularity map or emission map).
+  This allows mirroring textures on a per-object basis (without changing the
+  model), and also allows using a region of a source texture as the
+  full texture of an object. This allows the use of texture atlases for
+  unrelated textures, which can improve performance especially for
+  small textures by reducing texture binds. This is implemented, but not
+  exhaustively tested yet (although it most likely works correctly).
+
+2. Current bugs.
+
+- Investigate why octree creation results in 2500 objects (blue fields,
+  also small lightscape lights) in the same node in demo8. This may
+  already be fixed because of bug fixes in octree smallest dimension
+  displacement algorithm during octree creation.
+
+- Stencil shadows errors showed up when moving the player (with light) to
+  very near the grating in demo8. The error disappears when the shadow
+  volume visibility test is disabled. The error most likely occurs
+  because of the wide angle of the pyramid cone that defines the shadow
+  volume when the player is extremely close to the large grating. A
+  spherical sector is now used in that case, but the intersection of
+  it infinite projection (dark cap) with the frustum is not yet fully
+  implemented. Also, some expensive trigonomy operations are used when
+  initializing the spherical sector.
+
+3. Potential improvements that are not yet implemented.
+
+- There is no real scene graph except for an optimized octree. A
+  proper scene graph would allow objects to be grouped together
+  and transformations applied to them as a group.
+
+- RegisterModel() could be enhanced with a name string to more easily
+  identify models.
+
+- Shader parameters to apply a special object position transformation
+  (beyond simple translation, scaling and rotation) could be added for
+  interesting effects, while adding very little extra burden on the
+  CPU or GPU.
+
+- Provide native support for more mesh file format than just OBJ.
+
+- Try font texture stored with only one component, preferably something
+  like UINT8.
+
+- Before uploading model triangles to the GPU we should try optimizing
+  the triangle layout to use triangle fans or strips when possible
+  instead of only using plain triangles. This would reduce GPU memory
+  and GPU cache requirements, improving performance.
+
+- Shadow map shaders could be optimized (reduce conditional execution).
+  For cube maps, maybe the cube segments that are applicable for the
+  object can be forwarded to the shader in a uniform (the current
+  implementation does some work to identify for the segment that the
+  object is in).
+
+- Could create subclasses for sreObject (SceneObject) so that the
+  minimum number of fields is reduced (e.g. no light parameters for
+  non-lit objects, etc). [implemented for sreLODModel, but not
+  yet for sreObject]
+
+- A single infinite distance octree could be created, with a limited number
+  of subnode levels used to store objects (the very large coordinates used
+  for these objects can be handled without much trouble). For example,
+  when thousands of stars are defined as infinite distance objects, only
+  a subset (with octree nodes intersecting the view frustum) would need
+  to be traversed during visible object determination. [done, static
+  and dynamic infinite distance octrees created, but only a root node
+  for the moment] 
+
+- Allow mixing of stencil shadow volumes and shadow mapping for different
+  lights. For example, shadow volumes could be used for a directional
+  light (provided there is not a large number of animated objects), while
+  shadow mapping could be used for moving lights or when there is a large
+  number of animated objects. There should not be any critical obstacle
+  against using this technique.
+
+- Shadow volume geometry scissors cache could be implemented.
+
+- Add demo for beam light testing.
+
+- Given that flexible shader configuration is already supported, it should
+  in theory be possible to customize shaders automatically for the objects
+  that are present in the scene, loading shaders as needed. Currently, a
+  limited number of shaders optimized for a different subset of features
+  is used. Performance would be increased.
+
+- Color intensity should be included in light bounding volume calculation.
+  A max RGB intensity of 0.5 would result in only half the volume at a
+  given RGB intensity cut-off. Conversely, some lights might be created
+  with intensities above 1.0 and need larger volumes (although the linear
+  range will generally delimit the volume).
+
+- Pyramid, used for point source shadow volumes, should be replaced by
+  PyramidCone (with side edges that are all equal in length) to reduce
+  computation complexity of the shadow volume. [done, not fully tested]
+  InfinitePyramidBase intersection test (for dark cap using stencil shadow
+  volumes) is not fully tested yet.
+
+- Demo generating models of trees (plants) would be fun (producing nice
+  shadows).
+
+--- LICENSE --
+
+The code is licensed under the ISC license, except for the Linux console
+mouse queue code implementation.
+
+Copyright (c) 2014 Harm Hanemaaijer <fgenfb@yahoo.com>
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+The Linux console mouse queue code, which is only used for Linux
+framebuffer (non-X) console front-ends, was obtained from the internet
+in 2012 and is copyrighted by VirtualCode.es / David Crespo under the
+Apache License 2.0, a copy of which is provided in the file
+LICENSE.LinuxMouseQueue.
+
+Some of the demo scenes utilitize textures created by borysses on
+deviantart.com.
+
+elephant.obj (used in demo2) and venusm.obj (demo11) are models obtained
+from the internet.
