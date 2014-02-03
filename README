@@ -6,8 +6,8 @@ compile the library and demo program without installing by setting
 the library configuration to STATIC.
 
 NOTE: The current initial code drop as of Feb 2014 has only been tested
-with OpenGL on a PC platform; the OpenGL-ES 2.0 X11 front-end most likely
-does not compile due to restructuring of the front-end interface and may
+with OpenGL on a PC platform; the OpenGL-ES 2.0 X11 back-end most likely
+does not compile due to restructuring of the back-end interface and may
 have bugs. A previous version of SRE worked correctly with OpenGL-ES 2.0,
 and it should not be a lot of work to make it compile and work correctly
 again. Framebuffer OpenGL-ES front-ends may require more work.
@@ -301,7 +301,7 @@ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 The Linux console mouse queue code, which is only used for Linux
-framebuffer (non-X) console front-ends, was obtained from the internet
+framebuffer (non-X) console back-ends, was obtained from the internet
 in 2012 and is copyrighted by VirtualCode.es / David Crespo under the
 Apache License 2.0, a copy of which is provided in the file
 LICENSE.LinuxMouseQueue.

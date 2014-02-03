@@ -16,7 +16,8 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 *
-* Small changes made by Harm Hanemaaijer in 2013 to integrate into SRE front-end.
+* Small changes made by Harm Hanemaaijer in 2013 to integrate into SRE framebuffer
+* platform back-ends.
 **
 *
 * A class for obtaining mouse events in a linux console environment.
