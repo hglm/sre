@@ -173,12 +173,11 @@ void TextDemoGridSwapDraw() {
     }
     if (test_info[current_test].shader_type == 1) {
         // Use the new text shader. It doesn't support multiple lines, but is fast.
-        // The text draw function stops at the newline at the end of each line.
         // The font size used depends on the grid size, it may not match the original font
         // aspect ratio.
         Vector2D font_size = Vector2D(cw, ch);
         // test_colors[2] is yellow.
-        sreSetTextParameters(SRE_TEXT_SET_FONT_SIZE | SRE_IMAGE_SET_COLORS,
+        sreSetTextParameters(SRE_IMAGE_SET_COLORS | SRE_TEXT_SET_FONT_SIZE,
             test_colors[2], &font_size);
         for (int i = 0; i < GRID_HEIGHT; i++) {
             sreDrawTextN(&grid[i * (GRID_WIDTH + 1)], GRID_WIDTH,
@@ -261,7 +260,7 @@ void TextDemoRandomPositionDraw() {
         }
     }
 #endif
-    char text[2];
+    char text[4];
     text[0] = 'A'; text[1] = '\0';
     float dx = 0;
     float dy = 0;

@@ -27,7 +27,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // We recognize the three levels of integer precision form the GLSL used in OpenGL-ES 2.0,
 // but all are defined as 32-bit integers in OpenGL GLSL.
 // In OpenGL-ES 2.0, lowp has the range (- 2^8, 2^8), mediump (- 2^10, 2^10),
-// highp (- 2^16, 2^16). 
+// highp (- 2^16, 2^16) but precision may be lower (lower order bits not defined).
 #define _uintlowp uint
 #define _uintmediump uint
 #define _uinthighp uint
@@ -62,7 +62,7 @@ varying vec2 text_image_position_var;
 #ifdef GL_ES
 uniform _uintlowp string_in[MAX_TEXT_LENGTH];
 #else
-uniform _uinthighp string_in[MAX_TEXT_LENGTH / 4];
+uniform uint string_in[MAX_TEXT_LENGTH / 4];
 #endif
 
 // Character per row in the font texture must be a power of two.

@@ -11,7 +11,7 @@ although it has not been tested much beyond a discrete NVIDIA GPU.
 Installing NVIDIA's optimized drivers is highly recommended.
 
 The OpenGL-ES 2.0 X11 back-end compiles and is working to a large extent,
-but a few bugs still need to be eliminated. The framebuffer OpenGL-ES
+but a few bugs may still need to be eliminated. The framebuffer OpenGL-ES
 back-ends may require more work.
 
 Running "make" compiles the library. It might be necessary to run
@@ -198,16 +198,6 @@ errors.
 
 2. Current bugs.
 
-- During textdemo, the screen may go black sometimes. Could be some kind
-  of timing issue or shader/uniform-related bug.
-
-- The text in textdemo is white; it used to be, and should be, multi-
-  colored. It is not clear what is causing this bug. 
-
-- The OpenGL-ES 2.0 front-end and related EGL (X11) back-end build without
-  errors when tested on an ARM platform with Mali-400 but a few bugs still
-  need to be eliminated (mainly with the text drawing function).
-
 - Investigate why octree creation results in 2500 objects (blue fields,
   also small lightscape lights) in the same node in demo8. This may
   already be fixed because of bug fixes in octree smallest dimension
@@ -304,6 +294,12 @@ errors.
 
 - Demo generating models of trees (plants) would be fun (producing nice
   shadows).
+
+- The miscellaneous shader class could be optimized with more a more
+  compact set of uniform identifiers for each different shader (currently,
+  an array of about 20 uniform locations is maintained for each
+  shader). Most constant definitions and some other unused code are
+  already in place for this.
 
 --- LICENSE --
 

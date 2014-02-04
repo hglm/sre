@@ -575,13 +575,13 @@ void sreInitializeTextEngine() {
 void sreSetTextParameters(int set_mask, const Vector4D *colors, const Vector2D *font_size) {
     if (set_mask & SRE_IMAGE_SET_COLORS) {
         if (colors == NULL) {
-            image_shader_info.mult_color = default_colors[0];
-            image_shader_info.add_color = default_colors[1];
+            text_shader_info.mult_color = default_colors[0];
+            text_shader_info.add_color = default_colors[1];
         }
         else {
-            image_shader_info.mult_color = colors[0];
-            image_shader_info.add_color = colors[1];
-            image_shader_info.update_mask |= SRE_IMAGE_SET_COLORS;
+            text_shader_info.mult_color = colors[0];
+            text_shader_info.add_color = colors[1];
+            text_shader_info.update_mask |= SRE_IMAGE_SET_COLORS;
         }
     }
     if (set_mask & SRE_TEXT_SET_FONT_SIZE) {
@@ -629,7 +629,7 @@ void sreDrawTextN(const char *string, int n, float x, float y) {
         int text_request_length = n;
         if (text_request_length > SRE_TEXT_MAX_REQUEST_LENGTH)
             text_request_length = SRE_TEXT_MAX_REQUEST_LENGTH;
-        int w = text_request_length / text_shader_info.screen_size_in_chars.x;
+        float w = (float)text_request_length / text_shader_info.screen_size_in_chars.x;
         Vector4D rect = Vector4D(x, y, w, h);
         GL3InitializeTextShader(text_shader_info.update_mask | SRE_IMAGE_SET_RECTANGLE |
             SRE_TEXT_SET_STRING, &text_shader_info, &rect, string, text_request_length);

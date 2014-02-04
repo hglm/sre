@@ -151,7 +151,8 @@ extern bool sre_shader_load_on_demand;
 
 // The misc shader-specific uniforms are packed in the order they appear in the generic misc
 // uniforms list above. The indices do not correspond, the real uniform indices for each shader
-// are explictly defined below.
+// are explictly defined below. These constants are not yet used (each misc shader still has
+// a full generic array of uniform locations).
 
 enum { UNIFORM_TEXT1_TEXTURE_SAMPLER = 0, UNIFORM_TEXT1_BASE_COLOR };
 enum { UNIFORM_TEXT2_TEXTURE_SAMPLER = 0, UNIFORM_TEXT2_RECTANGLE,
@@ -176,7 +177,7 @@ enum { UNIFORM_HDR_LOG_LUMINANCE_TEXTURE_SAMPLER = 0 };
 enum { UNIFORM_HDR_AVERAGE_LOG_LUMINANCE_TEXTURE_SAMPLER = 0 };
 enum { UNIFORM_HDR_LUMINANCE_HISTORY_STORAGE_TEXTURE_SAMPLER = 0,
     UNIFORM_HDR_LUMINANCE_HISTORY_STORAGE_AVERAGE_LUM_SAMPLER };
-enum { UNIFORM_LUMINANCE_HISTORY_TEXTURE_SAMPLER = 0, UNIFORM_LUMINANCE_HISTORY_SLOT };
+enum { UNIFORM_HDR_LUMINANCE_HISTORY_TEXTURE_SAMPLER = 0, UNIFORM_HDR_LUMINANCE_HISTORY_SLOT };
 
 #define SRE_NU_MISC_SHADERS 17
 
