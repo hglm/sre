@@ -134,8 +134,6 @@ static int nu_fps = 0;
 static double current_averaged_fps = 0;
 
 void RunDemo() {
-    if (!multiple_lights && scene->nu_lights > 1)
-        scene->nu_lights = 1;
     scene->PrepareForRendering(preprocess);
 #ifdef USE_BULLET
     BulletInitialize();
@@ -413,6 +411,8 @@ int main(int argc, char **argv) {
     else
         sreDisableMultiPassRendering();
     sreSetLightScissors(SRE_SCISSORS_LIGHT);
+    if (multipass_rendering && !multiple_lights)
+        sreSetMultiPassMaxActiveLights(1);
 
     // Create a scene with initial default maximums of 1024 objects, 256 models and 128 lights.
     // Dynamic reallocation in libsre should ensure that actual numbers are practically

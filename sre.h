@@ -61,8 +61,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include "sreVectorMath.h"
 
-// If multi-pass rendering is not used, the following value defines the maximum number of active lights.
-// Must be one.
+// If multi-pass rendering is not used, the following value defines the default maximum number
+// of active lights. Must be one. In the future, it could be used to define a default limit
+// for the number visible lights that are active during multi-pass rendering.
+#define SRE_DEFAULT_MAX_ACTIVE_LIGHTS 1
+// Absolute limit for the amount of active lights calculated (not used for multi-pass
+// rendering, for which the number of lights is currently unlimited).
 #define SRE_MAX_ACTIVE_LIGHTS 1
 // Default temporary limits for the number of visible objects/lights during rendering. If the scene
 // contains less objects, the actual number of objects will be used initially. If capacity runs out,
@@ -1558,7 +1562,8 @@ public:
     // position may be moved.
     void SetBeamLightWorstCaseBounds(int i, float max_direction_angle, float max_range,
         float max_beam_radius, const sreBoundingVolumeSphere& position_sphere);
-    void CalculateActiveLights(sreView *view);
+    void CalculateWholeSceneActiveLights(sreView *view, int max_lights);
+    void CalculateVisibleActiveLights(sreView *view, int max_lights);
     void CheckLightCapacity();
     void RegisterLight(Light *l);
     // Handling of objects (functions used internally).
@@ -1710,6 +1715,9 @@ enum { SRE_SHADOWS_NONE, SRE_SHADOWS_SHADOW_VOLUMES, SRE_SHADOWS_SHADOW_MAPPING 
 SRE_API void sreSetShadowsMethod(int type);
 SRE_API void sreEnableMultiPassRendering();
 SRE_API void sreDisableMultiPassRendering();
+// Set maximum visible lights in single-pass rendering mode.
+#define SRE_MAX_ACTIVE_LIGHTS_UNLIMITED 2147483647
+SRE_API void sreSetMultiPassMaxActiveLights(int n);
 // A global mask can be applied to object flags.
 #define SRE_OBJECT_FLAGS_MASK_FLAT (SRE_OBJECT_MULTI_COLOR | SRE_OBJECT_EMISSION_ONLY | 0xFFFFF000);
 #define SRE_OBJECT_FLAGS_MASK_NO_LIGHTING (SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_MULTI_COLOR | \

@@ -79,6 +79,7 @@ extern bool sre_internal_shadow_cache_enabled;
 extern bool sre_internal_light_attenuation_enabled;
 extern bool sre_internal_shadow_caster_volume_culling_enabled;
 extern bool sre_internal_multi_pass_rendering;
+extern int sre_internal_max_active_lights;
 extern int sre_internal_scissors;
 extern bool sre_internal_geometry_scissors_active;
 extern bool sre_internal_shadow_volume_visibility_test;

@@ -83,19 +83,6 @@ void sreScene::Render(sreView *view) {
         SetFrustum(this, frustum, view);
     }
 
-    // The non-multi pass shaders are limited by the number of active lights.
-    if (!sre_internal_multi_pass_rendering) {
-        CalculateActiveLights(view);
-        // Only one light is supported with single-pass rendering.
-        // Set the current light.
-        if (nu_active_lights > 0) {
-            sre_internal_current_light_index = active_light[0];
-            sre_internal_current_light = global_light[active_light[0]];
-        }
-        else
-            sre_internal_current_light = NULL;
-    }
-
     // Restore GL settings for rendering.
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
@@ -119,16 +106,35 @@ void sreScene::Render(sreView *view) {
     glClearStencil(0x00);
     glDisable(GL_STENCIL_TEST);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    CHECK_GL_ERROR("Error before GL3InitializeShadersBeforeFrame.\n");
-    GL3InitializeShadersBeforeFrame();
-    CHECK_GL_ERROR("Error after GL3InitializeShadersBeforeFrame.\n");
+
+    if (sre_internal_multi_pass_rendering) {
+        // In case of multi-pass rendering, we can already initialize the shaders
+        // for the new frame (no light parameters are initialized).
+        CHECK_GL_ERROR("Error before GL3InitializeShadersBeforeFrame.\n");
+        GL3InitializeShadersBeforeFrame();
+        CHECK_GL_ERROR("Error after GL3InitializeShadersBeforeFrame.\n");
+    }
 
     // Perform the visible object determination.
     DetermineVisibleEntities(*frustum);
 
     if (!sre_internal_multi_pass_rendering) {
         // Single pass rendering (with a final pass for possibly transparent emission only
-         //objects).
+        //objects).
+        // The single pass shaders are limited to one light. Calculate the most prominent
+        // light based on the list of determined visible lights.
+        CalculateVisibleActiveLights(view, 1);
+        // Set the current light.
+        if (nu_active_lights > 0) {
+            sre_internal_current_light_index = active_light[0];
+            sre_internal_current_light = global_light[active_light[0]];
+        }
+        else
+            sre_internal_current_light = NULL;
+        // Initialization of shaders was delayed because the single active light
+        // parameters are only known after visible entity determination.
+        GL3InitializeShadersBeforeFrame();
+
         // Render objects.
         RenderVisibleObjectsSinglePass(*frustum);
         RenderFinalPassObjectsSinglePass(*frustum);
@@ -696,7 +702,6 @@ BoundsCheckResult bounds_check_result) {
 #if 1
     float dim = node_bounds.AABB.dim_max.x - node_bounds.AABB.dim_min.x;
     Vector3D subnode_half_dim = Vector3D(0.25f, 0.25f, 0.25f) * dim;
-    int i = 0;
     for (int i = 0; i < nu_octants; i++) {
         // Bits 0-2 of octant_data contain the octant index.
         int octant = octant_data & 7;

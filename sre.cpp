@@ -19,6 +19,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <limits.h>
 #ifdef OPENGL_ES2
 #include <GLES2/gl2.h>
 #endif
@@ -86,6 +87,7 @@ bool sre_internal_shadow_cache_enabled = true;
 bool sre_internal_light_attenuation_enabled = true;
 bool sre_internal_shadow_caster_volume_culling_enabled = true;
 bool sre_internal_multi_pass_rendering = false;
+int sre_internal_max_active_lights = SRE_DEFAULT_MAX_ACTIVE_LIGHTS;
 int sre_internal_reflection_model = SRE_REFLECTION_MODEL_STANDARD;
 bool sre_internal_geometry_scissors_active;
 bool sre_internal_shadow_volume_visibility_test = true;
@@ -151,6 +153,14 @@ void sreEnableMultiPassRendering() {
 void sreDisableMultiPassRendering() {
     sre_internal_multi_pass_rendering = false;
     sre_internal_reselect_shaders = true;
+}
+
+void sreSetMultiPassMaxActiveLights(int n) {
+    sre_internal_max_active_lights = n;
+    if (n == INT_MAX)
+        return; // Unlimited.
+    if (sre_internal_max_active_lights > SRE_MAX_ACTIVE_LIGHTS)
+        sre_internal_max_active_lights = SRE_MAX_ACTIVE_LIGHTS;
 }
 
 void sreSetObjectFlagsMask(int mask) {
@@ -748,6 +758,7 @@ sreView::sreView() {
     zoom = 1.0;
     angles.z = 0;
     angles.x = 0;
+    followed_object = 0;
     view_mode = SRE_VIEW_MODE_FOLLOW_OBJECT;
     movement_mode = SRE_MOVEMENT_MODE_STANDARD;
     // Resetting the last change frames should trigger calculation of the projection matrix

@@ -636,7 +636,8 @@ static int CompareLights(const void *e1, const void *e2) {
     // following view mode is used, prefer to use the distance to the followed object.
     Point3D point_of_interest;
     if (internal_view->GetViewMode() == SRE_VIEW_MODE_FOLLOW_OBJECT)
-        point_of_interest = sre_internal_scene->sceneobject[internal_view->GetFollowedObject()]->position;
+        point_of_interest = sre_internal_scene->sceneobject[
+            internal_view->GetFollowedObject()]->position;
     else
         point_of_interest =  sre_internal_viewpoint;
     float distsq1 = SquaredMag((sre_internal_scene->global_light[i1]->vector).GetPoint3D()
@@ -650,18 +651,19 @@ static int CompareLights(const void *e1, const void *e2) {
     return 0;
 }
 
-void sreScene::CalculateActiveLights(sreView *view) {
+void sreScene::CalculateWholeSceneActiveLights(sreView *view, int max_lights) {
     // If we can support all lights as active lights, just copy them.
     // (currently only one light is supported for single-pass rendering).
-    if (nu_lights <= SRE_MAX_ACTIVE_LIGHTS) {
+    if (nu_lights <= max_lights) {
         for (int i = 0; i < nu_lights; i++)
             active_light[i] = i;
         nu_active_lights = nu_lights;
         return;
     }
-    // There are more than SRE_MAX_ACTIVE_LIGHTS lights.
+    // There are more than max_lights lights.
     // Sort the lights on prominence.
-    if (SRE_MAX_ACTIVE_LIGHTS == 1) {
+    internal_view = view;
+    if (max_lights == 1) {
         // When we need only the most prominent light, don't sort the whole
         // set.
         int light_element[2];
@@ -672,17 +674,56 @@ void sreScene::CalculateActiveLights(sreView *view) {
                 light_element[0] = i;
         }
         active_light[0] = light_element[0];
+//        printf("Active light: %d\n", active_light[0]);
     }
     else {
         int *light_element = (int *)alloca(sizeof(int) * nu_lights);
         for (int i = 0; i < nu_lights; i++)
             light_element[i] = i;
-        internal_view = view;
         qsort(light_element, nu_lights, sizeof(int), CompareLights);
-        for (int i = 0; i < SRE_MAX_ACTIVE_LIGHTS; i++)
+        for (int i = 0; i < max_lights; i++)
             active_light[i] = light_element[i];
+//        printf("First active light: %d\n", active_light[0]);
     }
-    nu_active_lights = SRE_MAX_ACTIVE_LIGHTS;
+    nu_active_lights = max_lights;
+}
+
+void sreScene::CalculateVisibleActiveLights(sreView *view, int max_lights) {
+    // If we can support all lights as active lights, just copy them.
+    // (currently only one light is supported for single-pass rendering).
+    if (nu_visible_lights <= max_lights) {
+        for (int i = 0; i < nu_visible_lights; i++)
+            active_light[i] = visible_light[i];
+        nu_active_lights = nu_visible_lights;
+        return;
+    }
+    // There are more than max_lights lights.
+    // Sort the lights on prominence.
+    internal_view = view;
+    if (max_lights == 1) {
+        // When we need only the most prominent light, don't sort the whole
+        // set.
+        int light_element[2];
+        light_element[0] = visible_light[0];
+        for (int i = 1; i < nu_visible_lights; i++) {
+            light_element[1] = visible_light[i];
+            if (CompareLights(&light_element[0], &light_element[1]) > 0)
+                light_element[0] = visible_light[i];
+        }
+        active_light[0] = light_element[0];
+//        printf("Active light: %d\n", active_light[0]);
+    }
+    else {
+        // Perform a full sort.
+        int *light_element = (int *)alloca(sizeof(int) * nu_visible_lights);
+        for (int i = 0; i < nu_visible_lights; i++)
+            light_element[i] = visible_light[i];
+        qsort(light_element, nu_visible_lights, sizeof(int), CompareLights);
+        for (int i = 0; i < max_lights; i++)
+            active_light[i] = light_element[i];
+//        printf("First active light: %d\n", active_light[0]);
+    }
+    nu_active_lights = max_lights;
 }
 
 // The order of the bounding box vertices assigned can have implications
