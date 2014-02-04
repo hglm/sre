@@ -40,7 +40,6 @@ sre/scene.cpp
 sre/shader_loading.cpp
 sre/shader_matrix.cpp
 sre/shader_uniform.cpp
-sre/shaders_builtin.cpp
 sre/shadow.cpp
 sre/shadowmap.cpp
 sre/sre.cpp
