@@ -157,6 +157,11 @@ void sreScene::Render(sreView *view) {
         // so only use GL_EQUAL with OpenGL.
 #ifndef OPENGL_ES2
         glDepthFunc(GL_EQUAL); 
+#else
+        // Provide a small offset so that depth buffer precision is less of a problem
+        // for additive lighting passes with a non-deterministic tile-based rendering
+        // architecture.
+        glDepthRangef(0, 0.99999f);
 #endif
         RenderLightingPassesNoShadow(frustum, view);
         // Perform the final pass.
@@ -164,6 +169,8 @@ void sreScene::Render(sreView *view) {
 #ifndef OPENGL_ES2
         // For OpenGL, restore the GL_LEQUAL depth test for the final pass.
         glDepthFunc(GL_LEQUAL);
+#else
+        glDepthRangef(0, 1.0f);
 #endif
         glDepthMask(GL_TRUE);
         // Note: some objects in the final pass might need blending, but this
@@ -191,7 +198,12 @@ void sreScene::Render(sreView *view) {
         // On some OpenGL-ES2 GPU's, GL_EQUAL is slower than the default GL_LEQUAL
         // so only use GL_EQUAL with OpenGL.
 #ifndef OPENGL_ES2
-        glDepthFunc(GL_EQUAL); 
+        glDepthFunc(GL_EQUAL);
+#else
+        // Provide a small offset so that depth buffer precision is less of a problem
+        // for additive lighting passes with a non-deterministic tile-based rendering
+        // architecture.
+        glDepthRangef(0, 0.99999f);
 #endif
         RenderLightingPasses(frustum, view);
         // Perform the final pass.
@@ -201,6 +213,8 @@ void sreScene::Render(sreView *view) {
 #ifndef OPENGL_ES2
         // For OpenGL, restore the GL_LEQUAL depth test for the final pass.
         glDepthFunc(GL_LEQUAL);
+#else
+        glDepthRangef(0, 1.0f);
 #endif
         glDepthMask(GL_TRUE);
         RenderFinalPassObjectsMultiPass(*frustum);
