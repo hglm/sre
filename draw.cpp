@@ -158,7 +158,7 @@ void sreScene::Render(sreView *view) {
 #ifndef OPENGL_ES2
         glDepthFunc(GL_EQUAL); 
 #endif
-        RenderLightingPassesNoShadow(frustum);
+        RenderLightingPassesNoShadow(frustum, view);
         // Perform the final pass.
         glDisable(GL_BLEND);
 #ifndef OPENGL_ES2
@@ -193,7 +193,7 @@ void sreScene::Render(sreView *view) {
 #ifndef OPENGL_ES2
         glDepthFunc(GL_EQUAL); 
 #endif
-        RenderLightingPasses(frustum);
+        RenderLightingPasses(frustum, view);
         // Perform the final pass.
         glDisable(GL_STENCIL_TEST);
         // Disable blending
@@ -226,7 +226,7 @@ void sreScene::Render(sreView *view) {
 #ifndef OPENGL_ES2
         glDepthFunc(GL_EQUAL); 
 #endif
-        RenderLightingPasses(frustum);
+        RenderLightingPasses(frustum, view);
         // Perform the final pass.
         // Disable blending
         glDisable(GL_BLEND);
@@ -1142,8 +1142,10 @@ enum {
 
 // Flag indicating whether custom scissors smaller than the light scissor region are active.
 static bool custom_scissors_set;
+#ifndef NO_DEPTH_BOUNDS
 // Flag indicating whether custom depth bounds smaller than the light depth bounds are active.
 static bool custom_depth_bounds_set;
+#endif
 
 // When SRE_GEOMETRY_SCISSORS_STATIC_VISIBLE_OBJECT is set in flags, it guarantees that the
 // object is a static object that at least partially inside the light volume. No intersection
@@ -1446,7 +1448,9 @@ void sreScene::RenderVisibleObjectsLightingPass(const Frustum& frustum, const Li
         if (sre_internal_geometry_scissors_active) {
             // Geometry scissors are active.
             custom_scissors_set = false;
+#ifndef NO_DEPTH_BOUNDS
             custom_depth_bounds_set = false;
+#endif
             // Render the dynamic objects in the visible objects list. The dynamic
             // objects are at the end of the array. Since their visibility was
             // determined in the current frame, they all need to rendered.
@@ -1571,7 +1575,9 @@ void sreScene::RenderVisibleObjectsLightingPass(const Frustum& frustum, const Li
         // light volume checks); these are present as a stretch of consecutive objects in the
         // visible object list, but there may be several of these stretches.
         custom_scissors_set = false;
+#ifndef NO_DEPTH_BOUNDS
         custom_depth_bounds_set = false;
+#endif
         // Render all visible objects, checking each with the light volume.
         if (sre_internal_geometry_scissors_active)
             for (int i = 0; i < nu_visible_objects; i++)
@@ -1688,12 +1694,26 @@ static void SetScissorsBeforeLight(const sreScissors& scissors) {
 // Depth buffer updates aren't required and should be off (glDepthMask(GL_FALSE)).
 // The depth test should be configured as GL_EQUAL or GL_LEQUAL.
 
-void sreScene::RenderLightingPasses(Frustum *frustum) {
+void sreScene::RenderLightingPasses(Frustum *frustum, sreView *view) {
     object_count_all_lights = 0;
     intersection_tests_all_lights = 0;
-    for (int i = 0; i < nu_visible_lights; i++) {
+
+    // Set the max_active_lights field in the sreScene structure.
+    if (sre_internal_max_active_lights == SRE_MAX_ACTIVE_LIGHTS_UNLIMITED ||
+    nu_visible_lights <= sre_internal_max_active_lights)
+        // All visible lights will be rendered.
+        nu_active_lights = nu_visible_lights;
+    else {
+        // The following function sets nu_active_lights.
+        CalculateVisibleActiveLights(view, sre_internal_max_active_lights);
+    }
+
+    for (int i = 0; i < nu_active_lights; i++) {
         // Set the light to be rendered.
-        sre_internal_current_light_index = visible_light[i];
+        if (nu_active_lights == nu_visible_lights)
+            sre_internal_current_light_index = visible_light[i];
+        else
+            sre_internal_current_light_index = active_light[i];
         sre_internal_current_light = global_light[sre_internal_current_light_index];
 // printf("Light %d, type = %d\n", sre_internal_current_light_index, sre_internal_current_light->type);
         sre_internal_geometry_scissors_active = false;
@@ -1837,14 +1857,26 @@ do_lighting_pass :
 // Depth buffer updates aren't required and should be off (glDepthMask(GL_FALSE)).
 // The depth test should be configured as GL_EQUAL or GL_LEQUAL.
 
-void sreScene::RenderLightingPassesNoShadow(Frustum *frustum) const {
+void sreScene::RenderLightingPassesNoShadow(Frustum *frustum, sreView *view) {
     CHECK_GL_ERROR("Error before RenderLightingPassesNoShadow\n");
     object_count_all_lights = 0;
     intersection_tests_all_lights = 0;
 
-    for (int i = 0; i < nu_visible_lights; i++) {
+    // Set the max_active_lights field in the sreScene structure.
+    if (nu_visible_lights <= sre_internal_max_active_lights)
+        // All visible lights will be rendered.
+        nu_active_lights = nu_visible_lights;
+    else {
+        // The following function sets nu_active_lights.
+        CalculateVisibleActiveLights(view, sre_internal_max_active_lights);
+    }
+
+    for (int i = 0; i < nu_active_lights; i++) {
         // Set the light to be rendered.
-        sre_internal_current_light_index = visible_light[i];
+        if (nu_active_lights == nu_visible_lights)
+            sre_internal_current_light_index = visible_light[i];
+        else
+            sre_internal_current_light_index = active_light[i];
         sre_internal_current_light = global_light[sre_internal_current_light_index];
         sre_internal_geometry_scissors_active = false;
 

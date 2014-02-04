@@ -157,7 +157,7 @@ void sreDisableMultiPassRendering() {
 
 void sreSetMultiPassMaxActiveLights(int n) {
     sre_internal_max_active_lights = n;
-    if (n == INT_MAX)
+    if (n == SRE_MAX_ACTIVE_LIGHTS_UNLIMITED)
         return; // Unlimited.
     if (sre_internal_max_active_lights > SRE_MAX_ACTIVE_LIGHTS)
         sre_internal_max_active_lights = SRE_MAX_ACTIVE_LIGHTS;
