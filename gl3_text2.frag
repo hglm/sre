@@ -77,7 +77,7 @@ void main() {
 	// Round down the character position into the text image to get the character index.
 	float x_floor = floor(text_image_position_var.x); 
 	// Convert to integer.
-	_uintlowp char_index = int(x_floor);
+	_uintlowp char_index = uint(x_floor);
 	// Because text_image_position_var is in character units, the relative texcoords
         // coordinates are obtained with a simple subtraction.
 	vec2 texcoords_within_char = text_image_position_var - vec2(x_floor, 0.0);
@@ -91,7 +91,7 @@ void main() {
 	_uintlowp ch = string_in[char_index];
 #else
  	_uintlowp ch = (string_in[char_index >> 2u] >> ((char_index & 3u) << 3u)) &
-		_uint(0xFF);
+		uint(0xFF);
 #endif
 	// Calculate the row and column of the character in the font texture.
 #ifdef GL_ES
