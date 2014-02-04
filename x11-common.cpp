@@ -202,6 +202,7 @@ static void X11ProcessGUIEvents() {
             motion_x = me->x;
             motion_y = me->y;
             motion_occurred = true;
+//            printf("Motion %d, %d\n", motion_x, motion_y);
         }
         else if (e.type == ButtonPress) {
             XButtonPressedEvent *be = (XButtonPressedEvent *)&e;
@@ -247,6 +248,7 @@ void GUIWarpCursor(int x, int y) {
         XWindow,
         XWindow,
         0, 0, 0, 0, x, y);
+    XFlush(XDisplay);
 }
 
 // The following function more or less assumes Linux is used.

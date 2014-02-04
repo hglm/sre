@@ -185,8 +185,8 @@ void GUIProcessMouseMotion(int x, int y) {
         return;
     Vector3D angles;
     view->GetViewAngles(angles);
-    angles.z -= (x - window_width / 2) * 360 * 0.5 / window_width;
-    angles.x -= (y - window_height / 2) * 360 * 0.5 / window_width;
+    angles.z -= (x - window_width / 2) * 360.0f * 0.5 / window_width;
+    angles.x -= (y - window_height / 2) * 360.0f * 0.5 / window_width;
     // The horizontal field of view wraps around.
     if (angles.z < - 180)
         angles.z += 360;

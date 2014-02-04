@@ -812,6 +812,7 @@ void sreView::RotateViewDirection(Vector3D angles_offset) {
     angles.x = fmodf(angles.x, 360.0f);
     angles.y = fmodf(angles.y, 360.0f);
     angles.z = fmodf(angles.z, 360.0f);
+    last_view_change = sre_internal_current_frame;
 }
 
 void sreView::SetZoom(float _zoom) {
