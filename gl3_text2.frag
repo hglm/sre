@@ -24,11 +24,21 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #ifndef GL_ES
 #version 150
-#define _uint uint
+// We recognize the three levels of integer precision form the GLSL used in OpenGL-ES 2.0,
+// but all are defined as 32-bit integers in OpenGL GLSL.
+// In OpenGL-ES 2.0, lowp has the range (- 2^8, 2^8), mediump (- 2^10, 2^10),
+// highp (- 2^16, 2^16). 
+#define _uintlowp uint
+#define _uintmediump uint
+#define _uinthighp uint
 #else
-precision highp float;
+// Note: On the Mali-400 platform, highp float is not supported in the fragment shader.
+// (treated as mediump).
+precision highp float; 
 // OpenGL ES 2.0 does not have any unsigned integer type.
-#define _uint int
+#define _uintlowp lowp int
+#define _uintmediump mediump int
+#define _uinthighp highp int
 #endif
 // When compiling for OpenGL-ES 2.0, texture arrays are not supported
 // and the respective shader is identical to the regular texture image
@@ -48,7 +58,12 @@ varying vec2 text_image_position_var;
 // The string buffer size should match the settings in the library. Generally,
 // when characters are packed into ints (basically raw string data), the array
 // size should be 64 (max length 256 characters).
-uniform _uint string_in[MAX_TEXT_LENGTH / 4];
+// With OpenGL-ES2, only two characters are packed into each int.
+#ifdef GL_ES
+uniform _uintlowp string_in[MAX_TEXT_LENGTH];
+#else
+uniform _uinthighp string_in[MAX_TEXT_LENGTH / 4];
+#endif
 
 // Character per row in the font texture must be a power of two.
 // These constants can be included as a prologue when compiling the shader.
@@ -62,7 +77,7 @@ void main() {
 	// Round down the character position into the text image to get the character index.
 	float x_floor = floor(text_image_position_var.x); 
 	// Convert to integer.
-	_uint char_index = _uint(x_floor);
+	_uintlowp char_index = int(x_floor);
 	// Because text_image_position_var is in character units, the relative texcoords
         // coordinates are obtained with a simple subtraction.
 	vec2 texcoords_within_char = text_image_position_var - vec2(x_floor, 0.0);
@@ -70,29 +85,23 @@ void main() {
 	// range [0.0 - 1.0].
         // Get the ASCII character byte from the packed int array.
 #ifdef GL_ES
-	// Because OpenGL-ES 2.0 does not have unsigned integers or shift operations,
-        // more work is needed to unpack the character. Characters must be <= 127.
-	// Shift is emulated by multiplication with a power of two with overflow and
-	// division by (1 << 24). The code may be slow.
-        int int_index = char_index / 4;
-	int byte_index = char_index - int_index * 4;
-	int factor[4];
-        factor[0] = 16777216;
-        factor[1] = 65536;
-        factor[2] = 256;
-        factor[3] = 1;
-	_uint ch = (string_in[int_index] * factor[byte_index]) / 16777216;
+	// Because OpenGL-ES 2.0 GLSL does not have unsigned integers, integers have only
+	// about 16 or 17 bits of precision (max.), and there are no shift operations,
+        // more work is needed to unpack the character and we can only store two characters
+        // in an int. In fact, because uniform int arrays have only 14 bits of precision
+        // on certain platforms, we need an int for each character.
+	_uintlowp ch = string_in[char_index];
 #else
- 	_uint ch = (string_in[char_index >> 2u] >> ((char_index & 3u) << 3u)) &
+ 	_uintlowp ch = (string_in[char_index >> 2u] >> ((char_index & 3u) << 3u)) &
 		_uint(0xFF);
 #endif
 	// Calculate the row and column of the character in the font texture.
 #ifdef GL_ES
-	_uint font_row = ch / FONT_TEXTURE_COLUMNS;
-	_uint font_column = ch - (font_row * FONT_TEXTURE_COLUMNS);
+	_uintlowp font_row = ch / FONT_TEXTURE_COLUMNS;
+	_uintlowp font_column = ch - (font_row * FONT_TEXTURE_COLUMNS);
 #else
-	_uint font_column = ch & (FONT_TEXTURE_COLUMNS - 1u);
-	_uint font_row = ch / FONT_TEXTURE_COLUMNS;
+	_uintlowp font_column = ch & (FONT_TEXTURE_COLUMNS - 1u);
+	_uintlowp font_row = ch / FONT_TEXTURE_COLUMNS;
 #endif
 	float column_f = float(font_column);
 	float row_f = float(font_row);

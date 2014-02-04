@@ -2033,8 +2033,12 @@ void GL3InitializeImageShader(int update_mask, sreImageShaderInfo *info, Vector4
 
 void GL3InitializeTextShader(int update_mask, sreTextShaderInfo *info, Vector4D *rect,
 const char *string, int length) {
+#ifdef OPENGL_ES2
+    unsigned int string_data[SRE_TEXT_MAX_TEXT_WIDTH];
+#else
 #if !defined(TEXT_ALLOW_UNALIGNED_INT_UNIFORM_ARRAY) || !defined(TEXT_ALLOW_BYTE_ACCESS_BEYOND_STRING)
     unsigned int string_data[SRE_TEXT_MAX_TEXT_WIDTH / 4];
+#endif
 #endif
     int shader;
     if (info->font_format == SRE_FONT_FORMAT_32X8)
@@ -2059,6 +2063,19 @@ const char *string, int length) {
             while (string[n] != '\0' && string[n] != '\n')
                 n++;
         }
+#ifdef OPENGL_ES2
+        // Since glUniform with an unsigned type is not available in ES2, and additionally
+        // uniform integer precision seems to be limited to about 14 bits,
+        // we must convert the string and pack only one characer into a single int.
+        // Size of the string in ints, with one characters per int.
+        size = n;
+        for (int i = 0; i < n; i++) {
+            string_data[i] = (unsigned int)string[i];
+        }
+        glUniform1iv(misc_shader[shader].uniform_location[UNIFORM_MISC_STRING], size,
+            (GLint *)string_data);
+#else
+        // OpenGL.
         // Size of the string in ints padded to int boundary.
         size = (n + 3) >> 2;
 #if defined(TEXT_ALLOW_UNALIGNED_INT_UNIFORM_ARRAY) && defined(TEXT_ALLOW_BYTE_ACCESS_BEYOND_STRING)
@@ -2070,15 +2087,8 @@ const char *string, int length) {
         //
         // This requires a shader change to work correctly on big-endian CPUs (which are very
         // rare on systems running OpenGL).
-#ifdef OPENGL_ES2
-        // Since glUniform with an unsigned type is not available in ES2, use the
-        // the signed integer function (the results should be the same).
-        glUniform1iv(misc_shader[shader].uniform_location[UNIFORM_MISC_STRING], size,
-            (GLint *)string);
-#else
         glUniform1uiv(misc_shader[shader].uniform_location[UNIFORM_MISC_STRING], size,
             (GLuint *)string);
-#endif
 #else
 
 #if defined(TEXT_ALLOW_UNALIGNED_INT_UNIFORM_ARRAY)
@@ -2103,6 +2113,7 @@ const char *string, int length) {
             glUniform1uiv(misc_shader[shader].uniform_location[UNIFORM_MISC_STRING], (n + 3) >> 2,
                 string_data);
         }
+#endif
 #endif
         // Usually, when a string is set there will no other parameters in the update mask apart
         // from the rectangle, which was already set. Check for an early exit.

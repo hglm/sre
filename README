@@ -204,9 +204,6 @@ errors.
 - The text in textdemo is white; it used to be, and should be, multi-
   colored. It is not clear what is causing this bug. 
 
-- The text characters are not correctly displayed (same character is
-  repeated) in the optimized text shader on the OpenGL-ES 2.0 platform. 
-
 - The OpenGL-ES 2.0 front-end and related EGL (X11) back-end build without
   errors when tested on an ARM platform with Mali-400 but a few bugs still
   need to be eliminated (such as invisible objects).
