@@ -257,7 +257,7 @@ void sreLODModel::InitVertexBuffers(int attribute_mask, int dynamic_flags) {
         positions_4D = new Vector4D[total_nu_vertices];
         // Copy vertex positions, adding a w component of 1.0 for the shaders.
         for (int i = 0; i < nu_vertices; i++)
-            positions_4D[i] = Vector4D(vertex[i], 1.0);
+            positions_4D[i] = Vector4D(vertex[i], 1.0f);
 
         // Create vertices extruded to infinity for shadow volumes.
         if (shadow) {
@@ -305,7 +305,8 @@ finish :
         delete [] positions_4D;
 
     if (sre_internal_debug_message_level >= 2)
-        printf("GL3InitVertexBuffers: Uploaded model %d, attribute_mask 0x%02X.\n", id, attribute_mask);
+        printf("GL3InitVertexBuffers: Uploading model %d, attribute_mask 0x%02X.\n",
+            id, attribute_mask);
 
     // If the model is in any way instanced (at least one attribute shared), then we can
     // be sure that the triangle vertex indices are already present on the GPU and will

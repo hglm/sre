@@ -88,8 +88,12 @@ void sreScene::Render(sreView *view) {
         CalculateActiveLights(view);
         // Only one light is supported with single-pass rendering.
         // Set the current light.
-        sre_internal_current_light_index = active_light[0];
-        sre_internal_current_light = global_light[active_light[0]];
+        if (nu_active_lights > 0) {
+            sre_internal_current_light_index = active_light[0];
+            sre_internal_current_light = global_light[active_light[0]];
+        }
+        else
+            sre_internal_current_light = NULL;
     }
 
     // Restore GL settings for rendering.

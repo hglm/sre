@@ -393,9 +393,10 @@ void sreDrawObjectFinalPass(SceneObject *so) {
         sreDrawObjectLightHalo(so);
         return;
     }
-    // The only remaining case is objects with the EMISSION_ONLY flag, with optional
+    // The only remaining cases is objects with the EMISSION_ONLY flag, with optional
     // use of an emission texture map (with optional alpha transparency) instead of a
-    // single color.
+    // single color, or optionally adding the (multi-color) diffuse reflection color
+    // to the emission color (EMISSION_ADD_DIFFUSE_REFLECTION_COLOR).
     // Check that emission only hasn't been masked out due to global rendering settings;
     // in that case, simply skip the object.
     if (!(so->render_flags & SRE_OBJECT_EMISSION_ONLY))
@@ -419,6 +420,8 @@ void sreDrawObjectFinalPass(SceneObject *so) {
         int attribute_mask = SRE_POSITION_MASK;
         attribute_mask += ((so->render_flags & SRE_OBJECT_USE_EMISSION_MAP) != 0)
             << SRE_ATTRIBUTE_TEXCOORDS;
+        attribute_mask += ((so->render_flags & SRE_OBJECT_MULTI_COLOR) != 0)
+            << SRE_ATTRIBUTE_COLOR;
 
         so->attribute_info.Set(attribute_mask, m->attribute_info);
 #ifdef DEBUG_RENDER_LOG

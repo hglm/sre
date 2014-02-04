@@ -609,7 +609,10 @@ sreFont *sreSetFont(sreFont *font) {
 }
 
 // Draw text with current font size with string length specified.
+
 void sreDrawTextN(const char *string, int n, float x, float y) {
+    if (n == 0)
+        return;
     if (!sre_text_initialized) {
         if (current_font_32x8 == NULL)
             sreSetFont(NULL); // Set default font.
@@ -621,15 +624,26 @@ void sreDrawTextN(const char *string, int n, float x, float y) {
     }
     CHECK_GL_ERROR("Error before GL3InitializeTextShader()\n");
     // Note: Would be better to get font size without division.
-    float w = n / text_shader_info.screen_size_in_chars.x;
     float h = 1.0f / text_shader_info.screen_size_in_chars.y;
-    Vector4D rect = Vector4D(x, y, w, h);
-    GL3InitializeTextShader(text_shader_info.update_mask | SRE_IMAGE_SET_RECTANGLE |
-        SRE_TEXT_SET_STRING, &text_shader_info, &rect, string, n);
-    text_shader_info.update_mask = 0;
-    CHECK_GL_ERROR("Error after GL3InitializeTextShader()\n");
-    int buffer_index = SelectPositionBuffer(w, h);
-    sreFinishDrawing2DTexture(buffer_index);
+    for (;;) {
+        int text_request_length = n;
+        if (text_request_length > SRE_TEXT_MAX_REQUEST_LENGTH)
+            text_request_length = SRE_TEXT_MAX_REQUEST_LENGTH;
+        int w = text_request_length / text_shader_info.screen_size_in_chars.x;
+        Vector4D rect = Vector4D(x, y, w, h);
+        GL3InitializeTextShader(text_shader_info.update_mask | SRE_IMAGE_SET_RECTANGLE |
+            SRE_TEXT_SET_STRING, &text_shader_info, &rect, string, text_request_length);
+        text_shader_info.update_mask = 0;
+        CHECK_GL_ERROR("Error after GL3InitializeTextShader()\n");
+        int buffer_index = SelectPositionBuffer(w, h);
+        sreFinishDrawing2DTexture(buffer_index);
+//        printf("%d characters drawn.\n", text_request_length);
+        n -= text_request_length;
+        if (n == 0)
+            break;
+        string += text_request_length;
+        x += w;
+    }
 }
 
 // Draw text with the current font size.
@@ -656,6 +670,6 @@ void sreDrawTextCentered(const char *text, float x, float y, float w) {
         sreSetTextParameters(SRE_TEXT_SET_FONT_SIZE, NULL, &font_size);
     }
     else {
-        sreDrawTextN(text, n, x + (w - text_w) * 0.5, y);
+        sreDrawTextN(text, n, x + (w - text_w) * 0.5f, y);
     }
 }

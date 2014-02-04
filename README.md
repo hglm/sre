@@ -5,9 +5,8 @@ portable to other platforms.
 
 NOTE: The current version as of 4 Feb 2014 works correctly with OpenGL
 on a PC platform; the OpenGL-ES 2.0 X11 (EGL) front-end compiles but
-still has a few bugs that have resulted from the restructuring of the
-back-end interface and other changes. Framebuffer OpenGL-ES front-ends
-may require more work.
+still has a few bugs. Framebuffer OpenGL-ES front-ends may require more
+work.
 
 An older version was ported to Windows (32-bit) using GLFW, and other
 platforms are feasable too given the seperation into front and back-ends

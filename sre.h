@@ -496,6 +496,8 @@ public:
     int triangle_index[2]; // One or two triangles that the edge is part of.
 };
 
+// Vertex attribute identifiers.
+
 #define SRE_NU_VERTEX_ATTRIBUTES 5
 
 enum {
@@ -1012,7 +1014,7 @@ enum {
     SRE_OBJECT_TRANSPARENT_EMISSION_MAP = 64,
     SRE_OBJECT_3D_TEXTURE = 128,
     SRE_OBJECT_EMISSION_ONLY = 256,
-    SRE_OBJECT_EMISSION_ADD_DIFFUSE = 512, // Not actually used.
+    SRE_OBJECT_EMISSION_ADD_DIFFUSE_REFLECTION_COLOR = 512,
     // Hidden surface removal/shadows.
     SRE_OBJECT_INFINITE_DISTANCE = 0x1000,
     SRE_OBJECT_NO_BACKFACE_CULLING = 0x2000,

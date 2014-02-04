@@ -569,16 +569,6 @@ Color color1, Color color2) {
     for (int y = 0; y <= size; y++)
         for (int x = 0; x <= size; x++)
             mesh[y * (size + 1) + x].Set(x * unit_size, y * unit_size, 0);
-#if 0
-    Color color1;
-    color1.r = (float)rand() / RAND_MAX;
-    color1.g = (float)rand() / RAND_MAX;
-    color1.b = (float)rand() / RAND_MAX;
-    Color color2;
-    color2.r = (float)rand() / RAND_MAX;
-    color2.g = (float)rand() / RAND_MAX;
-    color2.b = (float)rand() / RAND_MAX;
-#endif
     sreModel *model = new sreModel;
     sreLODModel *m = model->lod_model[0] = sreNewLODModel();
     model->nu_lod_levels = 1;

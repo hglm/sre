@@ -549,6 +549,9 @@ void GL3InitializeShadersBeforeFrame() {
             // we must avoid the single-pass shader initialization of light parameters.
             if (sre_internal_multi_pass_rendering)
                 continue;
+            if (sre_internal_current_light == NULL)
+                // It is possible that there are no lights.
+                return;
             // Initialize the parameters for the single light.
             if (single_pass_shader[i].uniform_mask & (1 << UNIFORM_LIGHT_POSITION))
                 GL3InitializeSinglePassShaderWithLightPosition(
@@ -1605,15 +1608,18 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
 static SinglePassShaderSelection sreSelectSinglePassShader(const sreObject& so) {
     SinglePassShaderSelection shader;
     int flags = so.render_flags;
+    // Note: Emission-only objects are normally reserved for the final pass, which
+    // does not use this function, so emission-only does not need to be handled here. 
+#if 0
     if (flags & SRE_OBJECT_EMISSION_ONLY)
-        if ((flags & (SRE_OBJECT_MULTI_COLOR |
+        if ((flags & (SRE_OBJECT_EMISSION_ADD_DIFFUSE_REFLECTION_COLOR |
         SRE_OBJECT_USE_EMISSION_MAP | SRE_OBJECT_USE_TEXTURE)) ==
-        SRE_OBJECT_MULTI_COLOR) {
+        SRE_OBJECT_EMISSION_ADD_DIFFUSE_REFLECTION_COLOR)
             shader = SINGLE_PASS_SHADER7;
-        }
         else
             shader = SINGLE_PASS_SHADER3;
     else
+#endif
     if (sre_internal_shader_mask == 0x01 || (flags & SRE_OBJECT_TRANSPARENT_TEXTURE))
         if (sre_internal_current_light->type & SRE_LIGHT_LINEAR_ATTENUATION_RANGE)
             shader = SINGLE_PASS_SHADER6;
@@ -1819,7 +1825,8 @@ static void sreInitializeSinglePassShader(const sreObject& so, SinglePassShaderS
         GL3InitializeShaderWithMVP(single_pass_shader[7].uniform_location[UNIFORM_MVP], so);
         GL3InitializeShaderWithDiffuseReflectionColor(
             single_pass_shader[7].uniform_location[UNIFORM_DIFFUSE_REFLECTION_COLOR], so);
-        GL3InitializeShaderWithMultiColor(single_pass_shader[7].uniform_location[UNIFORM_MULTI_COLOR], so);
+        GL3InitializeShaderWithMultiColor(
+            single_pass_shader[7].uniform_location[UNIFORM_MULTI_COLOR], so);
         GL3InitializeShaderWithEmissionColor(
             single_pass_shader[7].uniform_location[UNIFORM_EMISSION_COLOR], so);
         break;
@@ -1852,11 +1859,20 @@ static inline void SetRenderFlags(sreObject& so) {
 bool sreInitializeObjectShaderEmissionOnly(sreObject& so) {
     bool select_new_shader = (sre_internal_reselect_shaders ||
         so.current_shader[SRE_SHADER_LIGHT_TYPE_ALL] == - 1);
+    SinglePassShaderSelection s;
     if (select_new_shader) {
         SetRenderFlags(so);
-        so.current_shader[SRE_SHADER_LIGHT_TYPE_ALL] = (int)SINGLE_PASS_SHADER3;
+        if ((so.render_flags & (SRE_OBJECT_EMISSION_ADD_DIFFUSE_REFLECTION_COLOR |
+        SRE_OBJECT_USE_EMISSION_MAP | SRE_OBJECT_USE_TEXTURE)) ==
+        SRE_OBJECT_EMISSION_ADD_DIFFUSE_REFLECTION_COLOR)
+            s = SINGLE_PASS_SHADER7;
+        else
+            s = SINGLE_PASS_SHADER3;
+        so.current_shader[SRE_SHADER_LIGHT_TYPE_ALL] = (int)s;
     }
-    sreInitializeSinglePassShader(so, SINGLE_PASS_SHADER3);
+    else
+        s = (SinglePassShaderSelection)so.current_shader[SRE_SHADER_LIGHT_TYPE_ALL];
+    sreInitializeSinglePassShader(so, s);
     return select_new_shader;
 }
 
@@ -2034,10 +2050,10 @@ void GL3InitializeImageShader(int update_mask, sreImageShaderInfo *info, Vector4
 void GL3InitializeTextShader(int update_mask, sreTextShaderInfo *info, Vector4D *rect,
 const char *string, int length) {
 #ifdef OPENGL_ES2
-    unsigned int string_data[SRE_TEXT_MAX_TEXT_WIDTH];
+    unsigned int string_data[SRE_TEXT_MAX_REQUEST_LENGTH];
 #else
 #if !defined(TEXT_ALLOW_UNALIGNED_INT_UNIFORM_ARRAY) || !defined(TEXT_ALLOW_BYTE_ACCESS_BEYOND_STRING)
-    unsigned int string_data[SRE_TEXT_MAX_TEXT_WIDTH / 4];
+    unsigned int string_data[SRE_TEXT_MAX_REQUEST_LENGTH / 4];
 #endif
 #endif
     int shader;
@@ -2053,24 +2069,17 @@ const char *string, int length) {
         glUniform4fv(misc_shader[shader].uniform_location[UNIFORM_MISC_RECTANGLE], 1,
             (GLfloat *)rect);
     if (update_mask & SRE_TEXT_SET_STRING) {
-        // Note: The size is limited to SRE_TEXT_MAX_TEXT_WIDTH.
+        // Note: The size is limited to SRE_TEXT_MAX_REQUEST_LENGTH.
         int size;
-        int n;
-        if (length > 0)
-            n = length;
-        else {
-            n = 0;
-            while (string[n] != '\0' && string[n] != '\n')
-                n++;
-        }
+        int n = length;
 #ifdef OPENGL_ES2
         // Since glUniform with an unsigned type is not available in ES2, and additionally
-        // uniform integer precision seems to be limited to about 14 bits,
+        // uniform integer precision can be limited to about 14 bits in practice,
         // we must convert the string and pack only one characer into a single int.
         // Size of the string in ints, with one characters per int.
         size = n;
         for (int i = 0; i < n; i++) {
-            string_data[i] = (unsigned int)string[i];
+            string_data[i] = *(const unsigned char *)&string[i];
         }
         glUniform1iv(misc_shader[shader].uniform_location[UNIFORM_MISC_STRING], size,
             (GLint *)string_data);

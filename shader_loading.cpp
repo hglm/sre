@@ -740,7 +740,8 @@ const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     "#define POINT_SOURCE_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n",
     // Constant shading-only single pass shader (no lighting or texture)
-    // supporting multi-color and emission color
+    // supporting multi-color and emission color. Diffuse reflection color
+    // is added to emission color.
     "#define SINGLE_PASS\n"
     "#define COLOR_IN\n"
     "#define MULTI_COLOR_OPTION\n"
@@ -1072,10 +1073,12 @@ static const MiscShaderInfo misc_shader_info[] = {
     (1 << UNIFORM_MISC_SCREEN_SIZE_IN_CHARS) | (1 << UNIFORM_MISC_STRING),
     (1 << ATTRIBUTE_POSITION),
     "gl3_image.vert", "gl3_text2.frag",
-    "#define TEXT_SHADER\n#define ONE_COMPONENT\n#define MAX_TEXT_LENGTH 256\n"
+    "#define TEXT_SHADER\n#define ONE_COMPONENT\n"
 #ifdef OPENGL_ES2
+    "#define MAX_TEXT_LENGTH 128\n"
     "#define FONT_TEXTURE_COLUMNS 16\n#define FONT_TEXTURE_ROWS 16\n"
 #else
+    "#define MAX_TEXT_LENGTH 256\n"
     "#define FONT_TEXTURE_COLUMNS 16u\n#define FONT_TEXTURE_ROWS 16u\n"
 #endif
     },
@@ -1087,10 +1090,12 @@ static const MiscShaderInfo misc_shader_info[] = {
     (1 << UNIFORM_MISC_SCREEN_SIZE_IN_CHARS) | (1 << UNIFORM_MISC_STRING),
     (1 << ATTRIBUTE_POSITION),
     "gl3_image.vert", "gl3_text2.frag",
-    "#define TEXT_SHADER\n#define ONE_COMPONENT\n#define MAX_TEXT_LENGTH 256\n"
+    "#define TEXT_SHADER\n#define ONE_COMPONENT\n"
 #ifdef OPENGL_ES2
+    "#define MAX_TEXT_LENGTH 128\n"
     "#define FONT_TEXTURE_COLUMNS 32\n#define FONT_TEXTURE_ROWS 8\n"
 #else
+    "#define MAX_TEXT_LENGTH 256\n"
     "#define FONT_TEXTURE_COLUMNS 32u\n#define FONT_TEXTURE_ROWS 8u\n"
 #endif
     },

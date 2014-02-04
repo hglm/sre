@@ -58,7 +58,7 @@ void Demo10CreateScene() {
         Color(0.5, 0.1, 0.1), Color(0.1, 0.1, 0.5));
     scene->SetFlags(SRE_OBJECT_MULTI_COLOR | SRE_OBJECT_NO_BACKFACE_CULLING |
          SRE_OBJECT_NO_PHYSICS | SRE_OBJECT_EMISSION_ONLY |
-         SRE_OBJECT_EMISSION_ADD_DIFFUSE);
+         SRE_OBJECT_EMISSION_ADD_DIFFUSE_REFLECTION_COLOR);
 #else
     sreModel *checkerboard_model = sreCreateCheckerboardModel(scene, 4, 50,
         Color(1.0, 0.2, 0.2), Color(0.2, 0.2, 1.0));

@@ -86,10 +86,8 @@ void main() {
         // Get the ASCII character byte from the packed int array.
 #ifdef GL_ES
 	// Because OpenGL-ES 2.0 GLSL does not have unsigned integers, integers have only
-	// about 16 or 17 bits of precision (max.), and there are no shift operations,
-        // more work is needed to unpack the character and we can only store two characters
-        // in an int. In fact, because uniform int arrays have only 14 bits of precision
-        // on certain platforms, we need an int for each character.
+	// about 16 or 17 bits or even 14 bits of maximum precision, and there are no shift
+        // operators, we need an int for each character.
 	_uintlowp ch = string_in[char_index];
 #else
  	_uintlowp ch = (string_in[char_index >> 2u] >> ((char_index & 3u) << 3u)) &

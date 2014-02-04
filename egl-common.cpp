@@ -79,6 +79,7 @@ static const EGLint attribute_list[] = {
     EGL_ALPHA_SIZE, 8,
     EGL_DEPTH_SIZE, 24,
     EGL_STENCIL_SIZE, 8,
+    EGL_NATIVE_RENDERABLE, EGL_TRUE,
 #ifndef NO_MULTI_SAMPLE
     // Enable 4-sample MSAA.
 #ifdef OPENGL_ES2_RPI

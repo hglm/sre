@@ -10,7 +10,7 @@ correctly with  full features with OpenGL on a Linux PC platform,
 although it has not been tested much beyond a discrete NVIDIA GPU.
 Installing NVIDIA's optimized drivers is highly recommended.
 
-The OpenGL-ES 2.0 X11 back-end compiles and is working to some extent,
+The OpenGL-ES 2.0 X11 back-end compiles and is working to a large extent,
 but a few bugs still need to be eliminated. The framebuffer OpenGL-ES
 back-ends may require more work.
 
@@ -206,7 +206,7 @@ errors.
 
 - The OpenGL-ES 2.0 front-end and related EGL (X11) back-end build without
   errors when tested on an ARM platform with Mali-400 but a few bugs still
-  need to be eliminated (such as invisible objects).
+  need to be eliminated (mainly with the text drawing function).
 
 - Investigate why octree creation results in 2500 objects (blue fields,
   also small lightscape lights) in the same node in demo8. This may
@@ -335,3 +335,9 @@ deviantart.com.
 
 elephant.obj (used in demo2) and venusm.obj (demo11) are models obtained
 from the internet.
+
+The vector and matrix class libraries are derived from those provided with
+the book "Mathematics for 3D Game Programming and Computer Graphics" by
+Eric Lengyel (http://www.mathfor3dgameprogramming.com), and several
+mathematical, geometrical and rendering techniques described in the book
+are adopted in the engine code.

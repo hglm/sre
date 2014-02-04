@@ -184,7 +184,14 @@ public :
     void SetSource(int set_mask, SRE_GLUINT opengl_id, int array_index);
 };
 
-#define SRE_TEXT_MAX_TEXT_WIDTH 256
+#ifndef OPENGL_ES2
+#define SRE_TEXT_MAX_REQUEST_LENGTH 256
+#else
+// OpenGL-ES 2.0 shader can be more limited in terms of the number of characters
+// per draw request, because each characters has to be stored in a full int uniform.
+// Large strings are split into seperate requests.
+#define SRE_TEXT_MAX_REQUEST_LENGTH 128
+#endif
 
 enum {
     SRE_FONT_FORMAT_32X8 = (32 | (8 << 8)),
@@ -198,9 +205,7 @@ public :
 };
 
 // Defined in sre_uniform.cpp:
-// When length > 0, it specifies the length of the string in characters and the string is
-// directly copied to the shader. Otherwise, the length of the string will be determined
-// first.
+// Length specifies the length of the string in characters.
 void GL3InitializeTextShader(int update_mask, sreTextShaderInfo *info, Vector4D *rect,
     const char *string, int length);
 void GL3InitializeImageShader(int set_flags, sreImageShaderInfo *info, Vector4D *rect);
