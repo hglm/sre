@@ -77,7 +77,11 @@ void main() {
 	// Round down the character position into the text image to get the character index.
 	float x_floor = floor(text_image_position_var.x); 
 	// Convert to integer.
+#ifdef GL_ES
+	_uintlowp char_index = int(x_floor);
+#else
 	_uintlowp char_index = uint(x_floor);
+#endif
 	// Because text_image_position_var is in character units, the relative texcoords
         // coordinates are obtained with a simple subtraction.
 	vec2 texcoords_within_char = text_image_position_var - vec2(x_floor, 0.0);
