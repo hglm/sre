@@ -5,19 +5,19 @@ Edit Makefile.conf to edit the configuration. It is possible to
 compile the library and demo program without installing by setting
 the library configuration to STATIC.
 
-NOTE: The current initial code drop as of Feb 2014 has only been tested
-with OpenGL on a PC platform; the OpenGL-ES 2.0 X11 back-end most likely
-does not compile due to restructuring of the back-end interface and may
-have bugs. A previous version of SRE worked correctly with OpenGL-ES 2.0,
-and it should not be a lot of work to make it compile and work correctly
-again. Framebuffer OpenGL-ES front-ends may require more work.
+NOTE: The current version as of Feb 2014 has been tested and works
+correctly with  full features with OpenGL on a Linux PC platform; the
+OpenGL-ES 2.0 X11 back-end compiles and is working to some extent, but
+a few bugs still need to be eliminated. The framebuffer OpenGL-ES front-
+ends may require more work.
 
-Running "make" compiles the library.
+Running "make" compiles the library. It might be necessary to run
+"make rules" beforehand.
 Running "make demo" compiles the demo application, which will be
 called sre-demo.
 Running "make install" (usually as superuser) installs the library
 and header file into the directories specified in the configuration
-file.
+file. Installation is not necessary to compile or run the demo.
 Run "make dep" and "make rules" may be necessary after source changes.
 
 The demo program supports a few options, run it without arguments
@@ -25,18 +25,23 @@ for help. There are about 15 different demo scenes/tests present,
 one of which must be supplied as an argument. For example,
 "./sre-demo demo10".
 
-demo3 is a small solar system simulator that is not up-to-date with the
-current code base.
-
-demo4 is a sophisticated Earth terrain demo that needs some fixes to
-work correctly with the current code base, and requires certain large
-textures that are not included.
+Demos that should work include demo1, demo2, demo5, demo5, demo7, demo8,
+demo10 and demo11.
 
 game is simple game in which a ball must be pushed onto the ground; it
 should work in the current code base.
 
-Other demos, including demo1, demo2, demo5, demo5, demo7, demo8, demo10,
-demo11, and textdemo should work correctly.
+textdemo demonstrates the text drawing functions that use a highly
+optimized text shader.
+
+Demos that do not work correctly in the current version:
+
+demo3 is a small solar system simulator that is not up-to-date with the
+current code base.
+
+demo4 is a sophisticated Earth terrain demo that needs some fixes to
+work correctly with the current code base, and requires very large
+terrain textures that are not included.
 
 --- Requirements ---
 
@@ -49,7 +54,7 @@ navigation. Recently it has become available on some Debian
 repositories (including x86 and armhf). Install the libbullet-dev
 package.
 
-Platform specific development libraries are needed to compile the
+Platform-specific development libraries are needed to compile the
 back-end. This includes:
 
 - X11 development libraries for pure X11 support (should not be needed
@@ -67,8 +72,8 @@ The Makefile uses sed and awk.
 
 SRE support both stencil shadow volumes and shadow mapping. Shadows
 are supported for most of the light types, including directional,
-point-source, spotlight and beam light. Shadow volumes are sharply
-defined (it's a geometrical, pixel-precise techique), whereas shadow
+point-source, spotlight and beam lights. Shadow volumes are sharply
+defined (it's a geometrical, pixel-precise technique), whereas shadow
 mapping may show pixelization in the shadows but is move versatile.
 
 The shadow volumes implementation is highly optimized including a
@@ -189,6 +194,20 @@ errors.
   exhaustively tested yet (although it most likely works correctly).
 
 2. Current bugs.
+
+- During textdemo, the screen may go black sometimes. Could be some kind
+  of timing issue or shader/uniform-related bug.
+
+- The text in textdemo is white; it used to be, and should be, multi-
+  colored. It is not clear what is causing this bug. 
+
+- The text characters are not correctly displayed (same charactery is
+  repeated) in the optimized text shader on the OpenGL-ES 2.0 platform. 
+
+- The OpenGL-ES 2.0 front-end and related EGL (X11) back-end build without
+  errors when tested on an ARM platform with Mali-400 but a few bugs still
+  need to be eliminated (such as invisible objects, and buggy mouse
+  control).
 
 - Investigate why octree creation results in 2500 objects (blue fields,
   also small lightscape lights) in the same node in demo8. This may

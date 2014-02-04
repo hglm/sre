@@ -24,6 +24,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <unistd.h>
 #include <math.h>
 #include <string.h>
+#include <sys/time.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
@@ -36,8 +37,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 static Display *XDisplay = NULL;
 static Window XWindow;
 static Colormap window_cmap;
-
-static bool menu_mode = false;
 
 void X11OpenDisplay() {
    XDisplay = XOpenDisplay(NULL);
@@ -68,23 +67,37 @@ void X11CloseDisplay() {
     XCloseDisplay(XDisplay);
 }
 
+// If vi is NULL, a truecolor visual with 32-bit pixels will searched for.
+
 void X11CreateWindow(int width, int height, XVisualInfo *vi, const char *title) {
     if (XDisplay == NULL)
         X11OpenDisplay(); 
 
-    Window XRoot =RootWindow(XDisplay, vi->screen);
+    XVisualInfo vinfo;
+    if (vi == NULL) {
+        int r;
+        r = XMatchVisualInfo(XDisplay, X11GetScreenIndex(), 32, TrueColor, &vinfo);
+        if (r == 0) {
+            printf("Error: Failed to find visual with depth of 32.\n");
+            exit(1);
+        }
+    }
+    else
+        vinfo = *vi;
+
+    Window XRoot = RootWindow(XDisplay, vinfo.screen);
 
     XSetWindowAttributes XWinAttr;
     XWinAttr.event_mask  =  ExposureMask | PointerMotionMask | KeyPressMask |
         KeyReleaseMask | ButtonPressMask | StructureNotifyMask;
     printf( "Creating colormap\n" );
     XWinAttr.colormap = window_cmap = XCreateColormap(XDisplay,
-        XRoot, vi->visual, AllocNone);
+        XRoot, vinfo.visual, AllocNone);
     XWinAttr.background_pixmap = None;
     XWinAttr.border_pixel = 0;
 
     XWindow = XCreateWindow(XDisplay, XRoot, 0, 0, width, height, 0,
-        vi->depth, InputOutput, vi->visual,
+        vinfo.depth, InputOutput, vinfo.visual,
         CWEventMask | CWBorderPixel | CWColormap, &XWinAttr);
 
     if (XWindow == 0) {
@@ -235,3 +248,12 @@ void GUIWarpCursor(int x, int y) {
         XWindow,
         0, 0, 0, 0, x, y);
 }
+
+// The following function more or less assumes Linux is used.
+
+double GetCurrentTime() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+}
+

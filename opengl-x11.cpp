@@ -214,12 +214,6 @@ void GUIGLSync() {
     glXWaitGL();
 }
 
-double GetCurrentTime() {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
-}
-
 const char *GUIGetBackendName() {
    return "OpenGL X11 (low-level)";
 }

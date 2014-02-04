@@ -24,7 +24,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 //
 // Used by both SRE image shaders and the text2 shader.
 
+#ifndef GL_ES
 #version 130
+#endif
 
 // The position attribute is always equal to (0,0), (1.0, 0), (0, 1.0) or (1.0, 1.0).
 attribute vec2 position_in;	// (0,0) is top-left corner of area.

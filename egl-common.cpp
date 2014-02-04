@@ -85,6 +85,7 @@ static const EGLint attribute_list[] = {
     EGL_SAMPLE_BUFFERS, 1,
 #endif
     EGL_SAMPLES, 4,
+#endif
     EGL_NONE
    };
 
@@ -94,14 +95,13 @@ static int egl_chosen_config;
 
 #define check() assert(glGetError() == 0)
 
-static void EGLInitialize(EGL_STATE_T *state, int native_display) {
-    int32_t success = 0;
+static void EGLInitialize(EGL_STATE_T *state, EGLNativeDisplayType native_display) {
     EGLBoolean result;
     EGLint num_config;
 
     state->display = eglGetDisplay(native_display);
 //    state->display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    assert(state->display! = EGL_NO_DISPLAY);
+    assert(state->display != EGL_NO_DISPLAY);
     check();
 
     // Initialize the EGL display connection.
@@ -111,7 +111,7 @@ static void EGLInitialize(EGL_STATE_T *state, int native_display) {
 #else
     result = eglInitialize(state->display, NULL, NULL);
 #endif
-    assert(result != EGL_FALSE;
+    assert(result != EGL_FALSE);
     check();
 
     // Get the number of appropriate EGL framebuffer configurations.
@@ -124,7 +124,7 @@ static void EGLInitialize(EGL_STATE_T *state, int native_display) {
     egl_config = (EGLConfig *)alloca(num_config * sizeof(EGLConfig));
     // Get an array of appropriate EGL framebuffer configurations,
     result = eglChooseConfig(state->display, attribute_list, egl_config, num_config, &num_config);
-    assert(EGL_FALSE != result);
+    assert(result != EGL_FALSE);
     check();
     printf("EGL: %d framebuffer configurations returned.\n", num_config);
 
@@ -132,24 +132,24 @@ static void EGLInitialize(EGL_STATE_T *state, int native_display) {
     egl_chosen_config = 0;
 
     result = eglBindAPI(EGL_OPENGL_ES_API);
-    assert(EGL_FALSE != result);
+    assert(result != EGL_FALSE);
     check();
 
     // Create an EGL rendering context.
     state->context = eglCreateContext(state->display, egl_config[egl_chosen_config], EGL_NO_CONTEXT,
         egl_context_attributes);
-    assert(state->context!= EGL_NO_CONTEXT);
+    assert(state->context != EGL_NO_CONTEXT);
     check();
 
     int width, height;
     void *window;
     // width, height and window are reference arguments and will be set.
     EGLInitializeSubsystemWindow(width, height, window);
-    state_>screen_width = width;
+    state->screen_width = width;
     state->screen_height = height;
 
     state->surface = eglCreateWindowSurface(state->display, egl_config[egl_chosen_config],
-        window, window_attribute_list);
+        (EGLNativeWindowType)window, window_attribute_list);
     assert(state->surface != EGL_NO_SURFACE);
     check();
 #if 0
@@ -178,7 +178,7 @@ static void EGLInitialize(EGL_STATE_T *state, int native_display) {
 }
 
 void InitializeGUI(int *argc, char ***argv) {
-    int native_display = EGLGetNativeDisplay();
+    EGLNativeDisplayType native_display = (EGLNativeDisplayType)EGLGetNativeDisplay();
 
     state = (EGL_STATE_T *)malloc(sizeof(EGL_STATE_T));
     // Clear application state,
@@ -206,7 +206,7 @@ void DeinitializeGUI() {
    eglDestroyContext(state->display, state->context);
    eglTerminate(state->display);
 
-   EGLDeinitilializeSubsystem();
+   EGLDeinitializeSubsystem();
 }
 
 void EGLSwapBuffers() {

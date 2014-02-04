@@ -99,10 +99,10 @@ ifdef OPENGL_ES2
 # OPENGL ES2 platform configuration.
 PLATFORM_MODULE_OBJECTS = egl-common.o
 
-ifeq ($(OPENGL_ES2, X11))
+ifeq ($(OPENGL_ES2), X11)
 # X11 EGL window
 DEFINES_OPENGL_ES2 = -DOPENGL_ES2_X11
-PLATFORM_MODULE_OBJECTS += egl-x11.o x11-common.o
+PLATFORM_MODULE_OBJECTS += egl-x11.o
 endif
 ifeq ($(OPENGL_ES2), RPI_FB)
 # Raspberry Pi with Broadcom VideoCore.
@@ -122,7 +122,7 @@ PKG_CONFIG_CFLAGS_LIB =
 PKG_CONFIG_LIBS_LIB =
 
 # Need console mouse support when not using X11
-ifneq ($(OPENGL_ES2, X11))
+ifneq ($(OPENGL_ES2), X11)
 PLATFORM_MODULE_OBJECTS += $(FRAMEBUFFER_COMMON_MODULE_OBJECTS)
 endif
 

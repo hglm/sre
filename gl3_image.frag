@@ -40,7 +40,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #ifdef GL_ES
 precision highp float;
 #endif
-#ifdef TEXTURE_ARRAY
+#if defined(TEXTURE_ARRAY) && !defined(GL_ES)
 uniform sampler2DArray texture_in;
 uniform int array_in;
 #else
@@ -51,7 +51,7 @@ uniform vec4 add_color_in;
 varying vec2 texcoords_var;
 
 void main() {
-#ifdef TEXTURE_ARRAY
+#if defined(TEXTURE_ARRAY) && !defined(GL_ES)
 #ifdef ONE_COMPONENT
         float i = texture(texture_in, vec3(texcoords_var, array_in)).x;
 #else
@@ -59,7 +59,7 @@ void main() {
 #endif
 #else
 #ifdef ONE_COMPONENT
-        float i = texture(texture_in, texcoords_var).x;
+        float i = texture2D(texture_in, texcoords_var).x;
 #else
 	vec4 tex_color = texture2D(texture_in, texcoords_var);
 	tex_color.a = 1.0;

@@ -23,11 +23,8 @@ void *X11GetDisplay();
 long unsigned int X11GetWindow();
 int X11GetScreenIndex();
 void X11ToggleFullScreenMode(int &width, int& height, bool pan_with_mouse);
-void X11WarpPointer(int width , int height);
-void X11RestoreCursor();
-void X11HideCursor();
 void X11DestroyWindow();
 void X11CloseDisplay();
 
 void ProcessGUIEvents();
-
+double GetCurrentTime();

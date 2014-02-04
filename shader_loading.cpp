@@ -1073,7 +1073,11 @@ static const MiscShaderInfo misc_shader_info[] = {
     (1 << ATTRIBUTE_POSITION),
     "gl3_image.vert", "gl3_text2.frag",
     "#define TEXT_SHADER\n#define ONE_COMPONENT\n#define MAX_TEXT_LENGTH 256\n"
+#ifdef OPENGL_ES2
+    "#define FONT_TEXTURE_COLUMNS 16\n#define FONT_TEXTURE_ROWS 16\n"
+#else
     "#define FONT_TEXTURE_COLUMNS 16u\n#define FONT_TEXTURE_ROWS 16u\n"
+#endif
     },
     {
     "Text shader (32x8 font texture)",
@@ -1084,7 +1088,11 @@ static const MiscShaderInfo misc_shader_info[] = {
     (1 << ATTRIBUTE_POSITION),
     "gl3_image.vert", "gl3_text2.frag",
     "#define TEXT_SHADER\n#define ONE_COMPONENT\n#define MAX_TEXT_LENGTH 256\n"
+#ifdef OPENGL_ES2
+    "#define FONT_TEXTURE_COLUMNS 32\n#define FONT_TEXTURE_ROWS 8\n"
+#else
     "#define FONT_TEXTURE_COLUMNS 32u\n#define FONT_TEXTURE_ROWS 8u\n"
+#endif
     },
     {
     "2D texture image shader",
@@ -1107,7 +1115,10 @@ static const MiscShaderInfo misc_shader_info[] = {
     {
     "2D texture array image shader",
     SRE_SHADER_MASK_IMAGE,
-    (1 << UNIFORM_MISC_TEXTURE_SAMPLER) | (1 << UNIFORM_MISC_ARRAY_INDEX) |
+    (1 << UNIFORM_MISC_TEXTURE_SAMPLER) |
+#ifndef OPENGL_ES2
+    (1 << UNIFORM_MISC_ARRAY_INDEX) |
+#endif
     (1 << UNIFORM_MISC_RECTANGLE) | (1 << UNIFORM_MISC_UV_TRANSFORM) |
     (1 << UNIFORM_MISC_MULT_COLOR) | (1 << UNIFORM_MISC_ADD_COLOR),
     (1 << ATTRIBUTE_POSITION),
@@ -1116,7 +1127,10 @@ static const MiscShaderInfo misc_shader_info[] = {
     {
     "2D texture array image shader (one component)",
     SRE_SHADER_MASK_IMAGE,
-    (1 << UNIFORM_MISC_TEXTURE_SAMPLER) | (1 << UNIFORM_MISC_ARRAY_INDEX) |
+    (1 << UNIFORM_MISC_TEXTURE_SAMPLER) |
+#ifndef OPENGL_ES2
+    (1 << UNIFORM_MISC_ARRAY_INDEX) |
+#endif
     (1 << UNIFORM_MISC_RECTANGLE) | (1 << UNIFORM_MISC_UV_TRANSFORM) |
     (1 << UNIFORM_MISC_MULT_COLOR) | (1 << UNIFORM_MISC_ADD_COLOR),
     (1 << ATTRIBUTE_POSITION),

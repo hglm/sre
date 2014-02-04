@@ -84,8 +84,13 @@ void sreScene::Render(sreView *view) {
     }
 
     // The non-multi pass shaders are limited by the number of active lights.
-    if (!sre_internal_multi_pass_rendering)
+    if (!sre_internal_multi_pass_rendering) {
         CalculateActiveLights(view);
+        // Only one light is supported with single-pass rendering.
+        // Set the current light.
+        sre_internal_current_light_index = active_light[0];
+        sre_internal_current_light = global_light[active_light[0]];
+    }
 
     // Restore GL settings for rendering.
     glDisable(GL_BLEND);
@@ -118,11 +123,8 @@ void sreScene::Render(sreView *view) {
     DetermineVisibleEntities(*frustum);
 
     if (!sre_internal_multi_pass_rendering) {
-        // Single pass rendering (with a final pass for possibly transparent emission only objects).
-        // Only one light is supported.
-        // Set the current light.
-        sre_internal_current_light_index = active_light[0];
-        sre_internal_current_light = global_light[active_light[0]];
+        // Single pass rendering (with a final pass for possibly transparent emission only
+         //objects).
         // Render objects.
         RenderVisibleObjectsSinglePass(*frustum);
         RenderFinalPassObjectsSinglePass(*frustum);
@@ -293,7 +295,7 @@ void sreScene::Render(sreView *view) {
     }
 #endif
 
-    // Note: When HDR rendering is enabled, shadow volume shadows disappear.
+    // Note: When HDR rendering is enabled, shadow volume shadows disappear (error?).
 
     // Visualize shadow maps in an overlay if requested.
 #ifndef NO_SHADOW_MAP

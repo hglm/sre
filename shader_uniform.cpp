@@ -119,6 +119,8 @@ static void GL3InitializeShaderWithAmbientColor(int loc) {
 
 // Shadow map generating shader-specific uniforms.
 
+#ifndef NO_SHADOW_MAP
+
 static void GL3InitializeShadowMapShaderWithShadowMapMVP(int loc, const sreObject& so) {
     Matrix4D MVP = shadow_map_matrix * so.model_matrix;
     glUniformMatrix4fv(loc, 1, GL_FALSE, (const float *)&MVP);
@@ -127,6 +129,8 @@ static void GL3InitializeShadowMapShaderWithShadowMapMVP(int loc, const sreObjec
 static void GL3InitializeShadowMapShaderWithLightPosition(int loc) {
     glUniform3fv(loc, 1, (GLfloat *)&sre_internal_current_light->vector);
 }
+
+#endif
 
 // Lighting-related uniforms.
 
@@ -203,8 +207,8 @@ static void GL3InitializeMultiPassShaderWithSpotlight(int loc) {
     glUniform4fv(loc, 1, (GLfloat *)&sre_internal_current_light->spotlight);
 }
 
-// The single-pass shaders use one light. The functions below that support multiple lights are disabled;
-// we use the multi-pass functions instead to set light parameters.
+// The single-pass shaders use one light. The functions below that support multiple
+// lights are disabled; we use the multi-pass functions instead to set light parameters.
 
 static void GL3InitializeSinglePassShaderWithLightPosition(int loc) {
     GL3InitializeMultiPassShaderWithLightPosition(loc);
@@ -229,12 +233,17 @@ static void GL3InitializeShaderWithNumberOfLights(int loc) {
 }
 
 static void GL3InitializeSinglePassShaderWithLightPosition(int loc) {
-    float *lightpos = (float *)alloca(sizeof(float) * sre_internal_scene->nu_active_lights * 4);
+    float *lightpos = (float *)alloca(sizeof(float) *
+        sre_internal_scene->nu_active_lights * 4);
     for (int i = 0; i < sre_internal_scene->nu_active_lights; i++) {
-        lightpos[i * 4] = sre_internal_scene->global_light[sre_internal_scene->active_light[i]]->vector.x;
-        lightpos[i * 4 + 1] = sre_internal_scene->global_light[sre_internal_scene->active_light[i]]->vector.y;
-        lightpos[i * 4 + 2] = sre_internal_scene->global_light[sre_internal_scene->active_light[i]]->vector.z;
-        lightpos[i * 4 + 3] = sre_internal_scene->global_light[sre_internal_scene->active_light[i]]->vector.w;
+        lightpos[i * 4] = sre_internal_scene->global_light[
+            sre_internal_scene->active_light[i]]->vector.x;
+        lightpos[i * 4 + 1] = sre_internal_scene->global_light[
+            sre_internal_scene->active_light[i]]->vector.y;
+        lightpos[i * 4 + 2] = sre_internal_scene->global_light[
+             sre_internal_scene->active_light[i]]->vector.z;
+        lightpos[i * 4 + 3] = sre_internal_scene->global_light[
+             sre_internal_scene->active_light[i]]->vector.w;
     }
     glUniform4fv(loc, sre_internal_scene->nu_active_lights, lightpos);
 }
@@ -1363,6 +1372,7 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
             GL3InitializeShaderWithAnisotropic(
                 lighting_pass_shader[11].uniform_location[UNIFORM_ANISOTROPIC], so);
             break;
+#ifndef NO_SHADOW_MAP
         case SHADER12 : // Shadow map, directional light.
             glUseProgram(lighting_pass_shader[12].program);
             GL3InitializeShaderWithMVP(lighting_pass_shader[12].uniform_location[UNIFORM_MVP], so);
@@ -1588,6 +1598,7 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
             GL3InitializeShaderWithObjectSpecularMap(so);
             GL3InitializeShaderWithObjectEmissionMap(so);
             break;
+#endif
         }
 }
 
@@ -2008,9 +2019,11 @@ void GL3InitializeImageShader(int update_mask, sreImageShaderInfo *info, Vector4
             GL_FALSE, (GLfloat *)&info->uv_transform);
     if (update_mask & SRE_IMAGE_SET_TEXTURE) {
         glActiveTexture(GL_TEXTURE0);
+#ifndef OPENGL_ES2
         if (info->source_flags & SRE_IMAGE_SOURCE_FLAG_TEXTURE_ARRAY)
             glBindTexture(GL_TEXTURE_2D_ARRAY, info->opengl_id);
         else
+#endif
             glBindTexture(GL_TEXTURE_2D, info->opengl_id);
     }
 }
@@ -2055,9 +2068,17 @@ const char *string, int length) {
         // a multiple of four, and unaligned CPU memory access may happen. However, most modern
         // CPUs can cope with this automatically.
         //
-        // This requires a shader change to work correctly on big-endian CPUs (which are very rare
-	// on systems running OpenGL).
-        glUniform1uiv(misc_shader[shader].uniform_location[UNIFORM_MISC_STRING], size, (GLuint *)string);
+        // This requires a shader change to work correctly on big-endian CPUs (which are very
+        // rare on systems running OpenGL).
+#ifdef OPENGL_ES2
+        // Since glUniform with an unsigned type is not available in ES2, use the
+        // the signed integer function (the results should be the same).
+        glUniform1iv(misc_shader[shader].uniform_location[UNIFORM_MISC_STRING], size,
+            (GLint *)string);
+#else
+        glUniform1uiv(misc_shader[shader].uniform_location[UNIFORM_MISC_STRING], size,
+            (GLuint *)string);
+#endif
 #else
 
 #if defined(TEXT_ALLOW_UNALIGNED_INT_UNIFORM_ARRAY)
@@ -2102,10 +2123,12 @@ const char *string, int length) {
         glUniform2fv(misc_shader[shader].uniform_location[UNIFORM_MISC_SCREEN_SIZE_IN_CHARS], 1,
             (GLfloat *)&info->screen_size_in_chars);
     if (update_mask & SRE_IMAGE_SET_TEXTURE) {
+#ifndef NO_SHADOW_MAP
         glActiveTexture(GL_TEXTURE0);
         if (info->source_flags & SRE_IMAGE_SOURCE_FLAG_TEXTURE_ARRAY)
             glBindTexture(GL_TEXTURE_2D_ARRAY, info->opengl_id);
         else
+#endif
             glBindTexture(GL_TEXTURE_2D, info->opengl_id);
     }
 }
@@ -2121,6 +2144,8 @@ void GL3InitializeShadowVolumeShader(const sreObject& so, const Vector4D& light_
         misc_shader[SRE_MISC_SHADER_SHADOW_VOLUME].uniform_location[UNIFORM_MISC_LIGHT_MODEL_SPACE],
         (float *)&light_position_model_space);
 }
+
+#ifndef NO_SHADOW_MAP
 
 void GL3InitializeShadowMapShader(const sreObject& so) {
     if (so.render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE) {
@@ -2170,6 +2195,8 @@ void GL3InitializeCubeShadowMapShader(const sreObject& so) {
             misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP].uniform_location[UNIFORM_MISC_MODEL_MATRIX], so);
     }
 }
+
+#endif
 
 #ifndef NO_HDR
 

@@ -19,7 +19,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // Functions provided by device-specific EGL back-end driver.
 
-int EGLGetNativeDispay();
-void EGLInitializeSubsystemWindow(int& width, int &height, void& *window);
+// The native display and window are treated as void *, which, although ugly,
+// should be sufficient even with architectures with 64-bit pointers. Keeping
+// the types generic make it easier to share code between back-ends and
+// eventually allow multiple back-ends to be compiled in simultaneously.
+
+void *EGLGetNativeDisplay();
+void EGLInitializeSubsystemWindow(int& width, int &height, void *&window);
 void EGLDeinitializeSubsystem();
 

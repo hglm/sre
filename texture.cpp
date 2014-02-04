@@ -110,11 +110,13 @@ static void CheckTextureFormats() {
 
     min_anisotropy = 0;
     max_anisotropy = 0;
+#ifndef OPENGL_ES2
     if (GLEW_EXT_texture_filter_anisotropic) {
         glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max_anisotropy);
         printf("Max anisotropy for anisotropic filtering: %.1f.\n",
             max_anisotropy);
     }
+#endif
 
     checked_texture_formats = true;
 }
@@ -840,6 +842,7 @@ void sreTexture::ChangeParameters(int flags, int filtering, float anisotropy) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     }
+#ifndef OPENGL_ES2
     if (flags & SRE_TEXTURE_FLAG_SET_ANISOTROPY) {
         if (GLEW_EXT_texture_filter_anisotropic) {
             if (anisotropy > max_anisotropy)
@@ -849,6 +852,7 @@ void sreTexture::ChangeParameters(int flags, int filtering, float anisotropy) {
             glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropy);
         }
     }
+#endif
 }
 
 void sreTexture::MergeTransparencyMap(sreTexture *t) {
