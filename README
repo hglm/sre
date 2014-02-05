@@ -8,11 +8,11 @@ the library configuration to STATIC.
 The current version as of Feb 2014 has been tested and works
 correctly with  full features with OpenGL on a Linux PC platform,
 although it has not been tested much beyond a discrete NVIDIA GPU.
-Installing NVIDIA's optimized drivers is highly recommended.
+Installing NVIDIA's optimized Linux drivers is highly recommended.
 
-The OpenGL-ES 2.0 X11 back-end compiles and is working to a large extent,
-but a few bugs may still need to be eliminated. The framebuffer OpenGL-ES
-back-ends may require more work.
+The OpenGL-ES 2.0 X11 back-end compiles and works, although it has
+only been tested on a Mali-400 platform. The framebuffer OpenGL-ES
+2.0 back-ends may require more work.
 
 Running "make" compiles the library. It might be necessary to run
 "make rules" beforehand.
@@ -32,7 +32,8 @@ Demos that should work include demo1, demo2, demo5, demo5, demo7, demo8,
 demo10 and demo11.
 
 game is simple game in which a ball must be pushed onto the ground; it
-should work in the current code base.
+should work in the current code base but may cause problems when moving
+to a new level.
 
 textdemo demonstrates the text drawing functions that use a highly
 optimized text shader.
