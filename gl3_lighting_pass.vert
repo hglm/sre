@@ -22,8 +22,14 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 //
 // It has been written to be compatible with both OpenGL 2.0+ and OpenGL ES 2.0.
 
+// For OpenGL-ES 2.0, allow medium precision for interpolated values that do not need
+// the highest precision. These are preceded by the macro MEDIUMP, which expands to
+// nothing when using OpenGL.
 #ifndef GL_ES
 #version 120
+#define MEDIUMP
+#else
+#define MEDIUMP mediump
 #endif
 uniform mat4 MVP;
 #ifdef POSITION_WORLD_VAR
@@ -73,7 +79,7 @@ attribute vec4 tangent_in;
 #endif
 #ifdef COLOR_IN
 attribute vec3 color_in;		// For multi-color objects
-varying vec3 diffuse_reflection_color_var;
+varying MEDIUMP vec3 diffuse_reflection_color_var;
 #endif
 #ifdef NORMAL_VAR
 varying vec3 normal_var;
@@ -82,7 +88,7 @@ varying vec3 normal_var;
 varying vec3 position_world_var;
 #endif
 #ifdef TBN_MATRIX_VAR
-varying mat3 tbn_matrix_var;
+varying MEDIUMP mat3 tbn_matrix_var;
 #endif
 #ifdef TEXCOORD_VAR
 varying vec2 texcoord_var;

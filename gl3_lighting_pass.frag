@@ -23,7 +23,15 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // It has been written to be compatible with both OpenGL 2.0+ and OpenGL ES 2.0.
 
 #ifdef GL_ES
-precision highp float;
+// On archtectures that support high precision floats in the fragment shader,
+// colors might be more accurate when the default float precision is high.
+// precision highp float;
+precision mediump float;
+#define MEDIUMP mediump
+#define LOWP lowp
+#else
+#define MEDIUMP
+#define LOWP
 #endif
 #ifdef SHADOW_CUBE_MAP
 #version 400
@@ -94,7 +102,7 @@ uniform float segment_distance_scaling_in[6];
 #if !defined(MULTI_COLOR_OPTION) && !defined(MULTI_COLOR_FIXED)
 uniform vec3 diffuse_reflection_color_in;
 #else
-varying vec3 diffuse_reflection_color_var;
+varying MEDIUMP vec3 diffuse_reflection_color_var;
 #endif
 #ifdef NORMAL_VAR
 varying vec3 normal_var;
@@ -103,7 +111,7 @@ varying vec3 normal_var;
 varying vec3 position_world_var;
 #endif
 #ifdef TBN_MATRIX_VAR
-varying mat3 tbn_matrix_var;
+varying MEDIUMP mat3 tbn_matrix_var;
 #endif
 #ifdef TEXCOORD_VAR
 varying vec2 texcoord_var;
@@ -184,8 +192,8 @@ vec3 AnisotropicMicrofacetTextureValue(float NdotH, float LdotH, float TdotP) {
 #endif
 
 void main() {
-        vec3 diffuse_reflection_color;
-	vec3 diffuse_base_color;
+        LOWP vec3 diffuse_reflection_color;
+	LOWP vec3 diffuse_base_color;
 #if defined(MULTI_COLOR_OPTION) || defined(MULTI_COLOR_FIXED)
 	diffuse_reflection_color = diffuse_reflection_color_var;
 #else
@@ -193,7 +201,7 @@ void main() {
 #endif
 
 #if defined(TEXTURE_OPTION) || defined(TEXTURE_FIXED)
-	vec4 tex_color = vec4(0, 0, 0, 1.0);
+	LOWP vec4 tex_color = vec4(0, 0, 0, 1.0);
 #endif
 #ifdef TEXTURE_OPTION
 	if (use_texture_in) {
@@ -209,7 +217,7 @@ void main() {
 #ifndef TEXTURE_FIXED
 		diffuse_base_color = diffuse_reflection_color;
 #endif
-	vec3 c;
+	LOWP vec3 c;
 #ifdef AMBIENT_COLOR_IN
 	// Ambient lighting pass or single pass rendering.
 
@@ -302,7 +310,7 @@ void main() {
 #endif
 
 	// Calculate light attenuation.
-	float light_att = 1.0;
+	LOWP float light_att = 1.0;
 #ifndef DIRECTIONAL_LIGHT
 #ifndef POINT_SOURCE_LIGHT
 	if (light_position_in.w > 0.5) {
@@ -524,7 +532,7 @@ void main() {
 	}
 #endif
 
-	vec3 light_color = light_color_in;
+	LOWP vec3 light_color = light_color_in;
 #ifdef EARTH_SHADER
 	// Make the light color yellow/red when the sun sets.
 	// Assumes the components of the base sun light color are equal (white).
@@ -543,7 +551,7 @@ void main() {
 	}
 	c += light_color_in * diffuse_base_color * atmospheric_illumination;
 #endif
-	float NdotL = dot(normal, L);
+	LOWP float NdotL = dot(normal, L);
 #ifdef EARTH_SHADER
 	// If the sun is below the horizon, avoid diffuse and specular reflection.
 	if (atmospheric_illumination >= 0.08 && NdotL > 0.0) {
@@ -558,8 +566,8 @@ void main() {
 #else
 		c += light_att * light_color * diffuse_base_color * NdotL;
 #endif
-		float NdotH = max(dot(normal, H), 0.0);
-		vec3 specular_map_color;
+		LOWP float NdotH = max(dot(normal, H), 0.0);
+		LOWP vec3 specular_map_color;
 #ifdef SPECULARITY_MAP_FIXED
 		specular_map_color = texture2D(specular_map_in, texcoord_var).rgb;
 #else
@@ -570,7 +578,7 @@ void main() {
 #endif
 			specular_map_color = vec3(1.0, 1.0, 1.0);
 #endif
-		vec3 specular_component;
+		LOWP vec3 specular_component;
 #ifdef MICROFACET
 		float NdotV = max(dot(normal, V), 0.00001);
 		float LdotH = max(dot(L, H), 0.00001);
