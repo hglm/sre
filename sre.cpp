@@ -310,6 +310,7 @@ sreEngineSettingsInfo *sreGetEngineSettingsInfo() {
     info->HDR_enabled = sre_internal_HDR_enabled;
     info->HDR_tone_mapping_shader = sre_internal_HDR_tone_mapping_shader;
     info->max_anisotropy = sreGetMaxAnisotropyLevel();
+    info->max_visible_active_lights = sre_internal_max_active_lights;
     info->shadows_description = shadow_str[info->shadows_method];
     info->reflection_model_description = reflection_model_str[info->reflection_model];
     info->scissors_description = scissors_str[info->scissors_method];

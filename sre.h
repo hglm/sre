@@ -1684,6 +1684,7 @@ public :
     bool HDR_enabled;
     int HDR_tone_mapping_shader;
     float max_anisotropy;
+    int max_visible_active_lights;
     const char *reflection_model_description;
     const char *shadows_description;
     const char *scissors_description;

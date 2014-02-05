@@ -90,6 +90,7 @@ static void SetShortEngineSettingsText() {
 static bool scene_info_text_initialized = false;
 static char *scene_info_text_line[22];
 static int shadows_method;
+static int max_visible_active_lights;
 
 static char *no_yes_str[2] = { "No", "Yes" };
 static char *disabled_enabled_str[2] = { "Disabled", "Enabled" };
@@ -109,9 +110,14 @@ static void SetSceneInfo() {
         scene->nu_final_pass_objects, scene->max_final_pass_objects);
     sprintf(scene_info_text_line[15],
         "Total number of lights: %d (capacity %d)", scene->nu_lights, scene->max_scene_lights);
+    char active_lights_str[16];
+    if (max_visible_active_lights == SRE_MAX_ACTIVE_LIGHTS_UNLIMITED)
+        sprintf(active_lights_str, "Unlimited");
+    else
+        sprintf(active_lights_str, "%d", max_visible_active_lights);
     sprintf(scene_info_text_line[16],
-        "Visible number of lights:  %d (capacity %d)",
-        scene->nu_visible_lights, scene->max_visible_lights);
+        "Visible lights (frustum): %d (capacity %d), max visible: %s",
+        scene->nu_visible_lights, scene->max_visible_lights, active_lights_str);
     if (shadows_method == SRE_SHADOWS_SHADOW_VOLUMES) {
         sreShadowRenderingInfo *info = sreGetShadowRenderingInfo();
         sprintf(scene_info_text_line[17], "Shadow volumes rendered: %d, silhouettes calculated: %d",
@@ -138,6 +144,7 @@ static void SetSceneInfo() {
 static void SetEngineSettingsInfo() {
     sreEngineSettingsInfo *info = sreGetEngineSettingsInfo();
     shadows_method = info->shadows_method;
+    max_visible_active_lights = info->max_visible_active_lights;
     sprintf(scene_info_text_line[0], "SRE v0.1, %s, back-end: %s", opengl_str[info->opengl_version], GUIGetBackendName());
     sprintf(scene_info_text_line[1], "");
     sprintf(scene_info_text_line[2], "Resolution: %dx%d", info->window_width, info->window_height);
@@ -349,10 +356,10 @@ void GUIKeyPressCallback(unsigned int key) {
         text_message[11] = "d -- Disable scissors optimization";
         text_message[12]= "v/b - Enable/disable shadow volume visibility test";
         text_message[13] = "l/k -- Enable/disable light attenuation";
-        text_message[14] = "8 -- Enable light object list rendering";
-        text_message[15] = "9 -- Disable light object lists rendering";
-        text_message[16] = "F2/F3 -- Disable/enable HDR rendering";
-        text_message[17] = "F4 -- Cycle HDR tone mapping shader     F7 -- Cycle anisotropy";
+        text_message[14] = "8/9 -- Enable/disable light object list rendering";
+        text_message[15] = "F2/F3 -- Disable/enable HDR rendering  F4 -- Cycle tone mapping shader";
+        text_message[16] = "F5/F6 -- Enable/disable certain optimized shaders";
+        text_message[17] = "F7 -- Cycle texture anisotropy  F8 -- Cycle number of visible lights";
         text_message[18] = "";
         SetShortEngineSettingsText();
         text_message[19] = short_engine_settings_text;
@@ -481,6 +488,22 @@ void GUIKeyPressCallback(unsigned int key) {
                 text_message[line_number + 1] = "Applying to all suitable textures";
                 scene->ApplyGlobalTextureParameters(SRE_TEXTURE_FLAG_SET_ANISOTROPY, 0, anisotropy);
             }
+            break;
+            }
+        case SRE_KEY_F8 : {
+            sreEngineSettingsInfo *info = sreGetEngineSettingsInfo();
+            int n;
+            if (info->max_visible_active_lights == SRE_MAX_ACTIVE_LIGHTS_UNLIMITED)
+                n = 1;
+            else if (info->max_visible_active_lights == 1)
+                n = 2;
+            else {
+                n = info->max_visible_active_lights * 2;
+                if (n >= scene->nu_lights)
+                    n = SRE_MAX_ACTIVE_LIGHTS_UNLIMITED;
+            }
+            sreSetMultiPassMaxActiveLights(n);
+            delete info;
             break;
             }
         default :
