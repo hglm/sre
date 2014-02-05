@@ -24,8 +24,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre.h"
 #include "demo.h"
 
-// #define ROBOTS
-// #define MOVE_ROBOTS
+#define ROBOTS
+#define MOVE_ROBOTS
 
 #define MAX_ROBOTS 16
 // Light attenuation range of robots. Longer range means more visible
