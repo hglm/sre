@@ -4,25 +4,27 @@ back-ends. It currently runs on different Linux platforms but is
 portable to other platforms.
 
 NOTE: The current version as of 4 Feb 2014 works correctly with OpenGL
-on a PC platform; the OpenGL-ES 2.0 X11 (EGL) front-end also works well
-although shadow mapping is not suppored (stencil shadow volumes are
-supported). Framebuffer OpenGL-ES front-ends require a little more work.
+on a PC platform; the OpenGL-ES 2.0 front-end with X11 (EGL) back-end
+also works well although shadow mapping is not supported (stencil shadow
+volumes are supported). Framebuffer OpenGL-ES 2.0 back-ends require a
+little more work.
 
 An older version was ported to Windows (32-bit) using GLFW, and other
 platforms are feasable too given the seperation into front and back-ends
-and support for the OpenGL-ES 2.0 standard.
+and support for the OpenGL-ES 2.0 standard as well as cross-platform
+GUI back-ends such as GLFW.
 
 Highlights include a large amount of geometrical and scissors rendering
 optimizations with an unlimited number of lights and optimized stencil
-shadow volume and shadow mapping implementations, although shadows are
-currently not supported on the OpenGL-ES 2.0 platform. Also included is
-support for HDR rendering and integration with the Bullet physics
-library.
+shadow volume and shadow mapping implementations, although shadow
+mapping is currently not supported on the OpenGL-ES 2.0 platform. Also
+included is support for HDR rendering and integration with the Bullet
+physics library.
 
 The lighting shaders are implemented using a single large shader source
 that is conditionally compiled to optimize for various attribute
-combinations. Other shaders include HDR, halo, shadow, and image/text
-shaders.
+combinations. Other shaders include HDR, halo, stencil shadow/shadow map
+generation, and image/text shaders.
 
 Drawbacks and features that are still missing include lack of a full
 scene graph that is seperate from the spatial (octree) hierarchy. Being
