@@ -615,17 +615,24 @@ static int CompareLights(const void *e1, const void *e2) {
     int i2 = *(int *)e2;
     if (sre_internal_scene->global_light[i1]->type & SRE_LIGHT_DIRECTIONAL)
         if (sre_internal_scene->global_light[i2]->type & SRE_LIGHT_DIRECTIONAL) {
-            // Both lights are directional; impose an order based on direction.
-            if (SquaredMag(sre_internal_scene->global_light[i1]->vector.GetVector3D()) >
-            SquaredMag(sre_internal_scene->global_light[i2]->vector.GetVector3D()))
+            // Both lights are directional; impose an order based on intensity.
+            float intensity1, intensity2;
+            if (sre_internal_HDR_enabled) {
+                intensity1 = sre_internal_scene->global_light[i1]->color.LinearIntensity();
+                intensity2 = sre_internal_scene->global_light[i2]->color.LinearIntensity();
+            }
+            else {
+                intensity1 = sre_internal_scene->global_light[i1]->color.SRGBIntensity();
+                intensity2 = sre_internal_scene->global_light[i2]->color.SRGBIntensity();
+            }
+            if (intensity1 > intensity2)
                 return - 1;
-            if (SquaredMag(sre_internal_scene->global_light[i1]->vector.GetVector3D()) <
-            SquaredMag(sre_internal_scene->global_light[i2]->vector.GetVector3D()))
+            if (intensity2 > intensity1)
                 return 1;
             return 0;
         }
         else
-            // Light i1 is directional, i2 is not.
+            // Light i1 is directional, i2 is not; give precedence to the directional light.
             return - 1;
     else
         if (sre_internal_scene->global_light[i2]->type & SRE_LIGHT_DIRECTIONAL)
@@ -644,6 +651,46 @@ static int CompareLights(const void *e1, const void *e2) {
         - point_of_interest);
     float distsq2 = SquaredMag((sre_internal_scene->global_light[i2]->vector).GetPoint3D()
         - point_of_interest);
+    if ((sre_internal_scene->global_light[i1]->type & (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE))
+    == (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE)) {
+        if ((sre_internal_scene->global_light[i2]->type & (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE))
+        == (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE)) {
+            // Both are point source lights with linear attenuation; calculate the intensity at the point
+            // of interest.
+            float att1 = clampf((sre_internal_scene->global_light[i1]->attenuation.x - sqrtf(distsq1))
+                / sre_internal_scene->global_light[i1]->attenuation.x, 0, 1.0f);
+            float att2 = clampf((sre_internal_scene->global_light[i2]->attenuation.x - sqrtf(distsq2))
+                / sre_internal_scene->global_light[i1]->attenuation.x, 0, 1.0f);
+            Color c1 = att1 * sre_internal_scene->global_light[i1]->color;
+            Color c2 = att2 * sre_internal_scene->global_light[i2]->color;
+            float intensity1, intensity2;
+            if (sre_internal_HDR_enabled) {
+                intensity1 = c1.LinearIntensity();
+                intensity2 = c2.LinearIntensity();
+            }
+            else {
+                intensity1 = c1.SRGBIntensity();
+                intensity2 = c2.SRGBIntensity();
+            }
+            if (intensity1 > intensity2)
+                return - 1;
+            if (intensity2 > intensity1)
+                return 1;
+            return 0;
+        }
+        else {
+            // Light i1 is a point source light, i2 is a beam or spot light.
+            // To maintain a strict sorting order, give precedence to the point source light.
+            return - 1;
+        }
+    }
+    else if ((sre_internal_scene->global_light[i2]->type & (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE))
+    == (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE))
+        // Give precedence to i2 (point source light).
+        return 1;
+    // For other combinations of lights (spot or beam lights), calculating the intensity at the
+    // point of interest requires a little more work; for now, just use the
+    // distance to the point of interest.
     if (distsq1 < distsq2)
          return - 1;
     if (distsq1 > distsq2)
