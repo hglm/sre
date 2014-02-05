@@ -211,7 +211,7 @@ void sreDrawObjectLightHalo(SceneObject *so) {
 }
 
 
-void sreObjectAttributeInfo::Set(int object_attribute_mask,
+void sreObjectAttributeInfo::Set(unsigned int object_attribute_mask,
 const sreAttributeInfo& model_attribute_info) {
     // Set the non-interleaved (regular) attribute information.
     unsigned int model_attribute_bits = model_attribute_info.attribute_masks;
@@ -231,7 +231,7 @@ const sreAttributeInfo& model_attribute_info) {
     int object_slot = 0;
     // Iterate model interleaved buffer slots.
     for (int slot = 0;; slot++) {
-        int model_slot_mask = (model_attribute_bits >> (8 + slot * 8)) & 0xFF;
+        unsigned int model_slot_mask = (model_attribute_bits >> (8 + slot * 8)) & 0xFF;
         if (model_slot_mask == 0)
             // We have processed all of the model's interleaved attribute buffer slots.
             // This shouldn't happen since all the object's needed attributes should

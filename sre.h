@@ -634,7 +634,7 @@ public :
 
     // Set the attribute info for a object shader configuration based on the provided attribute
     // mask and the model's attribute info.
-    void Set(int attribute_mask, const sreAttributeInfo& model_attribute_info);
+    void Set(unsigned int attribute_mask, const sreAttributeInfo& model_attribute_info);
 };
 
 // Model sub-meshes are supported (with per-mesh source textures).
