@@ -64,7 +64,7 @@ void Demo11CreateScene() {
 #endif
 
     // Read model file (high-poly model).
-    sreModel *venus_model = sreReadModelFromFile(scene, "venusm.obj", SRE_MODEL_FILE_TYPE_OBJ);
+    sreModel *venus_model = sreReadModelFromFile(scene, "venusm.obj", SRE_MODEL_FILE_TYPE_OBJ, 0);
     // We don't want to use all those triangles for collisions, reduce to convex hull.
     venus_model->collision_shape_static = SRE_COLLISION_SHAPE_CONVEX_HULL;
     sreBoundingVolumeAABB AABB;

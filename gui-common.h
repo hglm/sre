@@ -65,11 +65,22 @@ int GUITranslateKeycode(unsigned int platform_keycode, const unsigned int *table
 void GUIMovePlayer(double dt);
 void GUITextMessageTimeoutCallback();
 
-// GUI functions provided by the platform specific implementation.
+// GUI functions provided by the platform specific implementation and used internally in the
+// common GUI layer.
 void GUIToggleFullScreenMode(int& window_width, int& window_height, bool pan_with_mouse);
 void GUIHideCursor();
 void GUIRestoreCursor();
 void GUIWarpCursor(int x, int y);
+
+// GUI functions provided by the platform specific implementation that can be called by an
+// application using the back-end.
+void GUIProcessEvents(double dt);
+void GUIInitialize(int *argc, char ***argv);
+void GUIFinalize();
+double GUIGetCurrentTime();
+void GUIGLSwapBuffers();
+void GUIGLSync();
+
 const char *GUIGetBackendName();
 
 extern int window_width;

@@ -95,6 +95,8 @@ LFLAGS_DEMO = -lglut
 PLATFORM_MODULE_OBJECTS = opengl-x11.o
 endif
 
+LFLAGS_LIBRARY =
+
 ifdef OPENGL_ES2
 # OPENGL ES2 platform configuration.
 PLATFORM_MODULE_OBJECTS = egl-common.o
@@ -163,7 +165,12 @@ endif
 
 # End of device-specific configuration.
 
-EXTRA_LIBRARY_MODULE_OBJECTS =
+# Extra (optional) library source modules that should be included (except
+# those that are derived from auto-generated source files such as built-in
+# shaders).
+EXTRA_LIBRARY_MODULE_OBJECTS = 
+# Extra library source modules from auto-generated source file.
+EXTRA_GENERATED_SOURCE_LIBRARY_MODULE_OBJECTS =
 DEFINES_LIB += $(LIBRARY_LINK_DEFINES)
 
 ifeq ($(SPLASH_SCREEN), LOGO)
@@ -192,7 +199,7 @@ DEFINES_LIB += -DSHADER_PATH='$(SHADER_PATH)'
 endif
 ifeq ($(SHADERS_BUILTIN), YES)
 DEFINES_LIB += -DSHADERS_BUILTIN
-EXTRA_LIBRARY_MODULE_OBJECTS += shaders_builtin.o
+EXTRA_GENERATED_LIBRARY_MODULE_OBJECTS += shaders_builtin.o
 endif
 
 ifeq ($(DEBUG_OPENGL), YES)
@@ -202,14 +209,20 @@ ifeq ($(DEBUG_RENDER_LOG), YES)
 DEFINES_LIB += -DDEBUG_RENDER_LOG
 endif
 
+ifeq ($(ASSIMP_SUPPORT), YES)
+DEFINES_LIB += -DASSIMP_SUPPORT
+EXTRA_LIBRARY_MODULE_OBJECTS += assimp.o
+LFLAGS_LIBRARY += -lassimp
+LFLAGS_DEMO += -lassimp
+endif
+
 ifneq ($(MULTI_SAMPLE_AA), 4)
 DEFINES_DEMO += -DNO_MULTI_SAMPLE
 endif
 
 DEFINES_DEMO += $(DEMO_STARTUP_DEFINES)
 
-DEFINES_DEMO += -DWINDOW_WIDTH=$(WINDOW_WIDTH) \
--DWINDOW_HEIGHT=$(WINDOW_HEIGHT)
+DEFINES_DEMO += -DWINDOW_WIDTH=$(WINDOW_WIDTH) -DWINDOW_HEIGHT=$(WINDOW_HEIGHT)
 
 # Bullet is supported on all platforms.
 ifeq ($(BULLET_PHYSICS), YES)
@@ -240,7 +253,7 @@ CFLAGS_DEMO = $(CFLAGS) $(DEFINES_DEMO) -I.
 PKG_CONFIG_CFLAGS_DEMO = `pkg-config --cflags bullet $(EXTRA_PKG_CONFIG_DEMO)`
 PKG_CONFIG_LIBS_DEMO = `pkg-config --libs bullet $(EXTRA_PKG_CONFIG_DEMO)`
 
-CORE_LIBRARY_MODULE_OBJECTS = sre.o draw.o geometry.o readobjfile.o texture.o shadow.o MatrixClasses.o \
+CORE_LIBRARY_MODULE_OBJECTS = sre.o draw.o geometry.o read_model_file.o texture.o shadow.o MatrixClasses.o \
 frustum.o bounds.o octree.o fluid.o standard_objects.o text.o scene.o lights.o shadowmap.o \
 bounding_volume.o random.o shader_matrix.o shader_loading.o vertex_buffer.o shader_uniform.o \
 draw_object.o
@@ -248,7 +261,8 @@ CORE_DEMO_MODULE_OBJECTS = gui-common.o main.o demo1.o demo2.o demo4.o \
 demo5.o demo7.o demo8.o game.o texture_test.o demo10.o demo11.o textdemo.o
 ALL_PLATFORM_MODULE_OBJECTS = bullet.o glfw.o opengl-x11.o x11-common.o glut.o egl-x11.o egl-common.o \
 egl-allwinner-fb.o egl-rpi-fb.o $(FRAMEBUFFER_COMMON_MODULE_OBJECTS)
-LIBRARY_MODULE_OBJECTS = $(CORE_LIBRARY_MODULE_OBJECTS) $(EXTRA_LIBRARY_MODULE_OBJECTS)
+ORIGINAL_LIBRARY_MODULE_OBJECTS = $(CORE_LIBRARY_MODULE_OBJECTS) $(EXTRA_LIBRARY_MODULE_OBJECTS)
+LIBRARY_MODULE_OBJECTS = $(ORIGINAL_LIBRARY_MODULE_OBJECTS) $(EXTRA_GENERATED_LIBRARY_MODULE_OBJECTS)
 DEMO_MODULE_OBJECTS = $(PLATFORM_MODULE_OBJECTS) $(CORE_DEMO_MODULE_OBJECTS)
 
 ifeq ($(LIBRARY_CONFIGURATION), SHARED)
@@ -271,8 +285,8 @@ default : $(LIBRARY_OBJECT)
 library : $(LIBRARY_OBJECT)
 
 libsre.so.$(VERSION) : $(LIBRARY_MODULE_OBJECTS)
-	g++ -shared -fPIC -o libsre.so.$(VERSION) $(LIBRARY_MODULE_OBJECTS) \
--lc -lm -lpng $(PKG_CONFIG_LIBS_LIB)
+	g++ -shared -Wl,-soname,libsre.so.$(VERSION_MAJOR) -fPIC -o libsre.so.$(VERSION) \
+$(LIBRARY_MODULE_OBJECTS) -lc -lm -lpng $(LFLAGS_LIBRARY)
 	@echo Run '(sudo) make install to install.'
 
 libsre.a : $(LIBRARY_MODULE_OBJECTS)
@@ -335,7 +349,7 @@ rules :
 	rm -f .rules
 	make .rules
 
-.rules :
+.rules : Makefile.conf
 	# Create rules to compile library modules.
 	for x in $(LIBRARY_MODULE_OBJECTS); do \
 	echo $$x : >> .rules; \
@@ -358,9 +372,9 @@ dep :
 .depend:
 	# Do not include shaders_builtin.cpp yet because creates dependency
         # problems.
-	g++ -MM $(patsubst %.o,%.cpp,$(CORE_LIBRARY_MODULE_OBJECTS)) >> .depend
+	g++ -MM $(patsubst %.o,%.cpp,$(ORIGINAL_LIBRARY_MODULE_OBJECTS)) >> .depend
         # Make sure Makefile.conf is a dependency for all modules.
-	for x in $(LIBRARY_MODULE_OBJECTS); do \
+	for x in $(ORIGINAL_LIBRARY_MODULE_OBJECTS); do \
 	echo $$x : Makefile.conf >> .depend; done
 	echo '# Module dependencies' >> .depend
 	g++ -MM $(patsubst %.o,%.cpp,$(DEMO_MODULE_OBJECTS)) >> .depend

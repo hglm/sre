@@ -111,7 +111,7 @@ void Demo2CreateScene() {
     scene->sceneobject[model]->render_shadows = true;
 #endif
 
-    sreModel *elephant_model = sreReadModelFromFile(scene, "elephant.obj", SRE_MODEL_FILE_TYPE_OBJ);
+    sreModel *elephant_model = sreReadModelFromFile(scene, "elephant.obj", SRE_MODEL_FILE_TYPE_OBJ, 0);
     elephant_model->SetLODModelFlags(SRE_LOD_MODEL_NOT_CLOSED);
     c.r = 1.0; c.g = 0.5, c.b = 0.5;
     scene->SetDiffuseReflectionColor(c);

@@ -84,7 +84,7 @@ static GLint visual_attributes[] = {
 void CloseGlutWindow() {
 }
 
-void InitializeGUI(int *argc, char ***argv) {
+void GUIInitialize(int *argc, char ***argv) {
     // To call GLX functions with glew, we need to call glewInit()
     // first, but it needs an active OpenGL context to be present. So we have to
     // create a temporary GL context.
@@ -194,7 +194,7 @@ void InitializeGUI(int *argc, char ***argv) {
     sreInitialize(window_width, window_height, GUIGLSwapBuffers);
 }
 
-void DeinitializeGUI() {
+void GUIFinalize() {
    // Clear screen.
    glClear(GL_COLOR_BUFFER_BIT);
    GUIGLSync();

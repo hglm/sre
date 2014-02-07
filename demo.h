@@ -22,14 +22,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define WINDOW_HEIGHT 576
 #endif
 
-// Defined in the platform-specific file (glfw.cpp, opengles2.cpp etc):
-void ProcessGUIEvents(double dt);
-void InitializeGUI(int *argc, char ***argv);
-void DeinitializeGUI();
-double GetCurrentTime();
-void GUIGLSwapBuffers();
-void GUIGLSync();
-
 // Defined in main.cpp
 extern Scene *scene;
 extern sreView *view;

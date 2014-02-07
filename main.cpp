@@ -140,9 +140,9 @@ void RunDemo() {
 #endif
     PrintConfigurationInfo();
     printf("Starting rendering.\n");
-    double time_physics_previous = GetCurrentTime();
+    double time_physics_previous = GUIGetCurrentTime();
     double time_physics_current = time_physics_previous;
-    double end_time = GetCurrentTime();
+    double end_time = GUIGetCurrentTime();
     demo_start_time = end_time;
     double previous_time;
     int nu_frames = 0;
@@ -153,7 +153,7 @@ void RunDemo() {
         }
         RenderFunc();
 
-        time_physics_current = GetCurrentTime();
+        time_physics_current = GUIGetCurrentTime();
 #ifdef USE_BULLET
         scene->DoBulletPhysics(time_physics_previous, time_physics_current);
 #else
@@ -163,9 +163,9 @@ void RunDemo() {
         time_physics_previous = time_physics_current;
         nu_frames++;
         previous_time = end_time;
-        end_time = GetCurrentTime();
+        end_time = GUIGetCurrentTime();
         demo_time = end_time - demo_start_time;
-        ProcessGUIEvents(end_time - previous_time);
+        GUIProcessEvents(end_time - previous_time);
         double current_fps = 1 / (end_time - previous_time);
         if (nu_fps < 10) {
             fps_table[nu_fps] = current_fps;
@@ -196,7 +196,7 @@ void DemoTextOverlay() {
     sreSetTextParameters(0, 0, Color(1.0, 1.0, 1.0), 0);
     sreBeginText();
     sreDrawText(s, 0.01, 0, 0.02, 0.04);
-    if (GetCurrentTime() >= text_message_time + text_message_timeout)
+    if (GUIGetCurrentTime() >= text_message_time + text_message_timeout)
         GUITextMessageTimeoutCallback();
     for (int i = 0; i < nu_text_message_lines; i++)
         if (text_message[i][0] != '\0')
@@ -210,7 +210,7 @@ void DemoTextOverlay() {
     Vector2D font_size = Vector2D(0.02, 0.04);
     sreSetTextParameters(SRE_TEXT_SET_FONT_SIZE, NULL, &font_size);
     sreDrawText(s, 0.01, 0);
-    if (GetCurrentTime() >= text_message_time + text_message_timeout)
+    if (GUIGetCurrentTime() >= text_message_time + text_message_timeout)
         GUITextMessageTimeoutCallback();
     font_size = Vector2D(0.012, 0.04);
     sreSetTextParameters(SRE_TEXT_SET_FONT_SIZE, NULL, &font_size);
@@ -402,7 +402,7 @@ int main(int argc, char **argv) {
         sreSetDemandLoadShaders(true);
 
     // Initialize GUI and SRE library.
-    InitializeGUI(&argc, &argv);
+    GUIInitialize(&argc, &argv);
 
     sreSetDrawTextOverlayFunc(DemoTextOverlay);
     sreSetShadowsMethod(shadows);
@@ -443,7 +443,7 @@ int main(int argc, char **argv) {
             Demo3CreateScene();
             demo3_elapsed_time = 0.75 * 365;
             demo3_time = demo3_elapsed_time;
-            demo3_start_time = GetCurrentTime();
+            demo3_start_time = GUIGetCurrentTime();
             RenderFunc = Demo3Render;
             TimeIterationFunc = Demo3TimeIteration;
             RunDemo();
@@ -543,17 +543,17 @@ int main(int argc, char **argv) {
         else {
             printf("No recognized demo name specified.\n");
             sleep(3);
-            DeinitializeGUI();
+            GUIFinalize();
             exit(1);
         }
     }
 
     if (benchmark_mode) {
        double fps = (double)sreGetCurrentFrame() /
-           (GetCurrentTime() - demo_start_time);
+           (GUIGetCurrentTime() - demo_start_time);
        printf("Benchmark result: %.3lf fps\n", fps);
     }
-    DeinitializeGUI();
+    GUIFinalize();
     exit(0);
 }
 

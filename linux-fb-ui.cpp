@@ -122,7 +122,7 @@ static const unsigned int linux_mouse_button_table[] = {
 static double left_pressed_date = 0;
 static double right_pressed_date = 0;
 
-void ProcessGUIEvents(double dt) {
+void GUIProcessEvents(double dt) {
     bool motion_occurred = false;
     int motion_x, motion_y;
     while (mouse_event_queue->isEventAvailable()) {
@@ -162,7 +162,7 @@ void GUIHideCursor() {
 void GUIRestoreCursor() {
 }
 
-double GetCurrentTime() {
+double GUIGetCurrentTime() {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;

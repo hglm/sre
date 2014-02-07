@@ -1879,17 +1879,35 @@ SRE_API void sreDrawTextCentered(const char *text, float x, float y, float w);
 #define SRE_SHADER_MASK_ALL                  255
 SRE_API void sreSetShaderLoadingMask(int mask);
 
-// Model handling.
+// Model loading/creation.
+
 // Create new LOD model with optional shadow volume support if it is enabled in global settings.
 SRE_API sreLODModel *sreNewLODModel();
 SRE_API sreLODModel *sreNewLODModelNoShadowVolume();
+
 enum {
-    SRE_MODEL_FILE_TYPE_OBJ = 1,
+    SRE_MODEL_FILE_TYPE_OBJ = 1
 };
-SRE_API sreModel *sreReadModelFromFile(sreScene *scene, const char *filename, int model_type);
-SRE_API sreLODModel *sreReadLODModelFromFile(const char *filename, int model_type);
-SRE_API sreModel *sreReadFileAssimp(sreScene *scene, const char *filename,
-    const char *base_path);
+enum {
+    // Force use the native SRE model loading function even when assimp is available.
+    SRE_MODEL_LOAD_FLAG_USE_SRE = 1,
+    SRE_MODEL_LOAD_FLAG_NO_VERTEX_NORMALS = 2,
+    SRE_MODEL_LOAD_FLAG_NO_TEXCOORDS = 4,
+    SRE_MODEL_LOAD_FLAG_NO_COLORS = 8,
+    SRE_MODEL_LOAD_FLAG_NO_TANGENTS = 16,
+};
+SRE_API sreModel *sreReadModelFromFile(sreScene *scene, const char *filename, int model_type, int load_flags);
+SRE_API sreModel *sreReadMultiDirectoryModelFromFile(sreScene *scene, const char *filename,
+const char *base_path, int model_type, int load_flags);
+// This function is used by sreReadMultiDirectoryModelFromFile when assimp is available and the
+// SRE_MODEL_LOAD_FLAG_USE_SRE flag is not set.
+SRE_API sreModel *sreReadModelFromAssimpFile(sreScene *scene, const char *filename, const char *base_path,
+    int load_flags);
+// Note: Loading a LOD model directly currently does not assimp and relies on native support.
+SRE_API sreLODModel *sreReadLODModelFromFile(const char *filename, int model_type, int load_flags);
+SRE_API sreLODModel *sreReadMultiDirectoryLODModelFromFile(const char *filename, const char *base_path,
+    int model_type, int load_flags);
+
 SRE_API sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d,
     float t, float c, float mu);
 SRE_API void sreEvaluateModelFluid(sreModel *o);
@@ -1931,7 +1949,7 @@ enum {
     SRE_MULTI_COLOR_FLAG_SHARE_RESOURCES = 1,  // Share model geometry and OpenGL buffer resources.
     SRE_MULTI_COLOR_FLAG_ASSIGN_RANDOM = 2,    // Assign random colors form the given set.
     SRE_MULTI_COLOR_FLAG_NEW_RANDOM = 4        // Create new random colors for every triangle.
-    };
+};
 SRE_API sreModel *sreCreateNewMultiColorModel(sreScene *scene, sreModel *m, int color_flags,
     int nu_colors, Color *colors);
 

@@ -25,6 +25,3 @@ int X11GetScreenIndex();
 void X11ToggleFullScreenMode(int &width, int& height, bool pan_with_mouse);
 void X11DestroyWindow();
 void X11CloseDisplay();
-
-void ProcessGUIEvents();
-double GetCurrentTime();

@@ -26,6 +26,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre.h"
 #include "sre_bounds.h"
 #include "demo.h"
+#include "gui-common.h"
 
 #define DAY_INTERVAL 1000.0
 #define YEAR_INTERVAL (DAY_INTERVAL * 365.0)
@@ -1130,7 +1131,7 @@ void Demo4TimeIteration(double time_previous, double time_current) {
     sprintf(message, "%02d:%02dh Day %d", (int)floorf(hour),  (int)floorf((hour - (int)floorf(hour)) * 60.0 / 100.0),
         (int)(floorf(fmodf(demo_time, YEAR_INTERVAL) * 365.0 / YEAR_INTERVAL) + 1));
     text_message[0] = message; 
-    text_message_time = GetCurrentTime();
+    text_message_time = GUIGetCurrentTime();
     nu_text_message_lines = 1;
 #endif
     saved_hovering_height = hovering_height;

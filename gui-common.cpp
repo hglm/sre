@@ -235,7 +235,7 @@ void GUITextMessageTimeoutCallback() {
 void GUIKeyPressCallback(unsigned int key) {
     switch (key) {
     case 'Q' :
-        DeinitializeGUI();
+        GUIFinalize();
         exit(0);
         break;
     case 'F' :
@@ -300,12 +300,12 @@ void GUIKeyPressCallback(unsigned int key) {
     case SRE_KEY_F5 :
         sreSetShaderMask(0xFF);
         text_message[0] = "All optimized shaders enabled";
-        text_message_time = GetCurrentTime();
+        text_message_time = GUIGetCurrentTime();
         break;
     case SRE_KEY_F6 :
         sreSetShaderMask(0x01);
         text_message[0] = "All optimized shaders disabled";
-        text_message_time = GetCurrentTime();
+        text_message_time = GUIGetCurrentTime();
         break;
     case '[' :
         // Cycle viewpoint to previous object.
@@ -379,13 +379,13 @@ void GUIKeyPressCallback(unsigned int key) {
         text_message[21] = "";
         text_message[22] = "";
         nu_text_message_lines = 23;
-        text_message_time = GetCurrentTime() + 1000000.0;
+        text_message_time = GUIGetCurrentTime() + 1000000.0;
    }
    else if (menu_mode != 2 && key == 'I') {
         menu_mode = 2;
         // Show info screen with engine settings and scene info.
         SetInfoScreen();
-        text_message_time = GetCurrentTime() + 1000000.0;
+        text_message_time = GUIGetCurrentTime() + 1000000.0;
    }
    else if ((menu_mode == 1 && key == SRE_KEY_F1) || (menu_mode == 2 && key == 'I')) {
        // Clear menu/info overlay.
@@ -557,7 +557,7 @@ void GUIKeyPressCallback(unsigned int key) {
         }
         if (menu_message) {
             // Set the timeout for the text message.
-            text_message_time = GetCurrentTime();
+            text_message_time = GUIGetCurrentTime();
             text_message_timeout = 3.0;
             if (menu_mode == 2) {
                 sreEngineSettingsInfo *info = sreGetEngineSettingsInfo();

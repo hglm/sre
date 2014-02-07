@@ -178,7 +178,7 @@ static void EGLInitialize(EGL_STATE_T *state, EGLNativeDisplayType native_displa
    check();
 }
 
-void InitializeGUI(int *argc, char ***argv) {
+void GUIInitialize(int *argc, char ***argv) {
     EGLNativeDisplayType native_display = (EGLNativeDisplayType)EGLGetNativeDisplay();
 
     state = (EGL_STATE_T *)malloc(sizeof(EGL_STATE_T));
@@ -191,12 +191,12 @@ void InitializeGUI(int *argc, char ***argv) {
     window_height = state->screen_height;
     printf("Opened OpenGL-ES2 state, width = %d, height = %d\n", window_width, window_height);
 
-    sreInitialize(window_width, window_height, EGLSwapBuffers);
+    sreInitialize(window_width, window_height, GUIGLSwapBuffers);
 //    sreSetLightScissors(SRE_SCISSORS_NONE);
 //    sreSetShadowVolumeVisibilityTest(false);
 }
 
-void DeinitializeGUI() {
+void GUIFinalize() {
    // Clear screen.
    glClear( GL_COLOR_BUFFER_BIT );
    eglSwapBuffers(state->display, state->surface);
@@ -212,6 +212,10 @@ void DeinitializeGUI() {
 
 void EGLSwapBuffers() {
     eglSwapBuffers(state->display, state->surface); 
+}
+
+void GUIGLSwapBuffers() {
+    EGLSwapBuffers();
 }
 
 void GUIGLSync() {

@@ -18,20 +18,14 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 #include <math.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <gtk/gtk.h>
-// #include <GL/glfw.h>
-#include <gtk/gtkgl.h>
-#include <GL/gl.h>
 
-#include <MatrixClasses.h>
-#include <render.h>
-#include "assimp.h"
-#include "aiPostProcess.h"
-#include "aiScene.h"
+#include "assimp/scene.h"
+#include "assimp/postprocess.h"
+#include "assimp/cimport.h"
+
+#include "sre.h"
+#include "sre_internal.h"
 
 // the global Assimp scene object
 static const struct aiScene* ai_scene = NULL;
@@ -67,25 +61,27 @@ static AssimpVertex *assimp_normal;
 static AssimpColor *assimp_color;
 static AssimpTexcoords *assimp_texcoords;
 static AssimpVertex *assimp_tangent;
-static int nu_vertices;
-bool normals_set;
-bool colors_set;
-bool texcoords_set;
-int nu_tangents_set;
-static int nu_meshes;
+static int nu_vertices, max_vertices;
+static bool normals_set;
+static bool colors_set;
+static bool texcoords_set;
+static int nu_tangents_set;
+static int nu_meshes, max_meshes;
 static AssimpMesh *assimp_mesh;
-static const char *base_path;
+static const char *assimp_base_path;
 
-#define MAX_ASSIMP_VERTICES (1024 * 1024)
-#define MAX_ASSIMP_MESHES 1024
+#define INITIAL_MAX_ASSIMP_VERTICES 1024
+#define INITIAL_MAX_ASSIMP_MESHES 8
 
 static void InitDataStructures() {
-    assimp_vertex = new AssimpVertex[MAX_ASSIMP_VERTICES];
-    assimp_normal = new AssimpVertex[MAX_ASSIMP_VERTICES];
-    assimp_color = new AssimpColor[MAX_ASSIMP_VERTICES];
-    assimp_texcoords = new AssimpTexcoords[MAX_ASSIMP_VERTICES];
-    assimp_mesh = new AssimpMesh[MAX_ASSIMP_MESHES];
-    assimp_tangent = new AssimpVertex[MAX_ASSIMP_VERTICES];
+    assimp_vertex = new AssimpVertex[INITIAL_MAX_ASSIMP_VERTICES];
+    assimp_normal = new AssimpVertex[INITIAL_MAX_ASSIMP_VERTICES];
+    assimp_color = new AssimpColor[INITIAL_MAX_ASSIMP_VERTICES];
+    assimp_texcoords = new AssimpTexcoords[INITIAL_MAX_ASSIMP_VERTICES];
+    assimp_tangent = new AssimpVertex[INITIAL_MAX_ASSIMP_VERTICES];
+    assimp_mesh = new AssimpMesh[INITIAL_MAX_ASSIMP_MESHES];
+    max_vertices = INITIAL_MAX_ASSIMP_VERTICES;
+    max_meshes = INITIAL_MAX_ASSIMP_MESHES;
     nu_vertices = 0;
     normals_set = false;
     colors_set = false;
@@ -95,12 +91,12 @@ static void InitDataStructures() {
 }
 
 static void FreeDataStructures() {
-    delete assimp_vertex;
-    delete assimp_normal;
-    delete assimp_color;
-    delete assimp_texcoords;
-    delete assimp_mesh;
-    delete assimp_tangent;
+    delete [] assimp_vertex;
+    delete [] assimp_normal;
+    delete [] assimp_color;
+    delete [] assimp_texcoords;
+    delete [] assimp_tangent;
+    delete [] assimp_mesh;
 }
 
 static void SetVertex(float *v) {
@@ -140,6 +136,30 @@ static void SetTexcoords(float *t) {
 
 static void NextVertex() {
     nu_vertices++;
+    // Allocate more space when required.
+    if (nu_vertices >= max_vertices) {
+        max_vertices *= 2;
+        AssimpVertex *new_assimp_vertex = new AssimpVertex[max_vertices];
+        AssimpVertex *new_assimp_normal = new AssimpVertex[max_vertices];
+        AssimpColor *new_assimp_color = new AssimpColor[max_vertices];
+        AssimpTexcoords *new_assimp_texcoords = new AssimpTexcoords[max_vertices];
+        AssimpVertex *new_assimp_tangent = new AssimpVertex[max_vertices];
+        memcpy(new_assimp_vertex, assimp_vertex, sizeof(AssimpVertex) * nu_vertices);
+        memcpy(new_assimp_normal, assimp_normal, sizeof(AssimpVertex) * nu_vertices);
+        memcpy(new_assimp_color, assimp_color, sizeof(AssimpColor) * nu_vertices);
+        memcpy(new_assimp_texcoords, assimp_texcoords, sizeof(AssimpTexcoords) * nu_vertices);
+        memcpy(new_assimp_tangent, assimp_tangent, sizeof(AssimpVertex) * nu_vertices);
+        delete [] assimp_vertex;
+        delete [] assimp_normal;
+        delete [] assimp_color;
+        delete [] assimp_texcoords;
+        delete [] assimp_tangent;
+        assimp_vertex = new_assimp_vertex;
+        assimp_normal = new_assimp_normal;
+        assimp_color = new_assimp_color;
+        assimp_texcoords = new_assimp_texcoords;
+        assimp_tangent = new_assimp_tangent;
+    }
 }
 
 static void SetMeshBegin() {
@@ -149,13 +169,20 @@ static void SetMeshBegin() {
 static void SetMeshEnd() {
     assimp_mesh[nu_meshes].ending_vertex = nu_vertices - 1;
     nu_meshes++;
+    if (nu_meshes >= max_meshes) {
+        max_meshes *= 2;
+        AssimpMesh *new_assimp_mesh = new AssimpMesh[max_meshes];
+        memcpy(new_assimp_mesh, assimp_mesh, sizeof(AssimpMesh) * nu_meshes);
+        delete [] assimp_mesh;
+        assimp_mesh = new_assimp_mesh;
+    }
 }
 
 static char *AllocateBasePathPlusFilename(const char *s) {
-    int blength = strlen(base_path);
+    int blength = strlen(assimp_base_path);
     int slength = strlen(s);
     char *result = (char *)malloc(blength + slength + 1);
-    strcpy(result, base_path);
+    strcpy(result, assimp_base_path);
     strcpy(&result[blength], s);
     return result;
 }
@@ -180,130 +207,7 @@ bool FileExists(const char *filename) {
     return true;
 }
 
-static void ConvertToModel(Model *m) {
-    m->nu_vertices = nu_vertices;
-    // Assign vertices.
-    m->vertex = new Point3D[m->nu_vertices];
-    for (int i = 0; i < m->nu_vertices; i++) {
-        m->vertex[i].Set(assimp_vertex[i].x, assimp_vertex[i].y, assimp_vertex[i].z);
-    }
-    // Assign triangles.
-    m->nu_triangles = nu_vertices / 3;
-    m->triangle = new ModelTriangle[m->nu_triangles];
-    for (int i = 0; i < nu_vertices / 3; i++) {
-        m->triangle[i].AssignVertices(i * 3, i * 3 + 1, i * 3 + 2);
-    }
-    // Assign texcoords.
-    if (texcoords_set) {
-        m->texcoords = new Point2D[m->nu_vertices];
-        for (int i = 0; i < m->nu_vertices; i++)
-            m->texcoords[i].Set(assimp_texcoords[i].u, 1 - assimp_texcoords[i].v);
-    }
-    // Assign colors.
-    if (colors_set) {
-       m->colors = new Color[m->nu_vertices];
-       for (int i = 0; i < m->nu_vertices; i++) {
-            m->colors[i].r = assimp_color[i].r;
-            m->colors[i].g = assimp_color[i].g;
-            m->colors[i].b = assimp_color[i].b;
-       }
-    }
-    m->flags = SRE_POSITION_MASK;
-    if (colors_set)
-        m->flags |= SRE_COLOR_MASK;
-    if (texcoords_set)
-        m->flags |= SRE_TEXCOORDS_MASK;
-    m->vertex_normal = new Vector3D[m->nu_vertices];
-    // Assign normals.
-    if (normals_set) {
-        printf("Copying normals from assimp object.\n");
-        for (int i = 0; i < m->nu_vertices; i++) {
-            m->vertex_normal[i].Set(assimp_normal[i].x, assimp_normal[i].y, assimp_normal[i].z);
-        }
-        m->flags |= SRE_NORMAL_MASK;
-    }
-    // Assign tangents.
-    nu_tangents_set = 0; // DEBUG
-    if (nu_tangents_set == nu_vertices) {
-        printf("Copying tangents from assimp object.\n");
-        m->vertex_tangent = new Vector4D[m->nu_vertices];
-        for (int i = 0; i < m->nu_vertices; i++) {
-            Vector3D t;
-            t.Set(assimp_tangent[i].x, assimp_tangent[i].y, assimp_tangent[i].z);
-            m->vertex_tangent[i].Set(t.x, t.y, t.z, 1.0);
-        }
-    }
-    m->MergeIdenticalVertices(false);
-    if (m->flags & SRE_NORMAL_MASK)
-        // If the object has pre-defined vertex normals, only calculate face normals
-        m->CalculateTriangleNormals();
-    else
-        m->CalculateNormals();
-
-    // Process textures.
-    m->mesh = new sreModelMesh[nu_meshes];
-    m->nu_meshes = nu_meshes;
-    int texture_count = 0;
-    int normal_map_count = 0;
-    int specular_map_count = 0;
-    for (int i = 0; i < nu_meshes; i++) {
-        if (assimp_mesh[i].texture != NULL) {
-            sreTexture *texture = new sreTexture(assimp_mesh[i].texture, TEXTURE_TYPE_NORMAL);
-            // Assign texture id for GL3 renderer.
-            m->mesh[i].texture_opengl_id = texture->opengl_id;
-            texture_count++;
-        }
-        if (assimp_mesh[i].normal_map != NULL) {
-            normal_map_count++;
-            if (!FileExists(assimp_mesh[i].normal_map)) {
-                printf("Normal map texture not found, skipping whole mesh.\n");
-                m->mesh[i].nu_vertices = 0;
-                // Allow specular maps for the remaining meshes in this situation (specular_map_count will
-                // be equal to nu_meshes).
-                if (assimp_mesh[i].specular_map != NULL)
-                    specular_map_count++;
-                continue;
-            }
-            sreTexture *normal_map = new sreTexture(assimp_mesh[i].normal_map, TEXTURE_TYPE_NORMAL_MAP);
-            // Assign texture id for GL3 renderer.
-            m->mesh[i].normal_map_opengl_id = normal_map->opengl_id;
-        }
-        if (assimp_mesh[i].specular_map != NULL) {
-            specular_map_count++;
-            sreTexture *specular_map = new sreTexture(assimp_mesh[i].specular_map, TEXTURE_TYPE_NORMAL_MAP);
-            // Assign texture id for GL3 renderer.
-            m->mesh[i].specular_map_opengl_id = specular_map->opengl_id;
-        }
-        // Assign mesh details for GL3 renderer.
-        m->mesh[i].starting_vertex = assimp_mesh[i].starting_vertex;
-        m->mesh[i].nu_vertices = assimp_mesh[i].ending_vertex + 1 - assimp_mesh[i].starting_vertex;
-    }
-    m->CalculateBounds();
-#if 0
-    // XXX Settings these flags for models won't have any effect.
-    // If all meshes have a texture, enable texturing
-    if (texture_count == nu_meshes)
-        m->flags |= SRE_OBJECT_USE_TEXTURE;
-    else
-        if (colors_set)
-            m->flags |= SRE_OBJECT_MULTI_COLOR;
-    // If all meshes have a normal map (unless skipped), enable normal mapping.
-    if (normal_map_count == nu_meshes)
-        m->flags |= SRE_OBJECT_USE_NORMAL_MAP;
-    if (specular_map_count == nu_meshes)
-        m->flags |= SRE_OBJECT_USE_SPECULARITY_MAP;
-#endif
-    // When using a normal map, and tangents haven't been specified, calculate tangent vectors.
-    if (normal_map_count == nu_meshes && nu_tangents_set != nu_vertices)
-        m->CalculateTangentVectors();
-    if (normal_map_count > 0)
-        m->flags |= SRE_TANGENT_MASK;
-//    m->GL3InitVertexBuffers();
-//    FreeDataStructures();
-//    m->CreateCollisionOctrees();
-}
-
-void color4_to_float4(const struct aiColor4D *c, float f[4])
+void color4_to_float4(const aiColor4D *c, float f[4])
 {
 	f[0] = c->r;
 	f[1] = c->g;
@@ -322,32 +226,28 @@ void set_float4(float f[4], float a, float b, float c, float d)
 
 static void ApplyMaterial(const struct aiMaterial *mtl) {
 	float c[4];
-	struct aiColor4D diffuse;
-	struct aiColor4D specular;
-	struct aiColor4D ambient;
-	struct aiColor4D emission;
-	float shininess, strength;
+	aiColor4D diffuse;
+	aiColor4D specular;
+	aiColor4D ambient;
+	aiColor4D emission;
+//	float shininess, strength;
 	set_float4(c, 0.8f, 0.8f, 0.8f, 1.0f);
 	if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_DIFFUSE, &diffuse)) {
                 assimp_mesh[nu_meshes].color_set = true;
 		color4_to_float4(&diffuse, (float *)&assimp_mesh[nu_meshes].color);
         }
-//	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, c);
 
 	set_float4(c, 0.0f, 0.0f, 0.0f, 1.0f);
 	if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &specular))
 		color4_to_float4(&specular, c);
-//	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, c);
 
 	set_float4(c, 0.2f, 0.2f, 0.2f, 1.0f);
 	if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_AMBIENT, &ambient))
 		color4_to_float4(&ambient, c);
-//	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, c);
 
 	set_float4(c, 0.0f, 0.0f, 0.0f, 1.0f);
 	if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_EMISSIVE, &emission))
 		color4_to_float4(&emission, c);
-//	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, c);
 
 #if 0
 	max = 1;
@@ -409,7 +309,7 @@ static void ApplyMaterial(const struct aiMaterial *mtl) {
 static void WalkRecursive(const struct aiScene *sc, const struct aiNode* nd) {
 	int i;
 	unsigned int n = 0, t;
-	struct aiMatrix4x4 m = nd->mTransformation;
+//	aiMatrix4x4 m = nd->mTransformation;
 
 	// draw all meshes assigned to this node
 	for (; n < nd->mNumMeshes; ++n) {
@@ -433,14 +333,14 @@ static void WalkRecursive(const struct aiScene *sc, const struct aiNode* nd) {
 				exit(1);
 			}
 
-			for(i = 0; i < face->mNumIndices; i++) {
+			for(i = 0; i < (int)face->mNumIndices; i++) {
 				int index = face->mIndices[i];
 				if (mesh->mColors[0] != NULL)
-					SetColor((GLfloat*)&mesh->mColors[0][index]);
+					SetColor((float *)&mesh->mColors[0][index]);
 				if (mesh->mNormals != NULL) 
 					SetNormal(&mesh->mNormals[index].x);
 				if (mesh->mTextureCoords[0] != NULL)
-					SetTexcoords((GLfloat *)&mesh->mTextureCoords[0][index]);
+					SetTexcoords((float *)&mesh->mTextureCoords[0][index]);
                                 if (mesh->mTangents != NULL)
 					SetTangent(&mesh->mTangents[index].x);
 				SetVertex(&mesh->mVertices[index].x);
@@ -461,32 +361,154 @@ static void ProcessAssimpScene() {
 	WalkRecursive(ai_scene, ai_scene->mRootNode);
 }
 
-void ReadFileAssimp(sreScene *scene, Model *m, const char *filename, const char *bpath) {
-	struct aiLogStream stream;
+// Convert the processed assimp model to an SRE LOD model.
 
-	// get a handle to the predefined STDOUT log stream and attach
-	// it to the logging system. It remains active for all further
-	// calls to aiImportFile(Ex) and aiApplyPostProcessing.
-	stream = aiGetPredefinedLogStream(aiDefaultLogStream_STDOUT,NULL);
-	aiAttachLogStream(&stream);
+static sreLODModel *ConvertToModel(int load_flags) {
+    sreLODModel *m = sreNewLODModel();
 
-	ai_scene = aiImportFile(filename, aiProcessPreset_TargetRealtime_MaxQuality);
+    m->nu_vertices = nu_vertices;
+    // Assign vertex positions.
+    m->vertex = new Point3D[m->nu_vertices];
+    for (int i = 0; i < m->nu_vertices; i++) {
+        m->vertex[i].Set(assimp_vertex[i].x, assimp_vertex[i].y, assimp_vertex[i].z);
+    }
+    m->flags |= SRE_POSITION_MASK;
+    // Assign triangles.
+    m->nu_triangles = nu_vertices / 3;
+    m->triangle = new ModelTriangle[m->nu_triangles];
+    for (int i = 0; i < nu_vertices / 3; i++) {
+        m->triangle[i].AssignVertices(i * 3, i * 3 + 1, i * 3 + 2);
+    }
+    // Assign texcoords.
+    if (texcoords_set && !(load_flags & SRE_MODEL_LOAD_FLAG_NO_TEXCOORDS)) {
+        m->texcoords = new Point2D[m->nu_vertices];
+        for (int i = 0; i < m->nu_vertices; i++)
+            m->texcoords[i].Set(assimp_texcoords[i].u, 1 - assimp_texcoords[i].v);
+        m->flags |= SRE_TEXCOORDS_MASK;
+    }
+    // Assign colors.
+    if (colors_set && !(load_flags & SRE_MODEL_LOAD_FLAG_NO_COLORS)) {
+       m->colors = new Color[m->nu_vertices];
+       for (int i = 0; i < m->nu_vertices; i++) {
+            m->colors[i].r = assimp_color[i].r;
+            m->colors[i].g = assimp_color[i].g;
+            m->colors[i].b = assimp_color[i].b;
+       }
+        m->flags |= SRE_COLOR_MASK;
+    }
+    m->vertex_normal = new Vector3D[m->nu_vertices];
+    // Assign normals.
+    if (normals_set && !(load_flags & SRE_MODEL_LOAD_FLAG_NO_VERTEX_NORMALS)) {
+        printf("Copying normals from assimp object.\n");
+        for (int i = 0; i < m->nu_vertices; i++) {
+            m->vertex_normal[i].Set(assimp_normal[i].x, assimp_normal[i].y, assimp_normal[i].z);
+        }
+        m->flags |= SRE_NORMAL_MASK;
+    }
+    // Assign tangents.
+//    nu_tangents_set = 0; // DEBUG
+    if (nu_tangents_set == nu_vertices && !(load_flags & SRE_MODEL_LOAD_FLAG_NO_TANGENTS)) {
+        printf("Copying tangents from assimp object.\n");
+        m->vertex_tangent = new Vector4D[m->nu_vertices];
+        for (int i = 0; i < m->nu_vertices; i++) {
+            Vector3D t;
+            t.Set(assimp_tangent[i].x, assimp_tangent[i].y, assimp_tangent[i].z);
+            m->vertex_tangent[i].Set(t.x, t.y, t.z, 1.0);
+        }
+        m->flags |= SRE_TANGENT_MASK;
+    }
+    m->MergeIdenticalVertices();
+    if ((m->flags & SRE_NORMAL_MASK) || (load_flags & SRE_MODEL_LOAD_FLAG_NO_VERTEX_NORMALS))
+        // If the object has pre-defined vertex normals, or vertex normals are not desired,
+        // only calculate face normals.
+        m->CalculateTriangleNormals();
+    else
+        m->CalculateNormals();
 
-	InitDataStructures();
-        base_path = bpath;
-	ProcessAssimpScene();
-
-	// cleanup - calling 'aiReleaseImport' is important, as the library 
-	// keeps internal resources until the scene is freed again. Not 
-	// doing so can cause severe resource leaking.
-	aiReleaseImport(ai_scene);
-
-	// We added a log stream to the library, it's our job to disable it
-	// again. This will definitely release the last resources allocated
-	// by Assimp.
-	aiDetachAllLogStreams();
-
-	ConvertToModel(m);
-        scene->RegisterModel(m);
+    // Process textures.
+    m->mesh = new sreModelMesh[nu_meshes];
+    m->nu_meshes = nu_meshes;
+    int texture_count = 0;
+    int normal_map_count = 0;
+    int specular_map_count = 0;
+    for (int i = 0; i < nu_meshes; i++) {
+        if (assimp_mesh[i].texture != NULL) {
+            sreTexture *texture = new sreTexture(assimp_mesh[i].texture, TEXTURE_TYPE_NORMAL);
+            // Assign texture id for SRE renderer.
+            m->mesh[i].texture_opengl_id = texture->opengl_id;
+            texture_count++;
+        }
+        if (assimp_mesh[i].normal_map != NULL) {
+            normal_map_count++;
+            if (!FileExists(assimp_mesh[i].normal_map)) {
+                printf("Normal map texture not found, skipping whole mesh.\n");
+                m->mesh[i].nu_vertices = 0;
+                // Allow specular maps for the remaining meshes in this situation (specular_map_count will
+                // be equal to nu_meshes).
+                if (assimp_mesh[i].specular_map != NULL)
+                    specular_map_count++;
+                continue;
+            }
+            sreTexture *normal_map = new sreTexture(assimp_mesh[i].normal_map, TEXTURE_TYPE_NORMAL_MAP);
+            // Assign texture id for SRE renderer.
+            m->mesh[i].normal_map_opengl_id = normal_map->opengl_id;
+        }
+        if (assimp_mesh[i].specular_map != NULL) {
+            specular_map_count++;
+            sreTexture *specular_map = new sreTexture(assimp_mesh[i].specular_map, TEXTURE_TYPE_NORMAL_MAP);
+            // Assign texture id for SRE renderer.
+            m->mesh[i].specular_map_opengl_id = specular_map->opengl_id;
+        }
+        // Assign mesh details for SRE renderer.
+        m->mesh[i].starting_vertex = assimp_mesh[i].starting_vertex;
+        m->mesh[i].nu_vertices = assimp_mesh[i].ending_vertex + 1 - assimp_mesh[i].starting_vertex;
+    }
+    // When using a normal map, and tangents haven't been specified, calculate tangent vectors.
+    if (normal_map_count == nu_meshes && nu_tangents_set != nu_vertices && 
+    !(load_flags & SRE_MODEL_LOAD_FLAG_NO_TANGENTS)) {
+        m->CalculateTangentVectors();
+        m->flags |= SRE_TANGENT_MASK;
+    }
+    FreeDataStructures();
+    return m;
 }
 
+
+sreModel *sreReadModelFromAssimpFile(sreScene *scene, const char *filename, const char *base_path,
+int load_flags) {
+    struct aiLogStream stream;
+
+    // Get a handle to the predefined STDOUT log stream and attach
+    // it to the logging system. It remains active for all further
+    // calls to aiImportFile(Ex) and aiApplyPostProcessing.
+    if (sre_internal_debug_message_level >= 1) {
+       stream = aiGetPredefinedLogStream(aiDefaultLogStream_STDOUT, NULL);
+       aiAttachLogStream(&stream);
+    }
+
+    assimp_base_path = base_path;
+    ai_scene = aiImportFile(filename, aiProcessPreset_TargetRealtime_MaxQuality);
+
+    InitDataStructures();
+    ProcessAssimpScene();
+
+    // cleanup - calling 'aiReleaseImport' is important, as the library 
+    // keeps internal resources until the scene is freed again. Not 
+    // doing so can cause severe resource leaking.
+    aiReleaseImport(ai_scene);
+
+    // We added a log stream to the library, it's our job to disable it
+    // again. This will definitely release the last resources allocated
+    // by Assimp.
+    aiDetachAllLogStreams();
+
+    sreModel *model = new sreModel;
+    model->nu_lod_levels = 1;
+    model->lod_model[0] = ConvertToModel(load_flags);
+    model->CalculateBounds();
+    model->collision_shape_static = SRE_COLLISION_SHAPE_STATIC;
+    model->collision_shape_dynamic = SRE_COLLISION_SHAPE_CONVEX_HULL;
+    scene->RegisterModel(model);
+    return model;
+
+}

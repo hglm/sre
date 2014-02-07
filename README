@@ -71,6 +71,9 @@ back-end. This includes:
   back-ends.
 - Device-specific EGL/GLES2 development libraries for OpenGL-ES 2.0
   back-ends.
+- Assimp 3.x (asset import library) is required when assimp support
+  is enabled, allowing loading many different 3D model file formats.
+  In Debian-based distributions, it is available as libassimp-dev.
 
 Another dependency is libpng (development package).
 
@@ -107,9 +110,11 @@ downs with moving objects near point source lights or moving lights.
 Several functions that generate models of common geometrical shapes
 such as a sphere and a torus and other models are provided by the
 library. There is support for combining models into a single model
-(compound models). Currently the OBJ format is the only supported
-model file format that can be read from disk, although there is code
-to support the assimp library that needs to be revalidated.
+(compound models). Currently the OBJ format is the only natively
+supported model file format that can be read from disk, but optional
+use of the Assimp library is supported which allows loading of models
+in a plethora of simple and complex formats (including multiple
+meshes and model-referenced textures).
 
 - A model (sreModel) is the highest level abstraction of a model.
   Bounding volumes are only defined at this level. The model contains
@@ -242,6 +247,11 @@ errors.
   proper scene graph would allow objects to be grouped together
   and transformations applied to them as a group.
 
+- The device back-ends are not very elegantly defined; ideally it should
+  be possible to compile in multiple back-ends; similarly, the demo main
+  loop with callbacks to "DemoRender" and "DemoTimeIteration" is not very
+  elegant, with global variables for the GUI control declared in demo.h.
+
 - Support for shadow mapping for OpenGL-ES 2.0 would be possible
   after the handling of shadow map buffers and shadow maps in shaders
   is augmented to be compatible with the features present in OpenGL-ES
@@ -269,9 +279,6 @@ errors.
   interesting effects, while adding very little extra burden on the
   CPU or GPU, although introducing the use of geometry shaders would
   be more flexible.
-
-- Provide native support for more mesh file format than just OBJ.
-  Assimp code is in place but has not tested/updated for some time.
 
 - Try font texture stored with only one component, preferably something
   like UINT8, reducing memory requirements and GPU texture cache

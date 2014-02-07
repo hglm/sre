@@ -34,7 +34,7 @@ sre/MouseEventQueue.cpp
 sre/octree.cpp
 sre/opengl-x11.cpp
 sre/random.cpp
-sre/readobjfile.cpp
+sre/read_model_file.cpp
 sre/scene.cpp
 sre/shader_loading.cpp
 sre/shader_matrix.cpp
@@ -63,7 +63,7 @@ sre/shader.h
 sre/sreVectorMath.h
 sre/win32_compat.h
 sre/x11-common.h
-sre.gl3_billboard.vfrag
+sre/gl3_billboard.frag
 sre/gl3_billboard.vert
 sre/gl3_halo.frag
 sre/gl3_HDR_average_lum.vert

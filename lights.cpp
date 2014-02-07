@@ -1692,7 +1692,7 @@ int *intersecting_object) const {
 // the light volume half cylinder with every object.
 
 void sreScene::CalculateStaticLightObjectLists() {
-    printf("Calculating static shadow volumes and static object lists for lights.\n");
+    printf("Calculating static shadow bounding volumes and static object lists for lights.\n");
     // Keep track of the number of static lights for which an object
     // is partially inside the light volume (this will be used to allocate
     // geometry scissors cache slots).

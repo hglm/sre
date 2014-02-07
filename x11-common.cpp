@@ -176,7 +176,7 @@ static const unsigned int X11_button_translation_table[] = {
     SRE_TRANSLATION_TABLE_END
 };
 
-static void X11ProcessGUIEvents() {
+static void X11GUIProcessEvents() {
     XEvent e;
     bool motion_occurred = false;
     int motion_x, motion_y;
@@ -215,8 +215,8 @@ static void X11ProcessGUIEvents() {
         GUIProcessMouseMotion(motion_x, motion_y);
 }
 
-void ProcessGUIEvents(double dt) {
-    X11ProcessGUIEvents();
+void GUIProcessEvents(double dt) {
+    X11GUIProcessEvents();
     GUIMovePlayer(dt);
 }
 
@@ -254,7 +254,7 @@ void GUIWarpCursor(int x, int y) {
 
 // The following function more or less assumes Linux is used.
 
-double GetCurrentTime() {
+double GUIGetCurrentTime() {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;

@@ -461,16 +461,17 @@ static void ReadOBJ(const char *filename) {
     fclose(fp);
 }
 
-sreLODModel *sreReadLODModelFromFile(const char *filename, int model_type) {
-    ResetSourceModelData();
-
+sreLODModel *sreReadMultiDirectoryLODModelFromFile(const char *filename, const char *base_path,
+int model_type, int load_flags) {
     // Read vertex attribute and face information.
     switch (model_type) {
     case SRE_MODEL_FILE_TYPE_OBJ :
+        ResetSourceModelData();
         ReadOBJ(filename);
         break;
     default :
         ModelFileReadError("Model file format not supported");
+        exit(1);
         break;
     }
 
@@ -500,9 +501,21 @@ sreLODModel *sreReadLODModelFromFile(const char *filename, int model_type) {
     return m;
 }
 
-sreModel *sreReadModelFromFile(sreScene *scene, const char *filename, int model_type) {
+sreLODModel *sreReadLODModelFromFile(const char *filename, int model_type, int load_flags) {
+    return sreReadMultiDirectoryLODModelFromFile(filename, NULL, model_type, load_flags);
+}
+
+sreModel *sreReadMultiDirectoryModelFromFile(sreScene *scene, const char *filename, const char *base_path,
+int model_type, int load_flags) {
+#ifdef ASSIMP_SUPPORT
+    // When assimp is available, use it for any file type (including .OBJ), except when a
+    // flag indicates using the native SRE model loading function.
+    if (!(load_flags & SRE_MODEL_LOAD_FLAG_USE_SRE))
+        return sreReadModelFromAssimpFile(scene, filename, base_path, load_flags);
+#endif
+
     sreModel *model = new sreModel;
-    model->lod_model[0] = sreReadLODModelFromFile(filename, model_type);
+    model->lod_model[0] = sreReadLODModelFromFile(filename, model_type, load_flags);
     model->nu_lod_levels = 1;
     model->CalculateBounds();
     model->collision_shape_static = SRE_COLLISION_SHAPE_STATIC;
@@ -511,3 +524,13 @@ sreModel *sreReadModelFromFile(sreScene *scene, const char *filename, int model_
     return model;
 }
 
+sreModel *sreReadModelFromFile(sreScene *scene, const char *filename, int model_type, int load_flags) {
+#ifdef ASSIMP_SUPPORT
+    // When assimp is available, use it for any file type (including .OBJ), except when a
+    // flag indicates using the native SRE model loading function.
+    if (!(load_flags & SRE_MODEL_LOAD_FLAG_USE_SRE))
+        return sreReadModelFromAssimpFile(scene, filename, "", load_flags);
+#endif
+
+    return sreReadMultiDirectoryModelFromFile(scene, filename, NULL, model_type, load_flags);
+}
