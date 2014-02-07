@@ -94,7 +94,7 @@ static bool IsSameScale(SceneObject *so1, SceneObject *so2) {
 }
 
 void BulletInitialize() {
-    printf("Creating bullet data structures.\n");
+    sreMessage(SRE_MESSAGE_INFO, "Creating bullet data structures.");
 
     // Build the broadphase
     broadphase = new btDbvtBroadphase();
@@ -276,7 +276,9 @@ void BulletInitialize() {
             scene_object_collision_shape[i] = new btConvexHullShape(
                 (const btScalar*)hull->getVertexPointer(),
                 hull->numVertices());
-            printf("Convex hull vertices reduced from %d to %d.\n", m->nu_vertices, hull->numVertices());
+            sreMessage(SRE_MESSAGE_SPARSE_LOG,
+                "Convex hull vertices reduced from %d to %d.\n",
+                m->nu_vertices, hull->numVertices());
             break;
             }
         case SRE_COLLISION_SHAPE_ELLIPSOID : {
@@ -398,8 +400,7 @@ void BulletInitialize() {
         }
         else {
             // Absolute and not static makes no sense.
-            printf("Error in BulletInitialize.\n");
-            exit(1);
+            sreFatalError("Error in BulletInitialize.\n");
         }
     }
 }
@@ -421,7 +422,9 @@ static void BulletStep(double dt) {
 #else
         substeps = floor(dt / ((double)1 / 60)) + 1;
 #endif
-        printf("Substeps adjusted to %d, dt = %lf, substeps * 1 / 60 = %lf\n", substeps, dt, substeps * ((double)1 / 60));
+        sreMessage(SRE_MESSAGE_LOG,
+            "Substeps adjusted to %d, dt = %lf, substeps * 1 / 60 = %lf\n",
+            substeps, dt, substeps * ((double)1 / 60));
     }
     dynamicsWorld->stepSimulation(dt, substeps);
 }

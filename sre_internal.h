@@ -16,8 +16,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 */
 
-
 // Internal SRE library header file.
+
+#include <cstdarg>
 
 // Defined shader_matrix.cpp:
 
@@ -232,4 +233,8 @@ void sreInitializeInternalShadowVolume();
 #define CHECK_GL_ERROR(s)
 #endif
 
-void sreFatalError(const char *s);
+// This function check for the existence of OpenGL errors, and prints
+// the given formatted string if an error has occurred. It flushes
+// all previous errors. No newline is printed after the string.
+void sreCheckGLError(const char *format, ...);
+

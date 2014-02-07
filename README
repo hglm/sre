@@ -201,8 +201,26 @@ demo application with the --debug2 or --debug3 option. This will show
 when new shaders are selected for each object (--debug2) or log
 every draw request for an object (--debug3).
 
+The debug2/debug3 level corresponds to the message verbosity level;
+only messages with a priority smaller or equal to the level are
+displayed. The following levels are defined:
+
+    SRE_MESSAGE_ERROR = - 4,
+    SRE_MESSAGE_QUIET = - 3,
+    SRE_MESSAGE_CRITICAL = - 2,
+    SRE_MESSAGE_WARNING = - 1,
+    // Priority levels 0 to 3 are information (0 corresponds to the
+    // least frequent information that always displayed by default with
+    // sre_internal_debug_message_level of 0, level 3 corresponds to very
+    // frequent information at logging level).
+    SRE_MESSAGE_INFO = 0,
+    SRE_MESSAGE_SPARSE_LOG = 1,
+    SRE_MESSAGE_LOG = 2,
+    SRE_MESSAGE_VERBOSE_LOG = 3
+
 The DEBUG_OPENGL setting can be useful to trace OpenGL-related
-errors.
+errors. It can seriously impact performance by stalling the rendering
+pipeline.
 
 --- Issues/limitations/ideas ---
 
@@ -359,6 +377,10 @@ errors.
 - The worst case bounding volume of the spotlights in demo1 could be
   defined as a spherical sector (it is calculated, but not stored or used
   yet).
+
+- Message priority levels and functions for errors, debugging and logging
+  have been introduced. Only part of the code uses this mechanism, the
+  rest still uses printf and exit and should be updated.
 
 --- LICENSE --
 

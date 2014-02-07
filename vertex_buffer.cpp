@@ -127,10 +127,8 @@ bool shadow) {
                 buffer_size *= 2;
             glBufferData(GL_ARRAY_BUFFER, buffer_size, attribute_data[i],
                 GetAttributeUsage(i, dynamic_flags));
-            if (glGetError() != GL_NO_ERROR) {
-                printf("Error executing glBufferData\n");
-                exit(1);
-            }
+            if (glGetError() != GL_NO_ERROR)
+                sreFatalError("Error executing glBufferData.");
        }
 }
 
@@ -181,10 +179,8 @@ Vector4D *positions, bool shadow) {
     glGenBuffers(1, &GL_interleaved_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, GL_interleaved_buffer);
     glBufferData(GL_ARRAY_BUFFER, buffer_size, buffer, GL_STATIC_DRAW);
-    if (glGetError() != GL_NO_ERROR) {
-        printf("Error executing glBufferData\n");
-        exit(1);
-    }
+    if (glGetError() != GL_NO_ERROR)
+        sreFatalError("Error executing glBufferData\n");
     // Set the model OpenGL buffer IDs for the attributes, all referring to the
     // same interleaved vertex buffer.
     for (int i = 0; i < SRE_NU_VERTEX_ATTRIBUTES; i++)
@@ -226,14 +222,10 @@ static bool OnlyOneAttributeSet(int attribute_mask) {
 void sreLODModel::InitVertexBuffers(int attribute_mask, int dynamic_flags) {
     // Check that all attributes defined in attribute_mask are present in the model
     // (enabled in sreBaseModel::flags).
-    if ((attribute_mask & flags) != attribute_mask) {
-        printf("Error (GL3InitVertexBuffers): Not all requested attributes are present the base model.\n");
-        exit(1);
-    }
-    if (attribute_mask == 0) {
-        printf("Error(GL3InitVertexBuffers): attribute_mask = 0 (unexpected).\n");
-        exit(1);
-    }
+    if ((attribute_mask & flags) != attribute_mask)
+        sreFatalError("Error (GL3InitVertexBuffers): Not all requested attributes are present the base model.");
+    if (attribute_mask == 0)
+        sreFatalError("Error (GL3InitVertexBuffers): attribute_mask = 0 (unexpected).");
 
     // This is not the best place to initialize this table (which is used when drawing objects).
     if (!attribute_list_table_initialized)
@@ -318,9 +310,9 @@ finish :
         // 4D positions no longer required.
         delete [] positions_4D;
 
-    if (sre_internal_debug_message_level >= 2)
-        printf("GL3InitVertexBuffers: Uploading model %d, attribute_mask 0x%02X.\n",
-            id, attribute_mask);
+    sreMessage(SRE_MESSAGE_LOG,
+        "GL3InitVertexBuffers: Uploading model %d, attribute_mask 0x%02X.\n",
+        id, attribute_mask);
 
     // If the model is in any way instanced (at least one attribute shared), then we can
     // be sure that the triangle vertex indices are already present on the GPU and will
@@ -360,19 +352,18 @@ copy_indices:
             for (int j = 0; j < 3; j++)
                 indices16[i * 3 + j] = triangle[i].vertex_index[j];
         GL_indexsize = 2;
-        if (sre_internal_debug_message_level >= 2)
-            printf("Less or equal to %d vertices in object (including extruded shadow vertices), "
-                "using 16-bit indices.\n", max_short_index + 1);
+        sreMessage(SRE_MESSAGE_LOG,
+            "Less or equal to %d vertices in object (including extruded shadow vertices), "
+            "using 16-bit indices.\n", max_short_index + 1);
     }
     // Upload triangle vertex indices.
     glGenBuffers(1, &GL_element_buffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_element_buffer);
+    sreCheckGLError("OpenGL error before element array buffer creation.\n");
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, nu_triangles * 3 * GL_indexsize,
         triangle_vertex_indices, GL_STATIC_DRAW);
-    if (glGetError() != GL_NO_ERROR) {
-        printf("OpenGL error occurred during element array buffer creation.\n");
-        exit(1);
-    }
+    if (glGetError() != GL_NO_ERROR)
+        sreFatalError("OpenGL error occurred during element array buffer creation.");
     delete [] triangle_vertex_indices;
 
     if (!shadow)
@@ -383,7 +374,8 @@ calculate_edges :
     if (model_shadow_volume->nu_edges == 0)
         model_shadow_volume->CalculateEdges();
     else
-        printf("Warning: GL3InitVertexBuffers: edges already calculated "
+        sreMessage(SRE_MESSAGE_WARNING,
+            "Warning: GL3InitVertexBuffers: edges already calculated "
             "(shouldn't happen).\n");
 }
 

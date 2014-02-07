@@ -1028,8 +1028,9 @@ int counted_entities) const {
         size = counted_nodes * 2 + counted_leafs + counted_entities;
     else
         size = counted_nodes * 3 + counted_leafs + counted_entities;
-    printf("Creating fast octree (%d nodes, %d leafs, %d entities), array size = %d.\n", counted_nodes,
-        counted_leafs, counted_entities, size);
+    sreMessage(SRE_MESSAGE_INFO,
+        "Creating fast octree (%d nodes, %d leafs, %d entities), array size = %d.",
+        counted_nodes, counted_leafs, counted_entities, size);
     fast_oct.node_bounds = new OctreeNodeBounds[counted_nodes];
     fast_oct.array = new unsigned int[size];
     array_index = 0;
@@ -1060,6 +1061,7 @@ void FastOctree::Destroy() {
 // Create the scene octrees (in FastOctree format).
 
 void sreScene::CreateOctrees() {
+    sreMessage(SRE_MESSAGE_INFO, "Creating octrees.");
     // First calculate the AABB for all static geometry objects and static (or bound) lights and
     // determine the maximum extents of all static entities combined.
     sreBoundingVolumeAABB AABB;
@@ -1123,7 +1125,7 @@ void sreScene::CreateOctrees() {
             // should still comfortably cover the AABB range for the dimension.
             if (minxyz + dim_offset > AABB.dim_min[i] || maxxyz + dim_offset < AABB.dim_max[i]) {
                printf("Unexpected error aligning octree extents for dimension %d (displacement %lf); "
-                   "applying no alignment.\n", dim_offset, i);
+                   "applying no alignment.\n", i, dim_offset);
                dim_offset = 0;
             }
             else if (sre_internal_debug_message_level >= 1)

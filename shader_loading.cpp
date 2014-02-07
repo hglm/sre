@@ -758,7 +758,7 @@ static void printShaderInfoLog(GLuint obj) {
     if (infologLength > 0) {
         infoLog = (char *)malloc(infologLength);
         glGetShaderInfoLog(obj, infologLength, &charsWritten, infoLog);
-	printf("%s\n",infoLog);
+	sreMessage(SRE_MESSAGE_ERROR, "%s",infoLog);
         free(infoLog);
     }
 }
@@ -774,7 +774,7 @@ static void printProgramInfoLog(GLuint obj) {
     if (infologLength > 0) {
         infoLog = (char *)malloc(infologLength);
         glGetProgramInfoLog(obj, infologLength, &charsWritten, infoLog);
-	printf("%s\n",infoLog);
+	sreMessage(SRE_MESSAGE_ERROR, "%s",infoLog);
         free(infoLog);
     }
 }
@@ -816,7 +816,7 @@ static int shader_directory_table[] = {
 void sreShader::Initialize(const char *_name, int _type, int _uniform_mask, int _attribute_mask,
 const char * _vfilename, const char *_ffilename, const char *_prologue) {
     if (status != SRE_SHADER_STATUS_UNINITIALIZED) {
-        printf("Error (sreShader::Initialize()) -- shader not uninitialized.\n");
+        sreFatalError("Error (sreShader::Initialize()) -- shader not uninitialized.\n");
         exit(1);
     }
     name = _name;
@@ -838,8 +838,7 @@ const char * _vfilename, const char *_ffilename, const char *_prologue) {
 void sreShader::Initialize(const char *vertex_shader_filename, const char *fragment_shader_filename,
 const char *pr_str) {
     if (status != SRE_SHADER_STATUS_UNINITIALIZED) {
-        printf("Error (InitializeShader()) -- shader not uninitialized.\n");
-        exit(1);
+        sreFatalError("Error (InitializeShader()) -- shader not uninitialized.\n");
     }
     vfilename = vertex_shader_filename;
     ffilename = fragment_shader_filename;
@@ -853,21 +852,18 @@ const char *pr_str) {
 }
 
 void sreShader::Load() {
-    printf("Loading shader %s ", name);
     if (status == SRE_SHADER_STATUS_UNINITIALIZED) {
-        printf("Error -- sreShader::Initialize() should be called before LoadShader().\n");
-        exit(1);
+        sreFatalError(
+            "Error -- sreShader::Initialize() should be called before LoadShader().\n");
     }
 
     GLuint v = glCreateShader(GL_VERTEX_SHADER);
     if (v == 0) {
-        printf("Error creating vertex shader %s\n", name);
-        exit(1); 
+        sreFatalError("Error allocating vertex shader %s\n", name);
     }
     GLuint f = glCreateShader(GL_FRAGMENT_SHADER);	
     if (f == 0) {
-        printf("Error creating fragment shader %s\n", name);
-        exit(1); 
+        sreFatalError("Error allocating fragment shader %s\n", name);
     }
 
     bool builtin = false;
@@ -875,10 +871,9 @@ void sreShader::Load() {
     char *fragmentsource = NULL;
     for (int sdir = 0;; sdir++) {
         if (shader_directory_table[sdir] == SHADER_DIRECTORY_END_MARKER) {
-            printf("Error - shader file not found (%s, %s).\n", 
+            sreFatalError("Error - shader file not found (%s, %s).\n", 
                 vfilename, ffilename);
-            exit(1);
-        }
+         }
 #ifdef SHADERS_BUILTIN
         if (shader_directory_table[sdir] == SHADER_DIRECTORY_BUILTIN) {
             for (int i = 0; i < sre_nu_builtin_shader_sources; i++) {
@@ -911,7 +906,8 @@ void sreShader::Load() {
                 fragmentsource = filetobuf(fragment_path);
                 if (fragmentsource == NULL) {
                     free(vertexsource);
-                    printf("Fragment shader missing (%s).", fragment_path);
+                    sreMessage(SRE_MESSAGE_WARNING,
+                        "Fragment shader missing (%s).", fragment_path);
                 }
                 else
                     found = true;
@@ -922,11 +918,12 @@ void sreShader::Load() {
                 break;
         }
     }
+    const char *origin_str;
     if (builtin)
-        printf("(built-in)\n");
+        origin_str = "(built-in)";
     else
-        printf("(default path)\n");
-
+        origin_str = "(default path)";
+    sreMessage(SRE_MESSAGE_INFO, "Loading shader %s %s", name, origin_str);
 
     char *vertex_source_str[1];
     vertex_source_str[0] = new char[strlen(prologue) + strlen(vertexsource) + 1];
@@ -948,8 +945,7 @@ void sreShader::Load() {
 
     program = glCreateProgram();
     if (f == 0) {
-        printf("Error creating program.\n");
-        exit(1); 
+        sreFatalError("Error creating shader program.\n");
     }
 
 //    glUseProgram(0);
@@ -963,14 +959,15 @@ void sreShader::Load() {
     GLint params;
     glGetProgramiv(program, GL_LINK_STATUS, &params);
     if (params == GL_FALSE) {
-        printf("Shader program link unsuccesful (%s, %s).\n", vfilename, ffilename);
-        printf("Vertex shader log:\n");
+        sreMessage(SRE_MESSAGE_ERROR,
+            "Shader program link unsuccesful (%s, %s).\n"
+            "Vertex shader log:", vfilename, ffilename);
         printShaderInfoLog(v);
-        printf("Fragment shader log:\n");
+        sreMessage(SRE_MESSAGE_ERROR, "Fragment shader log:\n");
         printShaderInfoLog(f);
-        printf("Shader program log:\n");
+        sreMessage(SRE_MESSAGE_ERROR, "Shader program log:\n");
         printProgramInfoLog(program);
-        exit(1);
+        sreFatalError("");
     }
 
     // Also bind uniform locations.
@@ -990,13 +987,13 @@ void sreShader::BindAttributes() {
              glBindAttribLocation(program, i, attribute_str[i]);
 
         if (sre_internal_debug_message_level >= 2 && glGetError() != GL_NO_ERROR) {
-            printf("OpenGL error occurred after BindAttribs for shader %s, attribute %d.\n",
+            sreFatalError("OpenGL error occurred after BindAttribs for shader %s, attribute %d.\n",
                 name, i);
             exit(1);
         }
     }
     if (glGetError() != GL_NO_ERROR) {
-        printf("OpenGL error occurred after BindAttribs.\n");
+        sreFatalError("OpenGL error occurred after BindAttribs.\n");
         exit(1);
     }
 }
@@ -1006,7 +1003,7 @@ void sreShader::InitializeUniformLocationsLightingShader() {
         if (uniform_mask & (1 << j)) {
             uniform_location[j] = glGetUniformLocation(program, uniform_str[j]);
             if (uniform_location[j] == - 1) {
-                printf("Error getting uniform location for '%s' from shader '%s'.\n", uniform_str[j], name);
+                sreFatalError("Error getting uniform location for '%s' from shader '%s'.\n", uniform_str[j], name);
                 exit(1);
             }
         }
@@ -1225,7 +1222,7 @@ void sreShader::InitializeUniformLocationsMiscShaderNew() {
         if (uniform_mask & (1 << j)) {
             uniform_location[count] = glGetUniformLocation(program, uniform_misc_str[j]);
             if (uniform_location[count] == - 1) {
-                printf("Error getting uniform location for '%s' from shader '%s'.\n",
+                sreFatalError("Error getting uniform location for '%s' from shader '%s'.\n",
                     uniform_misc_str[j], name);
                 exit(1);
             }
@@ -1238,7 +1235,7 @@ void sreShader::InitializeUniformLocationsMiscShader() {
         if (uniform_mask & (1 << j)) {
             uniform_location[j] = glGetUniformLocation(program, uniform_misc_str[j]);
             if (uniform_location[j] == - 1) {
-                printf("Error getting uniform location for '%s' from shader '%s'.\n", uniform_misc_str[j], name);
+                sreFatalError("Error getting uniform location for '%s' from shader '%s'.\n", uniform_misc_str[j], name);
                 exit(1);
             }
         }

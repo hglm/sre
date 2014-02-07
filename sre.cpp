@@ -20,6 +20,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <stdio.h>
 #include <math.h>
 #include <limits.h>
+#include <signal.h>
 #ifdef OPENGL_ES2
 #include <GLES2/gl2.h>
 #endif
@@ -134,7 +135,8 @@ int sre_internal_visualized_shadow_map = - 1;
 
 void sreSetShadowsMethod(int method) {
     if (method == SRE_SHADOWS_SHADOW_VOLUMES && sre_internal_shadow_volumes_disabled) {
-       printf("Invalid shadow rendering method requested (shadow volumes are disabled).\n");
+       sreMessage(SRE_MESSAGE_WARNING,
+           "Invalid shadow rendering method requested (shadow volumes are disabled).\n");
        return;
     }
     sre_internal_shadows = method;
@@ -241,7 +243,8 @@ void sreSetHDRToneMappingShader(int i) {
         sreValidateHDRShaders();
     }
     else
-        printf("sre: Invalid tone mapping shader.\n");
+        sreMessage(SRE_MESSAGE_WARNING,
+            "sre: Invalid tone mapping shader selected.\n");
 }
 
 int sreGetCurrentHDRToneMappingShader() {
@@ -442,8 +445,7 @@ static void SetupHDRFramebuffer() {
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER,
         sre_internal_HDR_multisample_depth_renderbuffer);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        printf("Error -- HDR multisample framebuffer not complete.\n");
-        exit(1);
+        sreFatalError("Error -- HDR multisample framebuffer not complete.");
     }
 
     glGenFramebuffers(1, &sre_internal_HDR_framebuffer);
@@ -459,8 +461,7 @@ static void SetupHDRFramebuffer() {
     glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE, sre_internal_HDR_color_texture, 0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        printf("Error -- HDR framebuffer not complete.\n");
-        exit(1);
+        sreFatalError("Error -- HDR framebuffer not complete.");
     }
 
     CHECK_GL_ERROR("Error after HDR render setup.\n");
@@ -499,7 +500,7 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     // sre_internal_rendering_flags for efficiency.
 
     if (sre_internal_demand_load_shaders)
-        printf("Demand loading of shaders enabled.\n");
+        sreMessage(SRE_MESSAGE_INFO, "Demand loading of shaders enabled.\n");
 
     // First load the text shader, but respect the shader loading mask.
     // When demand-loading is enabled, and the splash screen is off,
@@ -559,8 +560,7 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     glDrawBuffer(GL_NONE);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        printf("Error -- shadow map framebuffer not complete.\n");
-        exit(1);
+        sreFatalError("Error -- shadow map framebuffer not complete.");
     }
 
     // Set up render-to-cubemap framebuffer for shadow map cubemap (texture array).
@@ -588,8 +588,7 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     glDrawBuffer(GL_NONE);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        printf("Error -- cube shadow map framebuffer not complete.\n");
-        exit(1);
+        sreFatalError("Error -- cube shadow map framebuffer not complete.\n");
     }
 
     // Set up render-to-texture framebuffer for small shadow map used for spot and beam lights.
@@ -627,8 +626,7 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     glDrawBuffer(GL_NONE);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        printf("Error -- small (spot light) shadow map framebuffer not complete.\n");
-        exit(1);
+        sreFatalError("Error -- small (spot light) shadow map framebuffer not complete.\n");
     }
 
     if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING)
@@ -651,8 +649,7 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE,
         sre_internal_HDR_log_luminance_texture, 0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        printf("Error -- HDR log luminance framebuffer not complete.\n");
-        exit(1);
+        sreFatalError("Error -- HDR log luminance framebuffer not complete.\n");
     }
 
     int size = 64;
@@ -670,7 +667,7 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE,
             sre_internal_HDR_average_luminance_texture[i], 0);
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            printf("Error -- HDR average luminance framebuffer not complete.\n");
+            sreFatalError("Error -- HDR average luminance framebuffer not complete.\n");
             exit(1);
         } 
         CHECK_GL_ERROR("Error after glFramebufferTexture2D.\n");
@@ -697,7 +694,7 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE,
         sre_internal_HDR_luminance_history_texture, 0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        printf("Error -- HDR luminance history storage framebuffer not complete.\n");
+        sreFatalError("Error -- HDR luminance history storage framebuffer not complete.\n");
         exit(1);
     }
 
@@ -717,7 +714,7 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE,
         sre_internal_HDR_used_average_luminance_texture, 0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        printf("Error -- HDR luminance history comparison framebuffer not complete.\n");
+        sreFatalError("Error -- HDR luminance history comparison framebuffer not complete.\n");
         exit(1);
     }
     // Set up vertex array consisting of two 2D triangles to cover the whole screen.
@@ -742,7 +739,7 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     sre_internal_use_depth_clamping = true;
     if (!GL_ARB_depth_clamp) {
         sre_internal_use_depth_clamping = false;
-        printf("Warning: GL_DEPTH_CLAMP not available.\n");
+        sreMessage(SRE_MESSAGE_WARNING, "GL_DEPTH_CLAMP not available.\n");
     }
 #endif
     if (!sre_internal_use_depth_clamping)
@@ -798,17 +795,60 @@ void sreResize(sreView *view, int window_width, int window_height) {
 #endif
 }
 
-void sreCheckGLError(const char *s) {
+void sreCheckGLError(const char *format, ...) {
     GLenum errorTmp = glGetError();
     if (errorTmp != GL_NO_ERROR) {
-        printf(s);
+        if (sre_internal_debug_message_level != SRE_MESSAGE_QUIET) {
+            va_list args;
+            va_start(args, format);
+            printf(format, args);
+            va_end(args);
+            fflush(stdout);
+        }
         while (glGetError() != GL_NO_ERROR);
     }
 }
 
-void sreFatalError(const char *s) {
-    printf("libsre exited unexpectedly:\n%s\n", s);
-    exit(1);
+void sreFatalError(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    printf("(libsre) Unexpected fatal error:\n");
+    vprintf(format, args);
+    va_end(args);
+    printf("\n");
+    fflush(stdout);
+    raise(SIGABRT);
+}
+
+static void sreDisplayMessage(int priority, const char *format, va_list args) {
+    if (priority == SRE_MESSAGE_WARNING)
+        printf("WARNING: ");
+    else if (priority == SRE_MESSAGE_CRITICAL)
+        printf("CRITICAL: ");
+    vprintf(format, args);
+}
+
+void sreMessageNoNewline(int priority, const char *format, ...) {
+    if (priority > sre_internal_debug_message_level)
+        return;
+    va_list args;
+    va_start(args, format);
+    sreDisplayMessage(priority, format, args);
+    va_end(args);
+    if (priority <= SRE_MESSAGE_WARNING)
+        fflush(stdout);
+}
+
+void sreMessage(int priority, const char *format, ...) {
+    if (priority > sre_internal_debug_message_level)
+        return;
+    va_list args;
+    va_start(args, format);
+    sreDisplayMessage(priority, format, args);
+    va_end(args);
+    printf("\n");
+    if (priority <= SRE_MESSAGE_WARNING)
+        fflush(stdout);
 }
 
 // Globally apply new zoom settings. Default field of view is 60 degrees.

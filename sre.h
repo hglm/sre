@@ -1795,7 +1795,6 @@ SRE_API void sreSetHDRToneMappingShader(int i);
 SRE_API int sreGetCurrentHDRToneMappingShader();
 SRE_API const char *sreGetToneMappingShaderName(int i);
 SRE_API int sreGetCurrentFrame();
-SRE_API void sreSetDebugMessageLevel(int level);
 enum { SRE_SPLASH_NONE, SRE_SPLASH_BLACK, SRE_SPLASH_LOGO, SRE_SPLASH_CUSTOM };
 SRE_API void sreSetSplashScreen(int type, void (*SplashScreenFunction)());
 SRE_API void sreSwapBuffers();
@@ -2006,5 +2005,42 @@ public :
 
 // Get the default RNG allocated internally by the library.
 SRE_API sreDefaultRNG *sreGetDefaultRNG();
+
+// Errors/messages/logging. Used by the library, but can also be used by
+// the application.
+
+SRE_API void sreSetDebugMessageLevel(int level);
+
+#ifdef __GNU_C__
+// This function prints a formatted string and raises an interrupt, so that
+// it can function as a debugging breakpoint as well as quitting the program.
+// A newline appended after the string.
+void sreFatalError(const char *format, ...) __attribute__ ((noreturn));
+#else
+void sreFatalError(const char *format, ...);
+#endif
+
+// Messages will only be displayed if the priority is smaller than or equal
+// to the configured debug message level (sreSetDebugMessageLevel).
+enum {
+    // When the debug message level is equal to - 3, in principle no text
+    // output should occur.
+    SRE_MESSAGE_ERROR = - 4,
+    SRE_MESSAGE_QUIET = - 3,
+    SRE_MESSAGE_CRITICAL = - 2,
+    SRE_MESSAGE_WARNING = - 1,
+    // Priority levels 0 to 3 are information (0 corresponds to the
+    // least frequent information that always displayed by default with
+    // sre_internal_debug_message_level of 0, level 3 corresponds to very
+    // frequent information at logging level).
+    SRE_MESSAGE_INFO = 0,
+    SRE_MESSAGE_SPARSE_LOG = 1,
+    SRE_MESSAGE_LOG = 2,
+    SRE_MESSAGE_VERBOSE_LOG = 3
+};
+// Display a message depending on the priority level. A newline is appended
+// if the message is printed.
+void sreMessage(int priority, const char *format, ...);
+void sreMessageNoNewline(int priority, const char *format, ...);
 
 #endif

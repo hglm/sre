@@ -300,8 +300,9 @@ sreObjectAttributeInfo *info) {
         m->SetupAttributesInterleaved(info);
 
 #ifdef DEBUG_RENDER_LOG
-    if (sre_internal_debug_message_level >= 3) {
-        printf("sreDrawObject: Drawing elements, %d triangles (%d vertices), %d meshes.\n",
+    if (sre_internal_debug_message_level >= SRE_MESSAGE_VERBOSE_LOG) {
+        sreMessage(SRE_MESSAGE_VERBOSE_LOG,
+            "sreDrawObject: Drawing elements, %d triangles (%d vertices), %d meshes.\n",
             m->nu_triangles, m->nu_triangles * 3, m->nu_meshes);
         fflush(stdout);
     }
@@ -365,43 +366,43 @@ static void PrintAttributeList(sreObjectAttributeInfo *info, bool interleaved) {
         int mask = (info->attribute_masks >> (slot * 8)) & 0xFF;
         if (mask == 0) {
             if (slot < 2)
-                printf("none");
+                sreMessageNoNewline(SRE_MESSAGE_LOG, "none");
             return;
         }
         for (int i = 0; i < SRE_NU_VERTEX_ATTRIBUTES; i++)
             if (mask & (1 << i))
-                printf("%c", '0' + i);
+                sreMessageNoNewline("%c", '0' + i);
     }
 }
 
 static void PrintShaderInfo(const SceneObject *so, sreLODModel *m, sreObjectAttributeInfo *info,
 const char *pass,  int light_type_slot) {
-    if (sre_internal_debug_message_level >= 2) {
-        printf("object %d, model %d, %s shader %d (light type %d), "
+    if (sre_internal_debug_message_level >= SRE_MESSAGE_LOG) {
+        sreMessageNoNewline(SRE_MESSAGE_LOG,
+            "object %d, model %d, %s shader %d (light type %d), "
             "non-interleaved attributes: ",
             so->id, m->id,  pass, so->current_shader[light_type_slot], light_type_slot);
         PrintAttributeList(info, false);
-        printf(", interleaved: ");
+        sreMessageNoNewline(SRE_MESSAGE_LOG, ", interleaved: ");
         PrintAttributeList(info, true);
-        printf(", object flags 0x%08X, ", so->flags);
-        printf("model has %d triangles (%d vertices), %d meshes.\n", m->nu_triangles,
-            m->nu_triangles * 3, m->nu_meshes);
-        fflush(stdout);
+        sreMessage(SRE_MESSAGE_LOG, ", object flags 0x%08X, "
+            "model has %d triangles (%d vertices), %d meshes.\n",
+            so->flags, m->nu_triangles, m->nu_triangles * 3, m->nu_meshes);
     }
 }
 
 static void PrintNewShaderInfo(const SceneObject *so, sreLODModel *m, sreObjectAttributeInfo *info,
 const char *pass, int light_type_slot) {
-    if (sre_internal_debug_message_level >= 2) {
-        printf("New shader selected: ");
+    if (sre_internal_debug_message_level >= SRE_MESSAGE_LOG) {
+        sreMessage(SRE_MESSAGE_LOG, ("New shader selected: ");
         PrintShaderInfo(so, m, info, pass, light_type_slot);
     }
 }
 
 static void PrintDrawObjectInfo(const SceneObject *so, sreLODModel *m, sreObjectAttributeInfo *info,
 const char *pass, int light_type_slot) {
-    if (sre_internal_debug_message_level >= 3) {
-        printf("sreDrawObject: ");
+    if (sre_internal_debug_message_level >= SRE_MESSAGE_VERBOSE_LOG) {
+        sreMessage(SRE_MESSAGE_VERBOSE_LOG, ("sreDrawObject: ");
         PrintShaderInfo(so, m, info, pass, light_type_slot);
     }
 }
