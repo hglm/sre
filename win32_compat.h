@@ -24,23 +24,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // Note: Just using the built-in maximum and minimum values on all system may be safer/
 // give more consistent results than using 'INFINITY', so use of the latter is disabled.
 
-// #if !defined(__GNUC__ ) || defined(OPENGL_ES2)
-
-#if 1
-
 #define POSITIVE_INFINITY_DOUBLE DBL_MAX
-#define NEGATIVE_INFINITY_DOUBLE DBL_MIN
+#define NEGATIVE_INFINITY_DOUBLE - DBL_MAX
 #define POSITIVE_INFINITY_FLOAT FLT_MAX
-#define NEGATIVE_INFINITY_FLOAT FLT_MIN
-
-#else
-
-#define POSITIVE_INFINITY_DOUBLE INFINITY
-#define NEGATIVE_INFINITY_DOUBLE (- INFINITY)
-#define POSITIVE_INFINITY_FLOAT INFINITY
-#define NEGATIVE_INFINITY_FLOAT (- INFINITY)
-
-#endif
+#define NEGATIVE_INFINITY_FLOAT - FLT_MAX
 
 #ifndef __GNUC__
 #define isnan(x) _isnan(x)
