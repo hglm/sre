@@ -173,11 +173,56 @@ void sreDrawObjectLightHalo(SceneObject *so) {
     // Initialize the shader.
     sreInitializeObjectShaderLightHalo(*so);
     sreLODModel *m = so->model->lod_model[0];
-    // Disable the depth test.
+    // Disable writing into the depth buffer (when a large object is drawn afterwards that is
+    // partly behind the transparent halo, it should be visible through the halo).
     glDepthMask(GL_FALSE);
     // Enable a particular kind of blending.
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+   // The normal buffer is used for the centers of the halo billboards.
+    glEnableVertexAttribArray(2);
+    glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_NORMAL]);
+    glVertexAttribPointer(
+        2,
+        3,
+        GL_FLOAT,
+        GL_FALSE,
+        0,
+        (void *)0
+        );
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
+    glVertexAttribPointer(
+        0,
+        3,
+        GL_FLOAT,
+        GL_FALSE,
+        0,
+        (void *)0
+    );
+    if (so->flags & SRE_OBJECT_PARTICLE_SYSTEM) {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m->GL_element_buffer);
+        glDrawElements(GL_TRIANGLES, m->nu_triangles * 3, GL_UNSIGNED_SHORT, (void *)(0));
+    }
+    else
+        // Draw a triangle fan consisting of two triangles from the still bound vertex position buffer.
+        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+    glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(2);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+}
+
+// Draw billboard object (single or particle system).
+
+void sreDrawObjectBillboard(SceneObject *so) {
+    // Initialize the shader.
+    sreInitializeObjectShaderBillboard(*so);
+    sreLODModel *m = so->model->lod_model[0];
+    if (so->flags & SRE_OBJECT_TRANSPARENT_EMISSION_MAP) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
     glVertexAttribPointer(
@@ -189,27 +234,16 @@ void sreDrawObjectLightHalo(SceneObject *so) {
         (void *)0
     );
     if (so->flags & SRE_OBJECT_PARTICLE_SYSTEM) {
-        // The normal buffer is used for the centers of the billboard.
-        glEnableVertexAttribArray(2);
-        glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_NORMAL]);
-        glVertexAttribPointer(
-            2,
-            3,
-            GL_FLOAT,
-            GL_FALSE,
-            0,
-            (void *)0
-            );
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m->GL_element_buffer);
+        glDrawElements(GL_TRIANGLES, m->nu_triangles * 3, GL_UNSIGNED_SHORT, (void *)(0));
     }
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m->GL_element_buffer);
-    glDrawElements(GL_TRIANGLES, m->nu_triangles * 3, GL_UNSIGNED_SHORT, (void *)(0));
+    else
+        // Draw a triangle fan consisting of two triangles from the still bound vertex position buffer.
+        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     glDisableVertexAttribArray(0);
-    if (so->flags & SRE_OBJECT_PARTICLE_SYSTEM)
-         glDisableVertexAttribArray(2);
-    glDepthMask(GL_TRUE);
-    glDisable(GL_BLEND);
+    if (so->flags & SRE_OBJECT_TRANSPARENT_EMISSION_MAP)
+        glDisable(GL_BLEND);
 }
-
 
 void sreObjectAttributeInfo::Set(unsigned int object_attribute_mask,
 const sreAttributeInfo& model_attribute_info) {
@@ -381,18 +415,25 @@ static inline void SetRenderFlags(SceneObject *so) {
 // The final pass of both single-pass and multi-pass rendering. At the moment, reserved for
 // the following objects:
 //
-// - Objects with the SRE_OBJECT_EMISSION_ONLY flag set. They are not influenced by lights.
-// - Objects with the SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_PARTICLE_SYSTEM flags set. They
-//   are not influenced by light and are transparent.
+// - Objects with the SRE_OBJECT_EMISSION_ONLY flag set. They are not influenced by lights. These
+//   objects may additionally have the SRE_OBJECT_BILLBOARD, SRE_OBJECT_LIGHT_HALO or
+//   SRE_OBJECT_PARTICLE_SYSTEM flags set, which indicates they consist of one or multiple billboards.
+//   They may be transparent such as halos or transparent emission maps.
 
 void sreDrawObjectFinalPass(SceneObject *so) {
     // Explicitly apply the render settings object flags mask.
     SetRenderFlags(so);
     if (so->render_flags & SRE_OBJECT_LIGHT_HALO) {
-        // Light halos are handled seperately.
+        // Single light halos and particle systems with light halos are handled seperately.
         sreDrawObjectLightHalo(so);
         return;
     }
+    if (so->render_flags & (SRE_OBJECT_BILLBOARD | SRE_OBJECT_PARTICLE_SYSTEM)) {
+        // Billboards and (billboard) particle systems are also handled seperately.
+        sreDrawObjectBillboard(so);
+        return;
+    }
+
     // The only remaining cases is objects with the EMISSION_ONLY flag, with optional
     // use of an emission texture map (with optional alpha transparency) instead of a
     // single color, or optionally adding the (multi-color) diffuse reflection color
@@ -403,7 +444,8 @@ void sreDrawObjectFinalPass(SceneObject *so) {
         return;
     bool select_new_shader = sreInitializeObjectShaderEmissionOnly(*so);
 
-    if (so->render_flags & (SRE_OBJECT_INFINITE_DISTANCE | SRE_OBJECT_LIGHT_HALO))
+    if (so->render_flags & SRE_OBJECT_INFINITE_DISTANCE)
+        // Disable writing into depth buffer.
         glDepthMask(GL_FALSE);
     if (so->render_flags & SRE_OBJECT_NO_BACKFACE_CULLING)
         glDisable(GL_CULL_FACE);

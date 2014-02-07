@@ -519,6 +519,7 @@ enum {
 // The attributes mask bit are also used for sreLODModel::instance_flags and the
 // dynamic_flags parameter in the vertex buffer initialization functions, and in
 // sreAttributeInfo.
+// Additional sreBaseModel::flags about the closedness of the model are also defined.
 
 enum {
     SRE_POSITION_MASK = (1 << SRE_ATTRIBUTE_POSITION),
@@ -527,7 +528,13 @@ enum {
     SRE_TANGENT_MASK = (1 << SRE_ATTRIBUTE_TANGENT),
     SRE_COLOR_MASK = (1 << SRE_ATTRIBUTE_COLOR),
     SRE_ALL_ATTRIBUTES_MASK = ((1 << SRE_NU_VERTEX_ATTRIBUTES) - 1),
-    SRE_LOD_MODEL_NOT_CLOSED = 128
+    // Whether every exterior part of the model is covered by an outward-facing triangle.
+    SRE_LOD_MODEL_NOT_CLOSED = 0x100,
+    // Whether the model has any holes (which has consequences for its silhouette and shadow).
+    SRE_LOD_MODEL_CONTAINS_HOLES = 0x200,
+    // Whether the open side of a non-closed model is always hidden from any light; this allows
+    // simpler shadow volume construction (treating the object as closed).
+    SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT = 0x400
 };
 
 // The base model class with basic geometry and attribute value information.
@@ -560,10 +567,13 @@ public :
     void CloneGeometry(sreBaseModel *clone);
     void Clone(sreBaseModel *clone);
     void RemoveEmptyTriangles();
+    void RemoveUnusedVertices(int *saved_indices);
     void RemoveUnusedVertices();
     void SortVertices(int dimension);
     void SortVerticesOptimalDimension();
     void WeldVertices();
+    void ReduceTriangleCount(float max_surface_roughness, float cost_threshold,
+        bool check_vertex_normals, float vertex_normal_threshold, int *saved_indices);
     void ReduceTriangleCount(float max_surface_roughness, float cost_threshold,
         bool check_vertex_normals, float vertex_normal_threshold);
     // Bounding volume calculation.
@@ -654,21 +664,23 @@ public:
 enum {
     // Whether the model is actually of the derived class sreLODModelShadowVolume
     // which has the extra shadow volume and edge information fields.
-    SRE_LOD_MODEL_IS_SHADOW_VOLUME_MODEL = 0x100,
+    SRE_LOD_MODEL_IS_SHADOW_VOLUME_MODEL = 0x1000,
     // Whether extruded vertex positions for shadow volumes should not be generated
     // and edge information calculated when the model is uploaded to the GPU when
     // shadow volumes not disabled and SRE_LOD_MODEL_IS_SHADOW_VOLUME_MODEL is set.
-    SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT = 0x200,
+    SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT = 0x2000,
     // Whether calculated edge information is actually present (generally true when
     // shadow volumes are globally enabled, SRE_LOD_MODEL_IS_SHADOW_VOLUME_MODEL is set,
     // and the SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT flag was not set for the model).
-    SRE_LOD_MODEL_HAS_EDGE_INFORMATION = 0x400,
-    // Model is a billboard (includes halos and particle systems).
-    SRE_LOD_MODEL_IS_BILLBOARD = 0x800,
+    SRE_LOD_MODEL_HAS_EDGE_INFORMATION = 0x4000,
+    // Model is a billboard (includes billboards, halos and particle systems).
+    SRE_LOD_MODEL_BILLBOARD = 0x8000,
+    // Model is a halo (either single or a particle system).
+    SRE_LOD_MODEL_LIGHT_HALO = 0x10000,
     // Model has been uploaded to the GPU.
-    SRE_LOD_MODEL_UPLOADED = 0x1000,
+    SRE_LOD_MODEL_UPLOADED = 0x100000,
     // The following flag is deprecated. Use dynamic_flags instead.
-    SRE_LOD_MODEL_VERTEX_BUFFER_DYNAMIC = 0x8000,
+    SRE_LOD_MODEL_VERTEX_BUFFER_DYNAMIC = 0x4000000,
 };
 
 // An extension of sreBaseModel for models that can be uploaded to the GPU.
@@ -723,16 +735,28 @@ public :
     sreLODModelShadowVolume();
     // Edge handling.
     void CalculateEdges();
+    void RemoveUnnecessaryEdges();
     void DestroyEdges();
 };
 
-// Definitions for sreModel::flags.
+// Definitions for sreModel::model_flags (not to be confused with the flags field
+// of the LOD models).
 
 enum {
     // Whether shadow volumes for the model are configured (implies that all
     // LOD sub-models are of the type sreLODModelShadowVolume and have fully
     // configured shadow volume support).
-    SRE_MODEL_SHADOW_VOLUMES_CONFIGURED = 1
+    SRE_MODEL_SHADOW_VOLUMES_CONFIGURED = 1,
+    // The LOD model (usually a single one) is a billboard.
+    SRE_MODEL_BILLBOARD = 2,
+    // The LOD model is a light halo (SRE_MODEL_BILLBOARD should also be set).
+    SRE_MODEL_LIGHT_HALO = 4,
+    // The LOD model is a particle system (SRE_MODEL_BILLBOARD should also be set,
+    // SRE_MODEL_LIGHT_HALO may be set).
+    // The vertex position attribute of the LOD model represent all combined (disjoint) triangles
+    // of the particle system and the normal attribute additionally holds the center position of
+    // the billboard to which the particle triangle belongs.
+    SRE_MODEL_PARTICLE_SYSTEM = 8,
 };
 
 // Bounding volume flags for a model (sreModel::bounds_flags). Either
@@ -776,7 +800,7 @@ enum {
 
 class SRE_API sreModel {
 public:
-    int flags;
+    int model_flags;
     // Identification.
     int id;
     bool referenced;   // Model is referred to by a scene object.
@@ -821,6 +845,8 @@ public:
     void Triangulate();
     void InsertPolygonVertex(int p, int i, const Point3D& Q, float t);
     void GetMaxExtents(sreBoundingVolumeAABB *AABB, float *max_dim);
+    void SetLODModelFlags(int flag_mask);
+    void ClearLODModelFlags(int flag_mask);
 };
 
 // Data structures for lights.
@@ -1037,10 +1063,10 @@ enum {
     SRE_OBJECT_KINEMATIC_BODY = 0x40000,
     // Miscellaneous.
     SRE_OBJECT_EARTH_SHADER = 0x100000,
-    // Some of these flags could be moved to sreBaseModel::flags.
-    SRE_OBJECT_PARTICLE_SYSTEM = 0x200000,
-    SRE_OBJECT_LIGHT_HALO = 0x400000,
-    SRE_OBJECT_SUB_PARTICLE = 0x800000 // Inherently a scene object, no model.
+    SRE_OBJECT_BILLBOARD = 0x200000,      // Object is a billboard (with a single billboard model).
+    SRE_OBJECT_LIGHT_HALO = 0x400000,     // For a halo, SRE_OBJECT_BILLBOARD should not be set.
+    // Object is a particle system, which is a set of billboards.
+    SRE_OBJECT_PARTICLE_SYSTEM = 0x800000,
 };
 
 // The main object class (an object in the scene); refers to the model used,
@@ -1573,8 +1599,8 @@ public:
     void InstantiateObjectRotationMatrixAlreadySet(int object_index) const;
     void FinishObjectInstantiation(SceneObject& so, bool rotated) const;
     void DeleteObject(int object_index);
-    int AddParticleSystem(sreModel *model, int nu_particles, Point3D center, float sphere_radius,
-        Vector3D *particles);
+    int AddParticleSystem(sreModel *model, int nu_particles, Point3D center,
+        float worst_case_bounding_sphere_radius, Vector3D *particles);
     // Changing object properties. They only affect the sreObject, so they declared const.
     void ChangePosition(int object_index, float x, float y, float z) const;
     void ChangePosition(int object_index, Point3D position) const;
@@ -1672,14 +1698,26 @@ typedef sreScene Scene;
 
 enum { SRE_OPENGL_VERSION_CORE = 0, SRE_OPENGL_VERSION_ES2 };
 
+// Rendering settings flags.
+enum {
+    // Use shadow volume cache for models and objects in GPU memory.
+    SRE_RENDERING_FLAG_SHADOW_CACHE_ENABLED = 0x100,
+    // Use triangle strips for point/spot shadow volume sides.
+    SRE_RENDERING_FLAG_USE_TRIANGLE_STRIPS_FOR_SHADOW_VOLUMES = 0x200,
+    // Use triangle fans for dir./beam shadow volume sides.
+    SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES = 0x400,
+    // Force depth-fail stencil shadow volume rendering (slower).
+    SRE_RENDERING_FLAG_FORCE_DEPTH_FAIL = 0x800
+};
+
 class SRE_API sreEngineSettingsInfo {
 public :
     int window_width, window_height;
     int opengl_version;
+    int rendering_flags;
     bool multi_pass_rendering;
     int reflection_model;
     int shadows_method;
-    bool shadow_cache_enabled;
     int scissors_method;
     bool HDR_enabled;
     int HDR_tone_mapping_shader;
@@ -1697,12 +1735,14 @@ public :
     int silhouette_count;
     int object_cache_total_entries;
     int object_cache_entries_used;
+    int object_cache_total_vertex_count;
     int object_cache_hits;
     int object_cache_misses;
     int object_cache_entries_depthfail;
     int object_cache_hits_depthfail;
     int model_cache_total_entries;
     int model_cache_entries_used;
+    int model_cache_total_vertex_count;
     int model_cache_hits;
     int model_cache_misses;
     int model_cache_entries_depthfail;
@@ -1764,7 +1804,10 @@ SRE_API sreShadowRenderingInfo *sreGetShadowRenderingInfo();
 SRE_API void sreSetDemandLoadShaders(bool enabled);
 SRE_API void sreSetVisualizedShadowMap(int light_index);
 SRE_API void sreSetDrawTextOverlayFunc(void (*func)());
-
+SRE_API void sreSetTriangleStripUseForShadowVolumes(bool enabled);
+SRE_API void sreSetTriangleFanUseForShadowVolumes(bool enabled);
+SRE_API void sreSetShadowVolumeCache(bool enabled);
+SRE_API void sreSetForceDepthFailRendering(bool enabled);
 // Defined in texture.cpp:
 SRE_API sreTexture *sreGetStandardTexture();
 SRE_API sreTexture *sreGetStandardTextureWrapRepeat();
@@ -1854,8 +1897,8 @@ SRE_API void sreEvaluateModelFluid(sreModel *o);
 // Defined in standard_objects.cpp:
 SRE_API sreModel *sreCreateSphereModel(sreScene *scene, float oblateness);
 SRE_API sreModel *sreCreateSphereModelSimple(sreScene *scene, float oblateness);
-SRE_API sreModel *sreCreateBillboardModel(sreScene *scene);
-SRE_API sreModel *sreCreateParticleSystemModel(sreScene *scene, int n);
+SRE_API sreModel *sreCreateBillboardModel(sreScene *scene, bool is_halo);
+SRE_API sreModel *sreCreateParticleSystemModel(sreScene *scene, int n, bool is_halo);
 SRE_API sreModel *sreCreateUnitBlockModel(sreScene *scene);
 enum { RAMP_TOWARDS_BACK, RAMP_TOWARDS_FRONT, RAMP_TOWARDS_LEFT, RAMP_TOWARDS_RIGHT };
 SRE_API sreModel *sreCreateRampModel(sreScene *scene, float xdim, float ydim, float zdim, int type);
@@ -1880,7 +1923,7 @@ SRE_API sreModel *sreCreateCylinderModel(sreScene *scene, float zdim, bool inclu
 SRE_API sreModel *sreCreateEllipsoidModel(sreScene *scene, float radius_y, float radius_z);
 SRE_API sreModel *sreCreateCapsuleModel(sreScene *scene, float cap_radius, float length,
     float radius_y, float radius_z);
-SRE_API sreModel *sreCreateCompoundModel(sreScene *scene, bool has_texcoords, bool has_tangents);
+SRE_API sreModel *sreCreateCompoundModel(sreScene *scene, bool has_texcoords, bool has_tangents, int flags);
 SRE_API void sreAddToCompoundModel(sreModel *compound_model, sreModel *o, Point3D position,
     Vector3D rotation, float scaling);
 SRE_API void sreFinalizeCompoundModel(sreScene *scene, sreModel *compound_model);

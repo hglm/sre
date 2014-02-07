@@ -386,6 +386,12 @@ static void GL3InitializeShaderWithModelSubEmissionMap(int id) {
     glBindTexture(GL_TEXTURE_2D, id);
 }
 
+// The misc shader for billboards uses the texture sampler 0 instead of 3 for the emission map.
+static void GL3InitializeShaderWithObjectEmissionMapBillboardShader(const sreObject& so) {
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, so.emission_map->opengl_id);
+}
+
 static void GL3InitializeShaderWithUVTransform(int loc, const sreObject& so) {
     glUniformMatrix3fv(loc, 1, GL_FALSE, (GLfloat *)so.UV_transformation_matrix);
 }
@@ -606,12 +612,10 @@ void GL3InitializeShadersBeforeFrame() {
             GL3InitializeShaderWithAspectRatio(
                 misc_shader[SRE_MISC_SHADER_HALO].uniform_location[UNIFORM_MISC_ASPECT_RATIO]);
     }
-    if (misc_shader[SRE_MISC_SHADER_PS].status == SRE_SHADER_STATUS_LOADED) {
-       glUseProgram(misc_shader[SRE_MISC_SHADER_PS].program);
-       GL3InitializeShaderWithViewProjectionMatrix(misc_shader[SRE_MISC_SHADER_PS].uniform_location[UNIFORM_MISC_VIEW_PROJECTION_MATRIX]);
-       if (sre_internal_aspect_changed)
-           GL3InitializeShaderWithAspectRatio(
-               misc_shader[SRE_MISC_SHADER_PS].uniform_location[UNIFORM_MISC_ASPECT_RATIO]);
+    if (misc_shader[SRE_MISC_SHADER_BILLBOARD].status == SRE_SHADER_STATUS_LOADED) {
+       glUseProgram(misc_shader[SRE_MISC_SHADER_BILLBOARD].program);
+       GL3InitializeShaderWithViewProjectionMatrix(
+           misc_shader[SRE_MISC_SHADER_BILLBOARD].uniform_location[UNIFORM_MISC_VIEW_PROJECTION_MATRIX]);
     }
 #if 0
     // Some of this initialization should be done at initialization, not every frame.
@@ -1834,17 +1838,27 @@ static void sreInitializeSinglePassShader(const sreObject& so, SinglePassShaderS
 }
 
 void sreInitializeObjectShaderLightHalo(const sreObject& so) {
-    if (so.render_flags & SRE_OBJECT_PARTICLE_SYSTEM) {
-        glUseProgram(misc_shader[SRE_MISC_SHADER_PS].program);
-        GL3InitializeShaderWithEmissionColor(misc_shader[SRE_MISC_SHADER_PS].uniform_location[UNIFORM_MISC_BASE_COLOR], so);
-        GL3InitializeShaderWithHaloSize(misc_shader[SRE_MISC_SHADER_PS].uniform_location[UNIFORM_MISC_HALO_SIZE], so);
-        return;
-    }
     // Light halo
     glUseProgram(misc_shader[SRE_MISC_SHADER_HALO].program);
-    GL3InitializeShaderWithMVP(misc_shader[SRE_MISC_SHADER_HALO].uniform_location[UNIFORM_MISC_MVP], so);
-    GL3InitializeShaderWithEmissionColor(misc_shader[SRE_MISC_SHADER_HALO].uniform_location[UNIFORM_MISC_BASE_COLOR], so);
+    GL3InitializeShaderWithEmissionColor(
+        misc_shader[SRE_MISC_SHADER_HALO].uniform_location[UNIFORM_MISC_BASE_COLOR], so);
     GL3InitializeShaderWithHaloSize(misc_shader[SRE_MISC_SHADER_HALO].uniform_location[UNIFORM_MISC_HALO_SIZE], so);
+}
+
+void sreInitializeObjectShaderBillboard(const sreObject& so) {
+    // Billboard. Emissions color and map, and emission map transparency.
+    glUseProgram(misc_shader[SRE_MISC_SHADER_BILLBOARD].program);
+    // Use "base_color_in" uniform for emission color.
+    GL3InitializeShaderWithEmissionColor(
+       misc_shader[SRE_MISC_SHADER_BILLBOARD].uniform_location[UNIFORM_MISC_BASE_COLOR], so);
+    GL3InitializeShaderWithUseEmissionMap(
+        misc_shader[SRE_MISC_SHADER_BILLBOARD].uniform_location[UNIFORM_USE_EMISSION_MAP], so);
+    if (so.flags & SRE_OBJECT_USE_EMISSION_MAP) {
+        // Make sure the texture is bound to texture unit 0, not 3.
+        GL3InitializeShaderWithObjectEmissionMapBillboardShader(so);
+        GL3InitializeShaderWithUVTransform(
+           misc_shader[SRE_MISC_SHADER_BILLBOARD].uniform_location[UNIFORM_MISC_UV_TRANSFORM], so);
+    }
 }
 
 static inline void SetRenderFlags(sreObject& so) {

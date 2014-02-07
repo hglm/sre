@@ -112,7 +112,7 @@ void Demo7CreateScene() {
     c.g = 0.9;
     c.b = 0.9;
     scene->SetEmissionColor(Color(1.0, 0.9, 0.9));
-    sreModel *billboard_object = sreCreateBillboardModel(scene);
+    sreModel *billboard_object = sreCreateBillboardModel(scene, true);
     scene->SetBillboardSize(8.0, 8.0);
     scene->SetHaloSize(2.0);
     lightsource_object_index[0] = scene->AddObject(billboard_object, 20, 20, 30, 0, 0, 0, 1);

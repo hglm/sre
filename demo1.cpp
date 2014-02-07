@@ -97,7 +97,8 @@ void Demo1CreateScene() {
     scene->SetNormalMap(wall_normals);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP | SRE_OBJECT_CAST_SHADOWS);
     // Create open wall.
-    sreModel *open_wall = sreCreateCompoundModel(scene, true, true);
+    sreModel *open_wall = sreCreateCompoundModel(scene, true, true,
+        SRE_LOD_MODEL_CONTAINS_HOLES);
     // Bottom left corner.
     sreAddToCompoundModel(open_wall, block_model_no_top_no_right, Point3D(0, 0, 0), Vector3D(0, 0, 0), 5.0);
     // Top left corner.
@@ -135,7 +136,7 @@ void Demo1CreateScene() {
     }
 #endif
     // Create pillars on the edges.
-    sreModel *pillar = sreCreateCompoundModel(scene, true, true);
+    sreModel *pillar = sreCreateCompoundModel(scene, true, true, 0);
     sreAddToCompoundModel(pillar, block_model_no_top, Point3D(0, 0, 0), Vector3D(0, 0, 0), 10.0);
     for (int i = 0; i < 3; i++)
         sreAddToCompoundModel(pillar, block_model_no_bottom_no_top, Point3D(0, 0, i * 10.0 + 10.0),
@@ -152,14 +153,26 @@ void Demo1CreateScene() {
     sreTexture *marble_texture = new sreTexture("Marble9", TEXTURE_TYPE_NORMAL);
     scene->SetTexture(marble_texture);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_CAST_SHADOWS);
+    // The pond compound model is irregular, the blocks have not bottom but it would better if the internal
+    // interior sides of the blocks were also missing. Also, the model is technically not closed but
+    // it causes no problems with stencil shadows because it is never lit from below (indicated with
+    // OPEN_SIDE_HIDDEN_FROM_LIGHT).
+    sreModel *pond = sreCreateCompoundModel(scene, true, true, SRE_LOD_MODEL_NOT_CLOSED |
+        SRE_LOD_MODEL_CONTAINS_HOLES | SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT);
     for (int i = 0; i < 8; i++) {
-            scene->AddObject(block_model_no_bottom, i * 5 - 50, 10, 0, 0, 0, 0, 5);
-            scene->AddObject(block_model_no_bottom, i * 5 - 50, 10 + 7 * 5, 0, 0, 0, 0, 5);
+            sreAddToCompoundModel(pond, block_model_no_bottom, Point3D(i * 5 - 50, 10, 0),
+                Vector3D(0, 0, 0), 5.0f);
+            sreAddToCompoundModel(pond, block_model_no_bottom, Point3D(i * 5 - 50, 10 + 7 * 5, 0),
+                Vector3D(0, 0, 0), 5.0f);
     }
     for (int i = 0; i < 6; i++) {
-            scene->AddObject(block_model_no_bottom, - 50, 15 + i * 5, 0, 0, 0, 0, 5);
-            scene->AddObject(block_model_no_bottom, 7 * 5 - 50, 15 + i * 5, 0, 0, 0, 0, 5);
+            sreAddToCompoundModel(pond, block_model_no_bottom, Point3D(- 50, 15 + i * 5, 0),
+                Vector3D(0, 0, 0), 5.0f);
+            sreAddToCompoundModel(pond, block_model_no_bottom, Point3D(7 * 5 - 50, 15 + i * 5, 0),
+                Vector3D(0, 0, 0), 5.0f);
     }
+    sreFinalizeCompoundModel(scene, pond);
+    scene->AddObject(pond, 0, 0, 0, 0, 0, 0, 1.0f);
     // Create fluid.
 #if 1
     sreModel *fluid_object = sreCreateFluidModel(scene, FLUID_SIZE, FLUID_SIZE, (float)30 / FLUID_SIZE, 1.0,

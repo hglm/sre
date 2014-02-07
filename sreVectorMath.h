@@ -1722,5 +1722,18 @@ static inline bool AlmostEqual(const Vector3D& v1, const Vector3D& v2) {
     return AlmostEqual(v1.x, v2.x) && AlmostEqual(v1.y, v2.y) && AlmostEqual(v1.z, v2.z);
 }
 
+static inline bool AlmostEqual(float x, float y, float epsilon) {
+    return (x >= y - epsilon) && (x <= y + epsilon);
+}
+
+static inline bool AlmostEqual(const Vector2D& v1, const Vector2D& v2, float epsilon) {
+    return AlmostEqual(v1.x, v2.x, epsilon) && AlmostEqual(v1.y, v2.y, epsilon);
+}
+
+static inline bool AlmostEqual(const Vector3D& v1, const Vector3D& v2, float epsilon) {
+    return AlmostEqual(v1.x, v2.x, epsilon) && AlmostEqual(v1.y, v2.y, epsilon) &&
+        AlmostEqual(v1.z, v2.z, epsilon);
+}
+
 #endif
 

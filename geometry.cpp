@@ -38,7 +38,7 @@ sreModel::sreModel() {
     nu_polygons = 0;
     is_static = false;
     referenced = false;
-    flags = 0;
+    model_flags = 0;
 }
 
 // Model instancing. A new sreModel structure is created, but the
@@ -153,6 +153,18 @@ sreBaseModel::sreBaseModel(int nu_vertices, int nu_triangles, int flags) {
         vertex_tangent = new Vector4D[nu_vertices];
     if (flags & SRE_COLOR_MASK)
         colors = new Color[nu_vertices];
+}
+
+// Set/clear specific flags of all LOD models in a sreModel.
+
+void sreModel::SetLODModelFlags(int flag_mask) {
+    for (int i = 0; i < nu_lod_levels; i++)
+        lod_model[i]->flags |= flag_mask;
+}
+
+void sreModel::ClearLODModelFlags(int flag_mask) {
+    for (int i = 0; i < nu_lod_levels; i++)
+        lod_model[i]->flags &= ~flag_mask;
 }
 
 // Remap vertices using the index mapping provided (from new index to
@@ -386,12 +398,12 @@ void sreBaseModel::MergeIdenticalVertices(int *saved_indices) {
 }
 
 void sreBaseModel::MergeIdenticalVertices() {
-   MergeIdenticalVertices(NULL);
+    MergeIdenticalVertices(NULL);
 }
 
 // Remove vertices not used in any triangle.
 
-void sreBaseModel::RemoveUnusedVertices() {
+void sreBaseModel::RemoveUnusedVertices(int *saved_indices) {
     bool *vertex_used = new bool[nu_vertices];
     for (int i = 0; i < nu_vertices; i++)
         vertex_used[i] = false;
@@ -402,13 +414,17 @@ void sreBaseModel::RemoveUnusedVertices() {
                 count++;
                 vertex_used[triangle[i].vertex_index[j]] = true;
             }
-    if (count == nu_vertices) {
+    if (count == nu_vertices && saved_indices == NULL) {
         // No unused vertices were found.
         delete [] vertex_used;
         return;
     }
     //  Mapping from new index to original index.
-    int *vertex_mapping = new int[nu_vertices];
+    int *vertex_mapping;
+    if (saved_indices != NULL)
+        vertex_mapping = saved_indices;
+    else
+        vertex_mapping = new int[nu_vertices];
     // Vertex mapping from original index to new index.
     int *vertex_mapping2 = new int[nu_vertices];
     int n = 0;  // Number of vertices assigned.
@@ -423,11 +439,16 @@ void sreBaseModel::RemoveUnusedVertices() {
     delete [] vertex_used;
     int original_nu_vertices = nu_vertices;
     RemapVertices(vertex_mapping, n, vertex_mapping2);
-    delete [] vertex_mapping;
+    if (saved_indices == NULL)
+        delete [] vertex_mapping;
     delete [] vertex_mapping2;
     if (sre_internal_debug_message_level >= 2)
         printf("RemoveUnusedVertices: vertices reduced from %d to %d.\n",
             original_nu_vertices, nu_vertices);
+}
+
+void sreBaseModel::RemoveUnusedVertices() {
+    RemoveUnusedVertices(NULL);
 }
 
 // Weld vertices with almost equal position coordinates so that they have exactly
@@ -937,33 +958,107 @@ static int BuildEdges(int vertexCount, int triangleCount,
     return (edgeCount);
 }
 
+// The epsilon for comparing normal vectors using a dot product should be quite
+// small because small angles have a dot product extremely close to 1.0.
+
+#define EPSILON_DOT_PRODUCT_ONE 0.0000001f
+
+void sreLODModelShadowVolume::RemoveUnnecessaryEdges() {
+    int new_nu_edges = 0;
+    // Pass one: Determine the number of edges that will be left.
+    for (int i = 0; i < nu_edges; i++) {
+        // Skip edges for which the two adjacent triangles are facing in virtually
+        // the same direction.
+        if (AlmostEqual(Dot(triangle[edge[i].triangle_index[0]].normal,
+        triangle[edge[i].triangle_index[1]].normal), 1.0f, EPSILON_DOT_PRODUCT_ONE))
+            // The normals of the triangles are almost identical, so skip
+            // the edge.
+            continue;
+        new_nu_edges++;
+    }
+    // Pass two: Allocate and assign the new edge array.
+    ModelEdge *new_edge = new ModelEdge[new_nu_edges];
+    int j = 0;
+    for (int i = 0; i < nu_edges; i++) {
+        if (AlmostEqual(Dot(triangle[edge[i].triangle_index[0]].normal,
+        triangle[edge[i].triangle_index[1]].normal), 1.0f, EPSILON_DOT_PRODUCT_ONE))
+            // The normals of the triangles are almost identical, so skip
+            // the edge.
+            continue;
+        new_edge[j] = edge[i];
+        j++;
+    }
+    delete [] edge;
+    edge = new_edge;
+    nu_edges = new_nu_edges;
+}
+
+// #define REDUCE_TRIANGLES_WHEN_CALCULATING_EDGES
+
 void sreLODModelShadowVolume::CalculateEdges() {
     sreBaseModel *clone = new sreBaseModel;
     // Create a clone with just vertex position and triangle information.
     CloneGeometry(clone);
+
     if (sre_internal_debug_message_level >= 2)
+        // Prepend output for MergeIdenticalVertices().
         printf("(geometry only) ");
-    // Optimize the geometry-only mode by merging all similar vertices, and keep
+    // Optimize the geometry-only model by merging all similar vertices, and keep
     // track of the vertex index mapping to the original model vertices.
     int *saved_indices = new int[nu_vertices];
     clone->MergeIdenticalVertices(saved_indices);
+
+    // We want to reduce the complexity of the geometry when doing so does not
+    // change the shape. However, we must make sure that are two opposing triangles
+    // for each edge.
+#ifdef REDUCE_TRIANGLES_WHEN_CALCULATING_EDGES
+    // Copy vertex normals for triangle reduction function.
+    if (flags & SRE_NORMAL_MASK)
+        clone->vertex_normal = new Vector3D[nu_vertices];
+    for (int i = 0; i < nu_vertices; i++)
+        clone->vertex_normal[i] = vertex_normal[i];
+    clone->flags |= SRE_NORMAL_MASK;
+    // Remove edges (reduce triangles) when the geometric shape doesn't change at
+    // all by removing them.
+    int *saved_indices2 = new int[clone->nu_vertices];
+    clone->ReduceTriangleCount(
+        0,         // Max. surface roughness (no limit).
+        0.0001f,   // Cost threshold (only allow changes that virtually preserve the shape).
+        false,     // Check vertex normals.
+        1.0f,       // Vertex normal threshold (unused).
+        saved_indices2 // Vertex mapping from new index to old index.
+        );
+    // Delete the vertex normals.
+    delete [] clone->vertex_normal;
+    clone->flags &= ~SRE_NORMAL_MASK;
+#endif
+
     // Calculate edges and store them in the full model.
     edge = new ModelEdge[clone->nu_triangles * 3];
     nu_edges = BuildEdges(clone->nu_vertices, clone->nu_triangles, clone->triangle, edge);
-    if (sre_internal_debug_message_level >= 2)
-        printf("CalculateEdges (geometry only): found %d edges.\n", nu_edges);
     flags |= SRE_LOD_MODEL_HAS_EDGE_INFORMATION;
-    // Remapping the edge vertex indices from the geometry only edge calculation
-    // to the ones of the full model.
+    // Remap the edge vertex indices from the reduced geometry edge calculation first
+    // to the triangle-reduced version and then to the full model before MergeIdenticalVertices
+    // was called.
     for (int i = 0; i < nu_edges; i++) {
+#ifdef REDUCE_TRIANGLES_WHEN_CALCULATING_EDGES
+        edge[i].vertex_index[0] = saved_indices[saved_indices2[edge[i].vertex_index[0]]];
+        edge[i].vertex_index[1] = saved_indices[saved_indices2[edge[i].vertex_index[1]]];
+#else
         edge[i].vertex_index[0] = saved_indices[edge[i].vertex_index[0]];
         edge[i].vertex_index[1] = saved_indices[edge[i].vertex_index[1]];
+#endif
     }
     // Clean up.
     delete [] saved_indices;
+#ifdef REDUCE_TRIANGLES_WHEN_CALCULATING_EDGES
+    delete [] saved_indices2;
+#endif
     delete [] clone->vertex;
     delete [] clone->triangle;
     delete clone;
+    if (sre_internal_debug_message_level >= 2)
+        printf("CalculateEdges (geometry only): found %d edges.\n", nu_edges);
 }
 
 void sreLODModelShadowVolume::DestroyEdges() {
@@ -999,8 +1094,10 @@ static int CompareEdges(const void *e1, const void *e2) {
 // This epsilon value applies to avoidance of generation a triangles that are too thin or invalid.
 #define EPSILON3 0.005
 
+// When saved_indices is not NULL the vertex mapping from new index to old index is stored there.
+
 void sreBaseModel::ReduceTriangleCount(float max_surface_roughness, float cost_threshold,
-bool check_vertex_normals, float vertex_normal_threshold) {
+bool check_vertex_normals, float vertex_normal_threshold, int *saved_indices) {
     ModelEdge *edge = new ModelEdge[nu_triangles * 3];
     bool *is_boundary_vertex = new bool[nu_vertices];
     TriangleList *triangle_list = new TriangleList[nu_triangles * 6];
@@ -1344,7 +1441,7 @@ again :
     }
 //    printf("ReduceTriangleCount: %d triangles eliminated (pass %d).\n", eliminated_count, pass);
     RemoveEmptyTriangles(); // Remove triangles marked as invalid.
-    RemoveUnusedVertices();
+    RemoveUnusedVertices(saved_indices);
     if (eliminated_count > 0) {
         pass++;
         if (pass < 5000)
@@ -1362,6 +1459,11 @@ again :
     printf("ReduceTriangleCount: number of triangles reduced from %d to %d.\n", original_nu_triangles, nu_triangles);
 }
 
+void sreBaseModel::ReduceTriangleCount(float max_surface_roughness, float cost_threshold,
+bool check_vertex_normals, float vertex_normal_threshold) {
+    ReduceTriangleCount(max_surface_roughness, cost_threshold, check_vertex_normals,
+        vertex_normal_threshold, NULL);
+}
 
 // Calculate the AABB of an object. Used during octree creation.
 
@@ -1389,10 +1491,10 @@ void sreObject::CalculateAABB() {
         }
         return;
     }
-    if (flags & (SRE_OBJECT_LIGHT_HALO | SRE_LOD_MODEL_IS_BILLBOARD)) {
+    if (flags & (SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_BILLBOARD)) {
          float billboard_size = maxf(billboard_width, billboard_height);
-         AABB.dim_min = sphere.center - 0.5 * Vector3D(billboard_size, billboard_size, billboard_size);
-         AABB.dim_max = sphere.center + 0.5 * Vector3D(billboard_size, billboard_size, billboard_size);
+         AABB.dim_min = sphere.center - 0.5f * Vector3D(billboard_size, billboard_size, billboard_size);
+         AABB.dim_max = sphere.center + 0.5f * Vector3D(billboard_size, billboard_size, billboard_size);
          return;
     } 
     AABB.dim_min.Set(POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT,
@@ -1464,7 +1566,7 @@ sreModel *SceneObject::ConvertToStaticScenery() const {
 
     // Copy remaining fields in the sreModel.
     new_m->bounds_flags = m->bounds_flags;
-    if (flags & (SRE_OBJECT_LIGHT_HALO | SRE_LOD_MODEL_IS_BILLBOARD | SRE_OBJECT_PARTICLE_SYSTEM)) {
+    if (flags & (SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_BILLBOARD | SRE_OBJECT_PARTICLE_SYSTEM)) {
         new_m->sphere.center = sphere.center;
         new_m->sphere.radius = sphere.radius;
     }
@@ -1665,7 +1767,7 @@ void sreModel::InsertPolygonVertex(int p, int i, const Point3D& Q, float t) {
         delete [] lm->vertex_tangent;
         lm->vertex_tangent = new_vertex_tangent;
     }
-    if (flags & SRE_TEXCOORDS_MASK) {
+    if (lm->flags & SRE_TEXCOORDS_MASK) {
         // Append a new texcoord.
         Point2D *new_texcoords = new Point2D[lm->nu_vertices + 1];
         memcpy(new_texcoords, lm->texcoords, sizeof(Point2D) * lm->nu_vertices);
@@ -1674,7 +1776,7 @@ void sreModel::InsertPolygonVertex(int p, int i, const Point3D& Q, float t) {
         delete [] lm->texcoords;
         lm->texcoords = new_texcoords;
     }
-    if (flags & SRE_COLOR_MASK) {
+    if (lm->flags & SRE_COLOR_MASK) {
         // Append a new multi-color color.
         Color *new_colors = new Color[lm->nu_vertices + 1];
         memcpy(new_colors, lm->colors, sizeof(Color) * lm->nu_vertices);
@@ -1885,7 +1987,7 @@ void sreScene::EliminateTJunctions() {
                 "before conversion to absolute coordinates (model id = %d).\n",
                  sceneobject[i]->model->id);
         if (!(sceneobject[i]->flags & (SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_INFINITE_DISTANCE |
-        SRE_LOD_MODEL_IS_BILLBOARD | SRE_OBJECT_LIGHT_HALO))) {
+        SRE_OBJECT_BILLBOARD | SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_PARTICLE_SYSTEM))) {
             sreModel *m = sceneobject[i]->ConvertToStaticScenery();
             RegisterModel(m);
             sceneobject_belonging_to_object[m->id] = i;
@@ -2471,6 +2573,6 @@ void sreScene::UploadModels() const {
         // Mark the model as supporting shadow volumes if all LOD models
         // support shadow volumes.
         if (shadow_volumes_configured)
-            model[i]->flags |= SRE_MODEL_SHADOW_VOLUMES_CONFIGURED;
+            model[i]->model_flags |= SRE_MODEL_SHADOW_VOLUMES_CONFIGURED;
     }
 }

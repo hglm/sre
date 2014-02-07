@@ -1042,7 +1042,7 @@ static const char *uniform_misc_str[] = {
     "base_color_in", "aspect_ratio_in", "halo_size_in", "texture_in", "light_position_in",
     "model_matrix", "segment_distance_scaling_in", "average_lum_in", "slot_in",
     "key_value_in", "array_in", "rectangle_in", "uv_transform_in", "mult_color_in",
-    "add_color_in", "screen_size_in_chars_in", "string_in" };
+    "add_color_in", "screen_size_in_chars_in", "string_in", "use_emission_map_in"};
 
 class MiscShaderInfo {
 public :
@@ -1056,15 +1056,6 @@ public :
 };
 
 static const MiscShaderInfo misc_shader_info[] = {
-#if 0
-    {
-    "Old text shader",
-    SRE_SHADER_MASK_TEXT,
-    (1 << UNIFORM_MISC_TEXTURE_SAMPLER) | (1 << UNIFORM_MISC_BASE_COLOR),
-    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS),
-    "gl3_text.vert", "gl3_text.frag", ""
-    },
-#endif
     {
     "Text shader (16x16 font texture)",
     SRE_SHADER_MASK_TEXT,
@@ -1182,20 +1173,21 @@ static const MiscShaderInfo misc_shader_info[] = {
      "#define CUBE_MAP\n#define TEXTURE_ALPHA\n#define UV_TRANSFORM\n"   
     },
     {
-    "Halo shader",
-    SRE_SHADER_MASK_EFFECTS,
-    (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_VIEW_PROJECTION_MATRIX) |
-    (1 << UNIFORM_MISC_BASE_COLOR) | (1 << UNIFORM_MISC_ASPECT_RATIO) | (1 << UNIFORM_MISC_HALO_SIZE),
-    (1 << ATTRIBUTE_POSITION),
-    "gl3_halo.vert", "gl3_halo.frag", ""
-    },
-    {
-    "Particle system shader",
+    "Halo shader (single and particle system)",
     SRE_SHADER_MASK_EFFECTS,
     (1 << UNIFORM_MISC_VIEW_PROJECTION_MATRIX) |
     (1 << UNIFORM_MISC_BASE_COLOR) | (1 << UNIFORM_MISC_ASPECT_RATIO) | (1 << UNIFORM_MISC_HALO_SIZE),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_NORMAL),
-    "gl3_ps.vert", "gl3_ps.frag", ""
+    "gl3_billboard.vert", "gl3_halo.frag", "#define HALO\n"
+    },
+    {
+    "Billboard shader (single and particle system)",
+    SRE_SHADER_MASK_EFFECTS,
+    (1 << UNIFORM_MISC_VIEW_PROJECTION_MATRIX) |
+    (1 << UNIFORM_MISC_BASE_COLOR) | (1 << UNIFORM_MISC_TEXTURE_SAMPLER) | (1 << UNIFORM_MISC_USE_EMISSION_MAP) |
+    (1 << UNIFORM_MISC_UV_TRANSFORM),
+    (1 << ATTRIBUTE_POSITION) | (1 < ATTRIBUTE_TEXCOORDS),
+    "gl3_billboard.vert", "gl3_billboard.frag", ""
     },
     {
     "HDR log luminance shader",
@@ -1426,7 +1418,7 @@ static void sreInitializeSinglePassLightingShaders() {
     }
 }
 
-// This is functions called by sreInitialize(). Depending on the demand-loading
+// This function is called by sreInitialize(). Depending on the demand-loading
 // setting, most shaders may not actually be loaded yet.
 
 void sreInitializeShaders(int shader_mask) {

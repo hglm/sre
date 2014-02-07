@@ -234,7 +234,7 @@ void sreScene::FinishObjectInstantiation(sreObject& so, bool rotated) const {
         so.sphere.center = so.position;
         return;
     }
-    if ((so.flags & SRE_OBJECT_LIGHT_HALO) || (so.model->flags & SRE_LOD_MODEL_IS_BILLBOARD)) {
+    if (so.flags & (SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_BILLBOARD)) {
         so.sphere.center = so.position;
         return;
     }
@@ -280,8 +280,7 @@ void sreScene::FinishObjectInstantiation(sreObject& so, bool rotated) const {
     }
     so.box.flags = so.model->bounds_flags;
     so.box.CalculatePlanes();
-    if (!(so.flags & (SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_INFINITE_DISTANCE) &&
-    !(so.model->flags & SRE_LOD_MODEL_IS_BILLBOARD))) {
+    if (!(so.flags & (SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_INFINITE_DISTANCE))) {
         // Static object.
         if ((so.model->bounds_flags & SRE_BOUNDS_PREFER_AABB) && (!rotated ||
         so.rotation_matrix.RotationMatrixPreservesAABB())) {
@@ -450,8 +449,8 @@ float rot_x, float rot_y, float rot_z, float scaling) {
     }
     InstantiateObject(i);
     // When adding a billboard object, make sure the bounding sphere is properly set.
-    if ((so->flags & SRE_OBJECT_LIGHT_HALO) || (so->model->flags & SRE_LOD_MODEL_IS_BILLBOARD)) {
-        Vector3D X = 0.5f * so->billboard_width * Vector3D(1.0, 0, 0);
+    if (so->flags & (SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_BILLBOARD)) {
+        Vector3D X = 0.5f * so->billboard_width * Vector3D(1.0f, 0, 0);
         Vector3D Y = 0.5f * so->billboard_height * Vector3D(0, 0, 1.0f);
         so->sphere.radius = Magnitude(X + Y);
         so->model->bounds_flags = SRE_BOUNDS_PREFER_SPHERE;
@@ -463,18 +462,18 @@ int sreScene::AddObject(sreModel *model, Point3D pos, Vector3D rot, float scalin
     return AddObject(model, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, scaling);
 }
 
-int sreScene::AddParticleSystem(sreModel *object, int _nu_particles, Point3D center, float sphere_radius, Vector3D *particles) {
-    int i = AddObject(object, center.x, center.y, center.z, 0, 0, 0, 1.0);
-    sceneobject[i]->sphere.radius = sphere_radius;
+int sreScene::AddParticleSystem(sreModel *object, int _nu_particles, Point3D center,
+float worst_case_bounding_sphere_radius, Vector3D *particles) {
+    int i = AddObject(object, center.x, center.y, center.z, 0, 0, 0, 1.0f);
+    // Override the bounding sphere radius (which was set for a single billboard/particle.
+    sceneobject[i]->sphere.radius = worst_case_bounding_sphere_radius;
     sceneobject[i]->nu_particles = _nu_particles;
     sceneobject[i]->particles = particles;
-    return i; 
+    return i;
 }
 
 void sreScene::DeleteObject(int soi) {
     sreObject *so = sceneobject[soi];
-    if (!(so->flags & SRE_OBJECT_SUB_PARTICLE))
-        so->octree_list->DeleteSceneObject(so);
     if (so->flags & SRE_OBJECT_PARTICLE_SYSTEM)
         delete so->particles;
     deleted_ids->AddElement(so->id);
@@ -757,4 +756,3 @@ ShadowVolume *sreObject::LookupShadowVolume(int light_index) const {
         }
     return NULL;
 }
-

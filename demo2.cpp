@@ -16,8 +16,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 */
 
-// demo2.cpp -- Model view demo.
-// Universal loading using assimp currently disabled.
+// demo2.cpp -- large landscape with cylinder and lights, and model loaded from .OBJ file
+// in the center. Universal loading using assimp currently disabled.
+// Also includes static particle system.
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -27,40 +28,34 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre.h"
 #include "demo.h"
 
-static int model;
-sreModel *particle_system_500_model = NULL;
+static sreDefaultRNG *rng;
+static sreModel *particle_system_500_model = NULL;
 
-static void AddParticleSystem(const Point3D& position, Color color) {
+static void AddParticleSystem500(const Point3D& position, Color color) {
     if (particle_system_500_model == NULL)
         return;
     Vector3D *particles = new Vector3D[500];
     for (int i = 0; i < 500; i++) {
-        scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_EMISSION_ONLY |
-            SRE_OBJECT_NO_BACKFACE_CULLING | SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_NO_PHYSICS |
-            SRE_OBJECT_SUB_PARTICLE);
-        scene->SetEmissionColor(color);
-        scene->SetBillboardSize(1.0, 1.0);
-        scene->SetHaloSize(0.25);
         Vector3D displacement;
-        displacement.x = (float)rand() * 2.0 / RAND_MAX - 1;
-        displacement.y = (float)rand() * 2.0 / RAND_MAX - 1;
-        displacement.z = (float)rand() * 2.0 / RAND_MAX - 1;
+        displacement.x = rng->RandomFloat(2.0f) - 1.0f;
+        displacement.y = rng->RandomFloat(2.0f) - 1.0f;
+        displacement.z = rng->RandomFloat(2.0f) - 1.0f;
         displacement.Normalize();
-        displacement *= 10.0;
+        displacement *= 10.0f; // Basic radius of system is 10.
         particles[i] = displacement;
-//        Vector3D velocity;
-//        velocity.x = (float)rand() * 2.0 / RAND_MAX - 1;
-//        velocity.y = (float)rand() * 2.0 / RAND_MAX - 1;
-//        velocity.z = (float)rand() * 2.0 / RAND_MAX - 1;
-//        velocity.Normalize();
-//        velocity *= 50;
-//        scene->ChangeVelocity(j, velocity.x, velocity.y, velocity.z);
     }
     scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_EMISSION_ONLY |
         SRE_OBJECT_NO_BACKFACE_CULLING | SRE_OBJECT_NO_PHYSICS | SRE_OBJECT_LIGHT_HALO |
         SRE_OBJECT_PARTICLE_SYSTEM);
-    int ps_id = scene->AddParticleSystem(particle_system_500_model, 500, position, sqrtf(10.0 * 10.0 + 1.0 * 1.0),
-        particles);
+    scene->SetEmissionColor(color);
+    scene->SetBillboardSize(1.0f, 1.0f);
+    scene->SetHaloSize(0.25f);
+    // Max distance of a particle to the system center is 10, and the corners of the billboard
+    // (with dimensions 1 x 1, oriented towards the viewpoint) are at a further max distance of
+    // sqrt(0.5^2 + 0.5^2). This defines the worst case bounding sphere of the particle system.
+    float bounding_sphere_radius = 10.0f + sqrtf(0.25f + 0.25f);
+    int ps_id = scene->AddParticleSystem(particle_system_500_model, 500, position,
+         bounding_sphere_radius, particles);
 }
 
 Color light_color_array[4] = {
@@ -78,6 +73,8 @@ Color light_object_color_array[4] = {
 };
 
 void Demo2CreateScene() {
+    rng = sreGetDefaultRNG();
+
     // Add player sphere as scene object 0.
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);
     scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS);
@@ -115,6 +112,7 @@ void Demo2CreateScene() {
 #endif
 
     sreModel *elephant_model = sreReadModelFromFile(scene, "elephant.obj", SRE_MODEL_FILE_TYPE_OBJ);
+    elephant_model->SetLODModelFlags(SRE_LOD_MODEL_NOT_CLOSED);
     c.r = 1.0; c.g = 0.5, c.b = 0.5;
     scene->SetDiffuseReflectionColor(c);
 //    scene->SetFlags(SRE_OBJECT_NO_PHYSICS | SRE_OBJECT_CAST_SHADOWS);
@@ -138,13 +136,14 @@ void Demo2CreateScene() {
     int soi = scene->AddObject(sphere_model, 40.0f, 30.0f, 5.0f, 0, 0, 0, 5.0f);
     scene->SetMass(0);
 
-    // Add particle system.
-    particle_system_500_model = sreCreateParticleSystemModel(scene, 500);
-    AddParticleSystem(Point3D(- 40, 20, 10), Color(1.0, 1.0, 0));
+    // Add particle system with small light halos.
+    particle_system_500_model = sreCreateParticleSystemModel(scene, 500, true);
+    AddParticleSystem500(Point3D(- 40, 20, 10), Color(1.0, 1.0, 0));
     scene->SetEmissionColor(Color(0, 0, 0));
 
     // Add cylinders in concentric circles.
     sreModel *cylinder_model = sreCreateCylinderModel(scene, 15.0, true, false); // Without bottom.
+    cylinder_model->SetLODModelFlags(SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT);
     for (int i = 0; i < 30; i++) {
        Color color = Color(
            (float)rand() / RAND_MAX * 0.8 + 0.2,
@@ -209,7 +208,6 @@ void Demo2CreateScene() {
 }
 
 void Demo2Render() {
-    scene->ChangeRotation(model, M_PI / 2, demo_time * 2 * M_PI / 5, 0);
     scene->Render(view);
 }
 

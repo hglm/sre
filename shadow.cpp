@@ -113,7 +113,8 @@ static void CalculateSilhouetteEdges(const Vector4D& lightpos, EdgeArray *ea) {
     // Note that lightpos is in model space.
     // In the VBO edges implementation, it is acceptable to do this in the model's
     // original data structure instead of the VBO data.
-    if (m->flags & SRE_LOD_MODEL_NOT_CLOSED)
+    if ((m->flags & (SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT)) ==
+    SRE_LOD_MODEL_NOT_CLOSED)
          goto model_not_closed;
     for (int i = 0; i < m->nu_triangles; i++) {
         Vector3D light_vector = lightpos.GetPoint3D() - lightpos.w * m->vertex[m->triangle[i].vertex_index[0]];
@@ -276,10 +277,18 @@ static int nu_shadow_volume_vertices;
 
 static GLuint element_buffer_id = 0xFFFFFFFF;
 
-static void AddSides(sreLODModelShadowVolume *m, EdgeArray *ea, const Light& light, bool use_short) {
+// Array buffer flags for shadow volumes.
+
+enum {
+    SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX = 1,
+    SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_STRIP = 2,
+    SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN = 4
+};
+
+static void AddSides(sreLODModelShadowVolume *m, EdgeArray *ea, const Light& light, int array_buffer_flags) {
     // Add the sides of the shadow volume based on the silhouette. For light cap vertices
     // projected to the dark cap, a w component of 0 is used.
-    if (!use_short)
+    if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
         goto add_sides_int;
     if (light.type & (SRE_LIGHT_DIRECTIONAL | SRE_LIGHT_BEAM)) {
         // Directional light. The sides converge to a single point -L extruded to infinity.
@@ -341,12 +350,159 @@ add_sides_int :
     return;
 }
 
-static void AddLightCap(sreLODModelShadowVolume *m, bool use_short) {
+#ifndef NO_PRIMITIVE_RESTART
+
+// Add sides using triangle strips consisting of two triangles followed by a primitive restart for
+// each side "quad". This saves just one index value per pair of side triangles; the savings are not
+// great (it would be difficult to generate larger triangle strips form silhouette data).
+
+static void AddSidesTriangleStrip(sreLODModelShadowVolume *m, EdgeArray *ea, const Light& light,
+int array_buffer_flags) {
+    // Add the sides of the shadow volume based on the silhouette. For light cap vertices
+    // projected to the dark cap, a w component of 0 is used.
+    if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
+        goto add_sides_triangle_strip_int;
+    if (light.type & (SRE_LIGHT_DIRECTIONAL | SRE_LIGHT_BEAM)) {
+        // Directional light. The sides converge to a single point -L extruded to infinity.
+        // Or a beam light, in which case the sides converge to the beam light direction
+        // extruded to infinity. The extruded vertex index used doesn't matter, as long as
+        // the w component is 0.
+        // Construct a triangle fan with
+        for (int i = 0; i < ea->nu_edges; i++) {
+            EmitVertexShort(ea->edge[i].vertex0);
+            EmitVertexShort(ea->edge[i].vertex1);
+            EmitVertexShort(m->vertex_index_shadow_offset);
+        }
+        return;
+    }
+    // The light is guaranteed to be a point light or spot light; the sides are extruded to infinity,
+    // allowing the use of a small triangle strip for each pair of side triangles.
+    // Each silhouette edge vertex is extruded to infinity to help
+    // construct the sides of the shadow volume.
+    for (int i = 0; i < ea->nu_edges; i++) {
+        int v0 = ea->edge[i].vertex0;
+        int extr_v0 = v0 + m->vertex_index_shadow_offset;
+        int v1 = ea->edge[i].vertex1;
+        int extr_v1 = v1 + m->vertex_index_shadow_offset;
+        // Generate triangle strip consisting of the triangles:
+        // (v1, extr_v1, v0) and (v0, extr_v1, extr_v0).
+        EmitVertexShort(v1);
+        EmitVertexShort(extr_v1);
+        EmitVertexShort(v0);
+        EmitVertexShort(extr_v0);
+        EmitVertexShort(0xFFFF); // Primitive restart.
+    }
+    return;
+
+add_sides_triangle_strip_int :
+    // Point light or spot light, the sides are extruded to infinity.
+    for (int i = 0; i < ea->nu_edges; i++) {
+        int v0 = ea->edge[i].vertex0;
+        int extr_v0 = v0 + m->vertex_index_shadow_offset;
+        int v1 = ea->edge[i].vertex1;
+        int extr_v1 = v1 + m->vertex_index_shadow_offset;
+        // Generate triangle strip consisting of the triangles:
+        // (v1, extr_v1, v0) and (v0, extr_v1, extr_v0).
+        EmitVertexInt(v1);
+        EmitVertexInt(extr_v1);
+        EmitVertexInt(v0);
+        EmitVertexInt(extr_v0);
+        EmitVertexInt(0xFFFFFFFF); // Primitive restart.
+    }
+    return;
+}
+
+#endif
+
+// For directional and beam lights, a triangle fan can be used when only the sides need to be drawn.
+// There is no dependency on the PRIMITIVE_RESTART feature.
+// Because the silhouette edges are in no particular order, the triangle fan must be constructed
+// using an algorithm takes a little time. This is only works for closed models without holes. The
+// resulting triangle fan will be relatively cache-coherent, and should be fast to draw.
+// Returns true when succesful, false otherwise.
+
+static bool AddSidesTriangleFan(sreLODModelShadowVolume *m, EdgeArray *ea, const Light& light,
+int array_buffer_flags) {
+    // Add the sides of the shadow volume based on the silhouette. For light cap vertices
+    // projected to the dark cap, a w component of 0 is used.
+    // The light is guaranteed to be a directional light or beam light. In case of a directional
+    // light, the sides converge to a single point -L extruded to infinity.
+    // In case of a beam light the sides converge to the beam light direction
+    // extruded to infinity. The extruded vertex index used doesn't matter, as long as
+    // the w component is 0.
+
+    // Perform a sanity check.
+    if (ea->nu_edges <= 1)
+        return false;
+
+    // We are looking to link the whole edge array together, forming a polygon representing the
+    // silhouette, which can then be output as a triangle fan based at the extruded point.
+    // The model must be closed and may not contain holes, because there is no complete
+    // silhouette with ordered edges in that case. Irregular models are detected and the
+    // function returns false; a standard shadow volume (consisting of triangles) can be
+    // constructed instead.
+    int *edge_starting_at_vertex = (int *)alloca(sizeof(int) * m->nu_vertices);
+    for (int i = 0; i < m->nu_vertices; i++)
+        edge_starting_at_vertex[i] = - 1;
+    for (int i = 0; i < ea->nu_edges; i++)
+        edge_starting_at_vertex[ea->edge[i].vertex0] = i;
+
+    int starting_vertex;
+    int v0, v1;
+
+    if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
+        goto add_sides_triangle_fan_int;
+
+    // Construct a triangle fan around the extruded point.
+    EmitVertexShort(m->vertex_index_shadow_offset);
+    starting_vertex = ea->edge[0].vertex0;
+    v0 = starting_vertex;
+    v1 = ea->edge[0].vertex1;
+    for (;;) { 
+        EmitVertexShort(v0);
+        v0 = v1;
+        if (v0 == starting_vertex)
+            break;
+        int e = edge_starting_at_vertex[v0];
+        if (e < 0) {
+            // Error. Cannot construct triangle fan.
+            nu_shadow_volume_vertices = 0;
+            return false;
+        }
+        v1 = ea->edge[e].vertex1;
+    }
+    EmitVertexShort(starting_vertex); // Close the volume (around the silhouette).
+    return true;
+
+add_sides_triangle_fan_int :
+    EmitVertexInt(m->vertex_index_shadow_offset);
+    starting_vertex = ea->edge[0].vertex0;
+    v0 = starting_vertex;
+    v1 = ea->edge[0].vertex1;
+    for (;;) {
+        EmitVertexInt(v0);
+        v0 = v1;
+        if (v0 == starting_vertex)
+            break;
+        int e = edge_starting_at_vertex[v0];
+        if (e < 0) {
+            // Error.
+            nu_shadow_volume_vertices = 0;
+            return false;
+        }
+        v1 = ea->edge[e].vertex1;
+    }
+    EmitVertexShort(starting_vertex); // Close the volume (around the silhouette).
+    return true;
+}
+
+
+static void AddLightCap(sreLODModelShadowVolume *m, int array_buffer_flags) {
     // A light cap may be required for point or spot lights for depth-fail rendering.
     // The light cap consists of all model triangles that face the light.
     if (m->flags & SRE_LOD_MODEL_NOT_CLOSED)
         goto add_light_cap_not_closed;
-    if (!use_short)
+    if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
         goto add_light_cap_int;
     for (int i = 0; i < m->nu_triangles; i++)
         if (face_type[i] == LIGHT_FACING) {
@@ -366,7 +522,7 @@ add_light_cap_int :
     return;
 
 add_light_cap_not_closed :
-    if (!use_short)
+    if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
         goto add_light_cap_not_closed_int;
     for (int i = 0; i < m->nu_triangles; i++)
         if ((face_type[i] & 1) == LIGHT_FACING) {
@@ -400,14 +556,14 @@ add_light_cap_not_closed_int :
     return;
 }
 
-static void AddDarkCap(sreLODModelShadowVolume *m, bool use_short) {
+static void AddDarkCap(sreLODModelShadowVolume *m, int array_buffer_flags) {
     // A dark cap may be required for point or spot lights for depth-fail rendering.
     // Since vertices are extruded to infinity, we can use the same vertices
     // as the light cap, but extruded to infinity (w == 0), and their order reversed
     // within the triangles.
     if (m->flags & SRE_LOD_MODEL_NOT_CLOSED)
         goto add_dark_cap_not_closed;
-    if (!use_short)
+    if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
         goto add_dark_cap_int;
     for (int i = 0; i < m->nu_triangles; i++)
         if (face_type[i] == LIGHT_FACING) {
@@ -427,7 +583,7 @@ add_dark_cap_int :
     return;
 
 add_dark_cap_not_closed :
-    if (!use_short)
+    if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
         goto add_dark_cap_not_closed_int;
     for (int i = 0; i < m->nu_triangles; i++)
         if ((face_type[i] & 1) == LIGHT_FACING) {
@@ -461,8 +617,76 @@ add_dark_cap_not_closed_int :
     return;
 }
 
+// Drawing a shadow volume,
 
-static void DrawShadowVolume(sreLODModelShadowVolume *m, bool use_short) {
+enum {
+  TYPE_DEPTH_PASS = 1,
+  TYPE_DEPTH_FAIL = 2,
+  TYPE_SKIP_SIDES = 4,
+  TYPE_SKIP_LIGHTCAP = 8,
+  TYPE_SKIP_DARKCAP = 16,
+};
+
+// After the shader has been initialized, draw the shadow volume. Used by both types of cache
+// after a hit.
+
+static void FinishDrawingShadowVolume(int type, sreLODModelShadowVolume *model, GLuint opengl_id,
+int array_buffer_flags, int nu_vertices) {
+    if (type & TYPE_DEPTH_PASS) {
+        glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
+        glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
+    }
+    else {
+        glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
+        glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
+    }
+
+    // Enable the vertex buffer of the model  (if it wasn't already set up).
+    if (model->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION] != last_vertexbuffer_id) {
+        glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, model->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
+        glVertexAttribPointer(
+           0,                  // attribute 0 (positions)
+           4,                  // size
+           GL_FLOAT,           // type
+           GL_FALSE,           // normalized?
+           0,                  // stride
+           (void *)0	   // array buffer offset in bytes
+        );
+        last_vertexbuffer_id = model->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION];
+    }
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, opengl_id);
+
+#ifndef NO_PRIMITIVE_RESTART
+    if (array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_STRIP) {
+        // Triangle strip implies availability of primitive restart.
+        // Since the unsigned short token is enabled normally, we have to change it when
+        // using 32-bit indices.
+        if (model->GL_indexsize == 4) {
+            glPrimitiveRestartIndexNV(0xFFFFFFFF);
+            glDrawElements(GL_TRIANGLE_STRIP, nu_vertices, GL_UNSIGNED_INT, (void *)0);
+            // Restore the expected state.
+            glPrimitiveRestartIndexNV(0xFFFF);
+        }
+        else
+            glDrawElements(GL_TRIANGLE_STRIP, nu_vertices, GL_UNSIGNED_SHORT, (void *)0);
+        return;
+    }
+#endif
+
+    GLenum mode;
+    if (array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN)
+        mode = GL_TRIANGLE_FAN;
+    else
+        mode = GL_TRIANGLES;
+    if (model->GL_indexsize == 2)
+        glDrawElements(mode, nu_vertices, GL_UNSIGNED_SHORT, (void *)0);
+    else
+        glDrawElements(mode, nu_vertices, GL_UNSIGNED_INT, (void *)0);
+}
+
+static void DrawShadowVolumeGL(sreLODModelShadowVolume *m, int array_buffer_flags) {
     // Enable the vertex buffer of the model.
     if (m->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION] != last_vertexbuffer_id) {
         glEnableVertexAttribArray(0);
@@ -491,23 +715,43 @@ static void DrawShadowVolume(sreLODModelShadowVolume *m, bool use_short) {
 #else
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer_id);
 #endif
-    if (use_short) {
+
+    // Upload the element data.
+    if (m->GL_indexsize == 2)
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, nu_shadow_volume_vertices * sizeof(short int),
             shadow_volume_vertex, GL_DYNAMIC_DRAW);
-        glDrawElements(GL_TRIANGLES, nu_shadow_volume_vertices, GL_UNSIGNED_SHORT, (void *)0);
-    }
-    else {
+    else
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, nu_shadow_volume_vertices * sizeof(int),
             shadow_volume_vertex, GL_DYNAMIC_DRAW);
-        glDrawElements(GL_TRIANGLES, nu_shadow_volume_vertices, GL_UNSIGNED_INT, (void *)0);
-    }
-}
 
-#define TYPE_DEPTH_PASS 1
-#define TYPE_DEPTH_FAIL 2
-#define TYPE_SKIP_SIDES 4
-#define TYPE_SKIP_LIGHTCAP 8
-#define TYPE_SKIP_DARKCAP 16
+    // Draw the element array.
+#ifndef NO_PRIMITIVE_RESTART
+    if (array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_STRIP) {
+        // Triangle strip implies availability of primitive restart.
+        // Since the unsigned short token is enabled normally, we have to change it when
+        // using 32-bit indices.
+        if (m->GL_indexsize == 4) {
+            glPrimitiveRestartIndexNV(0xFFFFFFFF);
+            glDrawElements(GL_TRIANGLE_STRIP, nu_shadow_volume_vertices, GL_UNSIGNED_INT, (void *)0);
+            // Restore the expected state.
+            glPrimitiveRestartIndexNV(0xFFFF);
+        }
+        else
+            glDrawElements(GL_TRIANGLE_STRIP, nu_shadow_volume_vertices, GL_UNSIGNED_SHORT, (void *)0);
+        return;
+    }
+#endif
+
+    GLenum mode;
+    if (array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN)
+        mode = GL_TRIANGLE_FAN;
+    else
+        mode = GL_TRIANGLES;
+    if (m->GL_indexsize == 2)
+        glDrawElements(mode, nu_shadow_volume_vertices, GL_UNSIGNED_SHORT, (void *)0);
+    else
+        glDrawElements(mode, nu_shadow_volume_vertices, GL_UNSIGNED_INT, (void *)0);
+}
 
 // Object shadow volumes cache for point lights/spot lights. Direct-mapped with
 // scene object id with the light id mixed in with a multiplication factor.
@@ -519,7 +763,8 @@ public :
     Vector4D lightpos;
     GLuint opengl_id;
     int nu_vertices;
-    int type;
+    char type;
+    char array_buffer_flags;
     int timestamp;
 };
 
@@ -530,13 +775,15 @@ public :
 class ShadowVolumeObjectCache {
 public :
     ShadowVolumeObjectCacheEntry entry[SRE_SHADOW_VOLUME_OBJECT_CACHE_SIZE * 4];
+    int total_vertex_count;
 
     ShadowVolumeObjectCache();
     ShadowVolumeObjectCacheEntry *Lookup(int so_id, sreLODModelShadowVolume *model,
         const Vector4D& lightpos_model, int type);
     bool Add(int so_id, sreLODModelShadowVolume *model, const Vector4D& lightpos_model,
-        GLuint opengl_id, int nu_vertices, int type);
+        GLuint opengl_id, int nu_vertices, int type, int array_buffer_flags);
     void PrintStats();
+    void Clear();
 };
 
 static ShadowVolumeObjectCache object_cache;
@@ -544,6 +791,7 @@ static ShadowVolumeObjectCache object_cache;
 ShadowVolumeObjectCache::ShadowVolumeObjectCache() {
    for (int i = 0; i < SRE_SHADOW_VOLUME_OBJECT_CACHE_SIZE * 4; i++)
        entry[i].so_id = - 1;
+   total_vertex_count = 0;
 }
 
 static inline int CacheIndex(int so_id) {
@@ -563,7 +811,7 @@ sreLODModelShadowVolume *model, const Vector4D& lightpos, int type) {
 }
 
 bool ShadowVolumeObjectCache::Add(int so_id, sreLODModelShadowVolume *model,
-const Vector4D& lightpos, GLuint opengl_id, int nu_vertices, int type) {
+const Vector4D& lightpos, GLuint opengl_id, int nu_vertices, int type, int array_buffer_flags) {
     // Check whether there is an empty space at the cache position.
     int min_timestamp = INT_MAX;
     int j;
@@ -571,14 +819,8 @@ const Vector4D& lightpos, GLuint opengl_id, int nu_vertices, int type) {
     for (int i = start_i; i < start_i + 4; i++) {
         if (entry[i].so_id == -1) {
             // There is an empty space, add the entry
-            entry[i].so_id = so_id;
-            entry[i].model = model;
-            entry[i].lightpos = lightpos;
-            entry[i].opengl_id = opengl_id;
-            entry[i].nu_vertices = nu_vertices;
-            entry[i].type = type;
-            entry[i].timestamp = sre_internal_current_frame;
-            return true;
+            j = i;
+            goto set_entry;
         }
         if (entry[i].timestamp < min_timestamp) {
             min_timestamp = entry[i].timestamp;
@@ -587,13 +829,17 @@ const Vector4D& lightpos, GLuint opengl_id, int nu_vertices, int type) {
     }
     // Replace the least recently used entry.
     glDeleteBuffers(1, &entry[j].opengl_id);
+    total_vertex_count -= entry[j].nu_vertices;
+set_entry :
     entry[j].so_id = so_id;
     entry[j].model = model;
     entry[j].lightpos = lightpos;
     entry[j].opengl_id = opengl_id;
     entry[j].nu_vertices = nu_vertices;
     entry[j].type = type;
+    entry[j].array_buffer_flags = array_buffer_flags;
     entry[j].timestamp = sre_internal_current_frame;
+    total_vertex_count += nu_vertices;
     return true;
 }
 
@@ -605,16 +851,26 @@ void ShadowVolumeObjectCache::PrintStats() {
     int count = 0;
     int depth_fail = 0;
     for (int i = 0; i < SRE_SHADOW_VOLUME_OBJECT_CACHE_SIZE * 4; i++) {
-        if (entry[i].so_id != -1)
+        if (entry[i].so_id != -1) {
             count++;
-        if (entry[i].type & TYPE_DEPTH_FAIL)
-            depth_fail++;
+            if (entry[i].type & TYPE_DEPTH_FAIL)
+                depth_fail++;
+        }
     }
     printf("Shadow volume cache stats (frame = %d): Use = %3.2f%%, Hit-rate = %3.2f%%\n",
         sre_internal_current_frame, (float)count * 100 / (SRE_SHADOW_VOLUME_OBJECT_CACHE_SIZE * 4),
         (float)object_cache_hits * 100 / (object_cache_misses + object_cache_hits));
     printf("Depth fail (of entries) = %3.2f%%, of hits = %3.2f%%\n", (float)depth_fail * 100 / count,
         (float)object_cache_hits_depthfail * 100 / object_cache_hits);
+}
+
+void ShadowVolumeObjectCache::Clear() {
+   for (int i = 0; i < SRE_SHADOW_VOLUME_OBJECT_CACHE_SIZE * 4; i++)
+        if (entry[i].so_id != -1) {
+           glDeleteBuffers(1, &entry[i].opengl_id);
+           entry[i].so_id = - 1;
+        }
+   total_vertex_count = 0;
 }
 
 // Check whether the scene object shadow volume is in the cache, if so draw it.
@@ -639,35 +895,9 @@ const Vector4D& lightpos_model, int type) {
         return true;
 
     GL3InitializeShadowVolumeShader(*so, lightpos_model);
-    if (entry->type & TYPE_DEPTH_PASS) {
-        glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
-        glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
-    }
-    else {
-        glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
-        glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
-    }
+    FinishDrawingShadowVolume(entry->type, model, entry->opengl_id, entry->array_buffer_flags,
+        entry->nu_vertices);
 
-    // Enable the vertex buffer of the model  (if it wasn't already set up).
-    if (model->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION] != last_vertexbuffer_id) {
-        glEnableVertexAttribArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, model->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
-        glVertexAttribPointer(
-           0,                  // attribute 0 (positions)
-           4,                  // size
-           GL_FLOAT,           // type
-           GL_FALSE,           // normalized?
-           0,                  // stride
-           (void *)0	   // array buffer offset in bytes
-        );
-        last_vertexbuffer_id = model->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION];
-    }
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, entry->opengl_id);
-    if (model->GL_indexsize == 2)
-        glDrawElements(GL_TRIANGLES, entry->nu_vertices, GL_UNSIGNED_SHORT, (void *)0);
-    else
-        glDrawElements(GL_TRIANGLES, entry->nu_vertices, GL_UNSIGNED_INT, (void *)0);
     return true;
 }
 
@@ -682,7 +912,8 @@ public :
     Vector4D lightpos;
     GLuint opengl_id;
     int nu_vertices;
-    int type;
+    char type;
+    char array_buffer_flags;
     int timestamp;
 };
 
@@ -693,13 +924,15 @@ public :
 class ShadowVolumeModelCache {
 public :
     ShadowVolumeModelCacheEntry entry[SRE_SHADOW_VOLUME_MODEL_CACHE_SIZE * 4];
+    int total_vertex_count;
 
     ShadowVolumeModelCache();
     ShadowVolumeModelCacheEntry *Lookup(sreLODModelShadowVolume *model,
         const Vector4D& lightpos_model, int type);
     bool Add(sreLODModelShadowVolume *model, const Vector4D& lightpos_model,
-        GLuint opengl_id, int nu_vertices, int type);
+        GLuint opengl_id, int nu_vertices, int type, int array_buffer_flags);
     void PrintStats();
+    void Clear();
 };
 
 static ShadowVolumeModelCache model_cache;
@@ -707,6 +940,7 @@ static ShadowVolumeModelCache model_cache;
 ShadowVolumeModelCache::ShadowVolumeModelCache() {
    for (int i = 0; i < SRE_SHADOW_VOLUME_MODEL_CACHE_SIZE * 4; i++)
        entry[i].model = NULL;
+   total_vertex_count = 0;
 }
 
 ShadowVolumeModelCacheEntry *ShadowVolumeModelCache::Lookup(sreLODModelShadowVolume *model,
@@ -721,7 +955,7 @@ const Vector4D& lightpos, int type) {
 }
 
 bool ShadowVolumeModelCache::Add(sreLODModelShadowVolume *model, const Vector4D& lightpos,
-GLuint opengl_id, int nu_vertices, int type) {
+GLuint opengl_id, int nu_vertices, int type, int array_buffer_flags) {
     // Check whether there is already an entry with this object id.
     int min_timestamp = INT_MAX;
     int j;
@@ -729,13 +963,8 @@ GLuint opengl_id, int nu_vertices, int type) {
     for (int i = map_id * 4; i < map_id * 4 + 4; i++) {
         if (entry[i].model == NULL) {
             // There is an empty space, add the entry
-            entry[i].model = model;
-            entry[i].lightpos = lightpos;
-            entry[i].opengl_id = opengl_id;
-            entry[i].nu_vertices = nu_vertices;
-            entry[i].type = type;
-            entry[i].timestamp = sre_internal_current_frame;
-            return true;
+            j = i;
+            goto set_entry;
         }
         if (entry[i].timestamp < min_timestamp) {
             min_timestamp = entry[i].timestamp;
@@ -744,12 +973,16 @@ GLuint opengl_id, int nu_vertices, int type) {
     }
     // Replace the least recently used entry.
     glDeleteBuffers(1, &entry[j].opengl_id);
+    total_vertex_count -= entry[j].nu_vertices;
+set_entry :
     entry[j].model = model;
     entry[j].lightpos = lightpos;
     entry[j].opengl_id = opengl_id;
     entry[j].nu_vertices = nu_vertices;
     entry[j].type = type;
+    entry[j].array_buffer_flags = array_buffer_flags;
     entry[j].timestamp = sre_internal_current_frame;
+    total_vertex_count += entry[j].nu_vertices;
     return true;
 }
 
@@ -761,10 +994,11 @@ void ShadowVolumeModelCache::PrintStats() {
     int count = 0;
     int depth_fail = 0;
     for (int i = 0; i < SRE_SHADOW_VOLUME_MODEL_CACHE_SIZE * 4; i++) {
-        if (entry[i].model != NULL)
+        if (entry[i].model != NULL) {
             count++;
-        if (entry[i].type & TYPE_DEPTH_FAIL)
-            depth_fail++;
+            if (entry[i].type & TYPE_DEPTH_FAIL)
+                depth_fail++;
+        }
     }
     printf("Shadow volume model_cache stats (frame = %d): Use = %3.2f%%, Hit-rate = %3.2f%%\n",
         sre_internal_current_frame, (float)count * 100 / (SRE_SHADOW_VOLUME_MODEL_CACHE_SIZE  * 4),
@@ -774,6 +1008,15 @@ void ShadowVolumeModelCache::PrintStats() {
     model_cache_hits = 0;
     model_cache_misses = 0;
     model_cache_hits_depthfail = 0;
+}
+
+void ShadowVolumeModelCache::Clear() {
+   for (int i = 0; i < SRE_SHADOW_VOLUME_MODEL_CACHE_SIZE * 4; i++)
+        if (entry[i].model != NULL) {
+           glDeleteBuffers(1, &entry[i].opengl_id);
+           entry[i].model = NULL;
+        }
+   total_vertex_count = 0;
 }
 
 // Check whether the model object shadow volume is in the cache, if so draw it.
@@ -798,35 +1041,8 @@ const Vector4D& lightpos_model, int type) {
         return true;
 
     GL3InitializeShadowVolumeShader(*so, lightpos_model);
-    if (entry->type & TYPE_DEPTH_PASS) {
-        glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
-        glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
-    }
-    else {
-        glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
-        glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
-    }
-
-    // Enable the vertex position buffer of the model (if it wasn't already set up).
-    if (model->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION] != last_vertexbuffer_id) {
-        glEnableVertexAttribArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, model->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
-        glVertexAttribPointer(
-           0,                  // attribute 0 (positions)
-           4,                  // size
-           GL_FLOAT,           // type
-           GL_FALSE,           // normalized?
-           0,                  // stride
-           (void *)0	   // array buffer offset in bytes
-        );
-        last_vertexbuffer_id = model->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION];
-    }
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, entry->opengl_id);
-    if (model->GL_indexsize == 2)
-        glDrawElements(GL_TRIANGLES, entry->nu_vertices, GL_UNSIGNED_SHORT, (void *)0);
-    else
-        glDrawElements(GL_TRIANGLES, entry->nu_vertices, GL_UNSIGNED_INT, (void *)0);
+    FinishDrawingShadowVolume(entry->type, model, entry->opengl_id, entry->array_buffer_flags,
+        entry->nu_vertices);
     return true;
 }
 
@@ -879,7 +1095,8 @@ static void DrawShadowVolume(SceneObject *so, Light *light, Frustum &frustum, Sh
             }
         }
         // If the object does not intersect the near-clip volume, depth pass rendering can be used.
-        if (!sre_internal_shadow_always_depthfail && !frustum.ObjectIntersectsNearClipVolume(*so))
+        if (!(sre_internal_rendering_flags & SRE_RENDERING_FLAG_FORCE_DEPTH_FAIL)
+        && !frustum.ObjectIntersectsNearClipVolume(*so))
             // Depth-pass rendering. Always only renders the sides of the shadow volume.
             type = TYPE_DEPTH_PASS;
         else {
@@ -931,7 +1148,7 @@ static void DrawShadowVolume(SceneObject *so, Light *light, Frustum &frustum, Sh
         int cache_used = 0;
 
         // Check the shadow volume cache, and if it's a hit draw the shadow volume from the cache.
-        if (!sre_internal_shadow_cache_enabled)
+        if (!(sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_CACHE_ENABLED))
             goto skip_cache;
 
         // If the light is changing every frame in such a way that shadow volumes will be affected,
@@ -1043,34 +1260,108 @@ skip_cache :
             max_shadow_volume_vertices = max_vertices + 1024;
         }
 
-        bool use_short;
+        int array_buffer_flags;
         if (m->GL_indexsize == 2)
-            use_short = true;
+            array_buffer_flags = SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX;
         else
-            use_short = false;
+            array_buffer_flags = 0;
         GL3InitializeShadowVolumeShader(*so, lightpos_model);
         nu_shadow_volume_vertices = 0;
         if (type & TYPE_DEPTH_PASS) {
-            // Z-pass rendering.
-            AddSides(m, silhouette_edges, *light, use_short);
+            // Depth-pass rendering.
+            if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES)
+            && cache_used != 0 && (light->type & (SRE_LIGHT_DIRECTIONAL | SRE_LIGHT_BEAM))
+            && !(m->flags & (SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_CONTAINS_HOLES))) {
+                // For closed models without holes with a directional light or beam light, we
+                // can create a triangle fan representing the shadow volume.
+                // Because constructing a triangle fan is more processor/memory intensive than
+                // a regular shadow volume, only try when the shadow volume will be cached
+                // subsequently.
+                array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN;
+                bool r = AddSidesTriangleFan(m, silhouette_edges, *light, array_buffer_flags);
+                if (r) {
+                    array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN;
+#if 0
+                    printf("Triangle fan shadow volume constructed (%d vertices).\n", nu_shadow_volume_vertices);
+#endif
+                }
+                else {
+                    // Triangle fan construction not succesful; use a regular shadow volume
+                    // consisting of triangles.
+#ifdef DEBUG_RENDER_LOG
+                    if (sre_internal_debug_message_level >= 1)
+                        printf("Triangle fan shadow volume construction failed for model %d.\n", m->id);
+#endif
+                    AddSides(m, silhouette_edges, *light, array_buffer_flags);
+                }
+            }
+            else
+#ifndef NO_PRIMITIVE_RESTART
+            if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_STRIPS_FOR_SHADOW_VOLUMES)
+            && (light->type & (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_SPOT))) {
+                // When we just need the sides for a point or spot light, we can use triangle strips with
+                // primitive restart for all of the shadow volume, resulting in a small saving of GPU space.
+                array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_STRIP;
+                AddSidesTriangleStrip(m, silhouette_edges, *light, array_buffer_flags);
+            }
+            else
+#endif
+                AddSides(m, silhouette_edges, *light, array_buffer_flags);
             if (nu_shadow_volume_vertices > 0) {
                 glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
                 glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
-                DrawShadowVolume(m, use_short);
+                DrawShadowVolumeGL(m, array_buffer_flags);
             }
         }
         else {
-            // Z-fail rendering.
-            if (!(type & TYPE_SKIP_SIDES))
-                AddSides(m, silhouette_edges, *light, use_short);
-            if (!(type & TYPE_SKIP_DARKCAP))
-                AddDarkCap(m, use_short);
-            if (!(type & TYPE_SKIP_LIGHTCAP))
-                AddLightCap(m, use_short);
+            // Depth-fail rendering.
+            if ((type & (TYPE_SKIP_SIDES | TYPE_SKIP_DARKCAP | TYPE_SKIP_LIGHTCAP)) ==
+            (TYPE_SKIP_DARKCAP | TYPE_SKIP_LIGHTCAP)) {
+                // Just sides required.
+                if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES)
+                && cache_used != 0 && (light->type & (SRE_LIGHT_DIRECTIONAL | SRE_LIGHT_BEAM))
+                && !(m->flags & (SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_CONTAINS_HOLES))) {
+                    // For closed models with a directional light or beam light, we can create a
+                    // triangle fan representing the shadow volume (sides only).
+                    bool r = AddSidesTriangleFan(m, silhouette_edges, *light, array_buffer_flags);
+                    if (r)
+                        array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN;
+                    else {
+                        // Triangle fan construction not succesful; use a regular shadow volume
+                        // consisting of triangles.
+#ifdef DEBUG_RENDER_LOG
+                        if (sre_internal_debug_message_level >= 1)
+                            printf("Triangle fan shadow volume construction failed for model %d.\n", m->id);
+#endif
+                        AddSides(m, silhouette_edges, *light, array_buffer_flags);
+                    }
+                }
+                else
+#ifndef NO_PRIMITIVE_RESTART
+                if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_STRIPS_FOR_SHADOW_VOLUMES)
+                && (light->type & (SRE_LIGHT_SPOT | SRE_LIGHT_POINT_SOURCE))) {
+                    // When we just need the sides for a point or spot light, we can use triangle strips with
+                    // primitive restart for all of the shadow volume.
+                    array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_STRIP;
+                    AddSidesTriangleStrip(m, silhouette_edges, *light, array_buffer_flags);
+                }
+                else
+#endif
+                    AddSides(m, silhouette_edges, *light, array_buffer_flags);
+            }
+            else {
+                 // At least a lightcap or darkcap is needed.
+                if (!(type & TYPE_SKIP_SIDES))
+                    AddSides(m, silhouette_edges, *light, array_buffer_flags);
+                if (!(type & TYPE_SKIP_DARKCAP))
+                    AddDarkCap(m, array_buffer_flags);
+                if (!(type & TYPE_SKIP_LIGHTCAP))
+                    AddLightCap(m, array_buffer_flags);
+            }
             if (nu_shadow_volume_vertices > 0) {
                 glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
                 glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
-                DrawShadowVolume(m, use_short);
+                DrawShadowVolumeGL(m, array_buffer_flags);
             }
         }
 
@@ -1079,12 +1370,13 @@ skip_cache :
         // (which probably shouldn't happen), still add to the cache to minimize overhead.
         if (cache_used == 1) {
             if (object_cache.Add(so->id, m, lightpos_model, element_buffer_id,
-            nu_shadow_volume_vertices, type))
+            nu_shadow_volume_vertices, type, array_buffer_flags))
                 // If added to the object cache, mark the current buffer as invalid.
                 element_buffer_id = 0xFFFFFFFF;
         }
         else if (cache_used == 2) {
-            if (model_cache.Add(m, lightpos_model, element_buffer_id, nu_shadow_volume_vertices, type))
+            if (model_cache.Add(m, lightpos_model, element_buffer_id, nu_shadow_volume_vertices, type,
+            array_buffer_flags))
                 // If added to the model cache, mark the current buffer as invalid.
                 element_buffer_id = 0xFFFFFFFF;
         }
@@ -1285,7 +1577,7 @@ Scene *scene, Light *light, Frustum &frustum, int intersection_flags) {
             continue;
         // Exclude objects that do not cast shadows.
         if (!(so->flags & SRE_OBJECT_CAST_SHADOWS) ||
-        !(so->model->flags & SRE_MODEL_SHADOW_VOLUMES_CONFIGURED))
+        !(so->model->model_flags & SRE_MODEL_SHADOW_VOLUMES_CONFIGURED))
             continue;
         // If the object is attached to the current light, don't cast shadows for this object.
         if (so->attached_light == sre_internal_current_light_index)
@@ -1357,7 +1649,7 @@ Scene *scene, Light *light, Frustum &frustum, int intersection_flags) {
             continue;
         // Exclude objects that do not cast shadows.
         if (!(so->flags & SRE_OBJECT_CAST_SHADOWS) ||
-        !(so->model->flags & SRE_MODEL_SHADOW_VOLUMES_CONFIGURED))
+        !(so->model->model_flags & SRE_MODEL_SHADOW_VOLUMES_CONFIGURED))
             continue;
         // If the object is attached to the current light, don't cast shadows for this object.
         if (so->attached_light == sre_internal_current_light_index)
@@ -1441,7 +1733,7 @@ Scene *scene, Light *light, Frustum &frustum, int intersection_flags) {
             continue;
         // Exclude objects that do not cast shadows.
         if (!(so->flags & SRE_OBJECT_CAST_SHADOWS) ||
-        !(so->model->flags & SRE_MODEL_SHADOW_VOLUMES_CONFIGURED))
+        !(so->model->model_flags & SRE_MODEL_SHADOW_VOLUMES_CONFIGURED))
             continue;
         // If the object is attached to the current light, don't cast shadows for this object.
         if (so->attached_light == sre_internal_current_light_index)
@@ -1663,13 +1955,15 @@ void sreRenderShadowVolumes(sreScene *scene, Light *light, Frustum &frustum) {
 }
 
 void sreReportShadowCacheStats() {
-    if (sre_internal_shadow_cache_enabled && sre_internal_current_frame % 50 == 0) {
+    if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_CACHE_ENABLED)
+    && sre_internal_current_frame % 50 == 0) {
         object_cache.PrintStats();
         model_cache.PrintStats();
     }
 }
 
 void sreResetShadowCacheStats() {
+    // Reset stats before frame.
     sre_internal_shadow_volume_count = 0;
     sre_internal_silhouette_count = 0;
     model_cache_hits = 0;
@@ -1699,14 +1993,21 @@ void sreSetShadowCacheStatsInfo(sreShadowRenderingInfo *info) {
     }
     info->object_cache_total_entries = SRE_SHADOW_VOLUME_OBJECT_CACHE_SIZE * 4;
     info->object_cache_entries_used = object_count;
+    info->object_cache_total_vertex_count = object_cache.total_vertex_count;
     info->object_cache_hits = object_cache_hits;
     info->object_cache_misses = object_cache_misses;
     info->object_cache_entries_depthfail = object_depth_fail;
     info->object_cache_hits_depthfail = object_cache_hits_depthfail;
     info->model_cache_total_entries = SRE_SHADOW_VOLUME_MODEL_CACHE_SIZE * 4;
     info->model_cache_entries_used = model_count;
+    info->model_cache_total_vertex_count = model_cache.total_vertex_count;
     info->model_cache_hits = model_cache_hits;
     info->model_cache_misses = model_cache_misses;
     info->model_cache_entries_depthfail = model_depth_fail;
     info->model_cache_hits_depthfail = model_cache_hits_depthfail;
+}
+
+void sreClearShadowCache() {
+    object_cache.Clear();
+    model_cache.Clear();
 }

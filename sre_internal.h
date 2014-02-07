@@ -74,8 +74,6 @@ extern int sre_internal_max_silhouette_edges;
 extern int sre_internal_max_shadow_volume_vertices;
 extern SRE_GLUINT sre_internal_HDR_full_screen_vertex_buffer;
 extern int sre_internal_shadows;
-extern bool sre_internal_shadow_always_depthfail;
-extern bool sre_internal_shadow_cache_enabled;
 extern bool sre_internal_light_attenuation_enabled;
 extern bool sre_internal_shadow_caster_volume_culling_enabled;
 extern bool sre_internal_multi_pass_rendering;
@@ -101,6 +99,7 @@ extern bool sre_internal_shadow_volumes_disabled;
 extern int sre_internal_visualized_shadow_map;
 extern int sre_internal_shadow_volume_count;
 extern int sre_internal_silhouette_count;
+extern int sre_internal_rendering_flags;
 
 extern Matrix3D *sre_internal_standard_UV_transformation_matrix;
 
@@ -216,6 +215,7 @@ void sreRenderShadowVolumes(sreScene *scene, Light *light, Frustum& frustum);
 void sreReportShadowCacheStats();
 void sreResetShadowCacheStats();
 void sreSetShadowCacheStatsInfo(sreShadowRenderingInfo *info);
+void sreClearShadowCache();
 
 // Defined in shadowmap.cpp:
 bool GL3RenderShadowMapWithOctree(sreScene *scene, Light& light, Frustum &frustum);

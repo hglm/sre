@@ -82,8 +82,8 @@ static const GLfloat HDR_full_screen_vertex_buffer_data[12] = {
 // Internal engine flags and settings that can be configured.
 int sre_internal_shadows = SRE_SHADOWS_NONE;
 int sre_internal_scissors = SRE_SCISSORS_GEOMETRY;
-bool sre_internal_shadow_always_depthfail = false;
-bool sre_internal_shadow_cache_enabled = true;
+// Many rendering flags are consolidated into a single variable.
+int sre_internal_rendering_flags = 0;
 bool sre_internal_light_attenuation_enabled = true;
 bool sre_internal_shadow_caster_volume_culling_enabled = true;
 bool sre_internal_multi_pass_rendering = false;
@@ -302,10 +302,10 @@ sreEngineSettingsInfo *sreGetEngineSettingsInfo() {
 #else
     info->opengl_version = SRE_OPENGL_VERSION_ES2;
 #endif
+    info->rendering_flags = sre_internal_rendering_flags;
     info->multi_pass_rendering = sre_internal_multi_pass_rendering;
     info->reflection_model = sre_internal_reflection_model;
     info->shadows_method = sre_internal_shadows;
-    info->shadow_cache_enabled = sre_internal_shadow_cache_enabled;
     info->scissors_method = sre_internal_scissors;
     info->HDR_enabled = sre_internal_HDR_enabled;
     info->HDR_tone_mapping_shader = sre_internal_HDR_tone_mapping_shader;
@@ -344,6 +344,44 @@ void sreSetVisualizedShadowMap(int light_index) {
 
 void sreSetDrawTextOverlayFunc(void (*func)()) {
     sreDrawTextOverlayFunc = func;
+}
+
+void sreSetTriangleStripUseForShadowVolumes(bool enabled) {
+    if (!GL_NV_primitive_restart)
+        enabled = false;
+    if (enabled)
+        sre_internal_rendering_flags |= SRE_RENDERING_FLAG_USE_TRIANGLE_STRIPS_FOR_SHADOW_VOLUMES;
+    else
+        sre_internal_rendering_flags &= ~SRE_RENDERING_FLAG_USE_TRIANGLE_STRIPS_FOR_SHADOW_VOLUMES;
+    sreClearShadowCache();
+}
+
+void sreSetTriangleFanUseForShadowVolumes(bool enabled) {
+    if (enabled)
+        sre_internal_rendering_flags |= SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES;
+    else
+        sre_internal_rendering_flags &= ~SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES;
+    sreClearShadowCache();
+}
+
+void sreSetShadowVolumeCache(bool enabled) {
+   if (enabled)
+       sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_CACHE_ENABLED;
+   else {
+       if (sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_CACHE_ENABLED)
+           sreClearShadowCache();
+       sre_internal_rendering_flags &= ~SRE_RENDERING_FLAG_SHADOW_CACHE_ENABLED;
+   }
+}
+
+void sreSetForceDepthFailRendering(bool enabled) {
+   if (enabled)
+       sre_internal_rendering_flags |= SRE_RENDERING_FLAG_FORCE_DEPTH_FAIL;
+   else {
+       // It should not be necessary to reset the shadow volume cache; new depth fail-specific shadow
+       // volumes will be requested and cached automatically.
+       sre_internal_rendering_flags &= ~SRE_RENDERING_FLAG_FORCE_DEPTH_FAIL;
+   }
 }
 
 // Allocate UV transformation matrix that flips U or V.
@@ -454,6 +492,9 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
 
     glViewport(0, 0, window_width, window_height);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+    // Note: Boolean rendering flags settings should be concentrated into the single variable
+    // sre_internal_rendering_flags for efficiency.
 
     if (sre_internal_demand_load_shaders)
         printf("Demand loading of shaders enabled.\n");
@@ -713,6 +754,20 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
         GL3Perspective(60.0 * default_zoom, (float)window_width / window_height, sre_internal_near_plane_distance, - 1.0);
     }
 #endif
+
+#ifndef NO_PRIMITIVE_RESTART
+    // Enable primitive restart when available.
+    if (GLEW_NV_primitive_restart) {
+        // As a rule, the short primitive restart token is enabled.
+        glPrimitiveRestartIndexNV(0xFFFF);
+        glEnableClientState(GL_PRIMITIVE_RESTART_NV);
+        CHECK_GL_ERROR("Error after enabling primitive restart.\n");
+        sre_internal_rendering_flags |= SRE_RENDERING_FLAG_USE_TRIANGLE_STRIPS_FOR_SHADOW_VOLUMES;
+    }
+#endif
+
+    sre_internal_rendering_flags |= SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES;
+    sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_CACHE_ENABLED;
 
     // Make sure all objects have their shader selected when first drawn.
     sre_internal_reselect_shaders = true;

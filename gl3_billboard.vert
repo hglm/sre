@@ -22,14 +22,31 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // It has been written to be compatible with both OpenGL 2.0+ and OpenGL ES 2.0.
 
 uniform mat4 view_projection_matrix;
-attribute vec4 position_in;	// Billboard vertices in world space.
-attribute vec3 normal_in;	// Billboard centers in world space.
-varying vec4 screen_position_var;
-varying vec4 screen_position_center;
+attribute vec3 position_in;	// Billboard vertices in world space.
+#ifdef HALO
+attribute vec3 normal_in;	// Billboard center in world space for halo.
+varying vec2 screen_position_var;
+varying vec2 screen_position_center;
+#else
+attribute vec2 texcoord_in;
+uniform bool use_emission_map_in;
+// 3D transformation matrix to apply to the texcoords.
+uniform mat3 uv_transform_in;
+varying vec2 texcoord_var;
+#endif
 
 void main() {
-        screen_position_center = view_projection_matrix * vec4(normal_in, 1.0);
-	screen_position_var = view_projection_matrix * position_in;
-	gl_Position = screen_position_var;
+	vec4 screen_position = view_projection_matrix * vec4(position_in, 1.0);
+#ifdef HALO
+        screen_position_center = (view_projection_matrix * vec4(normal_in, 1.0)).xy;
+	screen_position_var = screen_position.xy;
+#else
+	// Default texcoords are in range [0, 1.0].
+        // With the transformation matrix, a smaller part of the texture can be selected
+        // (zoomed) for use with the object, and other effects are possible as well (including
+        // mirroring the x or y-axis).
+        texcoord_var = (uv_transform_in * vec3(texcoord_in, 1.0)).xy;
+#endif
+	gl_Position = screen_position;
 }
 

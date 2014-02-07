@@ -272,7 +272,7 @@ void Demo8CreateScene() {
     scene->SetFlags(SRE_OBJECT_EMISSION_ONLY |
         SRE_OBJECT_NO_BACKFACE_CULLING | SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_NO_PHYSICS |
         SRE_OBJECT_INFINITE_DISTANCE);
-    sreModel *billboard_object = sreCreateBillboardModel(scene);
+    sreModel *billboard_object = sreCreateBillboardModel(scene, true);
     for (int i = 0 ; i < NU_STARS; i++) {
         int r = rng->RandomInt(7);
         Color c;

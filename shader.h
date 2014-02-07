@@ -126,7 +126,7 @@ extern bool sre_shader_load_on_demand;
 // the uniform locations. Combining the uniform mask has no great advantage, except for initialization
 // (which can still take advantage of).
 
-#define MAX_MISC_UNIFORMS 20
+#define MAX_MISC_UNIFORMS 21
 
 #define UNIFORM_MISC_MVP 0
 #define UNIFORM_MISC_LIGHT_MODEL_SPACE 1
@@ -148,6 +148,7 @@ extern bool sre_shader_load_on_demand;
 #define UNIFORM_MISC_ADD_COLOR 17
 #define UNIFORM_MISC_SCREEN_SIZE_IN_CHARS 18
 #define UNIFORM_MISC_STRING 19
+#define UNIFORM_MISC_USE_EMISSION_MAP 20
 
 // The misc shader-specific uniforms are packed in the order they appear in the generic misc
 // uniforms list above. The indices do not correspond, the real uniform indices for each shader
@@ -194,7 +195,7 @@ enum {
     SRE_MISC_SHADER_CUBE_SHADOW_MAP,
     SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT,
     SRE_MISC_SHADER_HALO,
-    SRE_MISC_SHADER_PS,
+    SRE_MISC_SHADER_BILLBOARD,
     SRE_MISC_SHADER_HDR_LOG_LUMINANCE,
     SRE_MISC_SHADER_HDR_AVERAGE_LUMINANCE,
     SRE_MISC_SHADER_HDR_LUMINANCE_HISTORY_STORAGE,
@@ -241,6 +242,7 @@ bool sreInitializeObjectShaderSinglePass(SceneObject& so);
 bool sreInitializeObjectShaderAmbientPass(SceneObject& so);
 bool sreInitializeObjectShaderMultiPassLightingPass(SceneObject& so);
 void sreInitializeObjectShaderLightHalo(const SceneObject& so);
+void sreInitializeObjectShaderBillboard(const sreObject& so);
 bool sreInitializeObjectShaderMultiPassShadowMapLightingPass(SceneObject& so);
 void sreBindShadowMapTexture(Light *light);
 

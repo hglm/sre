@@ -354,7 +354,7 @@ void Light::CalculateBoundingVolumes() {
             worst_case_sphere.radius = attenuation.x;
             // However, the current sphere bounds can be set to something better.
             CalculateBoundingSphere(spherical_sector, sphere);
-            printf("Spot bounding sphere radius = %lf\n", sphere.radius);
+//            printf("Spot bounding sphere radius = %lf\n", sphere.radius);
         }
         else {
             // Set optimized and worst-case bounding spheres for a beam light,

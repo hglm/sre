@@ -1144,8 +1144,7 @@ void sreScene::CreateOctrees() {
     int size = 0;
     for (int i = 0; i < nu_objects; i++)
         if (!((sceneobject[i]->flags & SRE_OBJECT_DYNAMIC_POSITION) ||
-        (sceneobject[i]->flags & SRE_OBJECT_INFINITE_DISTANCE) ||
-        (sceneobject[i]->flags & SRE_OBJECT_SUB_PARTICLE))) {
+        (sceneobject[i]->flags & SRE_OBJECT_INFINITE_DISTANCE))) {
             entity_array[size].type = SRE_ENTITY_OBJECT;
             entity_array[size].so = sceneobject[i];
             size++;
@@ -1171,8 +1170,7 @@ void sreScene::CreateOctrees() {
     // Add dynamic objects to an entity array.
     size = 0;
     for (int i = 0 ; i < nu_objects; i++)
-        if ((sceneobject[i]->flags & SRE_OBJECT_DYNAMIC_POSITION) &&
-        !(sceneobject[i]->flags & SRE_OBJECT_SUB_PARTICLE)) {
+        if (sceneobject[i]->flags & SRE_OBJECT_DYNAMIC_POSITION) {
             entity_array[size].type = SRE_ENTITY_OBJECT;
             entity_array[size].so = sceneobject[i];
             size++;
@@ -1257,13 +1255,11 @@ void sreScene::CreateOctrees() {
     // Add the static objects to the octree.
     for (int i = 0; i < nu_objects; i++)
         if (!((sceneobject[i]->flags & SRE_OBJECT_DYNAMIC_POSITION) ||
-        (sceneobject[i]->flags & SRE_OBJECT_INFINITE_DISTANCE) ||
-        (sceneobject[i]->flags & SRE_OBJECT_SUB_PARTICLE)))
+        (sceneobject[i]->flags & SRE_OBJECT_INFINITE_DISTANCE)))
             octree.AddSceneObject(*sceneobject[i]);
     // Add the dynamic objects to the octree at root level.
     for (int i = 0; i < nu_objects; i++)
-        if ((sceneobject[i]->flags & SRE_OBJECT_DYNAMIC_POSITION) &&
-         !(sceneobject[i]->flags & SRE_OBJECT_SUB_PARTICLE))
+        if (sceneobject[i]->flags & SRE_OBJECT_DYNAMIC_POSITION)
             octree.AddSceneObjectAtRootLevel(*sceneobject[i]);
     for (int i = 0; i < nu_objects; i++)
         if (sceneobject[i]->flags & SRE_OBJECT_INFINITE_DISTANCE)

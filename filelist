@@ -32,7 +32,6 @@ sre/main.cpp
 sre/MatrixClasses.cpp
 sre/MouseEventQueue.cpp
 sre/octree.cpp
-sre/opengles2.cpp
 sre/opengl-x11.cpp
 sre/random.cpp
 sre/readobjfile.cpp
@@ -64,7 +63,9 @@ sre/shader.h
 sre/sreVectorMath.h
 sre/win32_compat.h
 sre/x11-common.h
-sre/gl3_halo.vert
+sre.gl3_billboard.vfrag
+sre/gl3_billboard.vert
+sre/gl3_halo.frag
 sre/gl3_HDR_average_lum.vert
 sre/gl3_HDR_log_lum.vert
 sre/gl3_HDR_lum_history_comparison.vert
@@ -72,13 +73,9 @@ sre/gl3_HDR_lum_history_storage.vert
 sre/gl3_HDR_tone.vert
 sre/gl3_image.vert
 sre/gl3_lighting_pass.vert
-sre/gl3_ps.vert
 sre/gl3_shadow_map.vert
 sre/gl3_shadow_volume.vert
 sre/gl3_text.vert
-sre/gl3_constant.frag
-sre/gl3_gouraud.frag
-sre/gl3_halo.frag
 sre/gl3_HDR_average_lum.frag
 sre/gl3_HDR_log_lum.frag
 sre/gl3_HDR_lum_history_comparison.frag
@@ -86,8 +83,6 @@ sre/gl3_HDR_lum_history_storage.frag
 sre/gl3_HDR_tone.frag
 sre/gl3_image.frag
 sre/gl3_lighting_pass.frag
-sre/gl3_marble.frag
-sre/gl3_ps.frag
 sre/gl3_shadow_map.frag
 sre/gl3_shadow_volume.frag
 sre/gl3_text.frag

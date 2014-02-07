@@ -218,15 +218,16 @@ void Demo5CreateScene() {
     scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_EMISSION_ONLY |
         SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_NO_PHYSICS);
     scene->SetEmissionColor(Color(1.0, 1.0, 1.0));
-    sreModel *billboard_object = sreCreateBillboardModel(scene);
+    sreModel *billboard_object1 = sreCreateBillboardModel(scene, true);
     scene->SetBillboardSize(8.0, 8.0);
     scene->SetHaloSize(2.0);
-    i = scene->AddObject(billboard_object, 0, 20, 30, 0, 0, 0, 1);
+    i = scene->AddObject(billboard_object1, 0, 20, 30, 0, 0, 0, 1);
     lightsource_object_index[0] = i;
+    sreModel *billboard_object2 = sreCreateBillboardModel(scene, true);
     scene->SetEmissionColor(Color(1.0, 0.2, 0.2));
     scene->SetBillboardSize(6.0, 6.0);
     scene->SetHaloSize(1.0);
-    i = scene->AddObject(billboard_object, 40, 80, 20, 0, 0, 0, 1);
+    i = scene->AddObject(billboard_object2, 40, 80, 20, 0, 0, 0, 1);
     lightsource_object_index[1] = i;
 
     // Halo lights above the scene.
@@ -251,6 +252,10 @@ void Demo5CreateScene() {
         float x = i * 30 - 100;
         float y = 200;
         float z = 10;
+        // Create a seperate billboard model for every billboard (halo).
+        // Otherwise, the same vertex buffers would be repeatedly changed within the
+        // rendering of a single frame.
+        sreModel *billboard_object = sreCreateBillboardModel(scene, true);
         scene->SetBillboardSize(3.0, 3.0);
         scene->SetHaloSize(0.5);
         scene->AddObject(billboard_object, x, y, z, 0, 0, 0, 1);

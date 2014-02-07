@@ -154,23 +154,28 @@ sreModel *sreCreateSphereModelSimple(sreScene *scene, float oblateness) {
     return m;
 }
 
-sreModel *sreCreateBillboardModel(sreScene *scene) {
+sreModel *sreCreateBillboardModel(sreScene *scene, bool is_halo) {
     sreModel *m = new sreModel;
     sreLODModel *lm = m->lod_model[0] = sreNewLODModelNoShadowVolume();
     m->nu_lod_levels = 1;
     lm->vertex = new Point3D[4];
-    lm->triangle = new ModelTriangle[2];
     lm->nu_vertices = 4;
-    lm->nu_triangles = 2;
-    lm->triangle[0].AssignVertices(0, 1, 2);
-    lm->triangle[1].AssignVertices(2, 3, 0);
+    lm->nu_triangles = 0;  // Indicate that no triangle indices are allocated.
+    // A single billboard does not have any indices (triangle data).
+    // The model is a triangle fan consisting of two triangles.
     lm->flags |= SRE_POSITION_MASK | SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT |
-        SRE_LOD_MODEL_VERTEX_BUFFER_DYNAMIC | SRE_LOD_MODEL_IS_BILLBOARD;
+        SRE_LOD_MODEL_VERTEX_BUFFER_DYNAMIC | SRE_LOD_MODEL_BILLBOARD;
+    m->model_flags |= SRE_MODEL_BILLBOARD;
+    if (is_halo) {
+        lm->flags |= SRE_LOD_MODEL_LIGHT_HALO;
+        lm->vertex_normal = new Vector3D[4];
+        m->model_flags |= SRE_MODEL_LIGHT_HALO;
+    }
     scene->RegisterModel(m);
     return m;
 }
 
-sreModel *sreCreateParticleSystemModel(sreScene *scene, int n) {
+sreModel *sreCreateParticleSystemModel(sreScene *scene, int n, bool is_halo) {
     sreModel *m = new sreModel;
     sreLODModel *lm = m->lod_model[0] = sreNewLODModelNoShadowVolume();
     m->nu_lod_levels = 1;
@@ -178,14 +183,20 @@ sreModel *sreCreateParticleSystemModel(sreScene *scene, int n) {
     lm->triangle = new ModelTriangle[2 * n];
     lm->nu_vertices = 4 * n;
     lm->nu_triangles = 2 * n;
+    // Assign the triangles.
     for (int i = 0; i < n; i++) {
        lm->triangle[i * 2].AssignVertices(i * 4, i * 4 + 1, i * 4 + 2);
        lm->triangle[i * 2 + 1].AssignVertices(i * 4 + 2, i * 4 + 3, i * 4);
     }
     // Note: normals buffer used as centers of each billboard.
     lm->flags |= SRE_POSITION_MASK | SRE_NORMAL_MASK | SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT |
-        SRE_LOD_MODEL_VERTEX_BUFFER_DYNAMIC | SRE_LOD_MODEL_IS_BILLBOARD;
-    lm->vertex_normal = new Vector3D[lm->nu_vertices];
+        SRE_LOD_MODEL_VERTEX_BUFFER_DYNAMIC | SRE_LOD_MODEL_BILLBOARD;
+    m->model_flags |= SRE_MODEL_BILLBOARD | SRE_MODEL_PARTICLE_SYSTEM;
+    if (is_halo) {
+        lm->flags |= SRE_LOD_MODEL_LIGHT_HALO;
+        lm->vertex_normal = new Vector3D[lm->nu_vertices];
+        m->model_flags |= SRE_MODEL_LIGHT_HALO;
+    }
     m->bounds_flags = SRE_BOUNDS_PREFER_SPHERE;
     scene->RegisterModel(m);
     return m;
@@ -678,7 +689,7 @@ int TORUS_LATITUDE_SEGMENTS, int TORUS_LONGITUDE_SEGMENTS_PER_TEXTURE, int TORUS
         }
     }
     delete [] grid_vertex;
-    m->flags |= SRE_POSITION_MASK | SRE_TEXCOORDS_MASK;
+    m->flags |= SRE_POSITION_MASK | SRE_TEXCOORDS_MASK | SRE_LOD_MODEL_CONTAINS_HOLES;
     m->SortVertices(0); // Sort on x-coordinate.
     m->MergeIdenticalVertices();
     m->vertex_normal = new Vector3D[m->nu_vertices];
@@ -882,7 +893,7 @@ float GAP_WIDTH, float BAR_WIDTH, float THICKNESS) {
         x += GAP_WIDTH + BAR_WIDTH;
     }
 //    printf("nu_vertices = %d, max_vertices = %d", m->nu_vertices, max_vertices);
-    m->flags |= SRE_POSITION_MASK; /* SRE_TEXCOORDS_MASK */
+    m->flags |= SRE_POSITION_MASK | SRE_LOD_MODEL_CONTAINS_HOLES; /* SRE_TEXCOORDS_MASK */
     m->SortVertices(0); // Sort on x-coordinate.
     // Slight difference in the coordinates for some vertices caused by rounding
     // differences makes it necessary to weld vertices with almost similar
@@ -942,6 +953,9 @@ sreModel *sreCreateBlockModel(sreScene *scene, float xdim, float ydim, float zdi
     m->nu_triangles = 0;
     AddBar(m, 0, 0, xdim, ydim, zdim, flags);
     m->flags |= SRE_POSITION_MASK | SRE_TEXCOORDS_MASK;
+    // If any side of the block is missing, the mode is not closed.
+    if (flags != 0)
+        m->flags |= SRE_LOD_MODEL_NOT_CLOSED;
     m->SortVertices(0); // Sort on x-coordinate.
 //    m->MergeIdenticalVertices();
     m->vertex_normal = new Vector3D[m->nu_vertices];
@@ -1089,6 +1103,8 @@ bool include_top, bool include_bottom) {
             triangle_index++;
         }
     m->flags |= SRE_POSITION_MASK | SRE_TEXCOORDS_MASK;
+    if (!(include_bottom && include_top))
+        m->flags |= SRE_LOD_MODEL_NOT_CLOSED;
     m->SortVertices(0); // Sort on x-coordinate.
 //    m->MergeIdenticalVertices(false);
     m->vertex_normal = new Vector3D[m->nu_vertices];
@@ -1176,7 +1192,6 @@ static void AddSquashedCylinderHull(sreBaseModel *m, int LONGITUDE_SEGMENTS, flo
 float radius_y, float radius_z) {
     int *grid_vertex = (int *)alloca(sizeof(int) * (LONGITUDE_SEGMENTS + 1) * 2);
     int row_size = LONGITUDE_SEGMENTS + 1;
-    float radius = 1;
     int vertex_index = m->nu_vertices;
     m->nu_vertices += (LONGITUDE_SEGMENTS + 1) * 2;
     for (int i = 0; i <= LONGITUDE_SEGMENTS; i++) {
@@ -1253,7 +1268,7 @@ sreModel *sreCreateCapsuleModel(sreScene *scene, float cap_radius, float length,
 
 // Compound objects. Note: no support for multi-color. LOD level 0 only.
 
-sreModel *sreCreateCompoundModel(sreScene *scene, bool has_texcoords, bool has_tangents) {
+sreModel *sreCreateCompoundModel(sreScene *scene, bool has_texcoords, bool has_tangents, int flags) {
     sreModel *m = new sreModel;
     sreLODModel *lm = m->lod_model[0] = sreNewLODModel();
     m->nu_lod_levels = 1;
@@ -1264,6 +1279,7 @@ sreModel *sreCreateCompoundModel(sreScene *scene, bool has_texcoords, bool has_t
         lm->flags |= SRE_TEXCOORDS_MASK;
     if (has_tangents)
         lm->flags |= SRE_TANGENT_MASK;
+    lm->flags |= flags;
     return m;
 }
 
@@ -1401,7 +1417,7 @@ int nu_colors, Color *colors) {
         new_model->nu_lod_levels = 1;
         // Create clone.
         m->lod_model[0]->Clone(new_model->lod_model[0]);
-        if (!(m->flags & SRE_COLOR_MASK))
+        if (!(m->lod_model[0]->flags & SRE_COLOR_MASK))
             need_new_colors = true;
         // This needs some work, copy other fields etc.
     }

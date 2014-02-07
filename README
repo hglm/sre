@@ -214,6 +214,10 @@ errors.
   implemented. Also, some expensive trigonomy operations are used when
   initializing the spherical sector.
 
+- An error related to a shadow volume bounding pyramid shows up in demo1
+  and demo5 with geometry scissors enabled from the starting position
+  (n = large negative).
+
 3. Potential improvements that are not yet implemented.
 
 - There is no real scene graph except for an optimized octree. A
@@ -240,9 +244,33 @@ errors.
   like UINT8.
 
 - Before uploading model triangles to the GPU we should try optimizing
-  the triangle layout to use triangle fans or strips when possible
-  instead of only using plain triangles. This would reduce GPU memory
-  and GPU cache requirements, improving performance.
+  the triangle layout for cache coherency (keep as many vertices in the
+  GPU's cache as possible); triangle fans or strips are probably of
+  limited use. Currently, the vertices are sorted on one dimension when
+  uploaded to the GPU but GPU cache performance is not really taken into
+  account.
+
+- When "primitive restart" is available (modern OpenGL GPUs),
+  certain shadow volumes (for point or spotlight with sides only) now use
+  triangle strips with a restart token after every two triangles, which
+  may be a minor performance gain. More significantly, triangle fans can
+  be used for directional/beam lights when only the sides of the shadow
+  volume need to be drawn, which can be significantly faster. A further
+  optimization by fully reducing the geometry (e.g. reducing the number
+  of triangles on the sides of compound objects with block like geometry)
+  during edge calculation is work in progress.
+
+  Benchmarking shows the following fps:
+
+                     Triangles                      Strips/fans support
+                                                    (shadow volumes)
+  demo1:             86.59/85.78/84.89/83.94/83.99  84.17
+  demo1 (geom.sc.):
+  demo2:             135.0/135.2                    108.6 (rendering error; partially back ground)
+  demo2 (geom. sc.): 141.5/141.6                    
+  demo5:             228.1/228.9                    
+  demo7:                                            
+  demo11 (geom.sc.): 166.6                          
 
 - Shadow map shaders could be optimized (reduce conditional execution).
   For cube maps, maybe the cube segments that are applicable for the
@@ -301,6 +329,10 @@ errors.
   an array of about 20 uniform locations is maintained for each
   shader). Most constant definitions and some other unused code are
   already in place for this.
+
+- The worst case bounding volume of the spotlights in demo1 could be
+  defined as a spherical sector (it is calculated, but not stored or used
+  yet).
 
 --- LICENSE --
 

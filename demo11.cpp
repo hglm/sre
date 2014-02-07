@@ -73,7 +73,7 @@ void Demo11CreateScene() {
     // min z coordinate (relative to the ground at z == 0).
     float venus_model_scale = 20.0f / (AABB.dim_max.x - AABB.dim_min.x);
     // Calculate z so that the model is based on the ground.
-    float z = - AABB.dim_min.x * venus_model_scale;
+    float z = - AABB.dim_min.y * venus_model_scale;
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
     scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 0.25f));
     const int nu_venus_models = 30;

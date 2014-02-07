@@ -89,8 +89,6 @@ static void SetShortEngineSettingsText() {
 
 static bool scene_info_text_initialized = false;
 static char *scene_info_text_line[22];
-static int shadows_method;
-static int max_visible_active_lights;
 
 static char *no_yes_str[2] = { "No", "Yes" };
 static char *disabled_enabled_str[2] = { "Disabled", "Enabled" };
@@ -100,7 +98,7 @@ static char *strend(char *s) {
     return s + strlen(s);
 }
 
-static void SetSceneInfo() {
+static void SetSceneInfo(sreEngineSettingsInfo *settings_info) {
     sprintf(scene_info_text_line[13],
         "Number of objects: %d (capacity %d), models: %d (capacity %d)",
         scene->nu_objects, scene->max_scene_objects, scene->nu_models, scene->max_models);
@@ -111,40 +109,48 @@ static void SetSceneInfo() {
     sprintf(scene_info_text_line[15],
         "Total number of lights: %d (capacity %d)", scene->nu_lights, scene->max_scene_lights);
     char active_lights_str[16];
-    if (max_visible_active_lights == SRE_MAX_ACTIVE_LIGHTS_UNLIMITED)
+    if (settings_info->max_visible_active_lights == SRE_MAX_ACTIVE_LIGHTS_UNLIMITED)
         sprintf(active_lights_str, "Unlimited");
     else
-        sprintf(active_lights_str, "%d", max_visible_active_lights);
+        sprintf(active_lights_str, "%d", settings_info->max_visible_active_lights);
     sprintf(scene_info_text_line[16],
         "Visible lights (frustum): %d (capacity %d), max visible: %s",
         scene->nu_visible_lights, scene->max_visible_lights, active_lights_str);
-    if (shadows_method == SRE_SHADOWS_SHADOW_VOLUMES) {
+    if (settings_info->shadows_method == SRE_SHADOWS_SHADOW_VOLUMES) {
         sreShadowRenderingInfo *info = sreGetShadowRenderingInfo();
         sprintf(scene_info_text_line[17], "Shadow volumes rendered: %d, silhouettes calculated: %d",
             info->shadow_volume_count, info->silhouette_count);
         sprintf(scene_info_text_line[18],
-            "Shadow object cache hits/misses %d/%d (entries used %d/%d)",
-             info->object_cache_hits, info->object_cache_misses,
-            info->object_cache_entries_used, info->object_cache_total_entries);
-       sprintf(scene_info_text_line[19],
-            "Shadow model cache hits/misses %d/%d (entries used %d/%d)",
+            "Shadow object cache hits/misses %d/%d (entries used %d/%d, %d vertices)",
+            info->object_cache_hits, info->object_cache_misses,
+            info->object_cache_entries_used, info->object_cache_total_entries,
+            info->object_cache_total_vertex_count);
+        sprintf(scene_info_text_line[19],
+            "Shadow model cache hits/misses %d/%d (entries used %d/%d, %d vertices)",
             info->model_cache_hits, info->model_cache_misses,
-            info->model_cache_entries_used, info->model_cache_total_entries);
+            info->model_cache_entries_used, info->model_cache_total_entries,
+            info->model_cache_total_vertex_count);
+        sprintf(scene_info_text_line[20], "Shadow cache: %s, Use strips: %s, Use fans: %s",
+            disabled_enabled_str[
+                (settings_info->rendering_flags & SRE_RENDERING_FLAG_SHADOW_CACHE_ENABLED) != 0],
+            no_yes_str[
+                (settings_info->rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_STRIPS_FOR_SHADOW_VOLUMES) != 0],
+            no_yes_str[
+                (settings_info->rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES) != 0]
+            );
+
         delete info;
     }
     else {
         sprintf(scene_info_text_line[17], "");
         sprintf(scene_info_text_line[18], "");
         sprintf(scene_info_text_line[19], "");
+        sprintf(scene_info_text_line[20], "");
     }
-    sprintf(scene_info_text_line[20], "");
     sprintf(scene_info_text_line[21], "");
 }
 
-static void SetEngineSettingsInfo() {
-    sreEngineSettingsInfo *info = sreGetEngineSettingsInfo();
-    shadows_method = info->shadows_method;
-    max_visible_active_lights = info->max_visible_active_lights;
+static void SetEngineSettingsInfo(sreEngineSettingsInfo *info) {
     sprintf(scene_info_text_line[0], "SRE v0.1, %s, back-end: %s", opengl_str[info->opengl_version], GUIGetBackendName());
     sprintf(scene_info_text_line[1], "");
     sprintf(scene_info_text_line[2], "Resolution: %dx%d", info->window_width, info->window_height);
@@ -153,7 +159,8 @@ static void SetEngineSettingsInfo() {
     sprintf(scene_info_text_line[4], "Reflection model: %s (4 5)", info->reflection_model_description);
     sprintf(scene_info_text_line[5], "Shadows setting: %s (1 2 3)", info->shadows_description);
     if (info->shadows_method == SRE_SHADOWS_SHADOW_VOLUMES)
-        sprintf(strend(scene_info_text_line[5]), ", Shadow cache: %s", disabled_enabled_str[info->shadow_cache_enabled]);
+        sprintf(strend(scene_info_text_line[5]), ", Shadow cache: %s",
+            disabled_enabled_str[(info->rendering_flags & SRE_RENDERING_FLAG_SHADOW_CACHE_ENABLED) != 0]);
     sprintf(scene_info_text_line[6], "Scissors optimization mode: %s (D S G)", info->scissors_description);
     sprintf(scene_info_text_line[7], "");
     sprintf(scene_info_text_line[8], "Max texture filtering anisotropy level: %.1f", info->max_anisotropy);
@@ -165,8 +172,9 @@ static void SetEngineSettingsInfo() {
     sprintf(scene_info_text_line[11], "");
     sprintf(scene_info_text_line[12], "");
     sprintf(scene_info_text_line[13], "");
-    delete info;
 }
+
+static sreEngineSettingsInfo *settings_info;
 
 static void SetInfoScreen() {
     if (!scene_info_text_initialized) {
@@ -177,12 +185,15 @@ static void SetInfoScreen() {
         scene_info_text_initialized = true;
     }
 
-    SetEngineSettingsInfo();
-    SetSceneInfo();
+    settings_info = sreGetEngineSettingsInfo();
+    SetEngineSettingsInfo(settings_info);
+    SetSceneInfo(settings_info);
+    delete settings_info;
 
     for (int i = 0; i < 22; i++)
         text_message[i] = scene_info_text_line[i];
-    nu_text_message_lines = 22;
+    text_message[22] = "";
+    nu_text_message_lines = 23;
 }
 
 void GUIProcessMouseMotion(int x, int y) {
@@ -354,18 +365,20 @@ void GUIKeyPressCallback(unsigned int key) {
         text_message[10] = "g -- Enable scissors optimization with geometry scissors";
 //        text_message[11] = "o -- Enable scissors optimization with matrix geometry scissors";
         text_message[11] = "d -- Disable scissors optimization";
-        text_message[12]= "v/b - Enable/disable shadow volume visibility test";
-        text_message[13] = "l/k -- Enable/disable light attenuation";
-        text_message[14] = "8/9 -- Enable/disable light object list rendering";
-        text_message[15] = "F2/F3 -- Disable/enable HDR rendering  F4 -- Cycle tone mapping shader";
-        text_message[16] = "F5/F6 -- Enable/disable certain optimized shaders";
+        text_message[12] = "Enabled/disable shadow volume settings: v/b - visibility test, F9/F10 - strip/fans";
+        text_message[13] = "F11/F12 - Cache, ;/' -- Force depth-fail stencil rendering";
+        text_message[14] = "l/k -- Enable/disable light attenuation";
+        text_message[15] = "8/9 -- Enable/disable light object list rendering";
+        text_message[16] = "F2/F3 -- Disable/enable HDR rendering  F4 -- Cycle tone mapping shader";
+//        text_message[16] = "F5/F6 -- Enable/disable certain optimized shaders";
         text_message[17] = "F7 -- Cycle texture anisotropy  F8 -- Cycle number of visible lights";
         text_message[18] = "";
         SetShortEngineSettingsText();
         text_message[19] = short_engine_settings_text;
         text_message[20] = "";
         text_message[21] = "";
-        nu_text_message_lines = 22;
+        text_message[22] = "";
+        nu_text_message_lines = 23;
         text_message_time = GetCurrentTime() + 1000000.0;
    }
    else if (menu_mode != 2 && key == 'I') {
@@ -385,7 +398,7 @@ void GUIKeyPressCallback(unsigned int key) {
    // Make messages appear below the menu when it is active.
    int line_number = 0;
    if (menu_mode > 0)
-       line_number = 20;
+       line_number = 22;
 
         // Menu choices that can also be selected when the menu is not active.
         bool menu_message = true;        
@@ -506,6 +519,38 @@ void GUIKeyPressCallback(unsigned int key) {
             delete info;
             break;
             }
+        case SRE_KEY_F9 : {
+            sreSetTriangleStripUseForShadowVolumes(true);
+            sreSetTriangleFanUseForShadowVolumes(true);
+            text_message[line_number] = "Triangle strip/fan use for shadow volumes enabled";
+            break;
+            }
+        case SRE_KEY_F10 : {
+            sreSetTriangleStripUseForShadowVolumes(false);
+            sreSetTriangleFanUseForShadowVolumes(false);
+            text_message[line_number] = "Triangle strip/fan use for shadow volumes disabled";
+            break;
+            }
+        case SRE_KEY_F11 : {
+            sreSetShadowVolumeCache(true);
+            text_message[line_number] = "Shadow volume cache enabled";
+            break;
+            }
+        case SRE_KEY_F12 : {
+            sreSetShadowVolumeCache(false);
+            text_message[line_number] = "Shadow volume cache disabled";
+            break;
+            }
+        case ';' : {
+            sreSetForceDepthFailRendering(true);
+            text_message[line_number] = "Force stencil shadow volume depth-fail rendering enabled";
+            break;
+            }
+        case '\'' : {
+            sreSetForceDepthFailRendering(false);
+            text_message[line_number] = "Force stencil shadow volume depth-fail rendering enabled";
+            break;
+            }
         default :
             menu_message = false;
             break;
@@ -514,8 +559,11 @@ void GUIKeyPressCallback(unsigned int key) {
             // Set the timeout for the text message.
             text_message_time = GetCurrentTime();
             text_message_timeout = 3.0;
-            if (menu_mode == 2)
-                SetEngineSettingsInfo();
+            if (menu_mode == 2) {
+                sreEngineSettingsInfo *info = sreGetEngineSettingsInfo();
+                SetEngineSettingsInfo(info);
+                delete info;
+            }
             else if (menu_mode == 1) {
                 SetShortEngineSettingsText();
                 text_message[19] = short_engine_settings_text;
@@ -572,8 +620,11 @@ void GUIMovePlayer(double dt) {
     // The move player function is always called by the GUI back-end, even
     // there is no user control. Take the opportunity to update scene info
     // (visible object counts etc) if the info screen is enabled.
-    if (menu_mode == 2)
-        SetSceneInfo();
+    if (menu_mode == 2) {
+        settings_info = sreGetEngineSettingsInfo();
+        SetSceneInfo(settings_info);
+        delete settings_info;
+    }
 
     if (view->GetMovementMode() == SRE_MOVEMENT_MODE_NONE)
         return;

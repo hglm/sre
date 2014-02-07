@@ -242,6 +242,20 @@ void sreLODModel::InitVertexBuffers(int attribute_mask, int dynamic_flags) {
     bool shadow = !(sre_internal_shadow_volumes_disabled ||
         (flags & SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT))
         && (flags & SRE_LOD_MODEL_IS_SHADOW_VOLUME_MODEL);
+
+    if (flags & SRE_LOD_MODEL_BILLBOARD) {
+        // Special case for billboards; little has to be uploaded yet.
+        glGenBuffers(1, &GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
+        if (flags & SRE_LOD_MODEL_LIGHT_HALO)
+            glGenBuffers(1, &GL_attribute_buffer[SRE_ATTRIBUTE_NORMAL]);
+        if (attribute_mask & SRE_TEXCOORDS_MASK) {
+            // Any texture coordinates (for use with an emission map) have to be uploaded.
+            glGenBuffers(1, &GL_attribute_buffer[SRE_ATTRIBUTE_TEXCOORDS]);
+            glBufferData(GL_ARRAY_BUFFER, nu_vertices * sizeof(float) * 2, texcoords, GL_STATIC_DRAW);
+        }
+        goto copy_indices;
+    }
+
     int total_nu_vertices;
     sreLODModelShadowVolume *model_shadow_volume;
     if (shadow) {
@@ -318,9 +332,19 @@ finish :
         return;
     }
 
+copy_indices:
     // Copy triangle vertex indices.
     unsigned short *triangle_vertex_indices;
-    if (total_nu_vertices >= 65536) {
+    // Decide whether to use short indices (range 0 - 65535);
+    // when PRIMITIVE_RESTART is allowed for drawing shadow volumes, the highest index
+    // is reserved.
+    int max_short_index;
+    max_short_index = 65535;
+#ifndef NO_PRIMITIVE_RESTART
+    if (shadow && GLEW_NV_primitive_restart)
+        max_short_index = 65534;
+#endif
+    if (total_nu_vertices > max_short_index) {
         // Keep new/delete happy by using unsigned short.
         triangle_vertex_indices = new unsigned short[nu_triangles * 3 * 2];
         unsigned int *indices = (unsigned int *)triangle_vertex_indices;
@@ -337,8 +361,8 @@ finish :
                 indices16[i * 3 + j] = triangle[i].vertex_index[j];
         GL_indexsize = 2;
         if (sre_internal_debug_message_level >= 2)
-            printf("Less or equal to 65536 vertices in object (including extruded shadow vertices), "
-                "using 16-bit indices.\n");
+            printf("Less or equal to %d vertices in object (including extruded shadow vertices), "
+                "using 16-bit indices.\n", max_short_index + 1);
     }
     // Upload triangle vertex indices.
     glGenBuffers(1, &GL_element_buffer);
@@ -363,7 +387,9 @@ calculate_edges :
             "(shouldn't happen).\n");
 }
 
-// Billboarding (dynamic vertex buffers).
+// Billboarding (dynamic vertex buffers). Note that the vertex attribute for the
+// billboard related shaders only has three components (not homogeneous with an
+// added w = 1.0f), because shadow volumes do not apply.
 
 void GL3SetBillboard(SceneObject *so) {
     Point3D P = so->sphere.center;
@@ -371,19 +397,21 @@ void GL3SetBillboard(SceneObject *so) {
     Vector3D X = 0.5 * so->billboard_width * right_vector;
     Vector3D Y = 0.5 * so->billboard_height * up_vector;
     sreLODModel *m = so->model->lod_model[0];
+    // A single billboard is set up as a triangle fan consisting of two triangles.
     m->vertex[0] = P + X + Y;
     m->vertex[1] = P - X + Y;
     m->vertex[2] = P - X - Y;
     m->vertex[3] = P + X - Y;
-    float fvertices[16];
-    for (int i = 0; i < 4; i++) {
-        fvertices[i * 4] = m->vertex[i].x;
-        fvertices[i * 4 + 1] = m->vertex[i].y;
-        fvertices[i * 4 + 2] = m->vertex[i].z;
-        fvertices[i * 4 + 3] = 1.0;
-    }
+    // For light halos, also store the center in the normal attribute.
+    if (so->flags & SRE_OBJECT_LIGHT_HALO)
+        for (int i = 0; i < 4; i++)
+            m->vertex_normal[i] = P;
     glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
-    glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(float) * 4, &fvertices[0], GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(float) * 3, m->vertex, GL_DYNAMIC_DRAW);
+    if (so->flags & SRE_OBJECT_LIGHT_HALO) {
+        glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_NORMAL]);
+        glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(float) * 3, m->vertex_normal, GL_DYNAMIC_DRAW);
+    }
 }
 
 void GL3SetParticleSystem(SceneObject *so) {
@@ -391,32 +419,27 @@ void GL3SetParticleSystem(SceneObject *so) {
     Vector3D X = 0.5 * so->billboard_width * right_vector;
     Vector3D Y = 0.5 * so->billboard_height * up_vector;
     sreLODModel *m = so->model->lod_model[0];
+    // Set LOD model billboard vertex positions and, for halos, centers (stored as normal
+    // attribute and duplicated for every vertex of a billboard).
+    // Billboards are configured as triangles (six vertices define two triangles for each
+    // billboard), but are indexed unlike single billboards.
     for (int i = 0; i < so->nu_particles; i++) {
         Point3D P = so->position + so->particles[i];
-        m->vertex[i  *4] = P + X + Y;
+        m->vertex[i * 4] = P + X + Y;
         m->vertex[i * 4 + 1] = P - X + Y;
         m->vertex[i * 4 + 2] = P - X - Y;
         m->vertex[i * 4 + 3] = P + X - Y;
-        m->vertex_normal[i * 4] = P;
-        m->vertex_normal[i * 4 + 1] = P;
-        m->vertex_normal[i * 4 + 2] = P;
-        m->vertex_normal[i * 4 + 3] = P;
+         if (so->flags & SRE_OBJECT_LIGHT_HALO)
+            for (int j = 0; j < 4; j++)
+                m->vertex_normal[i * 4 + j] = P;
     }
     m->nu_vertices = so->nu_particles * 4;
     m->nu_triangles = so->nu_particles * 2;
-    float *fvertices = (float *)alloca(sizeof(float) * so->nu_particles * 4 * 4);
-    float *fcenters = (float *)alloca(sizeof(float) * so->nu_particles * 4 * 3);
-    for (int i = 0; i < so->nu_particles * 4; i++) {
-        fvertices[i * 4] = m->vertex[i].x;
-        fvertices[i * 4 + 1] = m->vertex[i].y;
-        fvertices[i * 4 + 2] = m->vertex[i].z;
-        fvertices[i * 4 + 3] = 1.0;
-        fcenters[i * 3] = m->vertex_normal[i].x;
-        fcenters[i * 3 + 1] = m->vertex_normal[i].y;
-        fcenters[i * 3 + 2] = m->vertex_normal[i].z;
-    }
+    // Upload vertex attribute data.
     glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
-    glBufferData(GL_ARRAY_BUFFER, so->nu_particles * 4 * sizeof(float) * 4, &fvertices[0], GL_DYNAMIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_NORMAL]);
-    glBufferData(GL_ARRAY_BUFFER, so->nu_particles * 4 * sizeof(float) * 3, &fcenters[0], GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, so->nu_particles * 4 * sizeof(float) * 3, m->vertex, GL_DYNAMIC_DRAW);
+    if (so->flags & SRE_OBJECT_LIGHT_HALO) {
+        glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_NORMAL]);
+        glBufferData(GL_ARRAY_BUFFER, so->nu_particles * 4 * sizeof(float) * 3, m->vertex_normal, GL_DYNAMIC_DRAW);
+    }
 }
