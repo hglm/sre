@@ -181,13 +181,18 @@ DEFINES_LIB += -DSHADER_LOADING_MASK=$(SHADER_LOADING_MASK)
 endif
 
 # Shader source configuration.
+SHADER_SOURCES = gl3_billboard.frag gl3_billboard.vert gl3_halo.frag gl3_HDR_average_lum.frag \
+gl3_HDR_average_lum.vert gl3_HDR_log_lum.frag gl3_HDR_log_lum.vert gl3_HDR_lum_history_comparison.frag \
+gl3_HDR_lum_history_comparison.vert gl3_HDR_lum_history_storage.frag gl3_HDR_lum_history_storage.vert \
+gl3_HDR_tone.frag gl3_HDR_tone.vert gl3_image.frag gl3_image.vert gl3_lighting_pass.frag \
+gl3_lighting_pass.vert gl3_shadow_map.frag gl3_shadow_map.vert gl3_shadow_volume.frag \
+gl3_shadow_volume.vert gl3_text2.frag gl3_text.frag gl3_text.vert
 ifneq ($(SHADER_PATH), NONE)
 DEFINES_LIB += -DSHADER_PATH='$(SHADER_PATH)'
 endif
 ifeq ($(SHADERS_BUILTIN), YES)
 DEFINES_LIB += -DSHADERS_BUILTIN
 EXTRA_LIBRARY_MODULE_OBJECTS += shaders_builtin.o
-SHADERS_BUILTIN_SCRIPT = `ls -1 *.vert *.frag`
 endif
 
 ifeq ($(DEBUG_OPENGL), YES)
@@ -300,15 +305,15 @@ demo : $(DEMO_PROGRAM)
 $(DEMO_PROGRAM) :  $(LIBRARY_DEPENDENCY) $(DEMO_MODULE_OBJECTS)
 	g++ $(DEMO_MODULE_OBJECTS) -o $(DEMO_PROGRAM) $(PKG_CONFIG_LIBS_DEMO) $(LFLAGS_DEMO)
 
-shaders_builtin.cpp :
+shaders_builtin.cpp : $(SHADER_SOURCES)
 	echo // libsre v$(VERSION) shaders, `date --rfc-3339='date'` > shaders_builtin.cpp
 	echo // Automatically generated.\\n >> shaders_builtin.cpp
 	echo '#include <math.h>' >> shaders_builtin.cpp
 	echo '#include "sre.h"\n#include "shader.h"\n' >> shaders_builtin.cpp
 	echo -n 'int sre_nu_builtin_shader_sources = ' >> shaders_builtin.cpp
-	echo $(SHADERS_BUILTIN_SCRIPT) | wc -w | awk '{ print($$0 ";") }' >> shaders_builtin.cpp
+	echo $(SHADER_SOURCES) | wc -w | awk '{ print($$0 ";") }' >> shaders_builtin.cpp
 	echo '\n'const sreBuiltinShaderTable sre_builtin_shader_table[] = { >> shaders_builtin.cpp
-	for x in $(SHADERS_BUILTIN_SCRIPT); do \
+	for x in $(SHADER_SOURCES); do \
 	echo { '"'$$x'"', >> shaders_builtin.cpp; \
 	cat $$x | sed ':l1 s/\"/@R@/; tl1; :l2 s/@R@/\\\"/; tl2' | \
 	awk '{ print("\"" $$0 "\\n\"") }' >> shaders_builtin.cpp; \
@@ -351,7 +356,9 @@ dep :
 	make .depend
 
 .depend:
-	g++ -MM $(patsubst %.o,%.cpp,$(LIBRARY_MODULE_OBJECTS)) >> .depend
+	# Do not include shaders_builtin.cpp yet because creates dependency
+        # problems.
+	g++ -MM $(patsubst %.o,%.cpp,$(CORE_LIBRARY_MODULE_OBJECTS)) >> .depend
         # Make sure Makefile.conf is a dependency for all modules.
 	for x in $(LIBRARY_MODULE_OBJECTS); do \
 	echo $$x : Makefile.conf >> .depend; done
@@ -361,7 +368,8 @@ dep :
 	for x in $(DEMO_MODULE_OBJECTS); do \
 	echo $$x : Makefile.conf >> .depend; done
 	# Add dependencies for builtin shaders.
-	echo shaders_builtin.cpp : $(SHADERS_BUILTIN_SCRIPT) >> .depend
+	echo shaders_builtin.cpp : $(SHADER_SOURCES) >> .depend
+	echo shaders_builtin.o : shaders_builtin.cpp sre.h shader.h >> .depend
 
 include .rules
 include .depend
