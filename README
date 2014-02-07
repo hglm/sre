@@ -8,7 +8,8 @@ the library configuration to STATIC.
 The current version as of Feb 2014 has been tested and works
 correctly with  full features with OpenGL on a Linux PC platform,
 although it has not been tested much beyond a discrete NVIDIA GPU.
-Installing NVIDIA's optimized Linux drivers is highly recommended.
+On NVIDIA-based devices, installing NVIDIA's optimized Linux drivers
+is highly recommended.
 
 The OpenGL-ES 2.0 X11 back-end compiles and works, although it has
 only been tested on a Mali-400 platform. The framebuffer OpenGL-ES
@@ -64,7 +65,10 @@ back-end. This includes:
 - X11 development libraries for pure X11 support (should not be needed
   for GLFW/GLUT in X11 environment).
 - GFLW development library for GLFW support.
-- GLUT/freeglut for GLUT support.
+- GLUT/freeglut for GLUT support. The pure OpenGL X11 back-end
+  also requires freeglut (for initialization only).
+- OpenGL en GLEW development libraries when compiling for OpenGL
+  back-ends.
 - Device-specific EGL/GLES2 development libraries for OpenGL-ES 2.0
   back-ends.
 
@@ -75,7 +79,7 @@ The Makefile uses sed and awk.
 --- Shadows ---
 
 SRE support both stencil shadow volumes and shadow mapping. Shadows
-are supported for most of the light types, including directional,
+are supported for several light types, including directional,
 point-source, spotlight and beam lights. Shadow volumes are sharply
 defined (it's a geometrical, pixel-precise technique), whereas shadow
 mapping may show pixelization in the shadows but is move versatile.
@@ -100,36 +104,48 @@ downs with moving objects near point source lights or moving lights.
 
 --- Models/Objects ---
 
-Functions that generate models of geometrical shapes such as a sphere
-and a torus are provided by the library. Currently the OBJ format
-is the only supported model format, although there is code to support
-the assimp library that needs to be revalidated.
+Several functions that generate models of common geometrical shapes
+such as a sphere and a torus and other models are provided by the
+library. There is support for combining models into a single model
+(compound models). Currently the OBJ format is the only supported
+model file format that can be read from disk, although there is code
+to support the assimp library that needs to be revalidated.
 
-- A model (sreModel) is a polygonal model consisting of triangles that
-  is uploaded to the GPU. The model can have different vertex
-  attributes associated with it: position (always enabled), texcoords,
-  normal, tangent, and color (special color attribute for each vertex).
-  Models that have texcoords can have a texture associated with it.
-  Normals are required for any kind of lighting/reflection model.
-  Tangents allow normal mapping, and are also required for certain
+- A model (sreModel) is the highest level abstraction of a model.
+  Bounding volumes are only defined at this level. The model contains
+  references to one or more Level-of-detail models (sreLODModel).
+
+- The LOD (Level-Of-Detail) models defined for a model usually have
+  a progressively smaller amount of triangles. As the object's distance
+  from the camera viewpoint increases, a less detailed model can be used.
+  A LOD model (sreLODModel) contains the actual polygonal model
+  consisting of triangles that is uploaded to the GPU.
+
+- A LOD model can have different vertex attributes associated with it:
+  position (always enabled), texcoords, normal, tangent, and color 
+  special color attribute for each vertex). Models that have texcoords
+  can have a texture associated with it (usually not specified in the
+  model class but at the higher sreObject level which is an instantion
+  of a model). Normals are required for any kind of lighting/reflection
+  model. Tangents allow normal mapping, and are also required for certain
   features in the micro-facet reflection model. Most, but not all,
   of the standard objects provided by the library (sphere, torus etc)
   have tangents. It possible to create a model that shares one or more
   vertex attributes with another model.
 
-- A model may have several LOD (Level-Of-Detail) objects which are
-  models with a progressively smaller amount of triangles. As the
-  object's distance from the camera viewpoint increases, a less
-  detailed model can be used.
+- When stencil shadow volumes are not globally disabled and the model
+  can cast shadows, the sreLODModelShadowVolume class, which is
+  derived from sreLODModel, is used.
 
-- An object (SceneObject) is an object placed in the scene that refers
-  to an sreModel for the object's polygonal model. You can create many
-  objects all referring to the same model, while only one set of model
-  data is required on the GPU. It is possible to change the scaling and
-  rotation for each object individually.
+- An object (sreObject) is an object placed in the scene that refers
+  to an sreModel (and subsequently to LOD models) for the object's
+  polygonal model. It is possible to create many objects all referring
+  to the same model, while only one set of model data is required in
+  GPU memory. It is possible to change the scaling and rotation for
+  each object individually.
 
 - Object properties can be changed in real-time after initialization;
-  the InvalidateShader() function in the Scene class should be called
+  the InvalidateShader() function in the sreScene class should be called
   for the object when a shader change is possible. Changing most
   object-specific texture, color or reflection model parameters does
   not require a new shader. However changing the object's flags field
@@ -142,10 +158,12 @@ the assimp library that needs to be revalidated.
 --- Textures ---
 
 Any texture map, normal map, specularity map or emission map
-used for an object can be seperately selected, as long as the model
-has texture coordinates. Except in the case of multi-mesh models with
-seperate textures for each mesh (a special case), models have texcoords
-but do not have texture information.
+used for an object can be seperately selected for each sreObject, as
+long as the LOD model used have texture coordinates. Except in the case
+of multi-mesh models with seperate textures for each mesh (a special
+case), models have texcoords but do not have texture information;
+references to the textures to be used are stored in the object
+(sreObject).
 
 Textures can be loaded from PNG, DDS or KTX files and may have alpha
 transparency. A limited number of compressed texture formats is
@@ -188,14 +206,14 @@ errors.
 - Interleaved vertex buffer are supported (it may help with some
   lower-end devices like OpenGL-ES 2.0). Not tested yet.
 
-- A 3D UV transformation matrix is defined for every object that uses any
-  kind of texture (texture map, normal map, specularity map or emission map).
-  This allows mirroring textures on a per-object basis (without changing the
-  model), and also allows using a region of a source texture as the
-  full texture of an object. This allows the use of texture atlases for
-  unrelated textures, which can improve performance especially for
-  small textures by reducing texture binds. This is implemented, but not
-  exhaustively tested yet (although it most likely works correctly).
+- UV transformation of texture coordinates has not yet been extensively
+  tested beyond simple mirroring.
+
+- The sreCreateNewMultiColorModel function implements an example of
+  the sharing of attribute data between different models (in this
+  example, each model has unique per-vertex color data but shares
+  the vertex position, normal and other attributes). This is not yet
+  been tested and validated.
 
 2. Current bugs.
 
@@ -211,7 +229,7 @@ errors.
   volume when the player is extremely close to the large grating. A
   spherical sector is now used in that case, but the intersection of
   it infinite projection (dark cap) with the frustum is not yet fully
-  implemented. Also, some expensive trigonomy operations are used when
+  implemented. Also, some expensive trigonometry operations are used when
   initializing the spherical sector.
 
 - An error related to a shadow volume bounding pyramid shows up in demo1
@@ -227,8 +245,21 @@ errors.
 - Support for shadow mapping for OpenGL-ES 2.0 would be possible
   after the handling of shadow map buffers and shadow maps in shaders
   is augmented to be compatible with the features present in OpenGL-ES
-  2.0. Currently, the shadow mapping implementation uses features that
-  are exclusive to OpenGL 3+ and not present in OpenGL-ES 2.0.
+  2.0.
+
+- Currently, the shadow mapping implementation uses features that
+  are exclusive to OpenGL 3+ and not present in OpenGL-ES 2.0, and
+  shadow mapping may also be faster if changed to more widely conform
+  to built-in shader language features (the current implementation
+  relies on a fair amount of general shader code, which could be
+  streamlined by using more of the built-in shadow-map support in
+  GLSL).
+
+- An example of optimization of the shadow map shaders (reducing
+  conditional execution) is that for cube maps, perhaps the cube
+  segments that are applicable for the object can be forwarded to the
+  shader in a uniform (the current implementation does some work to
+  identify for the segment that the fragment is in).
 
 - RegisterModel() could be enhanced with a name string to more easily
   identify models.
@@ -236,19 +267,22 @@ errors.
 - Shader parameters to apply a special object position transformation
   (beyond simple translation, scaling and rotation) could be added for
   interesting effects, while adding very little extra burden on the
-  CPU or GPU.
+  CPU or GPU, although introducing the use of geometry shaders would
+  be more flexible.
 
 - Provide native support for more mesh file format than just OBJ.
+  Assimp code is in place but has not tested/updated for some time.
 
 - Try font texture stored with only one component, preferably something
-  like UINT8.
+  like UINT8, reducing memory requirements and GPU texture cache
+  footprint.
 
 - Before uploading model triangles to the GPU we should try optimizing
   the triangle layout for cache coherency (keep as many vertices in the
   GPU's cache as possible); triangle fans or strips are probably of
-  limited use. Currently, the vertices are sorted on one dimension when
-  uploaded to the GPU but GPU cache performance is not really taken into
-  account.
+  limited use for general models. Currently, the vertices are sorted
+  on one dimension when uploaded to the GPU but GPU cache performance
+  is not really taken into account.
 
 - When "primitive restart" is available (modern OpenGL GPUs),
   certain shadow volumes (for point or spotlight with sides only) now use
@@ -260,28 +294,10 @@ errors.
   of triangles on the sides of compound objects with block like geometry)
   during edge calculation is work in progress.
 
-  Benchmarking shows the following fps:
-
-                     Triangles                      Strips/fans support
-                                                    (shadow volumes)
-  demo1:             86.59/85.78/84.89/83.94/83.99  84.17
-  demo1 (geom.sc.):
-  demo2:             135.0/135.2                    108.6 (rendering error; partially back ground)
-  demo2 (geom. sc.): 141.5/141.6                    
-  demo5:             228.1/228.9                    
-  demo7:                                            
-  demo11 (geom.sc.): 166.6                          
-
-- Shadow map shaders could be optimized (reduce conditional execution).
-  For cube maps, maybe the cube segments that are applicable for the
-  object can be forwarded to the shader in a uniform (the current
-  implementation does some work to identify for the segment that the
-  object is in).
-
 - Could create subclasses for sreObject (SceneObject) so that the
   minimum number of fields is reduced (e.g. no light parameters for
-  non-lit objects, etc). [implemented for sreLODModel, but not
-  yet for sreObject]
+  non-lit objects, etc). [Similar optimization implemented for
+  sreLODModel, but not yet for sreObject]
 
 - A single infinite distance octree could be created, with a limited number
   of subnode levels used to store objects (the very large coordinates used
@@ -299,7 +315,8 @@ errors.
   number of animated objects. There should not be any critical obstacle
   against using this technique.
 
-- Shadow volume geometry scissors cache could be implemented.
+- Shadow volume geometry scissors cache could be implemented (in addition
+  to the existing per-object light scissors cache).
 
 - Add demo for beam light testing.
 
@@ -315,20 +332,22 @@ errors.
   with intensities above 1.0 and need larger volumes (although the linear
   range will generally delimit the volume).
 
-- Pyramid, used for point source shadow volumes, should be replaced by
-  PyramidCone (with side edges that are all equal in length) to reduce
-  computation complexity of the shadow volume. [done, not fully tested]
+- The Pyramid bounding volume, used for point source shadow volumes, has
+  been replaced by PyramidCone (with side edges that are all equal in
+  length) to reduce computation complexity of the shadow volume. The
   InfinitePyramidBase intersection test (for dark cap using stencil shadow
-  volumes) is not fully tested yet.
+  volumes) is not fully tested/optimized yet. The SphericalSector used
+  for the shadow volume in some cases could be optimized (see also bugs
+  above).
 
 - Demo generating models of trees (plants) would be fun (producing nice
   shadows).
 
 - The miscellaneous shader class could be optimized with more a more
-  compact set of uniform identifiers for each different shader (currently,
-  an array of about 20 uniform locations is maintained for each
-  shader). Most constant definitions and some other unused code are
-  already in place for this.
+  compact array of uniform identifiers for each different shader
+  (currently, an array of about 20 uniform locations is maintained for
+  each shader, only a few of which are used). Most constant definitions
+  and some other unused code are already in place for this.
 
 - The worst case bounding volume of the spotlights in demo1 could be
   defined as a spherical sector (it is calculated, but not stored or used
