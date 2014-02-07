@@ -798,6 +798,18 @@ void sreResize(sreView *view, int window_width, int window_height) {
 #endif
 }
 
+void sreCheckGLError(const char *s) {
+    GLenum errorTmp = glGetError();
+    if (errorTmp != GL_NO_ERROR) {
+        printf(s);
+        while (glGetError() != GL_NO_ERROR);
+    }
+}
+
+void sreFatalError(const char *s) {
+    printf("libsre exited unexpectedly:\n%s\n", s);
+    exit(1);
+}
 
 // Globally apply new zoom settings. Default field of view is 60 degrees.
 // Note: tweaked perspective matrix not supported.

@@ -227,16 +227,9 @@ void sreVisualizeBeamOrSpotLightShadowMap(int light_index);
 void sreInitializeInternalShadowVolume();
 
 #ifdef DEBUG_OPENGL
-#define CHECK_GL_ERROR(s) \
-    { \
-    GLenum errorTmp = glGetError(); \
-    if (errorTmp != GL_NO_ERROR) { \
-        printf(s); \
-        while (glGetError() != GL_NO_ERROR); \
-    } \
-    }
+#define CHECK_GL_ERROR(s) sreCheckGLError(s);
 #else
 #define CHECK_GL_ERROR(s)
 #endif
 
-
+void sreFatalError(const char *s);
