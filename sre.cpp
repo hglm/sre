@@ -347,7 +347,9 @@ void sreSetDrawTextOverlayFunc(void (*func)()) {
 }
 
 void sreSetTriangleStripUseForShadowVolumes(bool enabled) {
+#ifndef NO_PRIMITIVE_RESTART
     if (!GL_NV_primitive_restart)
+#endif
         enabled = false;
     if (enabled)
         sre_internal_rendering_flags |= SRE_RENDERING_FLAG_USE_TRIANGLE_STRIPS_FOR_SHADOW_VOLUMES;
