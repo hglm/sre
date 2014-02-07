@@ -350,6 +350,7 @@ rules :
 	make .rules
 
 .rules : Makefile.conf
+	rm -f .rules
 	# Create rules to compile library modules.
 	for x in $(LIBRARY_MODULE_OBJECTS); do \
 	echo $$x : >> .rules; \
