@@ -31,29 +31,38 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 static sreDefaultRNG *rng;
 static sreModel *particle_system_500_model = NULL;
 
+#define PARTICLE_SYSTEM_RADIUS_XY 15.0f
+#define PARTICLE_SYSTEM_HEIGHT 25.0f
+#define PARTICLE_SIZE 0.5f
+
 static void AddParticleSystem500(const Point3D& position, Color color) {
     if (particle_system_500_model == NULL)
         return;
+    // Create a particle system in the shape of a dome (half of a sphere).
     Vector3D *particles = new Vector3D[500];
     for (int i = 0; i < 500; i++) {
         Vector3D displacement;
         displacement.x = rng->RandomFloat(2.0f) - 1.0f;
         displacement.y = rng->RandomFloat(2.0f) - 1.0f;
-        displacement.z = rng->RandomFloat(2.0f) - 1.0f;
+        displacement.z = 1.0f - pow(rng->RandomFloat(1.0f), 0.5f);
         displacement.Normalize();
-        displacement *= 10.0f; // Basic radius of system is 10.
+        displacement.x *= PARTICLE_SYSTEM_RADIUS_XY;
+        displacement.y *= PARTICLE_SYSTEM_RADIUS_XY;
+        displacement.z *= PARTICLE_SYSTEM_HEIGHT;
         particles[i] = displacement;
     }
     scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_EMISSION_ONLY |
         SRE_OBJECT_NO_BACKFACE_CULLING | SRE_OBJECT_NO_PHYSICS | SRE_OBJECT_LIGHT_HALO |
         SRE_OBJECT_PARTICLE_SYSTEM);
     scene->SetEmissionColor(color);
-    scene->SetBillboardSize(1.0f, 1.0f);
-    scene->SetHaloSize(0.25f);
-    // Max distance of a particle to the system center is 10, and the corners of the billboard
+    scene->SetBillboardSize(PARTICLE_SIZE, PARTICLE_SIZE);
+    scene->SetHaloSize(1.0f);
+    // Given the max distance of a particle to the system center, the corners of the billboard
     // (with dimensions 1 x 1, oriented towards the viewpoint) are at a further max distance of
     // sqrt(0.5^2 + 0.5^2). This defines the worst case bounding sphere of the particle system.
-    float bounding_sphere_radius = 10.0f + sqrtf(0.25f + 0.25f);
+    float max_distance = PARTICLE_SYSTEM_RADIUS_XY > PARTICLE_SYSTEM_HEIGHT ?
+        PARTICLE_SYSTEM_RADIUS_XY : PARTICLE_SYSTEM_HEIGHT;
+    float bounding_sphere_radius = max_distance + sqrtf(2.0f * PARTICLE_SIZE);
     int ps_id = scene->AddParticleSystem(particle_system_500_model, 500, position,
          bounding_sphere_radius, particles);
 }
@@ -138,7 +147,7 @@ void Demo2CreateScene() {
 
     // Add particle system with small light halos.
     particle_system_500_model = sreCreateParticleSystemModel(scene, 500, true);
-    AddParticleSystem500(Point3D(- 40, 20, 10), Color(1.0, 1.0, 0));
+    AddParticleSystem500(Point3D(- 50.0f, 10.0f, 0), Color(1.0f, 1.0f, 0));
     scene->SetEmissionColor(Color(0, 0, 0));
 
     // Add cylinders in concentric circles.
