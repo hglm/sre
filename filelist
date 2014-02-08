@@ -12,6 +12,7 @@ sre/demo4.cpp
 sre/demo5.cpp
 sre/demo7.cpp
 sre/demo8.cpp
+sre/demo9.cpp
 sre/draw.cpp
 sre/draw_object.cpp
 sre/egl-allwinner-fb.cpp

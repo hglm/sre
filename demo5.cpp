@@ -220,13 +220,14 @@ void Demo5CreateScene() {
     scene->SetEmissionColor(Color(1.0, 1.0, 1.0));
     sreModel *billboard_object1 = sreCreateBillboardModel(scene, true);
     scene->SetBillboardSize(8.0, 8.0);
-    scene->SetHaloSize(2.0);
+    float halo_size_full_fit = 1.0f;
+    scene->SetHaloSize(halo_size_full_fit);
     i = scene->AddObject(billboard_object1, 0, 20, 30, 0, 0, 0, 1);
     lightsource_object_index[0] = i;
     sreModel *billboard_object2 = sreCreateBillboardModel(scene, true);
     scene->SetEmissionColor(Color(1.0, 0.2, 0.2));
     scene->SetBillboardSize(6.0, 6.0);
-    scene->SetHaloSize(1.0);
+    scene->SetHaloSize(halo_size_full_fit);
     i = scene->AddObject(billboard_object2, 40, 80, 20, 0, 0, 0, 1);
     lightsource_object_index[1] = i;
 
@@ -257,7 +258,7 @@ void Demo5CreateScene() {
         // rendering of a single frame.
         sreModel *billboard_object = sreCreateBillboardModel(scene, true);
         scene->SetBillboardSize(3.0, 3.0);
-        scene->SetHaloSize(0.5);
+        scene->SetHaloSize(halo_size_full_fit);
         scene->AddObject(billboard_object, x, y, z, 0, 0, 0, 1);
         scene->AddPointSourceLight(0, Point3D(x, y, z), 15.0, Color(1.0, 1.0, 0));
     }

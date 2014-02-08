@@ -32,7 +32,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 Scene *scene;
 sreView *view;
 bool lock_panning = false;
-bool demo_mode = false;
 
 // Command-line options.
 bool benchmark_mode = false;
@@ -423,7 +422,7 @@ int main(int argc, char **argv) {
     view = new sreView;
 
     if (argc >= argi + 1) {
-        demo_mode = true;
+
         if (strcmp(argv[argi], "demo1") == 0) {
             Demo1CreateScene();
             view->SetViewModeFollowObject(0, 40.0, Vector3D(0, 0, 10.0));
@@ -484,9 +483,15 @@ int main(int argc, char **argv) {
             TimeIterationFunc = Demo8TimeIteration;
             RunDemo();
         }
+        else if (strcmp(argv[argi], "demo9") == 0) {
+            Demo9CreateScene();
+            view->SetViewModeFollowObject(0, 40.0f, Vector3D(0, 0, 10.0f));
+            RenderFunc = Demo9Render;
+            TimeIterationFunc = Demo9TimeIteration;
+            RunDemo();
+        }
 #ifdef USE_BULLET
         else if (strcmp(argv[argi], "game") == 0) {
-            demo_mode = true;
             view->SetViewModeFollowObject(0, 40.0, Vector3D(0, 0, 10.0));
             RunGame();
         }
@@ -516,7 +521,6 @@ int main(int argc, char **argv) {
             TextureMemoryTest(true);
         }
         else if (strcmp(argv[argi], "demo10") == 0) {
-            demo_mode = true;
             Demo10CreateScene();
             view->SetViewModeFollowObject(0, 40.0, Vector3D(0, 0, 10.0));
             RenderFunc = Demo10Render;
@@ -524,7 +528,6 @@ int main(int argc, char **argv) {
             RunDemo();
         }
         else if (strcmp(argv[argi], "demo11") == 0) {
-            demo_mode = true;
             Demo11CreateScene();
             view->SetViewModeFollowObject(0, 40.0, Vector3D(0, 0, 10.0));
             RenderFunc = Demo11Render;

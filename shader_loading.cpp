@@ -967,7 +967,7 @@ void sreShader::Load() {
         printShaderInfoLog(f);
         sreMessage(SRE_MESSAGE_ERROR, "Shader program log:\n");
         printProgramInfoLog(program);
-        sreFatalError("");
+        sreFatalError("Loading of shader failed.");
     }
 
     // Also bind uniform locations.

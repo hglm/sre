@@ -38,6 +38,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #else
 #define NU_STARS 128
 #endif
+#define TWINKLING_STARS
 
 class Robot {
 public :
@@ -87,9 +88,9 @@ static int corner_light_object_index[4];
 static int corner_light_index[4];
 static int beam_light;
 static int star_object_index[NU_STARS];
-static float star_object_halo_size[NU_STARS];
-static float star_halo_size_start[NU_STARS];
-static float star_halo_size_target[NU_STARS];
+static float star_object_billboard_size[NU_STARS];
+static float star_billboard_size_start[NU_STARS];
+static float star_billboard_size_target[NU_STARS];
 static double star_last_twinkle_time[NU_STARS];
 static float star_dec[NU_STARS];
 
@@ -272,8 +273,13 @@ void Demo8CreateScene() {
     scene->SetFlags(SRE_OBJECT_EMISSION_ONLY |
         SRE_OBJECT_NO_BACKFACE_CULLING | SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_NO_PHYSICS |
         SRE_OBJECT_INFINITE_DISTANCE);
-    sreModel *billboard_object = sreCreateBillboardModel(scene, true);
+//    sreModel *billboard_object = sreCreateBillboardModel(scene, true);
     for (int i = 0 ; i < NU_STARS; i++) {
+        // Have a seperate billboard model for each star may be preferable.
+        // Ideally, a special particle system would have to be used for which
+        // the halo size would be configurable as a vertex attribute for each
+        // particle (billboard).
+        sreModel *billboard_object = sreCreateBillboardModel(scene, true);
         int r = rng->RandomInt(7);
         Color c;
         switch (r) {
@@ -295,16 +301,16 @@ void Demo8CreateScene() {
             break;
         }
         scene->SetEmissionColor(c);
-        float dist = 1000000.0f;
-        float halo_size;
+        float dist = 10000.0f; // 1000000.0f;
         float f = rng->RandomFloat(1.0f);
-        halo_size = (32.0f + f * f * f * f * 96.0f) * (dist / 10000.0f);
-        scene->SetBillboardSize(halo_size * 2.5f, halo_size * 2.5f);
-        scene->SetHaloSize(halo_size);
-        star_object_halo_size[i] = halo_size;
+        float size = (32.0f + f * f * f * f * 96.0f) * (dist / 5000.0f);
+        scene->SetBillboardSize(size, size);
+        float halo_size_full_fit = 1.0f;
+        scene->SetHaloSize(halo_size_full_fit);
+        star_object_billboard_size[i] = size;
         star_last_twinkle_time[i] = 0;
         float ra = 2.0f * M_PI * rng->RandomFloat(1.0f);
-        float dec = 0.5f* M_PI * (0.99f * rng->RandomFloat(1.0f) + 0.01f);
+        float dec = 0.5f * M_PI * (0.99f * rng->RandomFloat(1.0f) + 0.01f);
         star_dec[i] = dec;
         star_object_index[i] = scene->AddObject(billboard_object,
             100.0f + dist * cosf(dec) * cosf(ra), 100.0f + dist *
@@ -402,26 +408,37 @@ void Demo8TimeIteration(double time_previous, double time_current) {
     Vector3D W = (M_rot * V).GetVector3D();
     scene->ChangeSpotLightDirection(beam_light, W);
     // Let the stars twinkle.
+#ifdef TWINKLING_STARS
     for (int i = 0; i < NU_STARS; i++) {
+        float current_bsize;
         if (star_last_twinkle_time[i] != 0) {
             if (time_current - star_last_twinkle_time[i] < 0.2) {
-                float halo_size = (star_halo_size_target[i] - star_halo_size_start[i]) *
-                    (time_current - star_last_twinkle_time[i]) / 0.2 + star_halo_size_start[i];
-                scene->ChangeHaloSize(star_object_index[i], halo_size);
-                scene->ChangeBillboardSize(star_object_index[i], halo_size * 2.5, halo_size * 2.5);
+                // The star is moving towards a billboard size target.
+                // Interpolate billboard size towards to the target size over time.
+                current_bsize = (star_billboard_size_target[i] - star_billboard_size_start[i]) *
+                    (time_current - star_last_twinkle_time[i]) / 0.2 + star_billboard_size_start[i];
+                scene->ChangeBillboardSize(star_object_index[i],
+                    current_bsize, current_bsize);
                 continue;
             }
+            // The target has been reached; a new one will be set.
+            current_bsize = star_billboard_size_target[i];
         }
+        else
+            // No target has been defined yet.
+            current_bsize = star_object_billboard_size[i];
+        // Set a new billboard size target.
         float f = ((0.5 * M_PI - star_dec[i]) / (0.5 * M_PI));
         f = f * f * f;
-        float halo_size;
+        float billboard_size;
         if ((rng->RandomBit()) == 0)
-            halo_size = star_object_halo_size[i] * (1 + 0.2 * f);
+            billboard_size = star_object_billboard_size[i] * (1 + 0.2 * f);
         else
-            halo_size = star_object_halo_size[i] * (1 - 0.2 * f);
+            billboard_size = star_object_billboard_size[i] * (1 - 0.2 * f);
         star_last_twinkle_time[i] = time_current;
-        star_halo_size_target[i] = halo_size;
-        star_halo_size_start[i] = star_object_halo_size[i];
+        star_billboard_size_target[i] = billboard_size;
+        star_billboard_size_start[i] = current_bsize;
     }
+#endif
 }
 

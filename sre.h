@@ -1048,19 +1048,25 @@ enum {
     SRE_OBJECT_EMISSION_ONLY = 256,
     SRE_OBJECT_EMISSION_ADD_DIFFUSE_REFLECTION_COLOR = 512,
     // Hidden surface removal/shadows.
+    // Infinite distance objects do not occlude anything and are not included in
+    // the main static scenery octree.
     SRE_OBJECT_INFINITE_DISTANCE = 0x1000,
     SRE_OBJECT_NO_BACKFACE_CULLING = 0x2000,
+    // This flag must be set for every object that can cast shadows.
     SRE_OBJECT_CAST_SHADOWS = 0x4000,
+    // Object never occludes any other object (except INFINITE_DISTANCE objects)
+    // from any allowable camera viewpoint.
+    SRE_OBJECT_NOT_OCCLUDING = 0x8000,
     // Always use the object shadow cache (as opposed to model shadow cache which
     // has limited space), even for directional lights. Use when multiple objects
     // with different fixed rotation/scaling of the same model are used. For
     // dynamic objects that are affected by physics, this flag is automatically
     // set when scene->AddObject() is called.
-    SRE_OBJECT_USE_OBJECT_SHADOW_CACHE = 0x8000,
+    SRE_OBJECT_USE_OBJECT_SHADOW_CACHE = 0x10000,
     // Physics/movement.
-    SRE_OBJECT_DYNAMIC_POSITION = 0x10000, // The position is not fixed. (Implies physics?)
-    SRE_OBJECT_NO_PHYSICS = 0x20000,       // No physics (no collisions/movement).
-    SRE_OBJECT_KINEMATIC_BODY = 0x40000,
+    SRE_OBJECT_DYNAMIC_POSITION = 0x20000, // The position is not fixed. (Implies physics?)
+    SRE_OBJECT_NO_PHYSICS = 0x40000,       // No physics (no collisions/movement).
+    SRE_OBJECT_KINEMATIC_BODY = 0x80000,
     // Miscellaneous.
     SRE_OBJECT_EARTH_SHADER = 0x100000,
     SRE_OBJECT_BILLBOARD = 0x200000,      // Object is a billboard (with a single billboard model).

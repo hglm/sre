@@ -60,12 +60,13 @@ void Demo10CreateScene() {
     // lighting (without specular effects) can be emulated with emission only.
     scene->SetFlags(SRE_OBJECT_MULTI_COLOR | SRE_OBJECT_NO_BACKFACE_CULLING |
          SRE_OBJECT_NO_PHYSICS | SRE_OBJECT_EMISSION_ONLY |
-         SRE_OBJECT_EMISSION_ADD_DIFFUSE_REFLECTION_COLOR);
+         SRE_OBJECT_EMISSION_ADD_DIFFUSE_REFLECTION_COLOR |
+         SRE_OBJECT_NOT_OCCLUDING);
 #else
     sreModel *checkerboard_model = sreCreateCheckerboardModel(scene, 4, 50,
         Color(1.0, 0.2, 0.2), Color(0.2, 0.2, 1.0));
     scene->SetFlags(SRE_OBJECT_MULTI_COLOR | SRE_OBJECT_NO_BACKFACE_CULLING |
-         SRE_OBJECT_NO_PHYSICS);
+         SRE_OBJECT_NO_PHYSICS | SRE_OBJECT_NOT_OCCLUDING);
 #endif
     scene->SetEmissionColor(Color(0, 0, 0));
     for (int x = - 4; x <= 4; x++)

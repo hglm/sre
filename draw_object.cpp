@@ -137,16 +137,17 @@ void sreLODModel::SetupAttributesInterleaved(sreObjectAttributeInfo *info) const
 }
 
 static void GL3SetGLFlags(SceneObject *so) {
-    if (so->flags & (SRE_OBJECT_INFINITE_DISTANCE | SRE_OBJECT_LIGHT_HALO))
+    if (so->render_flags & SRE_OBJECT_INFINITE_DISTANCE) {
         glDepthMask(GL_FALSE);
-    if (so->flags & SRE_OBJECT_NO_BACKFACE_CULLING)
+    }
+    if (so->render_flags & SRE_OBJECT_NO_BACKFACE_CULLING)
         glDisable(GL_CULL_FACE);
-    if (so->flags & SRE_OBJECT_TRANSPARENT_EMISSION_MAP) {
+    if (so->render_flags & SRE_OBJECT_TRANSPARENT_EMISSION_MAP) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
 #ifndef OPENGL_ES2
-    if (so->flags & SRE_OBJECT_TRANSPARENT_TEXTURE) {
+    if (so->render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE) {
         // Disable writing to the color and depth buffers for alpha values <= 0.1.
         glAlphaFunc(GL_GREATER, 0.1f);
         glEnable(GL_ALPHA_TEST);
@@ -155,15 +156,16 @@ static void GL3SetGLFlags(SceneObject *so) {
 }
 
 static void GL3ResetGLFlags(SceneObject *so) {
-    if (so->flags & (SRE_OBJECT_INFINITE_DISTANCE | SRE_OBJECT_LIGHT_HALO))
+    if (so->render_flags & SRE_OBJECT_INFINITE_DISTANCE) {
         glDepthMask(GL_TRUE);
-    if (so->flags & SRE_OBJECT_NO_BACKFACE_CULLING)
+    }
+    if (so->render_flags & SRE_OBJECT_NO_BACKFACE_CULLING)
         glEnable(GL_CULL_FACE);
-    if (so->flags & (SRE_OBJECT_TRANSPARENT_EMISSION_MAP | SRE_OBJECT_LIGHT_HALO)) {
+    if (so->render_flags & SRE_OBJECT_TRANSPARENT_EMISSION_MAP) {
         glDisable(GL_BLEND);
     }
 #ifndef OPENGL_ES2
-    if (so->flags & SRE_OBJECT_TRANSPARENT_TEXTURE) {
+    if (so->render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE) {
         glDisable(GL_ALPHA_TEST);
     }
 #endif
@@ -173,8 +175,9 @@ void sreDrawObjectLightHalo(SceneObject *so) {
     // Initialize the shader.
     sreInitializeObjectShaderLightHalo(*so);
     sreLODModel *m = so->model->lod_model[0];
-    // Disable writing into the depth buffer (when a large object is drawn afterwards that is
-    // partly behind the transparent halo, it should be visible through the halo).
+    // Disable writing into the depth buffer (when a large object is drawn
+    // afterwards that is partly behind the transparent halo, it should be
+    // visible through the halo).
     glDepthMask(GL_FALSE);
     // Enable a particular kind of blending.
     glEnable(GL_BLEND);
@@ -219,7 +222,10 @@ void sreDrawObjectBillboard(SceneObject *so) {
     // Initialize the shader.
     sreInitializeObjectShaderBillboard(*so);
     sreLODModel *m = so->model->lod_model[0];
-    if (so->flags & SRE_OBJECT_TRANSPARENT_EMISSION_MAP) {
+    if (so->render_flags & SRE_OBJECT_INFINITE_DISTANCE) {
+        glDepthMask(GL_FALSE);
+    }
+    if (so->render_flags & SRE_OBJECT_TRANSPARENT_EMISSION_MAP) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
@@ -241,7 +247,10 @@ void sreDrawObjectBillboard(SceneObject *so) {
         // Draw a triangle fan consisting of two triangles from the still bound vertex position buffer.
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     glDisableVertexAttribArray(0);
-    if (so->flags & SRE_OBJECT_TRANSPARENT_EMISSION_MAP)
+    if (so->render_flags & SRE_OBJECT_INFINITE_DISTANCE) {
+        glDepthMask(GL_TRUE);
+    }
+    if (so->render_flags & SRE_OBJECT_TRANSPARENT_EMISSION_MAP)
         glDisable(GL_BLEND);
 }
 
@@ -385,9 +394,9 @@ const char *pass,  int light_type_slot) {
         PrintAttributeList(info, false);
         sreMessageNoNewline(SRE_MESSAGE_LOG, ", interleaved: ");
         PrintAttributeList(info, true);
-        sreMessage(SRE_MESSAGE_LOG, ", object flags 0x%08X, "
+        sreMessage(SRE_MESSAGE_LOG, ", object flags (filtered) 0x%08X, "
             "model has %d triangles (%d vertices), %d meshes.\n",
-            so->flags, m->nu_triangles, m->nu_triangles * 3, m->nu_meshes);
+            so->render_flags, m->nu_triangles, m->nu_triangles * 3, m->nu_meshes);
     }
 }
 
@@ -445,9 +454,10 @@ void sreDrawObjectFinalPass(SceneObject *so) {
         return;
     bool select_new_shader = sreInitializeObjectShaderEmissionOnly(*so);
 
-    if (so->render_flags & SRE_OBJECT_INFINITE_DISTANCE)
+    if (so->render_flags & SRE_OBJECT_INFINITE_DISTANCE) {
         // Disable writing into depth buffer.
         glDepthMask(GL_FALSE);
+    }
     if (so->render_flags & SRE_OBJECT_NO_BACKFACE_CULLING)
         glDisable(GL_CULL_FACE);
     if (so->render_flags & SRE_OBJECT_TRANSPARENT_EMISSION_MAP) {

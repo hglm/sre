@@ -403,7 +403,7 @@ static void GL3InitializeShaderWithAspectRatio(int loc) {
 }
 
 static void GL3InitializeShaderWithHaloSize(int loc, const sreObject& so) {
-    glUniform1f(loc, so.halo_size / sre_internal_zoom);
+    glUniform1f(loc, so.halo_size);
 }
 
 static void GL3InitializeShaderWithId(int loc, const sreObject& so) {

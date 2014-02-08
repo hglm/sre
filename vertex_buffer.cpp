@@ -243,7 +243,8 @@ void sreLODModel::InitVertexBuffers(int attribute_mask, int dynamic_flags) {
         if (attribute_mask & SRE_TEXCOORDS_MASK) {
             // Any texture coordinates (for use with an emission map) have to be uploaded.
             glGenBuffers(1, &GL_attribute_buffer[SRE_ATTRIBUTE_TEXCOORDS]);
-            glBufferData(GL_ARRAY_BUFFER, nu_vertices * sizeof(float) * 2, texcoords, GL_STATIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, nu_vertices * sizeof(float) * 2, texcoords,
+               GL_STATIC_DRAW);
         }
         if (nu_triangles == 0)
             // For single billboards, no triangles are allocated (they always consist
@@ -433,9 +434,12 @@ void GL3SetParticleSystem(SceneObject *so) {
     m->nu_triangles = so->nu_particles * 2;
     // Upload vertex attribute data.
     glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
-    glBufferData(GL_ARRAY_BUFFER, so->nu_particles * 4 * sizeof(float) * 3, m->vertex, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, so->nu_particles * 4 * sizeof(float) * 3,
+        m->vertex, GL_DYNAMIC_DRAW);
+    
     if (so->flags & SRE_OBJECT_LIGHT_HALO) {
         glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_NORMAL]);
-        glBufferData(GL_ARRAY_BUFFER, so->nu_particles * 4 * sizeof(float) * 3, m->vertex_normal, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, so->nu_particles * 4 * sizeof(float) * 3,
+            m->vertex_normal, GL_DYNAMIC_DRAW);
     }
 }

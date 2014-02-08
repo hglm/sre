@@ -258,7 +258,7 @@ frustum.o bounds.o octree.o fluid.o standard_objects.o text.o scene.o lights.o s
 bounding_volume.o random.o shader_matrix.o shader_loading.o vertex_buffer.o shader_uniform.o \
 draw_object.o
 CORE_DEMO_MODULE_OBJECTS = gui-common.o main.o demo1.o demo2.o demo4.o \
-demo5.o demo7.o demo8.o game.o texture_test.o demo10.o demo11.o textdemo.o
+demo5.o demo7.o demo8.o demo9.o game.o texture_test.o demo10.o demo11.o textdemo.o
 ALL_PLATFORM_MODULE_OBJECTS = bullet.o glfw.o opengl-x11.o x11-common.o glut.o egl-x11.o egl-common.o \
 egl-allwinner-fb.o egl-rpi-fb.o $(FRAMEBUFFER_COMMON_MODULE_OBJECTS)
 ORIGINAL_LIBRARY_MODULE_OBJECTS = $(CORE_LIBRARY_MODULE_OBJECTS) $(EXTRA_LIBRARY_MODULE_OBJECTS)

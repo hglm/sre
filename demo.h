@@ -26,7 +26,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 extern Scene *scene;
 extern sreView *view;
 extern bool lock_panning;
-extern bool demo_mode;
 extern void (*RenderFunc)();
 extern void (*TimeIterationFunc)(double time_previous, double time_current);
 // Physics engine inputs.
@@ -93,6 +92,11 @@ void Demo7TimeIteration(double time_previous, double time_current);
 void Demo8CreateScene();
 void Demo8Render();
 void Demo8TimeIteration(double time_previous, double time_current);
+
+// Defined in demo9.cpp
+void Demo9CreateScene();
+void Demo9Render();
+void Demo9TimeIteration(double time_previous, double time_current);
 
 // Defined in game.cpp
 void RunGame();

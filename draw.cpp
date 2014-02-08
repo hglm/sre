@@ -980,33 +980,6 @@ static void DisableScissors() {
 #endif
 }
 
-// Compare function for sorting final pass objects.
-
-static int DistanceCompare(const void *e1, const void *e2) {
-    SceneObject *so1 = sre_internal_scene->sceneobject[*(int *)e1];
-    SceneObject *so2 = sre_internal_scene->sceneobject[*(int *)e2];
-    if (so1->flags & SRE_OBJECT_INFINITE_DISTANCE) {
-        if (so2->flags & SRE_OBJECT_INFINITE_DISTANCE)
-            // If both objects are at infinite distance, impose an order by id.
-            if (so1->id < so2->id)
-                return - 1;
-            else
-                return 1;
-        else
-            return - 1;
-    }
-    if (so2->flags & SRE_OBJECT_INFINITE_DISTANCE)
-        return 1;
-    float sqrdist1 = SquaredMag(so1->sphere.center - sre_internal_viewpoint);
-    float sqrdist2 = SquaredMag(so2->sphere.center - sre_internal_viewpoint);
-    if (sqrdist1 > sqrdist1)
-        return - 1;
-    if (sqrdist1 < sqrdist2)
-        return 1;
-    return 0;    
-}
-
-
 // Rendering objects. The visible object lists (regular and final passs) that were
 // compiled earlier are used.
 //
@@ -1034,10 +1007,13 @@ void sreScene::RenderVisibleObjectsSinglePass(const Frustum& frustum) const {
 // The final pass of single-pass rendering. At the moment, reserved for the following objects:
 //
 // - Objects with the SRE_OBJECT_EMISSION_ONLY flag set. They are not influenced by lights.
-// - Objects with the SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_PARTICLE_SYSTEM flags set. They
-//   are not influenced by light and are transparent.
+//   This includes objects with the SRE_OBJECT_LIGHT_HALO or SRE_OBJECT_BILLBOARD
+//   flags set.
 //
-// This function is also used for the final pass in multi-pass rendering.
+// Some object might be transparent (generally, all transparent object will be
+// rendered in the final pass).
+//
+// These functions are also used for the final pass in multi-pass rendering.
 
 static void RenderFinalPassObject(SceneObject &so) {
     if (so.flags & SRE_OBJECT_PARTICLE_SYSTEM)
@@ -1049,9 +1025,65 @@ static void RenderFinalPassObject(SceneObject &so) {
     sreDrawObjectFinalPass(&so);
 }
 
+// Compare function for sorting final pass objects.
+
+static int DistanceCompare(const void *e1, const void *e2) {
+    SceneObject *so1 = sre_internal_scene->sceneobject[*(int *)e1];
+    SceneObject *so2 = sre_internal_scene->sceneobject[*(int *)e2];
+    // If the SRE_OBJECT_INFINITE_DISTANCE_FLAG is set, meaning that the object
+    // cannot occlude any other final pass object, or if the
+    // SRE_OBJECT_NOT_OCCLUDING flag is set, meaning that the object
+    // cannot occlude any other final pass object (expect infinite distance
+    // objects) from any allowed viewpoint, put it early in the sorting order.
+    if ((so1->flags | so2->flags) &
+    (SRE_OBJECT_INFINITE_DISTANCE | SRE_OBJECT_NOT_OCCLUDING)) {
+        if (so1->flags & SRE_OBJECT_INFINITE_DISTANCE)
+            if (so2->flags & SRE_OBJECT_INFINITE_DISTANCE)
+                goto order_by_id;
+            else
+                return - 1;
+        else if (so2->flags & SRE_OBJECT_INFINITE_DISTANCE)
+            return 1;
+        // At least one object has SRE_OBJECT_NOT_OCCLUDING set.
+        if (so1->flags & SRE_OBJECT_NOT_OCCLUDING)
+            if (so2->flags & SRE_OBJECT_NOT_OCCLUDING)
+                goto order_by_id;
+            else
+                return - 1;
+        else
+            // SRE_OBJECT_NOT_OCCLUDING must be set for so2.
+            return 1;  
+order_by_id :
+            // If both objects are at infinite distance, impose an order by id.
+            if (so1->id < so2->id)
+                 return - 1;
+            else
+                 return 1;
+    }
+    // For other objects, sort of distance from the viewpoint, using either the
+    // bounding sphere center or the bounding box center.
+    Point3D center1, center2;
+    if (so1->model->bounds_flags & SRE_BOUNDS_PREFER_SPHERE)
+        center1 = so1->sphere.center;
+    else
+        center1 = so1->box.center;
+    if (so2->model->bounds_flags & SRE_BOUNDS_PREFER_SPHERE)
+        center2 = so2->sphere.center;
+    else
+        center2 = so2->box.center;
+    float sqrdist1 = SquaredMag(center1 - sre_internal_viewpoint);
+    float sqrdist2 = SquaredMag(center2 - sre_internal_viewpoint);
+    if (sqrdist1 > sqrdist1)
+        return - 1;
+    if (sqrdist1 < sqrdist2)
+        return 1;
+    return 0;
+}
+
 void sreScene::RenderFinalPassObjectsSinglePass(const Frustum& frustum) const {
     // Sort the objects in order of decreasing distance.
-    // This is actually only required for transparent objects.
+    // Sorting is actually only required for transparent objects, but is performed
+    // for every object.
     // Preserve the seperation between static and dynamic final-pass objects
     // in the final pass array.
     // For correct rendering when both static and dynamic transparent objects

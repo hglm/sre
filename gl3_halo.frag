@@ -22,27 +22,73 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // It has been written to be compatible with both OpenGL 2.0+ and OpenGL ES 2.0.
 
 #ifdef GL_ES
+// We need to set float precision to highp because otherwise the float
+// varying is not linked correctly.
 precision highp float;
+#define MEDIUMP mediump
+#else
+#define MEDIUMP
 #endif
 uniform vec3 base_color_in;
-uniform float aspect_ratio_in;
-uniform float halo_size_in;
 varying vec2 screen_position_var;
 varying vec2 screen_position_center;
+varying float scale_factor;
+
+// An improvement would be to define a few attenuation parameters for the
+// halo, which can be set to configurations similar to a solid circle,
+// linear fade or somewhat segmented (good looking) fade.
+
+// #define SOLID_CIRCLE
+// #define LINEAR_FADE
+#define SEGMENTED_FADE
+
+// At least on a Mali-400, using discard is a little slower.
+// #define DISCARD
 
 void main() {
-        float dist;
-	float dx = screen_position_var.x - screen_position_center.x;
-	float dy = screen_position_var.y - screen_position_center.y;
-//        dist = (dx * dx * aspect_ratio_in * aspect_ratio_in + dy * dy) / (halo_size_in * halo_size_in);
-        dist = sqrt(dx * dx * aspect_ratio_in * aspect_ratio_in + dy * dy) / halo_size_in;
-        float att;
-        att = 1.0;
-        if (dist > 0.5)
-            att = 1.0 - 0.5 * (dist - 0.5);
+        MEDIUMP float dist;
+	MEDIUMP float dx = screen_position_var.x - screen_position_center.x;
+	MEDIUMP float dy = screen_position_var.y - screen_position_center.y;
+	// Calculate screen distance to center in coordinates normalized to half
+        // the screen height.
+        dist = sqrt(dx * dx + dy * dy);
+        // Apply the precalculated scale factor so that a dist value of 1.0
+        // corresponds to the distance from the center to the bottom (or top) of
+        // the billboard, additionally corrected for the halo size relative to
+        // the billboard.
+	dist *= scale_factor;
+#ifdef DISCARD
+        // Outside the influence of the halo, we can discard the fragment.
         if (dist > 1.0)
-            att = 0.75 - 0.25 * (dist - 1.0);
-        if (att < 0.0)
-            att = 0.0;
+            discard;
+#endif
+        MEDIUMP float att;
+
+#ifdef SOLID_CIRCLE
+#ifdef DISCARD
+	att = 1.0;
+#else
+	att = max(sign(1.0 - dist), 0.0);
+#endif
+#endif
+
+#ifdef LINEAR_FADE
+#ifdef DISCARD
+	att = 1.0 - dist;
+#else
+        att = max(1.0 - dist, 0.0);
+#endif
+#endif
+
+#ifdef SEGMENTED_FADE
+	att = 1.0;
+        // Linear fade from 1.0 at dist = 0.125 to 0.75 at dist = 0.25
+	// First scale and clamp distance within segment to [0, 1],
+        // then multiply by the intensity drop within the segment.
+	att -= clamp((dist - 0.125) * (1.0 / 0.125), 0.0, 1.0) * 0.25;
+	// Linear fade from 0.75 at dist = 0.25 to 0 (black) at dist = 1.0.
+	att -= clamp((dist - 0.25) * (1.0 / 0.75), 0.0, 1.0) * 0.75;
+#endif
+
 	gl_FragColor = vec4(base_color_in, 1.0) * att;
 }

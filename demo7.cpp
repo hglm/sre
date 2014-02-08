@@ -23,8 +23,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre.h"
 #include "demo.h"
 
+#define HALO
+
+#define HALO_MOVING
+
 #ifndef OPENGL_ES2
-#define MOVING_LIGHT
+#define HALO_LIGHT
 #endif
 
 static int lightsource_object_index[2];
@@ -104,30 +108,38 @@ void Demo7CreateScene() {
     // Add lightsources
     // Directional light
     scene->AddDirectionalLight(0, Vector3D(0.1, 0.1, - 1.0), Color(0.4, 0.4, 0.4));
-#ifdef MOVING_LIGHT
-    // Moving light
-    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION |  SRE_OBJECT_EMISSION_ONLY |
+#ifdef HALO
+    // Halo light.
+    scene->SetFlags(
+#ifdef HALO_MOVING
+        SRE_OBJECT_DYNAMIC_POSITION |
+#endif
+        SRE_OBJECT_EMISSION_ONLY |
         SRE_OBJECT_NO_BACKFACE_CULLING | SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_NO_PHYSICS);
-    c.r = 1.0;
-    c.g = 0.9;
-    c.b = 0.9;
     scene->SetEmissionColor(Color(1.0, 0.9, 0.9));
     sreModel *billboard_object = sreCreateBillboardModel(scene, true);
-    scene->SetBillboardSize(8.0, 8.0);
-    scene->SetHaloSize(2.0);
-    lightsource_object_index[0] = scene->AddObject(billboard_object, 20, 20, 30, 0, 0, 0, 1);
-    int l = scene->AddPointSourceLight(SRE_LIGHT_DYNAMIC_POSITION, Point3D(20, 20, 30), 100.0, Color(1.0, 1.0, 1.0));
+    scene->SetBillboardSize(8.0f, 8.0f);
+    scene->SetHaloSize(1.0f);
+    lightsource_object_index[0] =
+        scene->AddObject(billboard_object, 20, 20, 30, 0, 0, 0, 1);
+#ifdef HALO_LIGHT
+    int l = scene->AddPointSourceLight(
+#ifdef HALO_MOVING
+        SRE_LIGHT_DYNAMIC_POSITION,
+#else
+        0,
+#endif
+        Point3D(20, 20, 30), 100.0, Color(1.0, 1.0, 1.0));
     scene->AttachLight(lightsource_object_index[0], l, Vector3D(0, 0, 0));
+#endif
 #endif
 }
 
 
 void Demo7Render() {
-#ifdef MOVING_LIGHT
+#ifdef HALO_MOVING
     // Note: When using double precision cos and sin functions, intractable errors occurred when
     // simultaneously using the bullet library on the Raspberry Pi platform.
-//    float x = 20 + 20 * cos(demo7_time * 2 * M_PI / 5);
-//    float y =  20 + 20 * sin(demo7_time * 2 * M_PI / 5);
     float x = 20 + 20 * cosf((float)demo_time * 2 * M_PI / 5);
     float y =  20 + 20 * sinf((float)demo_time * 2 * M_PI / 5);
     float z = 30;
@@ -135,10 +147,6 @@ void Demo7Render() {
     scene->ChangePosition(lightsource_object_index[0], x, y, z);
 #endif
     scene->Render(view);
-//    if (glGetError() != GL_NO_ERROR) {
-//        printf("OpenGL error occurred during rendering.\n");
-//        exit(1);
-//    }
 }
 
 void Demo7TimeIteration(double time_previous, double time_current) {
