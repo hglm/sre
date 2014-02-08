@@ -812,7 +812,7 @@ void sreCheckGLError(const char *format, ...) {
 void sreFatalError(const char *format, ...) {
     va_list args;
     va_start(args, format);
-    printf("(libsre) Unexpected fatal error:\n");
+    printf("(libsre) Unexpected fatal error: ");
     vprintf(format, args);
     va_end(args);
     printf("\n");

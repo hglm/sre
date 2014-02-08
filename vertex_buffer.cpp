@@ -245,6 +245,10 @@ void sreLODModel::InitVertexBuffers(int attribute_mask, int dynamic_flags) {
             glGenBuffers(1, &GL_attribute_buffer[SRE_ATTRIBUTE_TEXCOORDS]);
             glBufferData(GL_ARRAY_BUFFER, nu_vertices * sizeof(float) * 2, texcoords, GL_STATIC_DRAW);
         }
+        if (nu_triangles == 0)
+            // For single billboards, no triangles are allocated (they always consist
+            // of a two triangle fan with the order of the vertex data).
+            return;
         goto copy_indices;
     }
 
