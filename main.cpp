@@ -409,7 +409,7 @@ int main(int argc, char **argv) {
         sreEnableMultiPassRendering();
     else
         sreDisableMultiPassRendering();
-    sreSetLightScissors(SRE_SCISSORS_LIGHT);
+    sreSetLightScissors(SRE_SCISSORS_GEOMETRY);
     if (multipass_rendering && !multiple_lights)
         sreSetMultiPassMaxActiveLights(1);
 
