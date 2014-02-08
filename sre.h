@@ -1545,6 +1545,7 @@ public:
     void SetLevelOfDetail(int flags, int level, float threshold_scaling);
     // AddObject returns the model id which can be used to subsequently change object
     // parameters.
+    // The following function is deprecated; used the following one.
     int AddObject(sreModel *model, float dx, float dy, float dz, float rot_x, float rot_y,
         float rot_z, float scaling);
     int AddObject(sreModel *model, Point3D pos, Vector3D rot_along_axi, float scaling);

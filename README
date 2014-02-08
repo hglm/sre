@@ -245,15 +245,18 @@ pipeline.
   already be fixed because of bug fixes in octree smallest dimension
   displacement algorithm during octree creation.
 
-- Stencil shadows errors showed up when moving the player (with light) to
-  very near the grating in demo8. The error disappears when the shadow
-  volume visibility test is disabled. The error most likely occurs
-  because of the wide angle of the pyramid cone that defines the shadow
-  volume when the player is extremely close to the large grating. A
-  spherical sector is now used in that case, but the intersection of
-  it infinite projection (dark cap) with the frustum is not yet fully
-  implemented. Also, some expensive trigonometry operations are used when
-  initializing the spherical sector.
+- Stencil shadows errors show up related to the grating in demo8. A
+  large grating shadow overlaying the window probably as a result of a
+  missing darkcap from the shadow volume cast by a corner light. This
+  is a problem with the shadow volume visibility test, and disabling
+  the the test fixes it. Additionally, the grating shadow from the
+  nearby light can disappear; this is also fixed by disabling the test.
+
+  A spherical sector is sometimes used for the shadow volume instead of
+  pyramid cone, but the intersection of it infinite projection (dark cap)
+  with the frustum is not yet fully implemented. Also, some expensive
+  trigonometry operations are used when initializing the spherical sector.
+  This may be related to the mentioned issue.
 
 - An error related to a shadow volume bounding pyramid shows up in demo1
   and demo5 with geometry scissors enabled from the starting position

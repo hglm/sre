@@ -97,6 +97,7 @@ static float star_dec[NU_STARS];
 static sreDefaultRNG *rng;
 
 void Demo8CreateScene() {
+    int l;
     rng = sreGetDefaultRNG();
 
     scene->SetAmbientColor(Color(0.15, 0.15, 0.15));
@@ -105,12 +106,16 @@ void Demo8CreateScene() {
     scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS);
     scene->SetDiffuseReflectionColor(Color(0, 0.75, 1.0));
     scene->AddObject(globe_model, 100, 50, 3.0, 0, 0, 0, 3.0);
-    int l = scene->AddPointSourceLight(SRE_LIGHT_DYNAMIC_POSITION,
+#ifdef CONTROL_OBJECT_LIGHT
+    // Add a light source at the center of the controllable sphere.
+    // Because the sphere naturally rolls, it is hard to realistically
+    // associate a light with it.
+    l = scene->AddPointSourceLight(SRE_LIGHT_DYNAMIC_POSITION,
             Point3D(100, 50, 3.0), 20.0, // Linear range of 20.
             Color(1.0, 1.0, 1.0));
-//    scene->AttachLight(0, l, Vector3D(0, 0, 1.05));
-    scene->AttachLight(0, l, Vector3D(0, 0, 0));
+/    scene->AttachLight(0, l, Vector3D(0, 0, 0));
     scene->SetEmissionColor(Color(0, 0, 0));
+#endif
 
     // Add floor.
     sreModel *checkerboard_model = sreCreateCheckerboardModel(scene, 20, 10,
@@ -171,6 +176,7 @@ void Demo8CreateScene() {
     scene->AddObject(pedestal, 194.75, 4.75, 10.0, 0, 0, 0, 1.0);
     scene->AddObject(pedestal, 4.75, 194.75, 10.0, 0, 0, 0, 1.0);
     scene->AddObject(pedestal, 194.75, 194.75, 10.0, 0, 0, 0, 1.0);
+
     // Add gratings
     sreModel *grating_model = sreCreateGratingModel(scene, 10, 10, 0.2, 0.9, 0.1, 0.2);
     float grating_dim_x = calculate_grating_dim_x(10, 10, 0.2, 0.9, 0.1, 0.2);
@@ -178,8 +184,37 @@ void Demo8CreateScene() {
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
     scene->SetDiffuseReflectionColor(Color(0.5, 0.8, 0.2));
     scene->SetEmissionColor(Color(0, 0, 0));
-    int k = scene->AddObject(grating_model, 10.0, 100.0 + 0.4, 0, M_PI / 2, 0, 0, 4.0);
+    scene->AddObject(grating_model, 10.0, 100.0 + 0.4, 0, M_PI / 2, 0, 0, 4.0);
     scene->AddObject(grating_model, 190.0 - grating_dim_x * 4.0, 100.0 + 0.4, 0, M_PI / 2, 0, 0, 4.0);
+    // Add a pedestal lights before the grating, producing nice shadows.
+    scene->SetFlags(SRE_OBJECT_EMISSION_ONLY);
+    scene->SetEmissionColor(Color(0.4f, 0.4f, 0.4f));
+    Point3D P1 = Point3D(10.0f + grating_dim_x * 4.0f * 0.5f - 0.25f, 87.0f, 0);
+    Point3D P2 = Point3D(190.0f - grating_dim_x * 4.0f * 0.5f - 0.25f, 87.0f, 0);
+    // Pedestal model block is 0.5 wide. Scale by 2.5f, making the height 37.5.
+    float grating_light_pedestal_scale = 2.0f;
+    float grating_light_pedestal_height = 15.0f * grating_light_pedestal_scale;
+    Vector3D grating_light_pedestal_position_offset =
+        - Vector3D(1.0f, 1.0f, 0) * grating_light_pedestal_scale * 0.5f * 0.5f;
+    scene->AddObject(pedestal, P1 + grating_light_pedestal_position_offset, Vector3D(0, 0, 0),
+        grating_light_pedestal_scale);
+    scene->AddObject(pedestal, P2 + grating_light_pedestal_position_offset, Vector3D(0, 0, 0),
+        grating_light_pedestal_scale);
+    // Add spheres representing the lights. Although bright, some light can additionally fall on them.
+    // They better not cast shadows because that may block the light sources inside them.
+    scene->SetFlags(0);
+    scene->SetDiffuseReflectionColor(Color(0.9f, 0.9f, 0.9f));
+    scene->SetEmissionColor(Color(0.9f, 0.9f, 0.9f));
+    scene->AddObject(globe_model, P1 + Vector3D(0, 0, grating_light_pedestal_height + 2.0f),
+        Vector3D(0, 0, 0), 2.0f);
+    scene->AddObject(globe_model, P2 + Vector3D(0, 0, grating_light_pedestal_height + 2.0f),
+        Vector3D(0, 0, 0), 2.0f);
+    // Add the light sources for the pedestal lights. Range 55.
+    // Although unphysical except with HDR rendering, the lights are extra bright.
+    scene->AddPointSourceLight(0, P1 + Vector3D(0, 0, grating_light_pedestal_height + 2.0f),
+        55.0f, Color(1.5f, 1.5f, 1.5f));
+    scene->AddPointSourceLight(0, P2 + Vector3D(0, 0, grating_light_pedestal_height+ 2.0f),
+        55.0f, Color(1.5f, 1.5f, 1.5f));
 
     // Add beam light in the middle of the area.
     beam_light = scene->AddBeamLight(SRE_LIGHT_DYNAMIC_DIRECTION,
