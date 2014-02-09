@@ -90,9 +90,11 @@ static void SetShortEngineSettingsText() {
 static bool scene_info_text_initialized = false;
 static char *scene_info_text_line[22];
 
-static char *no_yes_str[2] = { "No", "Yes" };
-static char *disabled_enabled_str[2] = { "Disabled", "Enabled" };
-static char *opengl_str[2] = { "OpenGL 3.0+ (core)", "OpenGL-ES 2.0" }; 
+static const char *no_yes_str[2] = { "No", "Yes" };
+static const char *disabled_enabled_str[2] = { "Disabled", "Enabled" };
+static const char *opengl_str[2] = { "OpenGL 3.0+ (core)", "OpenGL-ES 2.0" }; 
+static const char *visibility_test_str[4] = {
+    "None", "Standard", "Darkcap only", "Full (Darkcap)" };
 
 static char *strend(char *s) {
     return s + strlen(s);
@@ -130,13 +132,17 @@ static void SetSceneInfo(sreEngineSettingsInfo *settings_info) {
             info->model_cache_hits, info->model_cache_misses,
             info->model_cache_entries_used, info->model_cache_total_entries,
             info->model_cache_total_vertex_count);
-        sprintf(scene_info_text_line[20], "Shadow cache: %s, Use strips: %s, Use fans: %s",
+        sprintf(scene_info_text_line[20], "Shadow cache: %s, Use strips: %s, Use fans: %s"
+            ", Test vis.: %s",
             disabled_enabled_str[
                 (settings_info->rendering_flags & SRE_RENDERING_FLAG_SHADOW_CACHE_ENABLED) != 0],
             no_yes_str[
                 (settings_info->rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_STRIPS_FOR_SHADOW_VOLUMES) != 0],
             no_yes_str[
-                (settings_info->rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES) != 0]
+                (settings_info->rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES) != 0],
+            visibility_test_str[
+                ((settings_info->rendering_flags & SRE_RENDERING_FLAG_SHADOW_VOLUME_VISIBILITY_TEST) != 0) + 2 *
+                ((settings_info->rendering_flags & SRE_RENDERING_FLAG_SHADOW_VOLUME_DARKCAP_VISIBILITY_TEST) != 0)]
             );
 
         delete info;
@@ -365,8 +371,8 @@ void GUIKeyPressCallback(unsigned int key) {
         text_message[10] = "g -- Enable scissors optimization with geometry scissors";
 //        text_message[11] = "o -- Enable scissors optimization with matrix geometry scissors";
         text_message[11] = "d -- Disable scissors optimization";
-        text_message[12] = "Enabled/disable shadow volume settings: v/b - visibility test, F9/F10 - strip/fans";
-        text_message[13] = "F11/F12 - Cache, ;/' -- Force depth-fail stencil rendering";
+        text_message[12] = "Enabled/disable shadow volume settings: F9/F10 - strip/fans, F11/F12 - Cache";
+        text_message[13] = "v/b x/c - visibility tests, =/Backspace -- Force depth-fail stencil rendering";
         text_message[14] = "l/k -- Enable/disable light attenuation";
         text_message[15] = "8/9 -- Enable/disable light object list rendering";
         text_message[16] = "F2/F3 -- Disable/enable HDR rendering  F4 -- Cycle tone mapping shader";
@@ -466,6 +472,14 @@ void GUIKeyPressCallback(unsigned int key) {
             sreSetShadowVolumeVisibilityTest(false);
             text_message[line_number] = "Shadow volume visibility test disabled";
             break;
+        case 'X' :
+            sreSetShadowVolumeDarkCapVisibilityTest(true);
+            text_message[line_number] = "Shadow volume darkcap visibility test enabled";
+            break;
+        case 'C' :
+            sreSetShadowVolumeDarkCapVisibilityTest(false);
+            text_message[line_number] = "Shadow volume darkcap visibility test disabled";
+            break;
         case '8' :
             sreSetLightObjectLists(true);
             text_message[line_number] = "Light object list rendering enabled";
@@ -541,14 +555,14 @@ void GUIKeyPressCallback(unsigned int key) {
             text_message[line_number] = "Shadow volume cache disabled";
             break;
             }
-        case ';' : {
+        case '=' : {
             sreSetForceDepthFailRendering(true);
             text_message[line_number] = "Force stencil shadow volume depth-fail rendering enabled";
             break;
             }
-        case '\'' : {
+        case SRE_KEY_BACKSPACE : {
             sreSetForceDepthFailRendering(false);
-            text_message[line_number] = "Force stencil shadow volume depth-fail rendering enabled";
+            text_message[line_number] = "Force stencil shadow volume depth-fail rendering disabled";
             break;
             }
         default :

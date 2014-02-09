@@ -1053,9 +1053,10 @@ static EdgeArray *silhouette_edges = NULL;
 // the shadow caster volume. However, it is still possible that the actual shadow
 // volume does not intersect the frustum. When geometry scissors are active, the geometrical
 // shadow volume may already have been calculated (sv_in is not NULL), otherwise it will be
-// calculated when required. When the engine setting sre_internal_shadow_volume_visibility_test
-// is true, the geometrical shadow volume (and possibly the dark cap with depth-fail rendering)
+// calculated when required. When the relevant rendering flag set, geometrical shadow volume
 // will be tested against the view frustum when the object itself is outside the frustum.
+// Another rendering flag defines whether the dark cap visibility test with depth-fail rendering
+// is enabled.
 //
 // Any GPU scissors settings have been applied.
 
@@ -1075,7 +1076,8 @@ static void DrawShadowVolume(SceneObject *so, Light *light, Frustum &frustum, Sh
         // If the test is disabled, just assume the shadow volume intersects the frustum.
         // Note: The calculated shadow volumes bound the actual geometrical shadow volume, not
         // the shadow volumes extruded to infinity that are used on the GPU.
-        if (!object_is_visible && sre_internal_shadow_volume_visibility_test) {
+        if (!object_is_visible &&
+        (sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_VOLUME_VISIBILITY_TEST)) {
             // Use any static precalculated shadow volume when available (sv != NULL), otherwise
             // calculate a temporary shadow volume. Generally when precalculated shadow volumes
             // are enabled, calculating a temporary shadow volume will only be required if the
@@ -1112,7 +1114,7 @@ static void DrawShadowVolume(SceneObject *so, Light *light, Frustum &frustum, Sh
             // For directional lights or beam lights no dark cap is needed.
             if (light->type & (SRE_LIGHT_DIRECTIONAL | SRE_LIGHT_BEAM))
                  type |= TYPE_SKIP_DARKCAP;
-            else if (sre_internal_shadow_volume_visibility_test) {
+            else if (sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_VOLUME_DARKCAP_VISIBILITY_TEST) {
                 // Otherwise, when enabled do a geometrical test to see whether the dark cap
                 // is outside the frustum.
                 // If the object is not visible, the shadow volume was already calculated;

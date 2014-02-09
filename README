@@ -258,8 +258,8 @@ pipeline.
   trigonometry operations are used when initializing the spherical sector.
   This may be related to the mentioned issue.
 
-- An error related to a shadow volume bounding pyramid shows up in demo1
-  and demo5 with geometry scissors enabled from the starting position
+- An error related to a shadow volume bounding pyramid shows up in demo1,
+  demo5 and demo8 with geometry scissors enabled from the starting position
   (n = large negative).
 
 3. Potential improvements that are not yet implemented.

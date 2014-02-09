@@ -91,7 +91,6 @@ bool sre_internal_multi_pass_rendering = false;
 int sre_internal_max_active_lights = SRE_DEFAULT_MAX_ACTIVE_LIGHTS;
 int sre_internal_reflection_model = SRE_REFLECTION_MODEL_STANDARD;
 bool sre_internal_geometry_scissors_active;
-bool sre_internal_shadow_volume_visibility_test = true;
 // int sre_internal_octree_type = SRE_OCTREE_MIXED_WITH_QUADTREE;
 int sre_internal_octree_type = SRE_OCTREE_BALANCED;
 bool sre_internal_light_object_lists_enabled = true;
@@ -195,7 +194,26 @@ void sreSetLightScissors(int mode) {
 }
 
 void sreSetShadowVolumeVisibilityTest(bool enabled) {
-    sre_internal_shadow_volume_visibility_test = enabled;
+   if (enabled)
+       sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_VOLUME_VISIBILITY_TEST;
+   else {
+       sre_internal_rendering_flags &= ~SRE_RENDERING_FLAG_SHADOW_VOLUME_VISIBILITY_TEST;
+   }
+   // The test can affect the cache; with the test enabled some shadow volumes may be
+   // skipped entirely while for others the shadow volume uploaded to the GPU may have
+   // fewer components.
+   sreClearShadowCache();
+}
+
+void sreSetShadowVolumeDarkCapVisibilityTest(bool enabled) {
+   if (enabled)
+       sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_VOLUME_DARKCAP_VISIBILITY_TEST;
+   else {
+       sre_internal_rendering_flags &= ~SRE_RENDERING_FLAG_SHADOW_VOLUME_DARKCAP_VISIBILITY_TEST;
+   }
+   // The test can affect the cache for depth-fail shadow volumes, allowing the darkcap to be
+   // skipped.
+   sreClearShadowCache();
 }
 
 void sreSetShadowMapRegion(Point3D dim_min, Point3D dim_max) {
@@ -767,6 +785,9 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
 
     sre_internal_rendering_flags |= SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES;
     sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_CACHE_ENABLED;
+    sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_VOLUME_VISIBILITY_TEST;
+    // Do not enable the darkcap visibility test for now because of bugs.
+//    sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_VOLUME_DARKCAP_VISIBILITY_TEST;
 
     // Make sure all objects have their shader selected when first drawn.
     sre_internal_reselect_shaders = true;

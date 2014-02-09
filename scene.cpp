@@ -745,8 +745,13 @@ void sreObject::AddShadowVolume(ShadowVolume *sv) {
 }
 
 ShadowVolume *sreObject::LookupShadowVolume(int light_index) const {
-    if (!sre_internal_shadow_volume_visibility_test)
-        return NULL;
+    // This function is called either when shadow volume visibility testing is enabled during
+    // shadow volume construction, or at an earlier stage when geometry scissors are enabled.
+    // In the latter case, it does not appear to be sensible to check whether the visibility
+    // test is enabled (precalculated static object shadow volumes, especially for point/spot
+    // lights, save processing time).
+//    if (!(sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_VOLUME_VISIBILITY_TEST))
+//        return NULL;
     // Just iterate all shadow volumes and look for the right light.
     // Not optimal, but objects tend to have only a limited number of
     // static lights affect them.

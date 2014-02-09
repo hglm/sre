@@ -165,6 +165,8 @@ static const unsigned int X11_key_translation_table[] = {
     XK_space, ' ',      // Space
     XK_backslash, '\\',   // Backslash
     XK_slash, '/',      // Slash
+    XK_equal, '=',
+    XK_BackSpace, SRE_KEY_BACKSPACE,
     XK_Escape, SRE_KEY_ESC,
     SRE_TRANSLATION_TABLE_END
 };

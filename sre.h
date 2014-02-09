@@ -1714,7 +1714,14 @@ enum {
     // Use triangle fans for dir./beam shadow volume sides.
     SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES = 0x400,
     // Force depth-fail stencil shadow volume rendering (slower).
-    SRE_RENDERING_FLAG_FORCE_DEPTH_FAIL = 0x800
+    SRE_RENDERING_FLAG_FORCE_DEPTH_FAIL = 0x800,
+    // Enable geometrical visibility test for shadow volumes when using stencil
+    // shadows.
+    SRE_RENDERING_FLAG_SHADOW_VOLUME_VISIBILITY_TEST = 0x1000,
+    // Enable geometrical visibility test for shadow volume darkcap (infinite
+    // projection of shadow volume) when using with depth-fail rendering.
+    // stencil shadows.
+    SRE_RENDERING_FLAG_SHADOW_VOLUME_DARKCAP_VISIBILITY_TEST = 0x2000
 };
 
 class SRE_API sreEngineSettingsInfo {
@@ -1786,7 +1793,9 @@ SRE_API void sreSetLightAttenuation(bool enabled);
 enum { SRE_SCISSORS_NONE = 0, SRE_SCISSORS_LIGHT = 1, SRE_SCISSORS_GEOMETRY = 3, SRE_SCISSORS_GEOMETRY_MATRIX = 5 };
 enum { SRE_SCISSORS_LIGHT_MASK = 1, SRE_SCISSORS_GEOMETRY_MASK = 2, SRE_SCISSORS_GEOMETRY_MATRIX_MASK = 4 };
 SRE_API void sreSetLightScissors(int mode);
+// Enable shadow volume visibility test (but not the darkcap visibility test).
 SRE_API void sreSetShadowVolumeVisibilityTest(bool enabled);
+SRE_API void sreSetShadowVolumeDarkCapVisibilityTest(bool enabled);
 SRE_API void sreSetShadowMapRegion(Point3D dim_min, Point3D dim_max);
 enum { SRE_OCTREE_STRICT, SRE_OCTREE_STRICT_OPTIMIZED, SRE_OCTREE_BALANCED, SRE_QUADTREE_XY_STRICT,
 SRE_QUADTREE_XY_STRICT_OPTIMIZED, SRE_QUADTREE_XY_BALANCED, SRE_OCTREE_MIXED_WITH_QUADTREE };
@@ -2022,9 +2031,9 @@ SRE_API void sreSetDebugMessageLevel(int level);
 // This function prints a formatted string and raises an interrupt, so that
 // it can function as a debugging breakpoint as well as quitting the program.
 // A newline appended after the string.
-void sreFatalError(const char *format, ...) __attribute__ ((noreturn));
+SRE_API void sreFatalError(const char *format, ...) __attribute__ ((noreturn));
 #else
-void sreFatalError(const char *format, ...);
+SRE_API void sreFatalError(const char *format, ...);
 #endif
 
 // Messages will only be displayed if the priority is smaller than or equal
@@ -2047,7 +2056,7 @@ enum {
 };
 // Display a message depending on the priority level. A newline is appended
 // if the message is printed.
-void sreMessage(int priority, const char *format, ...);
-void sreMessageNoNewline(int priority, const char *format, ...);
+SRE_API void sreMessage(int priority, const char *format, ...);
+SRE_API void sreMessageNoNewline(int priority, const char *format, ...);
 
 #endif
