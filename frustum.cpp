@@ -329,7 +329,7 @@ void sreScissors::UpdateWithWorldSpaceBoundingHull(Point3D *P, int n) {
                 // Beyond the near plane.
                 if (z < - 1.0)
                     z = - 1.0;
-                double depth = 0.5 * z + 0.5;
+                double depth = 0.5f * z + 0.5f;
                 near = minf(depth, near);
                 far = maxf(depth, far);
                 float x = Pproj.x / Pproj.w;
@@ -340,7 +340,8 @@ void sreScissors::UpdateWithWorldSpaceBoundingHull(Point3D *P, int n) {
                 top = maxf(y, top);
             }
             else {
-                printf("Unexpected vertex in front of the near plane in UpdateWorldSpaceBoundingHull "
+                sreMessage(SRE_MESSAGE_WARNING,
+                    "Unexpected vertex in front of the near plane in UpdateWorldSpaceBoundingHull "
                     "z = %f, n = %d\n", z, n);
                 // In front of the near plane.
                 near = 0;
@@ -360,7 +361,7 @@ void sreScissors::UpdateWithWorldSpaceBoundingHull(Point3D *P, int n) {
 // The bounding box may be oriented, and may be beyond, in front of, or intersect
 // the image plane. Any part that is in front of the image plane (i.e. not visible)
 // is clipped to the image plane. When the box is wholly in front of the image plane,
-// the function has no effect and returns early.
+// the function has no effect and returns false.
 //
 // The scissors region is not clipped to visible screen dimensions and may be larger.
 // The scissors region is extended to include the projection of the box onto the image
@@ -371,6 +372,9 @@ void sreScissors::UpdateWithWorldSpaceBoundingHull(Point3D *P, int n) {
 // and there is an edge between the corresponding vertices in the two planes and
 // an edge between adjacent vertices within a plane. If n is four, there are only
 // four vertices, and there is only one plane.
+//
+// A return value of false indicates the scissors region is empty (it may actually be
+// set to an empty region), while true indicates a valid scissors region was calculated.
 
 bool sreScissors::UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const Frustum& frustum) {
     // Clip against image plane.
@@ -490,14 +494,19 @@ bool sreScissors::UpdateWithWorldSpaceBoundingPolyhedron(Point3D *P, int n, cons
 //
 // The pyramid has a tip vertex (index 0) and four, six or seven base vertices. As a result,
 // n must be 5, 7 or 8.
+//
+// The return value of type sreScissorsRegionType indicates whether the scissors region is
+// empty, undefined (effectively the whole display), or defined.
 
-bool sreScissors::UpdateWithWorldSpaceBoundingPyramid(Point3D *P, int n, const Frustum& frustum) {
+sreScissorsRegionType sreScissors::UpdateWithWorldSpaceBoundingPyramid(Point3D *P, int n,
+const Frustum& frustum) {
     if (n != 5 && n != 7 && n != 8) {
-        printf("Expected 5, 7 or 8 vertices in bounding pyramid (n = %d).\n", n);
-        return false;
+        sreMessage(SRE_MESSAGE_WARNING, "Expected 5, 7 or 8 vertices in bounding pyramid (n = %d).\n", n);
+        return SRE_SCISSORS_REGION_UNDEFINED;
     }
     // Clip against image plane.
     float dist[8];
+    // Count the number of pyramid vertices that is outside the near plane.
     int count = 0;
     for (int i = 0; i < n; i++) {
         dist[i] = Dot(frustum.frustum_world.plane[0], P[i]);
@@ -505,105 +514,19 @@ bool sreScissors::UpdateWithWorldSpaceBoundingPyramid(Point3D *P, int n, const F
             count++;
     }
     if (count == n)
-        return false;
+        return SRE_SCISSORS_REGION_EMPTY;
     if (count == 0) {
+        // The pyramid is entire inside the near plane; no clipping is necessary.
 //        printf("Pyramid (n = %d).\n", n);
         UpdateWithWorldSpaceBoundingHull(P, n);
         if (IsEmptyOrOutside())
-            return false;
+            return SRE_SCISSORS_REGION_EMPTY;
         else 
-            return true;
+            return SRE_SCISSORS_REGION_DEFINED;
     }
 
-#if 0
-    bool already_added[24];
-    // 0-7 are the vertices of the pyramid.
-    // 8-15 are the projections of the edges between the tip and and the base vertices.
-    // 16-23 are the projections of the edges between base vertices.
-    for (int i = 0; i < 24; i++)
-        already_added[i] = false;
-    Point3D Q[32];
-    int n_clipped = 0;
-    // Fist clip the triangles forming the sides of the pyramid.
-    for (int i = 0; i < n - 1; i++) {
-        int j;
-        if (i == n - 2)
-            j = 1;
-        else
-            j = i + 2;
-        if (dist[0] < 0 && dist[1 + i] < 0 && dist[j] < 0)
-            // The triangle lies entirely in front of the near plane.
-            continue;
-        if (dist[0] >= 0 && !already_added[i]) {
-            Q[n_clipped] = P[0];
-            n_clipped++;
-            already_added[0] = true;
-        }
-        if (dist[1 + i] >= 0 && !already_added[1 + i]) {
-            Q[n_clipped] = P[1 + i];
-            n_clipped++;
-            already_added[1 + i] = true;
-        }
-        if (dist[j] >= 0 && !already_added[j]) {
-            Q[n_clipped] = P[j];
-            n_clipped++;
-            already_added[j] = true;
-        }
-        if (((dist[0] < 0) ^ (dist[1 + i] < 0)) && !already_added[8 + i]) {
-            // Project the edge.
-            Vector3D V = P[1 + i] - P[0];
-            float t = - dist[0] / Dot(frustum.plane_world[0].K, V);
-            Q[n_clipped] = P[0] + t * V;
-            n_clipped++;
-            already_added[8 + i] = true;
-        }
-        if (((dist[0] < 0) ^ (dist[j] < 0)) && !already_added[8 + j - 1]) {
-            // Project the edge.
-            Vector3D V = P[j] - P[0];
-            float t = - dist[0] / Dot(frustum.plane_world[0].K, V);
-            Q[n_clipped] = P[0] + t * V;
-            n_clipped++;
-            already_added[8 + j - 1] = true;
-        }
-        if (((dist[1 + i] < 0) ^ (dist[j] < 0)) && !already_added[16 + i]) {
-            // Project the edge.
-            Vector3D V = P[j] - P[1 + i];
-            float t = - dist[1 + i] / Dot(frustum.plane_world[0].K, V);
-            Q[n_clipped] = P[1 + i] + t * V;
-            n_clipped++;
-            already_added[16 + i] = true;
-        }
-    }
-    // Clip the polygon forming the base of pyramid.
-    count = 0;
-    for (int i = 0; i < n - 1; i++)
-        if (dist[1 + i] < 0)
-            count++;
-    if (count < n - 1)
-        for (int i = 0; i < n - 1; i++) {
-            int j;
-            if (i == n - 2)
-                j = 1;
-            else
-                j = i + 2;
-            // Add the starting vertex if not already added.
-            if (dist[1 + i] >= 0 && !already_added[1 + i]) {
-                Q[n_clipped] = P[1 + i];
-                n_clipped++;
-                already_added[1 + i] = true;
-            }
-            if (((dist[1 + i] < 0) ^ (dist[j] < 0)) && !already_added[16 + i]) {
-                // Project the edge.
-                Vector3D V = P[j] - P[1 + i];
-                float t = - dist[1 + i] / Dot(frustum.plane_world[0].K, V);
-                Q[n_clipped] = P[1 + i] + t * V;
-                n_clipped++;
-                already_added[16 + i] = true;
-            }
-        }
-#endif
+    // The pyramid has to be clipped against the near plane.
 
-#if 1
     Point3D Q[16];
     int n_clipped = 0;
     // First clip the edges starting at the tip of the pyramid if necessary.
@@ -667,13 +590,13 @@ bool sreScissors::UpdateWithWorldSpaceBoundingPyramid(Point3D *P, int n, const F
             n_clipped++;
         }
     }
-#endif
-// printf("Bounding pyramid clipped to %d vertices\n", n_clipped);
+
+//    sreMessage(SRE_MESSAGE_VERBOSE_LOG, "Bounding pyramid clipped to %d vertices\n", n_clipped);
     UpdateWithWorldSpaceBoundingHull(Q, n_clipped);
     if (IsEmptyOrOutside())
-        return false;
+        return SRE_SCISSORS_REGION_EMPTY;
     else 
-        return true;
+        return SRE_SCISSORS_REGION_DEFINED;
 }
 
 // Calculate the light scissors, which is the projection of the light volume
@@ -716,7 +639,7 @@ void Frustum::CalculateLightScissors(Light *light) {
             light->cylinder.radius;
         P[7] = E - x_dir * light->cylinder.radius - y_dir *
             light->cylinder.radius;
-        scissors.InitializeWithEmptyRegion();
+        scissors.SetEmptyRegion();
         scissors.UpdateWithWorldSpaceBoundingBox(P, 8, *this);
         scissors.ClampEmptyRegion();
         scissors.ClampXYExtremes();
@@ -724,7 +647,7 @@ void Frustum::CalculateLightScissors(Light *light) {
 //            scissors.far);
         return;
     }
-    scissors.SetToDefaults();
+    scissors.SetFullRegion();
     // Transform the light position from world space to eye space.
     Point3D L = (sre_internal_view_matrix * light->vector).GetPoint3D();
     // Calculate the depth range.

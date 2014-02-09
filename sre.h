@@ -277,6 +277,7 @@ public :
         return center + PCA[0].vector * R_factor + PCA[1].vector * S_factor +
             PCA[2].vector * T_factor;
     }
+    void ConstructVertices(Point3D *P, int& n) const;
 };
 
 class sreBoundingVolumeAABB {
@@ -952,12 +953,18 @@ class Frustum;
 
 // Scissors region used for GPU scissors optimization.
 
+enum sreScissorsRegionType{
+    SRE_SCISSORS_REGION_EMPTY,
+    SRE_SCISSORS_REGION_UNDEFINED,
+    SRE_SCISSORS_REGION_DEFINED
+};
+
 class sreScissors {
 public :
     float left, right, bottom, top;  // Given in normalized device coordinates ([-1, 1]).
     double near, far; // Given as [0, 1].
 
-    void SetToDefaults() {
+    void SetFullRegion() {
         left = - 1.0f;
         right = 1.0f;
         bottom = - 1.0f;
@@ -965,7 +972,7 @@ public :
         near = 0;
         far = 1.0f;
     }
-    void InitializeWithEmptyRegion() {
+    void SetEmptyRegion() {
         near = 1.0f;
         far = 0;
         left = 1.0f;
@@ -1018,7 +1025,7 @@ public :
     void UpdateWithWorldSpaceBoundingHull(Point3D *P, int n);
     bool UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const Frustum& frustum);
     bool UpdateWithWorldSpaceBoundingPolyhedron(Point3D *P, int n, const Frustum& frustum);
-    bool UpdateWithWorldSpaceBoundingPyramid(Point3D *P, int n, const Frustum& frustum);
+    sreScissorsRegionType UpdateWithWorldSpaceBoundingPyramid(Point3D *P, int n, const Frustum& frustum);
 };
 
 // Level-Of-Detail flags for an object (sreObject::lod_flags).

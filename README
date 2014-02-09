@@ -248,19 +248,13 @@ pipeline.
 - Stencil shadows errors show up related to the grating in demo8. A
   large grating shadow overlaying the window probably as a result of a
   missing darkcap from the shadow volume cast by a corner light. This
-  is a problem with the shadow volume visibility test, and disabling
-  the the test fixes it. Additionally, the grating shadow from the
-  nearby light can disappear; this is also fixed by disabling the test.
+  is a problem with the shadow volume darkcap visibility test, and
+  disabling the the test fixes it. This has been worked around by
+  disabling the darkcap visibility test by default.
 
-  A spherical sector is sometimes used for the shadow volume instead of
-  pyramid cone, but the intersection of it infinite projection (dark cap)
-  with the frustum is not yet fully implemented. Also, some expensive
-  trigonometry operations are used when initializing the spherical sector.
-  This may be related to the mentioned issue.
-
-- An error related to a shadow volume bounding pyramid shows up in demo1,
-  demo5 and demo8 with geometry scissors enabled from the starting position
-  (n = large negative).
+- Seperately, geometry scissors without shadows produce lighting rendering
+  errors in demo1 with spot lights; regions of lighting quickly appear and
+  reappear even as the view remains the same.
 
 3. Potential improvements that are not yet implemented.
 
@@ -367,6 +361,14 @@ pipeline.
   volumes) is not fully tested/optimized yet. The SphericalSector used
   for the shadow volume in some cases could be optimized (see also bugs
   above).
+
+- A spherical sector is sometimes used for the shadow volume instead of
+  pyramid cone, but the intersection of it infinite projection (dark cap)
+  with the frustum is not yet fully implemented. Also, some expensive
+  trigonometry operations are used when initializing the spherical sector.
+
+- Scissors calculation of any shadow volume shape other than PyramidCone
+  (such as a speherical sector or cylinder) has not yet been implemented.
 
 - Demo generating models of trees (plants) would be fun (producing nice
   shadows).

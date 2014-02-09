@@ -253,7 +253,8 @@ CFLAGS_DEMO = $(CFLAGS) $(DEFINES_DEMO) -I.
 PKG_CONFIG_CFLAGS_DEMO = `pkg-config --cflags bullet $(EXTRA_PKG_CONFIG_DEMO)`
 PKG_CONFIG_LIBS_DEMO = `pkg-config --libs bullet $(EXTRA_PKG_CONFIG_DEMO)`
 
-CORE_LIBRARY_MODULE_OBJECTS = sre.o draw.o geometry.o read_model_file.o texture.o shadow.o MatrixClasses.o \
+CORE_LIBRARY_MODULE_OBJECTS = sre.o draw.o geometry.o read_model_file.o texture.o shadow.o \
+shadow_bounds.o MatrixClasses.o intersection.o \
 frustum.o bounds.o octree.o fluid.o standard_objects.o text.o scene.o lights.o shadowmap.o \
 bounding_volume.o random.o shader_matrix.o shader_loading.o vertex_buffer.o shader_uniform.o \
 draw_object.o
@@ -280,7 +281,7 @@ INSTALL_TARGET = install_static
 LIBRARY_DEPENDENCY = $(LIBRARY_OBJECT)
 endif
 
-default : $(LIBRARY_OBJECT)
+default : library
 
 library : $(LIBRARY_OBJECT)
 
@@ -349,7 +350,7 @@ rules :
 	rm -f .rules
 	make .rules
 
-.rules : Makefile.conf
+.rules : Makefile.conf Makefile
 	rm -f .rules
 	# Create rules to compile library modules.
 	for x in $(LIBRARY_MODULE_OBJECTS); do \
@@ -370,7 +371,7 @@ dep :
 	rm -f .depend
 	make .depend
 
-.depend:
+.depend: Makefile.conf Makefile
 	# Do not include shaders_builtin.cpp yet because creates dependency
         # problems.
 	g++ -MM $(patsubst %.o,%.cpp,$(ORIGINAL_LIBRARY_MODULE_OBJECTS)) >> .depend

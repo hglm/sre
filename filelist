@@ -27,6 +27,7 @@ sre/geometry.cpp
 sre/glfw.cpp
 sre/glut.cpp
 sre/gui-common.cpp
+sre/intersection.cpp
 sre/lights.cpp
 sre/linux-fb-ui.cpp
 sre/main.cpp
@@ -41,6 +42,7 @@ sre/shader_loading.cpp
 sre/shader_matrix.cpp
 sre/shader_uniform.cpp
 sre/shadow.cpp
+sre/shadow_bounds.cpp
 sre/shadowmap.cpp
 sre/sre.cpp
 sre/standard_objects.cpp

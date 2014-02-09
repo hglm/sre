@@ -17,13 +17,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
 
-// This is a header file bounding volume checks that is internal to the library.
-// Some intersection tests are declared static in bounding_volume.cpp and not included
-// in this header file; these can be made non-static and added to this header file
-// when required by a different module.
+// This is a header file bounding volume handling and intersections tests that is
+// internal to the library. Some intersection tests are declared static in
+// intersection.cpp and not included in this header file; these can be made
+// non-static and added to this header file when required by a different module.
 
-// Useful inline functions for the square (x * x), and the minimum and maximum of two or
-// three values.
+// This header file contains useful inline functions for general use such as
+// square (x * x), and the minimum and maximum of two or three values.
 
 static inline float sqrf(float x) {
     return x * x;
@@ -80,7 +80,7 @@ static inline float clampf(float x, float min_value, float max_value) {
     return x;
 }   
 
-// Inline AABB utility and intersection functions.
+// Inline AABB utility functions.
 
 // Update AABB1 with the union of AABB1 and AABB2.
 
@@ -114,7 +114,26 @@ static inline void UpdateAABB(sreBoundingVolumeAABB& AABB, const Point3D& P) {
     AABB.dim_max.z = maxf(AABB.dim_max.z, P.z);
 }
 
+// Utility functions and data structures for an array of bounding box vertices.
+
+extern const int BB_plane_vertex[6][4];
+extern const int flat_BB_plane_nu_vertices[6];
+extern const int BB_edge_vertex[12][2];
+extern const int BB_edge_plane[12][2];
+
+static inline void MoveBoundingBoxVerticesInward(Point3D *P, int n_vertices, Vector4D *K, int plane, float dist) {
+    int n;
+    if (n_vertices == 4)
+        n = flat_BB_plane_nu_vertices[plane];
+    else
+        n = 4;
+    for (int i = 0; i < n; i++)
+        P[BB_plane_vertex[plane][i]] += dist * K[plane].GetVector3D(); 
+}
+
+
 // Functions to calculate a bounding volume of another bounding volume of a different type.
+// These are defined in bounding_volume.cpp.
 
 static inline void CalculateAABB(const sreBoundingVolumeSphere& sphere, sreBoundingVolumeAABB& AABB) {
     AABB.dim_min = sphere.center - Vector3D(sphere.radius, sphere.radius, sphere.radius);
