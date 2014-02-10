@@ -1384,7 +1384,7 @@ skip_cache :
         }
 }
 
-static void SetScissors(const sreScissors& scissors) {
+static void SetGLScissors(const sreScissors& scissors) {
 #ifndef __GNUC__
     int left = floorf((scissors.left + 1.0f) * 0.5f * sre_internal_window_width);
     int right = ceilf((scissors.right + 1.0f) * 0.5f * sre_internal_window_width);
@@ -1399,6 +1399,7 @@ static void SetScissors(const sreScissors& scissors) {
     int top = lrint((scissors.top + 1.0f) * 0.5f * sre_internal_window_height);
     fesetround(FE_TONEAREST);
 #endif
+//    printf("glScissor(%d, %d, %d, %d)\n", left, bottom, right - left, top - bottom);
     glScissor(left, bottom, right - left, top - bottom);
 }
 
@@ -1442,10 +1443,11 @@ static void RenderShadowVolumeGeometryScissors(SceneObject *so, Light *light, Fr
                     frustum.scissors.top);
                 viewport_adjusted = !shadow_volume_scissors.ScissorsRegionIsEqual(frustum.scissors);
 #ifdef DEBUG_SCISSORS
-                if (viewport_adjusted) {
-                    printf("Light scissors (%f, %)f, (%f, %f) ", frustum.scissors.left, frustum.scissors.right,
+                if (viewport_adjusted && so->id == 0 && light->id == 1) {
+                    printf("Light scissors (%f, %f), (%f, %f) ", frustum.scissors.left, frustum.scissors.right,
                         frustum.scissors.bottom, frustum.scissors.top);
-                    printf(" adjusted to (%f, %f), (%f, %f) for object %d\n", shadow_volume_scissors.left, shadow_volume_scissors.right,
+                    printf(" adjusted to (%f, %f), (%f, %f) for object %d shadow volume\n",
+                        shadow_volume_scissors.left, shadow_volume_scissors.right,
                         shadow_volume_scissors.bottom, shadow_volume_scissors.top, so->id);
                 }
 #endif
@@ -1466,7 +1468,7 @@ static void RenderShadowVolumeGeometryScissors(SceneObject *so, Light *light, Fr
 
             // Update scissors and depth bounds when required.
             if (viewport_adjusted || custom_scissors_set) {
-                SetScissors(*scissors);
+                SetGLScissors(*scissors);
                 custom_scissors_set = viewport_adjusted;
             }
 #ifndef NO_DEPTH_BOUNDS

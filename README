@@ -252,10 +252,6 @@ pipeline.
   disabling the the test fixes it. This has been worked around by
   disabling the darkcap visibility test by default.
 
-- Seperately, geometry scissors without shadows produce lighting rendering
-  errors in demo1 with spot lights; regions of lighting quickly appear and
-  reappear even as the view remains the same.
-
 3. Potential improvements that are not yet implemented.
 
 - There is no real scene graph except for an optimized octree. A
@@ -386,6 +382,13 @@ pipeline.
 - Message priority levels and functions for errors, debugging and logging
   have been introduced. Only part of the code uses this mechanism, the
   rest still uses printf and exit and should be updated.
+
+- Geometry scissors caching and associated overhead could be omitted when
+  the frustum is detected to be changing every frame.
+
+- For spotlights, ideally the spherical sector bounding volume should be
+  used for geometry scissors calculation instead of the much large
+  cylinder.
 
 --- LICENSE --
 

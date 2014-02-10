@@ -463,72 +463,6 @@ BoundsCheckResult bounds_check_result) {
     return;
 }
 
-#if 0
-
-// This function is no longer used and not up-to-date.
-void sreScene::DetermineVisibleObjectsInOctree(const Octree& oct, const Frustum& frustum,
-BoundsCheckResult bounds_check_result) {
-    if (&oct != &octree && &oct != &octree_infinite_distance && bounds_check_result != SRE_COMPLETELY_INSIDE) {
-        // If it's not the root node, check the bounds of this node against the view frustum.
-        bounds_check_result = QueryIntersection(oct, frustum.frustum_world);
-        if (bounds_check_result == SRE_COMPLETELY_OUTSIDE) {
-            // If they do not intersect, discard this part of the octree.
-            octree_culled_count_frustum++;
-            return;
-        }
-        // If the projected size of the octree is too small, skip it.
-        // Have to check that octree does not contain the viewpoint.
-        if (!Intersects(sre_internal_viewpoint, oct.AABB)) {
-            float size = ProjectedSize(oct.sphere.center, oct.sphere.radius);
-//            printf("size = %f\n", size);
-            if (size < SRE_OCTREE_SIZE_CUTOFF) {
-                octree_culled_count_projected++;
-                return;
-            }
-        }
-    }
-    // Check all objects in this node.
-//    SceneEntityListElement *e = oct.entity_list.head;
-//    for (; e != NULL; e = e->next) {
-    for (int i = 0; i < oct.nu_entities; i++) {
-        if (oct.entity_array[i].type == SRE_ENTITY_OBJECT) {
-            SceneObject *so = oct.entity_array[i].so;
-            if (so->exists) {
-                // Check the projected object size.
-                so->projected_size = ProjectedSize(so->sphere.center, so->sphere.radius);
-                if (so->projected_size < SRE_OBJECT_SIZE_CUTOFF)
-                    continue;
-                DetermineObjectIsVisible(*so, frustum, bounds_check_result);
-            }
-        }
-        else if (oct.entity_array[i].type == SRE_ENTITY_LIGHT) {
-            Light *light = oct.entity_array[i].light;
-            if (!(light->type & SRE_LIGHT_DIRECTIONAL)) {
-                if (!Intersects(*light, frustum.frustum_world))
-                    // If outside, skip the light.
-                    continue;
-            }
-   
-            // Check whether the project size of the light volume is too small.
-            if (!(light->type & SRE_LIGHT_DIRECTIONAL)) {
-                light->projected_size = ProjectedSize(light->vector.GetPoint3D(),
-                    light->bounding_radius);
-                if (light->projected_size < SRE_LIGHT_VOLUME_SIZE_CUTOFF)
-                    continue;
-            }
-//            printf("Light %d is visible.\n", light->id);
-            CheckVisibleLightCapacity();
-            visible_light[nu_visible_lights] = light->id;
-            nu_visible_lights++;
-        }
-    }
-    // Check every non-empty subnode.
-    for (int i = 0; i < 8; i++)
-        if (oct.subnode[i] != NULL)
-            DetermineVisibleObjectsInOctree(*(oct.subnode[i]), frustum, bounds_check_result);
-}
-
-#endif
 
 // Determine visibility of an array of entities defined in a single node of a "fast" or
 // "fast strict" octree. nu_entities entities starting at fast_oct array index array_index
@@ -549,7 +483,15 @@ const Frustum& frustum, BoundsCheckResult bounds_check_result, int array_index, 
             Light *light = global_light[index];
 //            printf("Checking visibility of light %d\n", light->id);
             if (!(light->type & SRE_LIGHT_DIRECTIONAL)) {
-                if (!Intersects(*light, frustum.frustum_world))
+                if (light->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE) {
+                    // If there are worst-case bounds, use them, because when the frustum doesn't
+                    // change for a while in subsequent frames, the variable light volume might
+                    // come into view.
+                    if (!Intersects(light->worst_case_sphere, frustum.frustum_world))
+                        // If outside, skip the light.
+                        continue;
+                }
+                else if (!Intersects(*light, frustum.frustum_world))
                     // If outside, skip the light.
                     continue;
             }
@@ -949,9 +891,9 @@ void sreScene::DetermineVisibleEntities(const Frustum& frustum) {
 }
 
 // Adjust the GPU scissors region, based on the supplied scissors coordinates
-// (which are in the floating point range [-1, 1]).
+// (which are in the floating point range [-1, 1]). Depth bound are not set.
 
-static void SetScissors(const sreScissors& scissors) {
+static void SetGLScissors(const sreScissors& scissors) {
 #ifndef __GNUC__
     int left = floorf((scissors.left + 1.0f) * 0.5f * sre_internal_window_width);
     int right = ceilf((scissors.right + 1.0f) * 0.5f * sre_internal_window_width);
@@ -976,6 +918,39 @@ static void DisableScissors() {
 // Disabling depth bounds test while rendering is not possible.
 //        glDisable(GL_DEPTH_BOUNDS_EXT);
         glDepthBoundsEXT(0, 1.0f);
+    }
+#endif
+}
+
+// Set complete scissor region for a light, including depth bounds when enabled.
+
+static void SetScissorsBeforeLight(const sreScissors& scissors) {
+    CHECK_GL_ERROR("Error before scissors set up before light\n");
+    // If geometry scissors are enabled, make sure the scissor test is enabled.
+    if (!(sre_internal_scissors & SRE_SCISSORS_GEOMETRY_MASK) && scissors.left == - 1.0f &&
+    scissors.right == 1.0f && scissors.bottom == - 1.0f && scissors.top == 1.0f)
+        glDisable(GL_SCISSOR_TEST);
+    else { 
+        glEnable(GL_SCISSOR_TEST);
+        SetGLScissors(scissors);
+    }
+    CHECK_GL_ERROR("Error after scissors set up.");
+
+#ifndef NO_DEPTH_BOUNDS
+    if (GLEW_EXT_depth_bounds_test) {
+        glEnable(GL_DEPTH_BOUNDS_TEST_EXT);
+        glDepthBoundsEXT(scissors.near, scissors.far);
+    }
+#endif
+#ifdef DEBUG_OPENGL
+    {
+    GLenum errorTmp = glGetError();
+    if (errorTmp != GL_NO_ERROR) {
+        printf("Error after scissors and depth bounds set up before light, scissors = (%f, %f), (%f, %f), "
+            "near/far = (%f, %f).\n",
+            scissors.left, scissors.right, scissors.bottom, scissors.top, scissors.near, scissors.far);
+        while (glGetError() != GL_NO_ERROR);
+    }
     }
 #endif
 }
@@ -1198,7 +1173,7 @@ static bool custom_depth_bounds_set;
 // test is necessary, and cached geometry scissors from previous frames can be reused if the
 // SRE_GEOMETRY_SCISSORS_USE_PREVIOUS flag is also set (true if the frustum hasn't changed).
 
-// This subfunctions applies the supplied scissors and draws the region. A special value
+// This subfunction applies the supplied scissors and draws the region. A special value
 // < - 1.5 (for example - 2.0) for object_scissors.left indicates that the object is
 // completely inside the light volume and no object-specific scissors need to be set
 // (however, scissors may still need to be restored to the normal light scissors if
@@ -1270,7 +1245,8 @@ const Light& light, const Frustum &frustum, const sreScissors& object_scissors) 
     // if normal light scissors are required but custom scissors smaller than
     // the light scissors region are still active, update the scissors region.
     if (viewport_adjusted || custom_scissors_set) {
-        SetScissors(scissors);
+        SetGLScissors(scissors);
+
 #ifdef DEBUG_SCISSORS
         printf("Light scissors (%f, %f), (%f, %f) ", frustum.scissors.left, frustum.scissors.right,
         frustum.scissors.bottom, frustum.scissors.top);
@@ -1414,6 +1390,7 @@ const Light& light, const Frustum &frustum) {
         // (so.geometry_scissors_cache[so.static_light_order]).
         // This is useful for the combination of static light, static object and unchanged
         // frustum.
+        // Note that the any resultings scissors are not clamped to the screen boundaries.
         BoundsCheckResult r = so.CalculateGeometryScissors(light, frustum,
             so.geometry_scissors_cache[so.static_light_order]);
         // If the object is outside the light volume, do not draw the object.
@@ -1431,6 +1408,11 @@ const Light& light, const Frustum &frustum) {
             // Set special value indicating no usable scissors (or completely inside the
             // light volume).
             so.geometry_scissors_cache[so.static_light_order].left = - 2.0f;
+        else
+            // Scissors were calculated. Clamp just the left boundary to the screen because
+            // values outside the boundary are used as special values.
+            so.geometry_scissors_cache[so.static_light_order].left = maxf(
+                so.geometry_scissors_cache[so.static_light_order].left , - 1.0f);
     }
 
     RenderVisibleObjectLightingPassWithSpecifiedScissors(so, light, frustum,
@@ -1485,9 +1467,9 @@ void sreScene::RenderVisibleObjectsLightingPass(const Frustum& frustum, const Li
     if ((light.type & SRE_LIGHT_STATIC_OBJECTS_LIST) && sre_internal_light_object_lists_enabled) {
         // Static light.
 #if 0
-        printf("Visible objects for light %d: ", light.id);
-        for (int i = 0; i < light.nu_visible_objects; i++) {
-            printf("%d ", light.visible_object[i]);
+        printf("Light volume objects for light %d: ", light.id);
+        for (int i = 0; i < light.nu_light_volume_objects; i++) {
+            printf("%d ", light.light_volume_object[i]);
         }
         printf("\n");
 #endif
@@ -1510,8 +1492,9 @@ void sreScene::RenderVisibleObjectsLightingPass(const Frustum& frustum, const Li
             if (sre_internal_current_frame > frustum.most_recent_frame_changed &&
             !sre_internal_invalidate_geometry_scissors_cache) {
                 // If the frustum has not changed, we can reuse previously calculated scissors.
-                for (int i = 0; i < light.nu_visible_objects_partially_inside; i++) {
-                    sreObject *so = sceneobject[light.visible_object[i]];
+                for (int i = 0; i < light.nu_light_volume_objects_partially_inside; i++) {
+                    sreObject *so = sceneobject[light.light_volume_object[i]];
+                    // Many objects in the light's light volume object list might not be visible.
                     // Comparing the frame time-stamps for the object's visibility
                     // and the last frustum change should ensure that the object is
                     // currently visible (since static object visibility was determined
@@ -1519,50 +1502,113 @@ void sreScene::RenderVisibleObjectsLightingPass(const Frustum& frustum, const Li
                     if (so->most_recent_frame_visible < frustum.most_recent_frame_changed)
                         // Object is not visible; skip it.
                         continue;
+#ifdef DEBUG_SCISSORS
+                    sreMessage(SRE_MESSAGE_INFO,
+                        "Object %d scissors cache timestamp = %d, frame = %d\n", so->id,
+                        so->geometry_scissors_cache_timestamp, sre_internal_current_frame);
+#endif
                     if (so->geometry_scissors_cache_timestamp < sre_internal_current_frame) {
                         // First static light rendered for the object; reset the light order
                         // for the geometry scissors cache.
                         so->static_light_order = 0;
                         so->geometry_scissors_cache_timestamp = sre_internal_current_frame;
                     }
-                    RenderVisibleObjectLightingPassReuseGeometryScissors(*so, light, frustum);
+                    // Because lights can sometimes be skipped entirely, or geometry scissors may
+                    // be temporarily deactivated for a light as it moves away, make sure that
+                    // static_light_order corresponds to the current light by checking the light
+                    // id in the geometry scissors cache entry. It should always be present.
+                    int static_light_order = so->static_light_order;
+                    while (so->geometry_scissors_cache[static_light_order].light_id !=
+                    sre_internal_current_light_index) {
+#ifdef DEBUG_SCISSORS
+                        sreMessage(SRE_MESSAGE_INFO,
+                            "Scissors cache order = %d, cache entry light id = %d, current light = %d",
+                            static_light_order,
+                            so->geometry_scissors_cache[static_light_order].light_id,
+                            sre_internal_current_light_index);
+                        fflush(stdout);
+#endif
+                        static_light_order++;
+                    }
+                    so->static_light_order = static_light_order;
+#ifdef DEBUG_SCISSORS
+                    sreMessage(SRE_MESSAGE_INFO,
+                        "Drawing object for light %d, geometry scissors cache order = %d, "
+                        "cache entry light id = %d, left = %f",
+                        sre_internal_current_light_index, static_light_order,
+                        so->geometry_scissors_cache[static_light_order].light_id,
+                        so->geometry_scissors_cache[static_light_order].left);
+                    sreMessage(SRE_MESSAGE_INFO,"Scissors = (%f, %f), (%f, %f), depth (%f, %f).",
+                        so->geometry_scissors_cache[static_light_order].left,
+                        so->geometry_scissors_cache[static_light_order].right,
+                        so->geometry_scissors_cache[static_light_order].bottom,
+                        so->geometry_scissors_cache[static_light_order].top,
+                        so->geometry_scissors_cache[static_light_order].near,
+                        so->geometry_scissors_cache[static_light_order].far);
+                    }
+#endif
+
+                    // Special scissors left boundary value of 3.0 indicates that geometry scissors
+                    // have not yet been calculated (the light was previously skipped at the time of
+                    // the last frustum change or geometry scissors were inactive for the light).
+                    if (so->geometry_scissors_cache[static_light_order].left > 2.5f)
+                        RenderVisibleObjectLightingPassCacheGeometryScissors(*so, light, frustum);
+                    else
+                        RenderVisibleObjectLightingPassReuseGeometryScissors(*so, light, frustum);
                     // Update the light order for the geometry scissors cache.
-                    so->static_light_order++;
+                    so->static_light_order = static_light_order + 1;
                 }
             }
             else {
                 // If the frustum has changed, store the calculated scissors for potential
                 // subsequent use.
-                for (int i = 0; i < light.nu_visible_objects_partially_inside; i++) {
-                    sreObject *so = sceneobject[light.visible_object[i]];
+                for (int i = 0; i < light.nu_light_volume_objects_partially_inside; i++) {
+                    sreObject *so = sceneobject[light.light_volume_object[i]];
                     // Comparing the frame time-stamps for the object's visibility
                     // and the last frustum change should ensure that the object is
                     // currently visible (since static object visibility was determined
                     // at the time of the last frustum change).
                     if (so->most_recent_frame_visible < frustum.most_recent_frame_changed)
-                        // Object is not visible; skip it.
+                        // Object is not visible, skip it.
                         continue;
+                    // Prepare an entry in the object's geometry scissors cache.
                     if (so->geometry_scissors_cache_timestamp < sre_internal_current_frame) {
                         // First static light rendered for the object; reset the light order
                         // for the geometry scissors cache.
                         so->static_light_order = 0;
                         so->geometry_scissors_cache_timestamp = sre_internal_current_frame;
                     }
+                    so->geometry_scissors_cache[so->static_light_order].light_id =
+                        sre_internal_current_light_index;
+#ifdef DEBUG_SCISSORS
+                    sreMessage(SRE_MESSAGE_INFO,
+                        "Writing scissors cache entry for light %d, object %d, order %d",
+                        sre_internal_current_light_index, so->id, so->static_light_order);
+#endif
                     RenderVisibleObjectLightingPassCacheGeometryScissors(*so, light, frustum);
+#ifdef DEBUG_SCISSORS
+                    sreMessage(SRE_MESSAGE_INFO,"Scissors = (%f, %f), (%f, %f), depth (%f, %f).\n",
+                        so->geometry_scissors_cache[so->static_light_order].left,
+                        so->geometry_scissors_cache[so->static_light_order].right,
+                        so->geometry_scissors_cache[so->static_light_order].bottom,
+                        so->geometry_scissors_cache[so->static_light_order].top,
+                        so->geometry_scissors_cache[so->static_light_order].near,
+                        so->geometry_scissors_cache[so->static_light_order].far);
+#endif
                     // Update the light order for the geometry scissors cache.
                     so->static_light_order++;
                 }
             }
             // Finally draw objects that are completely inside the light volume.
-            if (light.nu_visible_objects_partially_inside < light.nu_visible_objects) {
+            if (light.nu_light_volume_objects_partially_inside < light.nu_light_volume_objects) {
                 // With active geometry scissors, the scissors may still be set for a
                 // a previous object. Since the objects are all completely inside the
                 // light volume, we can disable scissors completely (it doesn't help
                 // to use the light-specific scissors).
                 DisableScissors();
-                for (int i = light.nu_visible_objects_partially_inside;
-                i < light.nu_visible_objects; i++) {
-                    sreObject *so = sceneobject[light.visible_object[i]];
+                for (int i = light.nu_light_volume_objects_partially_inside;
+                i < light.nu_light_volume_objects; i++) {
+                    sreObject *so = sceneobject[light.light_volume_object[i]];
                     // Only render visible objects.
                     if (so->most_recent_frame_visible >= frustum.most_recent_frame_changed)
                         RenderVisibleObjectLightingPassCompletelyInside(*so);
@@ -1581,8 +1627,8 @@ void sreScene::RenderVisibleObjectsLightingPass(const Frustum& frustum, const Li
             // should not be necessary. The light-specific scissors should still be active
             // if enabled.
             // First the objects that are partially inside the light volume.
-            for (int i = 0; i < light.nu_visible_objects_partially_inside; i++) {
-                sreObject *so = sceneobject[light.visible_object[i]];
+            for (int i = 0; i < light.nu_light_volume_objects_partially_inside; i++) {
+                sreObject *so = sceneobject[light.light_volume_object[i]];
                 // Comparing the frame time-stamps for the object's visibility
                 // and the last frustum change should ensure that the object is
                 // currently visible (since static object visibility was determined
@@ -1593,13 +1639,17 @@ void sreScene::RenderVisibleObjectsLightingPass(const Frustum& frustum, const Li
                     // scissors will be taken advantage of.
                     RenderVisibleObjectLightingPassCompletelyInside(*so);
             }
-            // Finally the objects that are completely inside the light volume.
-            if (light.nu_visible_objects_partially_inside < light.nu_visible_objects) {
+            // When geometry scissors are enabled, the geometry scissors cache data still need to
+            // be initialized when the frustum changes.
+            if (sre_internal_scissors & SRE_SCISSORS_GEOMETRY_MASK)
+                UpdateGeometryScissorsCacheData(frustum, light);
+            // Finally draw the objects that are completely inside the light volume.
+            if (light.nu_light_volume_objects_partially_inside < light.nu_light_volume_objects) {
                 // Since the objects are all completely inside the light volume, we can disable
                 // scissors completely (it doesn't help to use the light-specific scissors).
                 DisableScissors();
-                for (int i = light.nu_visible_objects_partially_inside; i < light.nu_visible_objects; i++) {
-                    sreObject *so = sceneobject[light.visible_object[i]];
+                for (int i = light.nu_light_volume_objects_partially_inside; i < light.nu_light_volume_objects; i++) {
+                    sreObject *so = sceneobject[light.light_volume_object[i]];
                     if (so->most_recent_frame_visible >= frustum.most_recent_frame_changed)
                         RenderVisibleObjectLightingPassCompletelyInside(*so);
                 }
@@ -1608,8 +1658,8 @@ void sreScene::RenderVisibleObjectsLightingPass(const Frustum& frustum, const Li
 //        printf("%d objects rendered for light %d, %d light volume intersection tests.\n", object_count, light.id,
 //            light_volume_intersection_test_count);
 //        printf("%d dynamic objects in the root node, %d objects partially inside, %d objects completely inside.\n",
-//            nu_dynamic_root_node_objects, light.nu_visible_objects_partially_inside, light.nu_visible_objects -
-//                light.nu_visible_objects_partially_inside);
+//            nu_dynamic_root_node_objects, light.nu_light_volume_objects_partially_inside, light.nu_light_volume_objects -
+//                light.nu_light_volume_objects_partially_inside);
     }
     else {
         // Dynamic light. There are no static object lists with objects that are affected by the light.
@@ -1700,35 +1750,39 @@ void sreScene::RenderFinalPassObjectsMultiPass(const Frustum& frustum) const {
      RenderFinalPassObjectsSinglePass(frustum);
 }
 
-static void SetScissorsBeforeLight(const sreScissors& scissors) {
-    CHECK_GL_ERROR("Error before scissors set up before light\n");
-    // If geometry scissors are enabled, make sure the scissor test is enabled.
-    if (!(sre_internal_scissors & SRE_SCISSORS_GEOMETRY_MASK) && scissors.left == - 1.0f &&
-    scissors.right == 1.0f && scissors.bottom == - 1.0f && scissors.top == 1.0f)
-        glDisable(GL_SCISSOR_TEST);
-    else { 
-        glEnable(GL_SCISSOR_TEST);
-        SetScissors(scissors);
-    }
-    CHECK_GL_ERROR("Error after scissors set up.");
+// Process a skipped light; when the frustum has just changed, need to create the geometry
+// scissors cache entries for the list of object that are partially inside the light volume
+// that are also visible (intersect the frustum). Generally this only happens for lights
+// that have a variable light volume which has only just come into view (some time after
+// the last frustum change).
 
-#ifndef NO_DEPTH_BOUNDS
-    if (GLEW_EXT_depth_bounds_test) {
-        glEnable(GL_DEPTH_BOUNDS_TEST_EXT);
-        glDepthBoundsEXT(scissors.near, scissors.far);
-    }
+void sreScene::UpdateGeometryScissorsCacheData(const Frustum& frustum, const sreLight& light) const {
+    if (sre_internal_current_frame > frustum.most_recent_frame_changed)
+        return;
+    if (!(light.type & SRE_LIGHT_STATIC_OBJECTS_LIST))
+        return;
+#ifdef DEBUG_SCISSORS
+    sreMessage(SRE_MESSAGE_INFO, "Updating object scissors cache data for light %d.", light.id);
 #endif
-#ifdef DEBUG_OPENGL
-    {
-    GLenum errorTmp = glGetError();
-    if (errorTmp != GL_NO_ERROR) {
-        printf("Error after scissors and depth bounds set up before light, scissors = (%f, %f), (%f, %f), "
-            "near/far = (%f, %f).\n",
-            scissors.left, scissors.right, scissors.bottom, scissors.top, scissors.near, scissors.far);
-        while (glGetError() != GL_NO_ERROR);
+    for (int i = 0; i < light.nu_light_volume_objects_partially_inside; i++) {
+        sreObject *so = sceneobject[light.light_volume_object[i]];
+        if (so->most_recent_frame_visible < frustum.most_recent_frame_changed)
+            // Object is not visible; skip it.
+            continue;
+        if (so->geometry_scissors_cache_timestamp < sre_internal_current_frame) {
+            // First static light considered for the object; reset the light order
+            // for the geometry scissors cache.
+            so->static_light_order = 0;
+            so->geometry_scissors_cache_timestamp = sre_internal_current_frame;
+        }
+        so->geometry_scissors_cache[so->static_light_order].light_id =
+            sre_internal_current_light_index;
+        // Set special scissors left value indicating that geometry scissors have not
+        // yet been calculated.
+        so->geometry_scissors_cache[so->static_light_order].left = 3.0f;
+        // Update the light order for the geometry scissors cache.
+        so->static_light_order++;
     }
-    }
-#endif
 }
 
 // Render lighting passes for stencil shadowing or shadow buffering.
@@ -1762,27 +1816,21 @@ void sreScene::RenderLightingPasses(Frustum *frustum, sreView *view) {
             sre_internal_current_light_index = active_light[i];
         sre_internal_current_light = global_light[sre_internal_current_light_index];
 // printf("Light %d, type = %d\n", sre_internal_current_light_index, sre_internal_current_light->type);
+        // Clear flag indicating whether geometry scissors are actually enabled for the current light.
         sre_internal_geometry_scissors_active = false;
 
-        // The following checks have been disabled, visible objects for each light have been
-        // predetermined before this function was called.
-#if 0
-        // Check whether the light volume is outside the view frustum.
-        if (!(sre_internal_current_light->type & SRE_LIGHT_DIRECTIONAL) &&
-        !Intersects(*sre_internal_current_light, frustum->frustum_world)) {
-            // If outside, skip the light.
-            continue;
-        }
-
-        // Check whether the project size of the light volume is too small.
-        if (!(sre_internal_current_light->type & SRE_LIGHT_DIRECTIONAL) {
-            float projected_size = ProjectedSize(sre_internal_current_light->vector.GetPoint3D(),
-                sre_internal_current_light->bounding_radius);
-//            printf("Light = %d, projected size = %f\n", light, projected_size);
-            if (projected_size < SRE_LIGHT_VOLUME_SIZE_CUTOFF)
+        // Visible objects for each light have been predetermined before this function was called.
+        // However, for variable lights with a defined worst-case light volume, when the frustum
+        // hasn't changed so visiblity has not been redetermined, it is very possible that the light
+        // volume is now outside the frustum, in which case we can skip the light.
+        if ((sre_internal_current_light->type & SRE_LIGHT_DYNAMIC_LIGHT_VOLUME) &&
+        sre_internal_current_frame > frustum->most_recent_frame_changed) {
+            if (!Intersects(*sre_internal_current_light, frustum->frustum_world)) {
+                // Skip the light.
+                UpdateGeometryScissorsCacheData(*frustum, *sre_internal_current_light);
                 continue;
+            }
         }
-#endif
 
         // Always clear this flag because DrawObjectMultiPassLightingPass checks it.
         sre_internal_current_light->shadow_map_required = false;
@@ -1797,9 +1845,11 @@ void sreScene::RenderLightingPasses(Frustum *frustum, sreView *view) {
             glDepthMask(GL_TRUE);
             bool r = GL3RenderShadowMapWithOctree(this, *sre_internal_current_light, *frustum);
             glDepthMask(GL_FALSE);
-            if (!r)
+            if (!r) {
                 // There are no shadow casters and no shadow (or light) receivers for this light.
+                UpdateGeometryScissorsCacheData(*frustum, *sre_internal_current_light);
                 continue;
+            }
             // Note: when there are no shadow receivers (but there are light receivers),
             // the light's shadow_map_required field will be set to false.
         }
@@ -1815,8 +1865,10 @@ void sreScene::RenderLightingPasses(Frustum *frustum, sreView *view) {
         frustum->CalculateLightScissors(sre_internal_current_light);
         // If the scissors region is empty, skip the light.
         if (frustum->scissors.left == frustum->scissors.right || frustum->scissors.bottom ==
-        frustum->scissors.top || frustum->scissors.near == frustum->scissors.far)
+        frustum->scissors.top || frustum->scissors.near == frustum->scissors.far) {
+            UpdateGeometryScissorsCacheData(*frustum, *sre_internal_current_light);
             continue;
+        }
 
         // Set the on-screen scissors region for the light and when geometry scissors are
         // enabled determine whether the region is large enough that additional per-object
@@ -1847,10 +1899,6 @@ skip_scissors :
         SRE_LIGHT_DIRECTIONAL))
             SetScissorsBeforeLight(frustum->scissors); // Restore scissors for complete light volume.
 
-//            if (sre_internal_scissors & SRE_SCISSORS_GEOMETRY_MATRIX_MASK)
-//                GL3CalculateGeometryScissorsMatrixAndSetViewport(frustum->scissors);
-//            else
-
 do_lighting_pass :
 
         // The shadow map and shadow volume generation usually sets the depth test to GL_LESS,
@@ -1870,8 +1918,6 @@ do_lighting_pass :
         GL3InitializeShadersBeforeLight();
         RenderVisibleObjectsLightingPass(*frustum, *sre_internal_current_light);
 
-//        if (sre_internal_scissors & SRE_SCISSORS_GEOMETRY_MATRIX_MASK)
-//            glViewport(0, 0, sre_internal_window_width, sre_internal_window_height);
     }
     DisableScissors();
 
@@ -1926,6 +1972,23 @@ void sreScene::RenderLightingPassesNoShadow(Frustum *frustum, sreView *view) {
         sre_internal_current_light = global_light[sre_internal_current_light_index];
         sre_internal_geometry_scissors_active = false;
 
+        // Visible objects for each light have been predetermined before this function was called.
+        // However, for variable lights with a defined worst-case light volume, when the frustum
+        // hasn't changed so visiblity has not been redetermined, it is very possible that the light
+        // volume is now outside the frustum. In that case we can skip the light, but if we do so
+        // when geometry scissors caching is enabled we must also update the geometry scissors cache
+        // timestamp for every object in the predetermined list of visible static objects that are
+        // partially inside the light volume, so that the "static_light_order" is preserved from
+        // frame to frame.
+        if ((sre_internal_current_light->type & SRE_LIGHT_DYNAMIC_LIGHT_VOLUME) &&
+        sre_internal_current_frame > frustum->most_recent_frame_changed) {
+            if (!Intersects(*sre_internal_current_light, frustum->frustum_world)) {
+                // Skip the light.
+                UpdateGeometryScissorsCacheData(*frustum, *sre_internal_current_light);
+                continue;
+            }
+        } 
+
         // Always clear this flag because DrawObjectMultiPassLightingPass checks it.
         sre_internal_current_light->shadow_map_required = false;
 
@@ -1939,8 +2002,10 @@ void sreScene::RenderLightingPassesNoShadow(Frustum *frustum, sreView *view) {
         frustum->CalculateLightScissors(sre_internal_current_light);
         // If the scissors region is empty, skip the light.
         if (frustum->scissors.left == frustum->scissors.right || frustum->scissors.bottom ==
-        frustum->scissors.top || frustum->scissors.near == frustum->scissors.far)
+        frustum->scissors.top || frustum->scissors.near == frustum->scissors.far) {
+            UpdateGeometryScissorsCacheData(*frustum, *sre_internal_current_light);
             continue;
+        }
 
         // Set the on-screen scissors region for the light and when geometry scissors are
         // enabled determine whether the region is large enough that additional per-object

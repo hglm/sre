@@ -46,7 +46,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
    - Linear attenuation range (stored in attenuation.x).
    - Color (stored in color)
    Bounding volumes:
-   - Sphere
+   - Sphere (not centered at the spot light position, but in the middle of the volume)
    - Cylinder
    - SphericalSector
    - AABB (for stationary lights)
@@ -77,7 +77,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
    A beam light has a dynamic shadow volume if the direction changes.
 */
 
-Light::Light() {
+sreLight::sreLight() {
     most_recent_shadow_volume_change = 0;
     changing_every_frame = false;
 }
@@ -242,7 +242,7 @@ Color color) {
             l->type |= SRE_LIGHT_DYNAMIC_SHADOW_VOLUME;
         if ((l->type & (SRE_LIGHT_DYNAMIC_ATTENUATION | SRE_LIGHT_DYNAMIC_SPOT_EXPONENT |
         SRE_LIGHT_DYNAMIC_DIRECTION | SRE_LIGHT_DYNAMIC_POSITION)) == SRE_LIGHT_DYNAMIC_DIRECTION)
-            // If just the direction or spot exponent changes, a rought bounding sphere
+            // If just the direction or spot exponent changes, a rough bounding sphere
             // can be defined already.
             l->type |= SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE;
     }
@@ -779,7 +779,9 @@ void sreScene::CalculateVisibleActiveLights(sreView *view, int max_lights) {
 // the scissors region. Returns SRE_COMPLETELY_OUTSIDE if the object is completely outside
 // the light volume, SRE_PARTIALLY_INSIDE if the object intersects the light volume and the
 // scissors were set, SRE_COMPLETELY_INSIDE if the object intersects the light volume and
-// the scissors were not set. Calculated scissors are stored in the scisssors parameter.
+// the scissors were not set. Calculated scissors are stored in the scissors parameter. No attempt
+// is made to clip the scissors region to the screen, although the depth bounds should be beyond the
+// near plane (i.e. valid given an infinite projection matrix).
 
 BoundsCheckResult SceneObject::CalculateGeometryScissors(const Light& light, const Frustum& frustum,
 sreScissors& scissors) {
@@ -932,8 +934,11 @@ sreScissors& scissors) {
             return r;
         if (model->bounds_flags & (SRE_BOUNDS_PREFER_BOX | SRE_BOUNDS_PREFER_BOX_LINE_SEGMENT)) {
             // Check the bounding box of the object against the light volume cylinder.
-            if (!Intersects(box, light.cylinder))
+            if (!Intersects(box, light.cylinder)) {
+//                sreMessage(SRE_MESSAGE_INFO, "Geometry scissors region empty for spotlight %d and object %d",
+//                    light.id, id);
                 return SRE_COMPLETELY_OUTSIDE;
+            }
             if (model->bounds_flags & SRE_BOUNDS_PREFER_BOX_LINE_SEGMENT)
                 // When one dimension is much larger than the others, the bounding sphere
                 // that is used for the scissors calculation is not likely to produce
@@ -958,9 +963,9 @@ sreScissors& scissors) {
         Vector3D N2 = Cross(up, N);
         N2.Normalize();
         Vector3D N3 = Cross(N, N2);
-        // Start with the bounding box of the light volume cylinder.
+        // Create the bounding box of the light volume cylinder.
         Point3D B[8];
-        Point3D E1 = light.vector.GetPoint3D();
+        Point3D E1 = light.cylinder.center - light.cylinder.length * light.cylinder.axis * 0.5f;
         Point3D E2 = E1 + light.cylinder.length * light.cylinder.axis;
         // The order of box vertices must correspond to the one expected by
         // MoveBoundingBoxVerticesInward().
@@ -972,18 +977,22 @@ sreScissors& scissors) {
         B[5] = E1 + light.cylinder.radius * N2 - light.cylinder.radius * N3;
         B[6] = E1 - light.cylinder.radius * N2 - light.cylinder.radius * N3;
         B[7] = E2 - light.cylinder.radius * N2 - light.cylinder.radius * N3;
+#if 0
+        for (int i = 0 ; i < 8; i++)
+            printf("B[%d] = (%f, %f, %f)\n", i, B[i].x, B[i].y, B[i].z);
+#endif
         // Construct plane vectors where the normal points inward towards the
         // center of light's bounding box. Also calculate the signed distance to
         // the object's bounding sphere.
         Vector4D M[6];
         Vector3D normal = light.cylinder.axis;
         M[0] = Vector4D(- normal, - Dot(- normal, E2));
-        M[1] = Vector4D(normal, - Dot(normal, light.vector.GetPoint3D()));
+        M[1] = Vector4D(normal, - Dot(normal, E1));
         M[2] = Vector4D(- N2, - Dot(- N2, B[0]));
         M[3] = Vector4D(N2, - Dot(N2, B[2]));
         M[4] = Vector4D(- N3, - Dot(- N3, B[0]));
         M[5] = Vector4D(N3, - Dot(N3, B[4]));
-        // For each box plane, move it
+        // For each box plane enclosing the cylinder, move it towards the sphere.
         float dist[6];
         for (int i = 0; i < 6; i++)
             dist[i] = Dot(M[i], sphere.center);
@@ -1004,9 +1013,11 @@ sreScissors& scissors) {
             }
         }
         bool result = scissors.UpdateWithWorldSpaceBoundingBox(B, 8, frustum);
-        if (!result)
+        if (!result) {
+//           sreMessage(SRE_MESSAGE_INFO, "Geometry scissors region empty for spotlight %d and object %d",
+//                light.id, id);
             return SRE_COMPLETELY_OUTSIDE;
-//        printf("Geometry scissors set for spotlight\n");
+        }
         return SRE_PARTIALLY_INSIDE;
     }
     // This should be unreachable.
@@ -1117,6 +1128,9 @@ int *intersecting_object) const {
 // completely as opposed to partially inside the light volume). For directional lights,
 // a list of objects within the light volume wouldn't make much sense, but we can precalculate
 // the light volume half cylinder with every object.
+//
+// Note that this function uses, as temporary storage, the sreScene visible_object and shadow_caster_object
+// arrays which must be allocated.
 
 void sreScene::CalculateStaticLightObjectLists() {
     printf("Calculating static shadow bounding volumes and static object lists for lights.\n");
@@ -1322,7 +1336,7 @@ void sreScene::CalculateStaticLightObjectLists() {
                 // volume.
                 object_partially_inside_light_volume_count[j]++;
             }
-            global_light[i]->nu_visible_objects_partially_inside = nu_visible_objects;
+            global_light[i]->nu_light_volume_objects_partially_inside = nu_visible_objects;
             // Secondly the objects that are completely inside the light volume.
             for (int k = 0; k < nu_intersecting_objects; k++) {
                 int j = intersecting_object[k];
@@ -1350,17 +1364,17 @@ void sreScene::CalculateStaticLightObjectLists() {
                 nu_visible_objects++;
             }
             global_light[i]->type |= SRE_LIGHT_STATIC_OBJECTS_LIST;
-            global_light[i]->nu_visible_objects = nu_visible_objects;
+            global_light[i]->nu_light_volume_objects = nu_visible_objects;
             if (nu_visible_objects > 0) {
-                global_light[i]->visible_object = new int[nu_visible_objects];
-                memcpy(global_light[i]->visible_object, visible_object, nu_visible_objects * sizeof(int));
+                global_light[i]->light_volume_object = new int[nu_visible_objects];
+                memcpy(global_light[i]->light_volume_object, visible_object, nu_visible_objects * sizeof(int));
             }
             if (sre_internal_debug_message_level >= 2)
                 printf("Light %d: %d objects within light volume, %d partially inside.\n", i,
-                    nu_visible_objects, global_light[i]->nu_visible_objects_partially_inside);
+                    nu_visible_objects, global_light[i]->nu_light_volume_objects_partially_inside);
         }
         else
-            global_light[i]->nu_visible_objects = 0;
+            global_light[i]->nu_light_volume_objects = 0;
     }
     delete [] intersecting_object;
     delete [] intersection_test_result;
@@ -1370,7 +1384,7 @@ void sreScene::CalculateStaticLightObjectLists() {
     for (int i = 0; i < nu_objects; i++)
         if (object_partially_inside_light_volume_count[i] > 0)
             sceneobject[i]->geometry_scissors_cache =
-                new sreScissors[object_partially_inside_light_volume_count[i]];
+                new sreScissorsCacheEntry[object_partially_inside_light_volume_count[i]];
     delete [] object_partially_inside_light_volume_count;
 }
 

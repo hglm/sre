@@ -873,13 +873,16 @@ enum {
     SRE_LIGHT_DYNAMIC_SHADOW_VOLUME = 0x10000,
     // The light's light volume changes shape or size for a static object.
     SRE_LIGHT_DYNAMIC_LIGHT_VOLUME = 0x20000,
-    // The bounding sphere of the light volume defines the maximum sphere of influence
-    // an otherwise variable light.
+    // The worst case bounding sphere of the light volume defines the maximum sphere of
+    // influence an otherwise variable light.
     SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE = 0x40000,
+    // A worst case spherical sector is defined for an otherwise variable light. This is not
+    // yet fully implemented.
+    SRE_LIGHT_WORST_CASE_BOUNDS_SECTOR = 0x80000,
     // A list of static objects affected by the light has been calculated.
-    SRE_LIGHT_STATIC_OBJECTS_LIST = 0x80000,
+    SRE_LIGHT_STATIC_OBJECTS_LIST = 0x100000,
     // A list of static shadow-casting objects for the light has been calculated.
-    SRE_LIGHT_STATIC_SHADOW_CASTER_LIST = 0x100000
+    SRE_LIGHT_STATIC_SHADOW_CASTER_LIST = 0x200000
 };
 
 // The number of the light types that can affect the selected shader for multi-pass
@@ -898,7 +901,7 @@ enum {
 // Use the first slot for single pass rendering or non-lighting shaders.
 #define SRE_SHADER_LIGHT_TYPE_ALL SRE_SHADER_LIGHT_TYPE_DIRECTIONAL
 
-class SRE_API Light {
+class SRE_API sreLight {
 public:
     int type;
     int id;
@@ -908,17 +911,19 @@ public:
     Color color;          // RGB values from 0 to beyond 1.0.
     Vector4D spotlight;   // Spotlight direction, plus exponent in w coordinate. For beam light direction, plus
                           // circular radius in w coordinate.
-//    float bounding_radius; // Sphere of influence of the light.
-//    float cylinder_radius;
     sreBoundingVolumeSphere sphere;
     sreBoundingVolumeSphericalSector spherical_sector;
     sreBoundingVolumeCylinder cylinder;
     sreBoundingVolumeAABB AABB; // For static positional lights.
     // Worst case bounding volume for variable lights.
     sreBoundingVolumeSphere worst_case_sphere;
-    int nu_visible_objects;  // Visible object array for static position lights.
-    int nu_visible_objects_partially_inside;
-    int *visible_object;
+    sreBoundingVolumeSphericalSector worst_case_sector;
+    // Light volume object array for static position lights. The objects that are partially inside
+    // inside the light volume come first, followed by the objects that are completely inside
+    // the light volume.
+    int nu_light_volume_objects;  
+    int nu_light_volume_objects_partially_inside;
+    int *light_volume_object;
     int *shadow_caster_object;
     int nu_shadow_caster_objects;
     // State variables for shadow volume cache optimization.
@@ -928,14 +933,8 @@ public:
     // Set to true when there are no shadow receivers for the current frame when shadow mapping
     // is enabled.
     bool shadow_map_required;
-//    int starting_object;
-//    int ending_object;
-//    int starting_object_completely_inside;
-//    int ending_object_completely_inside;
 
-    Light();
-    Light(int type, float x, float y, float z, float diffuse, float specular, float constant_term,
-        float linear_term, float quadratic_term, float color_r, float color_g, float color_b);
+    sreLight();
     void CalculateSpotLightCylinderRadius(); // For spot lights.
     void CalculateBoundingVolumes();
     void CalculateLightVolumeAABB(sreBoundingVolumeAABB& AABB_out);
@@ -948,6 +947,9 @@ public:
         return changing_every_frame && (most_recent_shadow_volume_change == current_frame); 
     }
 };
+
+// Compatibility with existing code.
+typedef sreLight Light;
 
 class Frustum;
 
@@ -969,6 +971,9 @@ public :
         right = 1.0f;
         bottom = - 1.0f;
         top = 1.0f;
+    }
+    void SetFullRegionAndDepthBounds() {
+        SetFullRegion();
         near = 0;
         far = 1.0f;
     }
@@ -980,7 +985,7 @@ public :
         bottom = 1.0f;
         top = - 1.0f;
     }
-    void ClampXYExtremes() {
+    void ClampRegionToScreen() {
         if (right > 1.0f)
            right = 1.0f;
         if (left < - 1.0f)
@@ -989,7 +994,14 @@ public :
            top = 1.0f;
         if (bottom < - 1.0f)
            bottom = - 1.0f;
-        }
+    }
+    void ClampRegionAndDepthBounds() {
+        ClampRegionToScreen();
+        if (far > 1.0f)
+           far = 1.0f;
+        if (near < 0)
+           near = 0;
+    }
     void ClampEmptyRegion() {
         if (near > far)
             near = far = 0;
@@ -1026,6 +1038,7 @@ public :
     bool UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const Frustum& frustum);
     bool UpdateWithWorldSpaceBoundingPolyhedron(Point3D *P, int n, const Frustum& frustum);
     sreScissorsRegionType UpdateWithWorldSpaceBoundingPyramid(Point3D *P, int n, const Frustum& frustum);
+    void Print();
 };
 
 // Level-Of-Detail flags for an object (sreObject::lod_flags).
@@ -1080,6 +1093,11 @@ enum {
     SRE_OBJECT_LIGHT_HALO = 0x400000,     // For a halo, SRE_OBJECT_BILLBOARD should not be set.
     // Object is a particle system, which is a set of billboards.
     SRE_OBJECT_PARTICLE_SYSTEM = 0x800000,
+};
+
+class sreScissorsCacheEntry : public sreScissors {
+public :
+    int light_id;
 };
 
 // The main object class (an object in the scene); refers to the model used,
@@ -1165,13 +1183,12 @@ public:
     ShadowVolume **shadow_volume;
     // Rendering attributes.
     // Cache of geometry scissors for static lights.
-    sreScissors *geometry_scissors_cache;
+    sreScissorsCacheEntry *geometry_scissors_cache;
     // The object-specific order of the static light currently being rendered.
     int static_light_order;
     // Time stamp to determine whether the first object-affecting light of a new frame
     // has been reached.
     int geometry_scissors_cache_timestamp;
-    BoundsCheckResult geometry_scissors_status;
     float projected_size;
     // The frame number when the object was last determined to be visible.
     int most_recent_frame_visible;
@@ -1692,6 +1709,7 @@ public:
     void RenderVisibleObjectsAmbientPass(const Frustum&) const;
     void RenderVisibleObjectsLightingPass(const Frustum& f, const Light& light) const;
     void RenderFinalPassObjectsMultiPass(const Frustum& f) const;
+    void UpdateGeometryScissorsCacheData(const Frustum& frustum, const sreLight& light) const;
     // Render lighting passes with shadow volumes or shadow mapping. Will change the shadow caster
     // array in sreScene for each light.
     void RenderLightingPasses(Frustum *f, sreView *view);

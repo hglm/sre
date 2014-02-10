@@ -61,7 +61,7 @@ bool Intersects(const sreBoundingVolumeHull& h, const sreBoundingVolumeConvexHul
 
 // Intersection of a sphere and a convex hull. This test may miss some cases of non-intersection.
 
-static bool Intersects(const sreBoundingVolumeSphere& sphere, const sreBoundingVolumeConvexHull& ch) {
+bool Intersects(const sreBoundingVolumeSphere& sphere, const sreBoundingVolumeConvexHull& ch) {
     for (int i = 0; i < ch.nu_planes; i++) {
         if (Dot(ch.plane[i], sphere.center) <= - sphere.radius)
             return false;

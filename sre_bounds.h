@@ -202,6 +202,9 @@ bool Intersects(const sreBoundingVolumeBox& box, const sreBoundingVolumeCylinder
 BoundsCheckResult QueryIntersection(const sreBoundingVolumeSphere& sphere,
     const sreBoundingVolumeCylinder& cyl);
 
+// Intersection of a sphere and a convex hull. This test may miss some cases of non-intersection.
+bool Intersects(const sreBoundingVolumeSphere& sphere, const sreBoundingVolumeConvexHull& ch);
+
 bool Intersects(const sreBoundingVolumeCylinder& cyl, const sreBoundingVolumeConvexHull &ch);
 
 bool Intersects(const sreBoundingVolumeHalfCylinder& hc, const sreBoundingVolumeConvexHull &ch);

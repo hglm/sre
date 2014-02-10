@@ -447,7 +447,11 @@ bool sreScissors::UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const Frust
             }
         }
     }
-//    printf("Bounding box of %d vertices clipped to %d vertices.\n", n, n_clipped);
+#if 0
+    sreMessage(SRE_MESSAGE_INFO, "Bounding box of %d vertices clipped to %d vertices.\n", n, n_clipped);
+    for (int i = 0 ; i < n_clipped; i++)
+        printf("Q[%d] = (%f, %f, %f)\n", i, Q[i].x, Q[i].y, Q[i].z);
+#endif
     UpdateWithWorldSpaceBoundingHull(Q, n_clipped);
     if (IsEmptyOrOutside())
         return false;
@@ -504,6 +508,12 @@ const Frustum& frustum) {
         sreMessage(SRE_MESSAGE_WARNING, "Expected 5, 7 or 8 vertices in bounding pyramid (n = %d).\n", n);
         return SRE_SCISSORS_REGION_UNDEFINED;
     }
+#if 0
+    sreMessage(SRE_MESSAGE_INFO, "Pyramid vertices:");
+    for (int i = 0 ; i < n; i++)
+        sreMessage(SRE_MESSAGE_INFO, "P[%d] = (%f, %f, %f)", i, P[i].x, P[i].y, P[i].z);
+#endif
+
     // Clip against image plane.
     float dist[8];
     // Count the number of pyramid vertices that is outside the near plane.
@@ -590,13 +600,21 @@ const Frustum& frustum) {
             n_clipped++;
         }
     }
-
-//    sreMessage(SRE_MESSAGE_VERBOSE_LOG, "Bounding pyramid clipped to %d vertices\n", n_clipped);
+#if 0
+    sreMessage(SRE_MESSAGE_INFO, "Bounding pyramid of %d vertices clipped to %d vertices.", n, n_clipped);
+    for (int i = 0 ; i < n_clipped; i++)
+        printf("Q[%d] = (%f, %f, %f)", i, Q[i].x, Q[i].y, Q[i].z);
+#endif
     UpdateWithWorldSpaceBoundingHull(Q, n_clipped);
     if (IsEmptyOrOutside())
         return SRE_SCISSORS_REGION_EMPTY;
     else 
         return SRE_SCISSORS_REGION_DEFINED;
+}
+
+void sreScissors::Print() {
+    sreMessage(SRE_MESSAGE_INFO, "Scissors = (%f, %f), (%f, %f), near/far = (%f, %f).",
+        left, right, bottom, top, near, far);
 }
 
 // Calculate the light scissors, which is the projection of the light volume
@@ -642,12 +660,15 @@ void Frustum::CalculateLightScissors(Light *light) {
         scissors.SetEmptyRegion();
         scissors.UpdateWithWorldSpaceBoundingBox(P, 8, *this);
         scissors.ClampEmptyRegion();
-        scissors.ClampXYExtremes();
-//        printf("Light %d (spot): scissors near = %lf, far = %lf\n", sre_internal_current_light_index, scissors.near,
-//            scissors.far);
+        scissors.ClampRegionAndDepthBounds();
+#if 0
+        printf("Light %d (spot): ");
+        sreMessage(SRE_MESSAGE_INFO,
+            "Scissors = (%f, %f, %f, %f)\n", scissors.left, scissors.right, scissors.bottom, scissors.top);
+#endif
         return;
     }
-    scissors.SetFullRegion();
+    scissors.SetFullRegionAndDepthBounds();
     // Transform the light position from world space to eye space.
     Point3D L = (sre_internal_view_matrix * light->vector).GetPoint3D();
     // Calculate the depth range.
@@ -667,7 +688,6 @@ void Frustum::CalculateLightScissors(Light *light) {
     }
     else
         scissors.far = 0;
-//    printf("Light %d: scissors near = %lf, far = %lf\n", sre_internal_current_light_index, scissors.near, scissors.far);
     // Calculate the determinant D
     float D = 4 * (sqrf(light->sphere.radius) * sqrf(L.x) - (sqrf(L.x) + sqrf(L.z)) *
         (sqrf(light->sphere.radius) - sqrf(L.z)));
@@ -798,7 +818,7 @@ void Frustum::CalculateLightScissors(Light *light) {
         }
 #endif
     }
-//    scissors.ClampXYExtremes();
+//    scissors.ClampRegionToScreen();
 //    printf("Scissors = (%f, %f, %f, %f)\n", scissors.left, scissors.right, scissors.bottom, scissors.top);
 }
 
