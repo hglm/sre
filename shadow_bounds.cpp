@@ -199,7 +199,9 @@ float& cos_half_angular_size) const {
         Vector3D N = V;
         N.Normalize();
         axis = N;
-        radius = light.sphere.radius;
+        // The range of the light is the radius. Note that the bounding sphere of the spotlight
+        // cannot be used since it is centered somewhere in the middle of the spotlight volume.
+        radius = light.attenuation.x;
         Vector3D unnormalized_axis = axis * radius;
         // Set the apex of the pyramid to the light position.
         Q[0] = light.vector.GetPoint3D();
@@ -306,15 +308,15 @@ const ShadowVolume& sv, sreScissors& shadow_volume_scissors) const {
             sv.pyramid_cone->vertex, sv.pyramid_cone->nu_vertices, frustum);
         if (t == SRE_SCISSORS_REGION_DEFINED)
             return true;
-        else if (t == SRE_SCISSORS_REGION_DEFINED)
+        else if (t == SRE_SCISSORS_REGION_EMPTY)
             return false;
-        // When undefined, set the full region.
-        shadow_volume_scissors.SetFullRegion();
+        // When undefined, set the full region and depth bounds.
+        shadow_volume_scissors.SetFullRegionAndDepthBounds();
         return true;
     }
     // Scissors calculation for other shadow volume types, like spherical sectors or cylinders,
     // has not yet been implemented.
-    shadow_volume_scissors.SetFullRegion();
+    shadow_volume_scissors.SetFullRegionAndDepthBounds();
     return true;
 }
 
