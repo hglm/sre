@@ -875,7 +875,7 @@ void ShadowVolumeObjectCache::Clear() {
 
 // Check whether the scene object shadow volume is in the cache, if so draw it.
 
-bool ShadowVolumeObjectCacheHit(SceneObject *so, sreLODModelShadowVolume *model,
+bool ShadowVolumeObjectCacheHit(sreObject *so, sreLODModelShadowVolume *model,
 const Vector4D& lightpos_model, int type) {
     ShadowVolumeObjectCacheEntry *entry = object_cache.Lookup(so->id, model, lightpos_model, type);
     if (entry == NULL) {
@@ -1021,7 +1021,7 @@ void ShadowVolumeModelCache::Clear() {
 
 // Check whether the model object shadow volume is in the cache, if so draw it.
 
-bool ShadowVolumeModelCacheHit(SceneObject *so, sreLODModelShadowVolume *model,
+bool ShadowVolumeModelCacheHit(sreObject *so, sreLODModelShadowVolume *model,
 const Vector4D& lightpos_model, int type) {
     ShadowVolumeModelCacheEntry *entry = model_cache.Lookup(model, lightpos_model, type);
     if (entry == NULL) {
@@ -1060,12 +1060,12 @@ static EdgeArray *silhouette_edges = NULL;
 //
 // Any GPU scissors settings have been applied.
 
-static void DrawShadowVolume(SceneObject *so, sreLight *light, Frustum &frustum, ShadowVolume *sv_in) {
+static void DrawShadowVolume(sreObject *so, sreLight *light, sreFrustum &frustum, sreShadowVolume *sv_in) {
         // Determine whether depth-pass or depth-fail rendering must be used.
         // If the shadow volume visibility test is enabled, also test whether the geometrical
         // shadow volume intersects with the view frustum.
         int type;
-        ShadowVolume *sv = sv_in;
+        sreShadowVolume *sv = sv_in;
         // Determine whether the object is visible in the current frame. The check required depends
         // on which type of octree (static or dynamic objects) the object was stored in. This should
         // be defined by the SRE_OBJECT_DYNAMIC_POSITION flag.
@@ -1411,8 +1411,8 @@ static bool custom_depth_bounds_set;
 // scissors enabled. A specific scissors region for the object's shadow volume is
 // calculated and applied if it is smaller than the pre-existing light scissors region.
 
-static void RenderShadowVolumeGeometryScissors(SceneObject *so, sreLight *light, Frustum& frustum) {
-            ShadowVolume *sv;
+static void RenderShadowVolumeGeometryScissors(sreObject *so, sreLight *light, sreFrustum& frustum) {
+            sreShadowVolume *sv;
             bool viewport_adjusted = false;
             bool depth_bounds_adjusted = false;
             // Calculate the shadow volume, or get a precalculated one.
@@ -1480,7 +1480,7 @@ static void RenderShadowVolumeGeometryScissors(SceneObject *so, sreLight *light,
             DrawShadowVolume(so, light, frustum, sv);
 }
 
-static void RenderShadowVolume(SceneObject *so, sreLight *light, Frustum& frustum) {
+static void RenderShadowVolume(sreObject *so, sreLight *light, sreFrustum& frustum) {
     DrawShadowVolume(so, light, frustum, NULL);
 }
 
@@ -1508,8 +1508,8 @@ enum {
 
 #if 0
 
-static void RenderShadowVolumesForFastOctree(const FastOctree& fast_oct, int array_index,
-Scene *scene, sreLight *light, Frustum &frustum, int intersection_flags) {
+static void RenderShadowVolumesForsreFastOctree(const sreFastOctree& fast_oct, int array_index,
+sreScene *scene, sreLight *light, sreFrustum &frustum, int intersection_flags) {
     octree_count++;
 
         // Update whether the intersection of the light volume and
@@ -1571,12 +1571,12 @@ Scene *scene, sreLight *light, Frustum &frustum, int intersection_flags) {
     int nu_entities = fast_oct.array[array_index + 2];
     array_index += 3;
     for (int i = 0; i < nu_entities; i++) {
-        SceneEntityType type;
+        sreSceneEntityType type;
         int index;
         fast_oct.GetEntity(array_index + i, type, index);
         if (type != SRE_ENTITY_OBJECT)
             continue;
-        SceneObject *so = scene->sceneobject[index];
+        sreObject *so = scene->sceneobject[index];
         if (!so->exists)
             continue;
         // Exclude objects that do not cast shadows.
@@ -1603,7 +1603,7 @@ Scene *scene, sreLight *light, Frustum &frustum, int intersection_flags) {
     // Render every non-empty subnode.
     array_index += nu_entities;
     for (int i = 0; i < nu_octants; i++)
-        RenderShadowVolumesForFastOctree(fast_oct, fast_oct.array[array_index + i], scene, light, frustum,
+        RenderShadowVolumesForsreFastOctree(fast_oct, fast_oct.array[array_index + i], scene, light, frustum,
             intersection_flags);
 }
 
@@ -1611,7 +1611,7 @@ Scene *scene, sreLight *light, Frustum &frustum, int intersection_flags) {
 
 // This function is duplicated in shadowmap.cpp.
 
-static void CheckShadowCasterCapacity(Scene *scene) {
+static void CheckShadowCasterCapacity(sreScene *scene) {
     if (scene->nu_shadow_caster_objects == scene->max_shadow_caster_objects) {
         // Dynamically increase the shadow caster object array when needed.
         int *new_shadow_caster_object = new int[scene->max_shadow_caster_objects * 2];
@@ -1637,18 +1637,18 @@ static void CheckShadowCasterCapacity(Scene *scene) {
 // objects could be reused from the previous frame if the frustum hasn't changed (similar to
 // the way visible object lists are reused in this scenario).
 
-static void DetermineShadowCastersFromFastOctreeRootNode(const FastOctree& fast_oct,
-Scene *scene, sreLight *light, Frustum &frustum, int intersection_flags) {
+static void DetermineShadowCastersFromsreFastOctreeRootNode(const sreFastOctree& fast_oct,
+sreScene *scene, sreLight *light, sreFrustum &frustum, int intersection_flags) {
     octree_count++;
     // Render all objects in this node.
     int nu_entities = fast_oct.array[2];
     for (int i = 0; i < nu_entities; i++) {
-        SceneEntityType type;
+        sreSceneEntityType type;
         int index;
         fast_oct.GetEntity(3 + i, type, index);
         if (type != SRE_ENTITY_OBJECT)
             continue;
-        SceneObject *so = scene->sceneobject[index];
+        sreObject *so = scene->sceneobject[index];
         if (!so->exists)
             continue;
         // Exclude objects that do not cast shadows.
@@ -1681,8 +1681,8 @@ Scene *scene, sreLight *light, Frustum &frustum, int intersection_flags) {
 // shadow volumes will be rendered later on together with those determined the dynamic
 // object octree.
 
-static void DetermineShadowCastersFromFastOctree(const FastOctree& fast_oct, int array_index,
-Scene *scene, sreLight *light, Frustum &frustum, int intersection_flags) {
+static void DetermineShadowCastersFromsreFastOctree(const sreFastOctree& fast_oct, int array_index,
+sreScene *scene, sreLight *light, sreFrustum &frustum, int intersection_flags) {
         // Update whether the intersection of the light volume and
         // the shadow caster volume intersect with the octree.
         int node_index = fast_oct.array[array_index];
@@ -1727,12 +1727,12 @@ Scene *scene, sreLight *light, Frustum &frustum, int intersection_flags) {
     int nu_entities = fast_oct.array[array_index + 2];
     array_index += 3;
     for (int i = 0; i < nu_entities; i++) {
-        SceneEntityType type;
+        sreSceneEntityType type;
         int index;
         fast_oct.GetEntity(array_index + i, type, index);
         if (type != SRE_ENTITY_OBJECT)
             continue;
-        SceneObject *so = scene->sceneobject[index];
+        sreObject *so = scene->sceneobject[index];
         if (!so->exists)
             continue;
         // Exclude objects that do not cast shadows.
@@ -1761,7 +1761,7 @@ Scene *scene, sreLight *light, Frustum &frustum, int intersection_flags) {
     // Traverse every non-empty subnode.
     array_index += nu_entities;
     for (int i = 0; i < nu_octants; i++)
-        DetermineShadowCastersFromFastOctree(fast_oct, fast_oct.array[array_index + i], scene,
+        DetermineShadowCastersFromsreFastOctree(fast_oct, fast_oct.array[array_index + i], scene,
             light, frustum, intersection_flags);
 }
 
@@ -1774,11 +1774,11 @@ Scene *scene, sreLight *light, Frustum &frustum, int intersection_flags) {
 // actual (current) light volume. The lights that match are stored in the scene's shadow
 // caster array.
 
-static void DetermineShadowCastersFromLightStaticCasterArray(const FastOctree& fast_oct,
-Scene *scene, sreLight *light, Frustum &frustum) {
+static void DetermineShadowCastersFromLightStaticCasterArray(const sreFastOctree& fast_oct,
+sreScene *scene, sreLight *light, sreFrustum &frustum) {
     for (int i = 0; i < light->nu_shadow_caster_objects; i++) {
         int j = light->shadow_caster_object[i];
-        SceneObject *so = scene->sceneobject[j];
+        sreObject *so = scene->sceneobject[j];
         if (!so->exists)
             continue;
         octree_count3++;
@@ -1799,7 +1799,7 @@ Scene *scene, sreLight *light, Frustum &frustum) {
 // shadow caster volume for the current frustum.
 
 static void RenderShadowVolumesFromCompiledCasterArray(sreScene *scene,
-sreLight *light, Frustum &frustum) {
+sreLight *light, sreFrustum &frustum) {
     bool use_geometry_scissors;
     if ((sre_internal_scissors & SRE_SCISSORS_GEOMETRY_MASK) &&
     !(light->type & SRE_LIGHT_DIRECTIONAL))
@@ -1808,19 +1808,19 @@ sreLight *light, Frustum &frustum) {
         use_geometry_scissors = false;
     if (use_geometry_scissors)
        for (int i = 0; i < scene->nu_shadow_caster_objects; i++) {
-            SceneObject *so = scene->sceneobject[scene->shadow_caster_object[i]];
+            sreObject *so = scene->sceneobject[scene->shadow_caster_object[i]];
             RenderShadowVolumeGeometryScissors(so, light, frustum);
        }
     else
        for (int i = 0; i < scene->nu_shadow_caster_objects; i++) {
-            SceneObject *so = scene->sceneobject[scene->shadow_caster_object[i]];
+            sreObject *so = scene->sceneobject[scene->shadow_caster_object[i]];
             RenderShadowVolume(so, light, frustum);
        }
 }
 
 // Render all shadow volumes for a light.
 
-void sreRenderShadowVolumes(sreScene *scene, sreLight *light, Frustum &frustum) {
+void sreRenderShadowVolumes(sreScene *scene, sreLight *light, sreFrustum &frustum) {
     // Calculate the shadow caster volume that encloses the light source and the view volume.
     frustum.CalculateShadowCasterVolume(scene->global_light[sre_internal_current_light_index]->vector, 5);
 
@@ -1839,17 +1839,17 @@ void sreRenderShadowVolumes(sreScene *scene, sreLight *light, Frustum &frustum) 
         DetermineShadowCastersFromLightStaticCasterArray(scene->fast_octree_dynamic,
             scene, light, frustum);
         // Add the dynamic object shadow casters from the dynamic objects octree.
-        DetermineShadowCastersFromFastOctreeRootNode(scene->fast_octree_dynamic,
+        DetermineShadowCastersFromsreFastOctreeRootNode(scene->fast_octree_dynamic,
             scene, light, frustum, 0);
     }
     else {
         // When there is no static objects list for the light, we have to walk both
         // the static and dynamic object octrees.
         // Add the static object shadow casters from the static objects octree.
-        DetermineShadowCastersFromFastOctree(scene->fast_octree_static, 0,
+        DetermineShadowCastersFromsreFastOctree(scene->fast_octree_static, 0,
             scene, light, frustum, 0);
         // Add the dynamic object shadow casters from the dynamic objects octree.
-        DetermineShadowCastersFromFastOctreeRootNode(scene->fast_octree_dynamic,
+        DetermineShadowCastersFromsreFastOctreeRootNode(scene->fast_octree_dynamic,
             scene, light, frustum, 0);
     }
 
@@ -1925,9 +1925,9 @@ void sreRenderShadowVolumes(sreScene *scene, sreLight *light, Frustum &frustum) 
             flags = OCTREE_IS_INSIDE_LIGHT_VOLUME;
         else
             flags = 0;
-        RenderShadowVolumesForFastOctree(scene->fast_octree_static, 0, scene, light,
+        RenderShadowVolumesForsreFastOctree(scene->fast_octree_static, 0, scene, light,
             frustum, flags);
-        RenderShadowVolumesForFastOctree(scene->fast_octree_dynamic, 0, scene, light,
+        RenderShadowVolumesForsreFastOctree(scene->fast_octree_dynamic, 0, scene, light,
             frustum, flags | OCTREE_HAS_NO_BOUNDS);
     }
 #endif

@@ -312,7 +312,7 @@ pipeline.
   of triangles on the sides of compound objects with block like geometry)
   during edge calculation is work in progress.
 
-- Could create subclasses for sreObject (SceneObject) so that the
+- Could create subclasses for sreObject (sreObject) so that the
   minimum number of fields is reduced (e.g. no light parameters for
   non-lit objects, etc). [Similar optimization implemented for
   sreLODModel, but not yet for sreObject]

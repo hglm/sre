@@ -27,7 +27,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre_bounds.h"
 #include "win32_compat.h"
 
-Frustum::Frustum() {
+sreFrustum::sreFrustum() {
      frustum_world.AllocateStorage(8, 6);
      frustum_eye.AllocateStorage(8, 6);
      near_clip_volume.AllocateStorage(6);
@@ -38,7 +38,7 @@ Frustum::Frustum() {
 // Set frustum projection parameters based on viewing angle, aspect ratio, and near
 // and far plane distances.
 
-void Frustum::SetParameters(float _angle, float _ratio, float _nearD, float _farD) {
+void sreFrustum::SetParameters(float _angle, float _ratio, float _nearD, float _farD) {
     ratio = _ratio;
     angle = _angle;
     nearD = _nearD;
@@ -56,7 +56,7 @@ void Frustum::SetParameters(float _angle, float _ratio, float _nearD, float _far
     fh = (1.0f / ratio) * ratio;
 }
 
-void Frustum::Calculate() {
+void sreFrustum::Calculate() {
     // Calculate eye-space frustum.
     frustum_eye.hull.vertex[0].Set(nearD / e, (1 / ratio) * nearD / e, - nearD);     // Near-top-right.
     frustum_eye.hull.vertex[1].Set(- nearD / e, (1 / ratio) * nearD / e, - nearD);   // Near-top-left.
@@ -130,7 +130,7 @@ void Frustum::Calculate() {
 // view frustum. This is used to determine the shadow volume rendering strategy required
 // (depth pass vs depth fail).
 
-void Frustum::CalculateNearClipVolume(const Vector4D& lightpos) {
+void sreFrustum::CalculateNearClipVolume(const Vector4D& lightpos) {
     // Calculate the occlusion pyramid with the tip at the lightsource and the base
     // consisting of the viewport on the near clipping plane.
     // Note: for beam lights, this might be inaccurate.
@@ -224,7 +224,7 @@ static const AdjacentPlane adjacent_plane[12] = {
 //
 // nu_frustum_planes is 6 for shadow mapping with directional lights, 5 otherwise.
 
-void Frustum::CalculateShadowCasterVolume(const Vector4D& lightpos, int nu_frustum_planes) {
+void sreFrustum::CalculateShadowCasterVolume(const Vector4D& lightpos, int nu_frustum_planes) {
     nu_frustum_planes = maxf(nu_frustum_planes, SRE_NU_FRUSTUM_PLANES);
     // Note: for beam lights, this might be inaccurate.
     if (lightpos.w == 1.0f && Intersects(lightpos.GetPoint3D(), frustum_world)) {
@@ -376,7 +376,7 @@ void sreScissors::UpdateWithWorldSpaceBoundingHull(Point3D *P, int n) {
 // A return value of false indicates the scissors region is empty (it may actually be
 // set to an empty region), while true indicates a valid scissors region was calculated.
 
-bool sreScissors::UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const Frustum& frustum) {
+bool sreScissors::UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const sreFrustum& frustum) {
     // Clip against image plane.
     float dist[8];
     int count = 0;
@@ -476,7 +476,7 @@ bool sreScissors::UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const Frust
 // Currently, this function is not fully implemented and just calls the bounding box scissors
 // update function when n is equal to 8.
 
-bool sreScissors::UpdateWithWorldSpaceBoundingPolyhedron(Point3D *P, int n, const Frustum& frustum) {
+bool sreScissors::UpdateWithWorldSpaceBoundingPolyhedron(Point3D *P, int n, const sreFrustum& frustum) {
     if (n == 8) {
         UpdateWithWorldSpaceBoundingBox(P, n, frustum);
         if (IsEmptyOrOutside())
@@ -503,7 +503,7 @@ bool sreScissors::UpdateWithWorldSpaceBoundingPolyhedron(Point3D *P, int n, cons
 // empty, undefined (effectively the whole display), or defined.
 
 sreScissorsRegionType sreScissors::UpdateWithWorldSpaceBoundingPyramid(Point3D *P, int n,
-const Frustum& frustum) {
+const sreFrustum& frustum) {
     if (n != 5 && n != 7 && n != 8) {
         sreMessage(SRE_MESSAGE_WARNING, "Expected 5, 7 or 8 vertices in bounding pyramid (n = %d).\n", n);
         return SRE_SCISSORS_REGION_UNDEFINED;
@@ -622,7 +622,7 @@ void sreScissors::Print() {
 // the light scissors region will never be lit, so the GPU scissors region can
 // set to this region to reduce unnecessary processing and memory access.
 
-void Frustum::CalculateLightScissors(sreLight *light) {
+void sreFrustum::CalculateLightScissors(sreLight *light) {
     if (light->type & (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM)) {
         // Approximate the bounding volume of the light by the bounding box of the bounding cylinder.
         Vector3D up;
@@ -822,9 +822,9 @@ void Frustum::CalculateLightScissors(sreLight *light) {
 //    printf("Scissors = (%f, %f, %f, %f)\n", scissors.left, scissors.right, scissors.bottom, scissors.top);
 }
 
-// Frustum-related intersection tests.
+// sreFrustum-related intersection tests.
 
-bool Frustum::ObjectIntersectsNearClipVolume(const SceneObject& so) const {
+bool sreFrustum::ObjectIntersectsNearClipVolume(const sreObject& so) const {
     if (light_position_type & SRE_LIGHT_POSITION_IN_NEAR_PLANE) {
         // First check the only plane defined.
         if (Dot(near_clip_volume.plane[0], so.sphere.center) <= - so.sphere.radius)
@@ -841,7 +841,7 @@ bool Frustum::ObjectIntersectsNearClipVolume(const SceneObject& so) const {
 }
 
 #if 0
-bool Frustum::ShadowCasterVolumeAndCasterBoundsIntersect(const SceneObject& so) const {
+bool sreFrustum::ShadowCasterVolumeAndCasterBoundsIntersect(const sreObject& so) const {
     // Check whether the object is inside the shadow caster volume.
     if (so.object->bounds_flags & SRE_BOUNDS_PREFER_SPHERE) {
         for (int i = 0; i < nu_shadow_caster_planes; i++) {
@@ -896,7 +896,7 @@ bool Frustum::ShadowCasterVolumeAndCasterBoundsIntersect(const SceneObject& so) 
 
 #if 0
 
-bool Frustum::OctreeIsOutsideFrustum(const Octree& octree) const {
+bool sreFrustum::OctreeIsOutsideFrustum(const Octree& octree) const {
     // Standard box check.
     Vector3D R, S, T;
     R.Set(octree.dim_max.x - octree.dim_min.x, 0, 0);
@@ -919,7 +919,7 @@ bool Frustum::OctreeIsOutsideFrustum(const Octree& octree) const {
 
 #if 0
 
-bool Frustum::LineGoesOutsideFrustum(const Point3D& E1, const Vector3D& V) const {
+bool sreFrustum::LineGoesOutsideFrustum(const Point3D& E1, const Vector3D& V) const {
     Point3D Q1 = E1;
     for (int j = 0; j < 5; j++) {
         // Calculate the distance between the endpoint and the plane.
@@ -956,7 +956,7 @@ bool Frustum::LineGoesOutsideFrustum(const Point3D& E1, const Vector3D& V) const
 
 // #define SHADOW_VOLUME_INTERSECTION_LOG
 
-bool Frustum::ShadowVolumeIsOutsideFrustum(ShadowVolume& sv) const {
+bool sreFrustum::ShadowVolumeIsOutsideFrustum(sreShadowVolume& sv) const {
     if (sv.type == SRE_BOUNDING_VOLUME_EMPTY)
         return true;
     if (sv.type == SRE_BOUNDING_VOLUME_EVERYWHERE)
@@ -1026,7 +1026,7 @@ bool Frustum::ShadowVolumeIsOutsideFrustum(ShadowVolume& sv) const {
 // volumes, only the infinite pyramid base of point and spot light shadow volumes needs to
 // be handled.
 
-bool Frustum::DarkCapIsOutsideFrustum(ShadowVolume& sv) const {
+bool sreFrustum::DarkCapIsOutsideFrustum(sreShadowVolume& sv) const {
     if (sv.type == SRE_BOUNDING_VOLUME_EMPTY)
         return true;
     if (sv.type == SRE_BOUNDING_VOLUME_EVERYWHERE)

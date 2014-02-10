@@ -359,7 +359,7 @@ void Demo8Render() {
 }
 
 static void move_towards_target(int soi, const Vector3D &target, float dt) {
-        SceneObject *so = scene->sceneobject[soi];
+        sreObject *so = scene->sceneobject[soi];
         Vector3D v;
         v = target - so->position;
         float m = Magnitude(v);

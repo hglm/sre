@@ -388,7 +388,7 @@ calculate_edges :
 // billboard related shaders only has three components (not homogeneous with an
 // added w = 1.0f), because shadow volumes do not apply.
 
-void GL3SetBillboard(SceneObject *so) {
+void GL3SetBillboard(sreObject *so) {
     Point3D P = so->sphere.center;
     Vector3D right_vector = Cross(camera_vector, up_vector);
     Vector3D X = 0.5 * so->billboard_width * right_vector;
@@ -411,7 +411,7 @@ void GL3SetBillboard(SceneObject *so) {
     }
 }
 
-void GL3SetParticleSystem(SceneObject *so) {
+void GL3SetParticleSystem(sreObject *so) {
     Vector3D right_vector = Cross(camera_vector, up_vector);
     Vector3D X = 0.5 * so->billboard_width * right_vector;
     Vector3D Y = 0.5 * so->billboard_height * up_vector;

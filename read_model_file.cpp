@@ -288,7 +288,7 @@ static void InitializeModelFromFaceData(sreLODModel *m) {
             printf("Invalid number of vertices in face in obj file.\n");
             exit(-1);
          }
-    m->triangle = new ModelTriangle[triangle_count];
+    m->triangle = new sreModelTriangle[triangle_count];
     m->nu_triangles = 0;
 
     // Just create new vertices and vertex normals from every triangle vertex.
@@ -311,7 +311,7 @@ static void InitializeModelFromFaceData(sreLODModel *m) {
 // Add a triangle to an sreLODModel, with data from face i and the specified vertices of
 // that face.
 
-static void AddModelTriangle(sreLODModel *m, int i, int vertex0, int vertex1, int vertex2) {
+static void AddsreModelTriangle(sreLODModel *m, int i, int vertex0, int vertex1, int vertex2) {
     // Add new vertices.
     int vindex[3];
     vindex[0] = vertex0;
@@ -348,11 +348,11 @@ static void AddFacesToModel(sreLODModel *m) {
     for (int i = 0; i < nu_faces; i++)
         if (face[i].nu_vertices == 3)
             // Add triangle from face i, creating new vertices.
-            AddModelTriangle(m, i, 0, 1, 2);
+            AddsreModelTriangle(m, i, 0, 1, 2);
         else if (face[i].nu_vertices == 4) {
             // Add two triangles from face i (which has four vertices).
-            AddModelTriangle(m, i, 0, 1, 2);
-            AddModelTriangle(m, i, 0, 2, 3);
+            AddsreModelTriangle(m, i, 0, 1, 2);
+            AddsreModelTriangle(m, i, 0, 2, 3);
         }
         else
             ModelFileReadError("More than four vertices in a face not supported");

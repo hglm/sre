@@ -375,7 +375,7 @@ static sreLODModel *ConvertToModel(int load_flags) {
     m->flags |= SRE_POSITION_MASK;
     // Assign triangles.
     m->nu_triangles = nu_vertices / 3;
-    m->triangle = new ModelTriangle[m->nu_triangles];
+    m->triangle = new sreModelTriangle[m->nu_triangles];
     for (int i = 0; i < nu_vertices / 3; i++) {
         m->triangle[i].AssignVertices(i * 3, i * 3 + 1, i * 3 + 2);
     }

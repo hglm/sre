@@ -68,7 +68,7 @@ sreScene::sreScene(int _max_scene_objects, int _max_models, int _max_scene_light
     current_lod_level = 0;
     current_lod_threshold_scaling = 1.0;
     current_UV_transformation_matrix = sre_internal_standard_UV_transformation_matrix;
-    deleted_ids = new SceneObjectList;
+    deleted_ids = new sreObjectList;
     // No rendering object arrays allocated yet.
     max_visible_objects = 0;
     max_final_pass_objects = 0; 
@@ -642,44 +642,44 @@ void sreScene::InvalidateLightingShaders(int soi) const {
             sceneobject[soi]->current_shader_shadow_map[i] = - 1;
 }
 
-// Implementation of SceneObjectList (actually a general linked list
+// Implementation of sreObjectList (actually a general linked list
 // for integers).
 
-SceneObjectList::SceneObjectList() {
+sreObjectList::sreObjectList() {
     head = NULL;
     tail = NULL;
 }
 
-void SceneObjectList::AddElement(int so) {
+void sreObjectList::AddElement(int so) {
 // printf("Adding element with id %d.\n", so);
     if (tail == NULL) {
-        head = tail = new SceneObjectListElement;
+        head = tail = new sreObjectListElement;
         head->next = NULL;
         head->so = so;
         return;
     }
-    SceneObjectListElement *e = new SceneObjectListElement;
+    sreObjectListElement *e = new sreObjectListElement;
     tail->next = e;
     e->next = NULL;
     tail = e;
     e->so = so;
 }
 
-void SceneObjectList::DeleteElement(int so) {
+void sreObjectList::DeleteElement(int so) {
 // printf("Deleting element with id %d.\n", so);
     // Handle the case where the element to be deleted is first in the list.
     if (head->so == so) {
-        SceneObjectListElement *e = head;
+        sreObjectListElement *e = head;
         head = head->next;
         if (head == NULL)
             tail = NULL;
         delete e;
         return;
     }
-    SceneObjectListElement *e = head;
+    sreObjectListElement *e = head;
     while (e->next != NULL) {
         if (e->next->so == so) {
-            SceneObjectListElement *f = e->next;
+            sreObjectListElement *f = e->next;
             e->next = f->next;
             delete f;
             if (e->next == NULL)
@@ -692,10 +692,10 @@ void SceneObjectList::DeleteElement(int so) {
     exit(1);
 }
 
-int SceneObjectList::Pop() {
+int sreObjectList::Pop() {
 // printf("Popping element with id %d.\n", head->so);
     int id = head->so;
-    SceneObjectListElement *e = head->next;
+    sreObjectListElement *e = head->next;
     if (tail == head)
         tail = NULL;
     delete head;
@@ -703,7 +703,7 @@ int SceneObjectList::Pop() {
     return id;
 }
 
-void SceneObjectList::MakeEmpty() {
+void sreObjectList::MakeEmpty() {
     while (head != NULL) {
         int id = Pop();
     }
@@ -733,10 +733,10 @@ sreObject::~sreObject() {
     delete [] shadow_volume;
 }
 
-void sreObject::AddShadowVolume(ShadowVolume *sv) {
-    ShadowVolume **new_shadow_volume = new ShadowVolume *[nu_shadow_volumes + 1];
+void sreObject::AddShadowVolume(sreShadowVolume *sv) {
+    sreShadowVolume **new_shadow_volume = new sreShadowVolume *[nu_shadow_volumes + 1];
     if (nu_shadow_volumes > 0) {
-        memcpy(new_shadow_volume, shadow_volume, sizeof(ShadowVolume *) * nu_shadow_volumes);
+        memcpy(new_shadow_volume, shadow_volume, sizeof(sreShadowVolume *) * nu_shadow_volumes);
         delete [] shadow_volume;
     }
     new_shadow_volume[nu_shadow_volumes] = sv;
@@ -744,7 +744,7 @@ void sreObject::AddShadowVolume(ShadowVolume *sv) {
     nu_shadow_volumes++;
 }
 
-ShadowVolume *sreObject::LookupShadowVolume(int light_index) const {
+sreShadowVolume *sreObject::LookupShadowVolume(int light_index) const {
     // This function is called either when shadow volume visibility testing is enabled during
     // shadow volume construction, or at an earlier stage when geometry scissors are enabled.
     // In the latter case, it does not appear to be sensible to check whether the visibility

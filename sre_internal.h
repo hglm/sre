@@ -32,12 +32,12 @@ extern float sre_internal_aspect_ratio;
 
 extern Point3D sre_internal_viewpoint;
 extern float sre_internal_zoom;
-extern Frustum *sre_internal_frustum;
+extern sreFrustum *sre_internal_frustum;
 extern int sre_internal_current_frame;
 extern int sre_internal_current_light_index;
 extern sreLight *sre_internal_current_light;
 extern int sre_internal_object_flags_mask;
-extern Scene *sre_internal_scene;
+extern sreScene *sre_internal_scene;
 extern sreSwapBuffersFunc sre_internal_swap_buffers_func;
 extern int sre_internal_window_width;
 extern int sre_internal_window_height;
@@ -119,27 +119,27 @@ void GL3CalculateGeometryScissorsMatrixAndSetViewport(const sreScissors& scissor
 
 // vertex_buffers.cpp
 
-void GL3SetBillboard(SceneObject *so);
-void GL3SetBillboardBounds(SceneObject *so);
-void GL3SetParticleSystem(SceneObject *so);
-void GL3SetParticleSystemBounds(SceneObject *so);
+void GL3SetBillboard(sreObject *so);
+void GL3SetBillboardBounds(sreObject *so);
+void GL3SetParticleSystem(sreObject *so);
+void GL3SetParticleSystemBounds(sreObject *so);
 
 // draw_object.cpp
 
-sreLODModel *sreCalculateLODModel(const SceneObject& so);
-void sreDrawObjectSinglePass(SceneObject *so);
-void sreDrawObjectFinalPass(SceneObject *so);
-void sreDrawObjectAmbientPass(SceneObject *so);
-void sreDrawObjectMultiPassLightingPass(SceneObject *so, bool shadow_map_required);
+sreLODModel *sreCalculateLODModel(const sreObject& so);
+void sreDrawObjectSinglePass(sreObject *so);
+void sreDrawObjectFinalPass(sreObject *so);
+void sreDrawObjectAmbientPass(sreObject *so);
+void sreDrawObjectMultiPassLightingPass(sreObject *so, bool shadow_map_required);
 
 // shader_uniform.cpp
 
 void GL3InitializeShadersBeforeFrame();
 void GL3InitializeShadersBeforeLight();
 void GL3InitializeShadowMapShadersBeforeLight();
-void GL3InitializeShadowVolumeShader(const SceneObject& so, const Vector4D& light_position_object);
-void GL3InitializeShadowMapShader(const SceneObject& so);
-void GL3InitializeCubeShadowMapShader(const SceneObject& so);
+void GL3InitializeShadowVolumeShader(const sreObject& so, const Vector4D& light_position_object);
+void GL3InitializeShadowMapShader(const sreObject& so);
+void GL3InitializeCubeShadowMapShader(const sreObject& so);
 void GL3UpdateCubeShadowMapSegmentDistanceScaling(float *segment_distance_scaling);
 void GL3InitializeShadowMapShadersWithSegmentDistanceScaling(float scaling);
 void GL3InitializeHDRLogLuminanceShader();
@@ -211,14 +211,14 @@ void GL3InitializeTextShader(int update_mask, sreTextShaderInfo *info, Vector4D 
 void GL3InitializeImageShader(int set_flags, sreImageShaderInfo *info, Vector4D *rect);
 
 // Defined in shadow.cpp:
-void sreRenderShadowVolumes(sreScene *scene, sreLight *light, Frustum& frustum);
+void sreRenderShadowVolumes(sreScene *scene, sreLight *light, sreFrustum& frustum);
 void sreReportShadowCacheStats();
 void sreResetShadowCacheStats();
 void sreSetShadowCacheStatsInfo(sreShadowRenderingInfo *info);
 void sreClearShadowCache();
 
 // Defined in shadowmap.cpp:
-bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, Frustum &frustum);
+bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &frustum);
 void sreVisualizeDirectionalLightShadowMap(int light_index);
 void sreVisualizeCubeMap(int light_index);
 void sreVisualizeBeamOrSpotLightShadowMap(int light_index);

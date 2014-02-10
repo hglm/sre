@@ -56,7 +56,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // Draw object into shadow map. Transparent textures are supported.
 
-static void RenderShadowMapObject(SceneObject *so, const sreLight& light) {
+static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
     // Apply the global object flags mask. Note render_flags will (unnecessarily)
     // be set again in the lighting pass, but the overhead is of course minimal.
     so->render_flags = so->flags & sre_internal_object_flags_mask;
@@ -132,7 +132,7 @@ static sreBoundingVolumeAABB AABB_shadow_caster;
 
 // Update an AABB with the union of the AABB and the bounding volume of an object.
 
-static void UpdateAABBWithObject(sreBoundingVolumeAABB& AABB, SceneObject *so) {
+static void UpdateAABBWithObject(sreBoundingVolumeAABB& AABB, sreObject *so) {
      if (!(so->flags & SRE_OBJECT_DYNAMIC_POSITION)) {
          // Static object, use the precalculated precise AABB.
          // Use inline function from sre_bounds.h that updates an AAAB with the union with
@@ -164,7 +164,7 @@ static void UpdateAABBWithObject(sreBoundingVolumeAABB& AABB, SceneObject *so) {
     UpdateAABB(AABB, box_AABB);
 }
 
-static void CheckShadowCasterCapacity(Scene *scene) {
+static void CheckShadowCasterCapacity(sreScene *scene) {
     if (scene->nu_shadow_caster_objects == scene->max_shadow_caster_objects) {
         // Dynamically increase the shadow caster object array when needed.
         int *new_shadow_caster_object = new int[scene->max_shadow_caster_objects * 2];
@@ -180,8 +180,8 @@ static void CheckShadowCasterCapacity(Scene *scene) {
 // root node. The special bound check result value SRE_BOUNDS_DO_NOT_CHECK disables
 // all octree bounds checks (useful for root node-only octrees).
 
-static void FindAABBDirectionalLight(const FastOctree& fast_oct, int array_index, Scene *scene,
-const Frustum& frustum, BoundsCheckResult octree_bounds_check_result) {
+static void FindAABBDirectionalLight(const sreFastOctree& fast_oct, int array_index, sreScene *scene,
+const sreFrustum& frustum, BoundsCheckResult octree_bounds_check_result) {
     // For directional lights, the shadow caster volume defined for the frustum is equal
     // to the shadow receiver volume.
     // Check whether the octree is completely outside or completely inside that volume,
@@ -200,12 +200,12 @@ const Frustum& frustum, BoundsCheckResult octree_bounds_check_result) {
     int nu_entities = fast_oct.array[array_index + 2];
     array_index += 3;
     for (int i = 0; i < nu_entities; i++) {
-        SceneEntityType type;
+        sreSceneEntityType type;
         int index;
         fast_oct.GetEntity(array_index + i, type, index);
         if (type != SRE_ENTITY_OBJECT)
             continue;
-        SceneObject *so = scene->sceneobject[index];
+        sreObject *so = scene->sceneobject[index];
         if (so->exists) {
             // Note: for a root node-only octree where no bounds are defined,
             // the intersection test of the object with the shadow caster volume
@@ -234,8 +234,8 @@ const Frustum& frustum, BoundsCheckResult octree_bounds_check_result) {
 // Find the AABB for all potential shadow casters within the range of a local light.
 // Also keep track of the shadow receivers AABB.
 
-static void FindAABBLocalLight(const FastOctree& fast_oct, int array_index, Scene *scene,
-const Frustum& frustum, const sreLight& light, BoundsCheckResult octree_bounds_check_result) {
+static void FindAABBLocalLight(const sreFastOctree& fast_oct, int array_index, sreScene *scene,
+const sreFrustum& frustum, const sreLight& light, BoundsCheckResult octree_bounds_check_result) {
     int node_index = fast_oct.array[array_index];
     if (SRE_BOUNDS_NOT_EQUAL_AND_TEST_ALLOWED(octree_bounds_check_result, SRE_COMPLETELY_INSIDE)) {
         // If checks are allowed and the octree is not already completely inside the light volume,
@@ -248,12 +248,12 @@ const Frustum& frustum, const sreLight& light, BoundsCheckResult octree_bounds_c
     int nu_entities = fast_oct.array[array_index + 2];
     array_index += 3;
     for (int i = 0; i < nu_entities; i++) {
-        SceneEntityType type;
+        sreSceneEntityType type;
         int index;
         fast_oct.GetEntity(array_index + i, type, index);
         if (type != SRE_ENTITY_OBJECT)
             continue;
-        SceneObject *so = scene->sceneobject[index];
+        sreObject *so = scene->sceneobject[index];
         // Skip objects attached to the current light and infinite distance objects.
         if (so->exists && so->attached_light != light.id) {
             // Both shadow casters and shadow receivers must intersect the light volume.
@@ -297,7 +297,7 @@ static const Vector3D signs_table[8] = {
     Vector3D(0.0f, 0.0f, 0.0f)       // +x, +y, +z
 };
 
-void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, const Frustum &frustum) {
+void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, const sreFrustum &frustum) {
     sreBoundingVolumeAABB relative_AABB;
     relative_AABB.dim_min = AABB_shadow_caster.dim_min - light.vector.GetVector3D();
     relative_AABB.dim_max = AABB_shadow_caster.dim_max - light.vector.GetVector3D();
@@ -394,7 +394,7 @@ static Vector3D cube_map_up_vector[6] = {
     Vector3D(0, 0, - 1.0f), Vector3D(0, - 1.0f, 0), Vector3D(0, - 1.0f, 0)
     };
 
-void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const Frustum &frustum) {
+void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sreFrustum &frustum) {
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_cube_shadow_map_framebuffer);
         glViewport(0, 0, SRE_CUBE_SHADOW_BUFFER_SIZE, SRE_CUBE_SHADOW_BUFFER_SIZE);
         glDisable(GL_CULL_FACE);
@@ -528,7 +528,7 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const Fru
     return;
 }
 
-bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, Frustum &frustum) {
+bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &frustum) {
     // Calculate shadow caster volume.
     frustum.CalculateShadowCasterVolume(light.vector, 6);
     scene->nu_shadow_caster_objects = 0;
@@ -865,7 +865,7 @@ static const Vector2D font_size1 = Vector2D(0.02, 0.03);
 
 static const Vector2D font_size2 = Vector2D(0.015, 0.02);
 
-void Scene::sreVisualizeShadowMap(int light_index, Frustum *frustum) {
+void sreScene::sreVisualizeShadowMap(int light_index, sreFrustum *frustum) {
     if (light_index >= nu_lights)
         return;
     // At least one shadow map shader uniform setting function uses sre_internal_current_light.

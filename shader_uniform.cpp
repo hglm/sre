@@ -103,7 +103,7 @@ static void GL3InitializeShaderWithLightPosition4ModelSpace(int loc, float *ligh
     glUniform4fv(loc, 1, light_position_model_space);
 }
 
-static void GL3InitializeShaderWithEmissionColor(int loc, const SceneObject& so) {
+static void GL3InitializeShaderWithEmissionColor(int loc, const sreObject& so) {
     glUniform3fv(loc, 1, (GLfloat *)&so.emission_color);
 }
 

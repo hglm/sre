@@ -67,7 +67,7 @@ int LATITUDE_SEGMENTS, float radius_y, float radius_z) {
         }
     }
     m->nu_triangles = LONGITUDE_SEGMENTS * LATITUDE_SEGMENTS * 2;
-    m->triangle = new ModelTriangle[LONGITUDE_SEGMENTS * LATITUDE_SEGMENTS * 2];
+    m->triangle = new sreModelTriangle[LONGITUDE_SEGMENTS * LATITUDE_SEGMENTS * 2];
     int triangle_index = 0;
     for (int i = 0; i < LONGITUDE_SEGMENTS; i++) {
         for (int j = 0; j < LATITUDE_SEGMENTS; j++) {
@@ -180,7 +180,7 @@ sreModel *sreCreateParticleSystemModel(sreScene *scene, int n, bool is_halo) {
     sreLODModel *lm = m->lod_model[0] = sreNewLODModelNoShadowVolume();
     m->nu_lod_levels = 1;
     lm->vertex = new Point3D[4 * n];
-    lm->triangle = new ModelTriangle[2 * n];
+    lm->triangle = new sreModelTriangle[2 * n];
     lm->nu_vertices = 4 * n;
     lm->nu_triangles = 2 * n;
     // Assign the triangles.
@@ -209,7 +209,7 @@ sreModel *sreCreateUnitBlockModel(sreScene *scene) {
     lm->nu_triangles = 12;
     lm->nu_vertices = 24;
     lm->vertex = new Point3D[lm->nu_vertices];
-    lm->triangle = new ModelTriangle[lm->nu_triangles];
+    lm->triangle = new sreModelTriangle[lm->nu_triangles];
     lm->texcoords = new Point2D[lm->nu_vertices];
     // We have to define the vertices for each face seperately to allow different normals at the same
     // vertex position.
@@ -497,7 +497,7 @@ sreModel *sreCreateRampModel(sreScene *scene, float xdim, float ydim, float zdim
     sreLODModel *lm = m->lod_model[0] = sreNewLODModel();
     m->nu_lod_levels = 1;
     lm->vertex = new Point3D[max_vertices];
-    lm->triangle = new ModelTriangle[max_triangles];
+    lm->triangle = new sreModelTriangle[max_triangles];
     lm->texcoords = new Point2D[max_vertices];
     lm->nu_vertices = 0;
     lm->nu_triangles = 0;
@@ -549,7 +549,7 @@ sreModel *sreCreateRingsModel(sreScene *scene, float min_radius, float max_radiu
         }
     }
     m->nu_triangles = RINGS_LONGITUDE_SEGMENTS * RINGS_RADIAL_SEGMENTS * 2;
-    m->triangle = new ModelTriangle[RINGS_LONGITUDE_SEGMENTS * RINGS_RADIAL_SEGMENTS * 2];
+    m->triangle = new sreModelTriangle[RINGS_LONGITUDE_SEGMENTS * RINGS_RADIAL_SEGMENTS * 2];
     int triangle_index = 0;
     for (int i = 0; i < RINGS_LONGITUDE_SEGMENTS; i++) {
         for (int j = 0; j < RINGS_RADIAL_SEGMENTS; j++) {
@@ -587,12 +587,12 @@ Color color1, Color color2) {
     m->nu_vertices = m->nu_triangles * 3;
     m->vertex = new Point3D[m->nu_vertices];
     m->colors = new Color[m->nu_vertices];
-    m->triangle = new ModelTriangle[m->nu_triangles];
+    m->triangle = new sreModelTriangle[m->nu_triangles];
     int i = 0;
     for (int y = 0; y < size; y++)
         for (int x = 0; x < size; x++) {
-            ModelTriangle *t1 = &m->triangle[(y * size + x) * 2];
-            ModelTriangle *t2 = &m->triangle[(y * size + x) * 2 + 1];
+            sreModelTriangle *t1 = &m->triangle[(y * size + x) * 2];
+            sreModelTriangle *t2 = &m->triangle[(y * size + x) * 2 + 1];
             Color color;
             if (((x + y) & 1) == 0)
                 color = color1;
@@ -664,7 +664,7 @@ int TORUS_LATITUDE_SEGMENTS, int TORUS_LONGITUDE_SEGMENTS_PER_TEXTURE, int TORUS
     m->vertex = new Point3D[m->nu_vertices];
     m->texcoords = new Point2D[m->nu_vertices];
     m->nu_triangles = TORUS_LONGITUDE_SEGMENTS * TORUS_LATITUDE_SEGMENTS * 2;
-    m->triangle = new ModelTriangle[m->nu_triangles];
+    m->triangle = new sreModelTriangle[m->nu_triangles];
     int v = 0;
     int tlongpt = TORUS_LONGITUDE_SEGMENTS_PER_TEXTURE;
     int tlatpt = TORUS_LATITUDE_SEGMENTS_PER_TEXTURE;
@@ -826,7 +826,7 @@ float GAP_WIDTH, float BAR_WIDTH, float THICKNESS) {
         (NU_HOLES_Y - 1) * ((NU_HOLES_X - 1) * (8 + 4 + 8) + 8) + (NU_HOLES_X - 1) * 8;
     int max_vertices = max_triangles * 2;
     m->vertex = new Point3D[max_vertices];
-    m->triangle = new ModelTriangle[max_triangles];
+    m->triangle = new sreModelTriangle[max_triangles];
     m->texcoords = new Point2D[max_vertices];
     m->nu_vertices = 0;
     m->nu_triangles = 0;
@@ -947,7 +947,7 @@ sreModel *sreCreateBlockModel(sreScene *scene, float xdim, float ydim, float zdi
     sreLODModel *m = model->lod_model[0] = sreNewLODModel();
     model->nu_lod_levels = 1;
     m->vertex = new Point3D[max_vertices];
-    m->triangle = new ModelTriangle[max_triangles];
+    m->triangle = new sreModelTriangle[max_triangles];
     m->texcoords = new Point2D[max_vertices];
     m->nu_vertices = 0;
     m->nu_triangles = 0;
@@ -981,11 +981,11 @@ sreModel *sreCreateRepeatingRectangleModel(sreScene *scene, float size, float un
     m->nu_triangles = 2;
     m->nu_vertices = m->nu_triangles * 3;
     m->vertex = new Point3D[m->nu_vertices];
-    m->triangle = new ModelTriangle[m->nu_triangles];
+    m->triangle = new sreModelTriangle[m->nu_triangles];
     m->texcoords = new Point2D[m->nu_vertices];
     int i = 0;
-    ModelTriangle *t1 = &m->triangle[0];
-    ModelTriangle *t2 = &m->triangle[1];
+    sreModelTriangle *t1 = &m->triangle[0];
+    sreModelTriangle *t2 = &m->triangle[1];
     m->vertex[i] = mesh[0];
     m->vertex[i + 1] = mesh[1];
     m->vertex[i + 2] = mesh[2];
@@ -1078,7 +1078,7 @@ bool include_top, bool include_bottom) {
         m->nu_triangles += LONGITUDE_SEGMENTS;
     if (include_bottom)
         m->nu_triangles += LONGITUDE_SEGMENTS;
-    m->triangle = new ModelTriangle[m->nu_triangles];
+    m->triangle = new sreModelTriangle[m->nu_triangles];
     int triangle_index = 0;
     for (int i = 0; i < LONGITUDE_SEGMENTS; i++) {
         m->triangle[triangle_index].AssignVertices(grid_vertex[i], grid_vertex[row_size + i],
@@ -1226,7 +1226,7 @@ float cap_radius, float length, float radius_y, float radius_z) {
     m->vertex = new Point3D[max_vertices];
     m->nu_vertices = 0;
     int max_triangles = LONGITUDE_SEGMENTS * (LATITUDE_SEGMENTS / 2) * 2 * 2 + LONGITUDE_SEGMENTS * 2;
-    m->triangle = new ModelTriangle[max_triangles];
+    m->triangle = new sreModelTriangle[max_triangles];
     m->nu_triangles = 0;
     AddHalfEllipsoid(m, LONGITUDE_SEGMENTS, LATITUDE_SEGMENTS, cap_radius, length * 0.5, true, radius_y, radius_z);
     AddSquashedCylinderHull(m, LONGITUDE_SEGMENTS, length, radius_y, radius_z);
@@ -1343,8 +1343,8 @@ Vector3D rotation, float scaling) {
             new_vertex_tangent[compound_model->nu_vertices + i] = Vector4D(rotation_matrix *
                 m->vertex_tangent[i].GetVector3D(), m->vertex_tangent[i].w);
     }
-    ModelTriangle *new_triangle = new ModelTriangle[compound_model->nu_triangles + m->nu_triangles];
-    memcpy(new_triangle, compound_model->triangle, sizeof(ModelTriangle) * compound_model->nu_triangles);
+    sreModelTriangle *new_triangle = new sreModelTriangle[compound_model->nu_triangles + m->nu_triangles];
+    memcpy(new_triangle, compound_model->triangle, sizeof(sreModelTriangle) * compound_model->nu_triangles);
     for (int i = 0; i < m->nu_triangles; i++) {
         new_triangle[compound_model->nu_triangles + i].normal = rotation_matrix * m->triangle[i].normal;
         for (int j = 0; j < 3; j++)

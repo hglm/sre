@@ -456,16 +456,16 @@ public :
     void CompleteParameters();
 };
 
-class ShadowVolume : public sreBoundingVolume {
+class sreShadowVolume : public sreBoundingVolume {
 public :
     int light;
 
-    ShadowVolume() { }
+    sreShadowVolume() { }
 };
 
 // Triangle in a model.
 
-class SRE_API ModelTriangle {
+class SRE_API sreModelTriangle {
 public:
     int vertex_index[3];
     Vector3D normal;
@@ -484,13 +484,13 @@ public:
 
 // For optional geometry preprocessing, polygons may be used.
 
-class SRE_API ModelPolygon {
+class SRE_API sreModelPolygon {
 public:
     int *vertex_index;
     Vector3D normal;
     int nu_vertices;
 
-    ModelPolygon();
+    sreModelPolygon();
     void InitializeWithSize(int n);
     void AddVertex(int i);
 };
@@ -545,7 +545,7 @@ public :
     int nu_vertices;
     int nu_triangles;
     Point3D *vertex;
-    ModelTriangle *triangle;
+    sreModelTriangle *triangle;
     Vector3D *vertex_normal;
     Vector4D *vertex_tangent;
     Point2D *texcoords;
@@ -808,7 +808,7 @@ public:
     // Preprocessing stage structures.
     int nu_polygons;
     bool is_static;
-    ModelPolygon *polygon;
+    sreModelPolygon *polygon;
     // Bounding volume variables.
     int bounds_flags;
     // PCA components (R, S and T). Includes normalized PCA vector (PCA[i].vector)
@@ -948,7 +948,7 @@ public:
     }
 };
 
-class Frustum;
+class sreFrustum;
 
 // Scissors region used for GPU scissors optimization.
 
@@ -1032,9 +1032,9 @@ public :
         return near == scissors.near && far == scissors.far;
     }
     void UpdateWithWorldSpaceBoundingHull(Point3D *P, int n);
-    bool UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const Frustum& frustum);
-    bool UpdateWithWorldSpaceBoundingPolyhedron(Point3D *P, int n, const Frustum& frustum);
-    sreScissorsRegionType UpdateWithWorldSpaceBoundingPyramid(Point3D *P, int n, const Frustum& frustum);
+    bool UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const sreFrustum& frustum);
+    bool UpdateWithWorldSpaceBoundingPolyhedron(Point3D *P, int n, const sreFrustum& frustum);
+    sreScissorsRegionType UpdateWithWorldSpaceBoundingPyramid(Point3D *P, int n, const sreFrustum& frustum);
     void Print();
 };
 
@@ -1049,7 +1049,7 @@ enum {
     SRE_OBJECT_TRANSFORMATION_CHANGE = 2
 };
 
-class SceneEntityList;
+class sreSceneEntityList;
 
 // These flags apply to scene objects (sreObject::flags).
 enum {
@@ -1102,7 +1102,7 @@ public :
 
 class SRE_API sreObject {
 public:
-    // Pointer to the object definition of which SceneObject is an instantiation.
+    // Pointer to the object definition of which sreObject is an instantiation.
     sreModel *model;
     int id;
     bool exists;
@@ -1169,7 +1169,7 @@ public:
     float mass;
     Vector3D collision_shape_center_offset;
     Matrix3D *original_rotation_matrix;
-    SceneEntityList *octree_list;
+    sreSceneEntityList *octree_list;
     // Keeping track of the frequency of position and orientation changes.
     int most_recent_position_change;
     int most_recent_transformation_change;
@@ -1177,7 +1177,7 @@ public:
     int rapid_change_flags;
     // Precalculated static shadow volumes (pyramids or half cylinders).
     int nu_shadow_volumes;
-    ShadowVolume **shadow_volume;
+    sreShadowVolume **shadow_volume;
     // Rendering attributes.
     // Cache of geometry scissors for static lights.
     sreScissorsCacheEntry *geometry_scissors_cache;
@@ -1195,10 +1195,10 @@ public:
     sreModel *ConvertToStaticScenery() const;
     void CalculateAABB();
     bool IntersectsWithLightVolume(const sreLight& light) const;
-    BoundsCheckResult CalculateGeometryScissors(const sreLight& light, const Frustum &frustum,
+    BoundsCheckResult CalculateGeometryScissors(const sreLight& light, const sreFrustum &frustum,
         sreScissors& scissors);
-    bool CalculateShadowVolumeScissors(const sreLight& light, const Frustum& frustum,
-        const ShadowVolume& sv, sreScissors& shadow_volume_scissors) const;
+    bool CalculateShadowVolumeScissors(const sreLight& light, const sreFrustum& frustum,
+        const sreShadowVolume& sv, sreScissors& shadow_volume_scissors) const;
     sreBoundingVolumeType CalculateShadowVolumePyramid(const sreLight& light, Point3D *Q,
         int &n_convex_hull) const;
     sreBoundingVolumeType CalculatePointSourceOrSpotShadowVolume(const sreLight& light, Point3D *Q,
@@ -1208,9 +1208,9 @@ public:
     sreBoundingVolumeType CalculateShadowVolumeCylinderForBeamLight(
         const sreLight& light, Point3D& center, float& length, Vector3D& cylinder_axis,
         float& cylinder_radius) const;
-    void AddShadowVolume(ShadowVolume *sv);
-    ShadowVolume *LookupShadowVolume(int light_index) const;
-    void CalculateTemporaryShadowVolume(const sreLight& light, ShadowVolume **sv) const;
+    void AddShadowVolume(sreShadowVolume *sv);
+    sreShadowVolume *LookupShadowVolume(int light_index) const;
+    void CalculateTemporaryShadowVolume(const sreLight& light, sreShadowVolume **sv) const;
     bool IsChangingPositionEveryFrame(int current_frame) const {
         return (rapid_change_flags & SRE_OBJECT_POSITION_CHANGE)
             && (most_recent_position_change == current_frame); 
@@ -1228,24 +1228,21 @@ public:
     }
 };
 
-// Compatibility with old code.
-typedef sreObject SceneObject;
-
 // Linked list of integer ids (used for objects in a few cases; however
 // most data structures are array-based for performance).
 
-class SceneObjectListElement {
+class sreObjectListElement {
 public :
     int so;
-    SceneObjectListElement *next;
+    sreObjectListElement *next;
 };
 
-class SceneObjectList {
+class sreObjectList {
 public :
-   SceneObjectListElement *head;
-   SceneObjectListElement *tail;
+   sreObjectListElement *head;
+   sreObjectListElement *tail;
 
-   SceneObjectList();
+   sreObjectList();
    void AddElement(int so);
    void DeleteElement(int so);
    int Pop();
@@ -1254,37 +1251,37 @@ public :
 
 // Types for octree storage (only used during octree creation).
 
-enum SceneEntityType { SRE_ENTITY_OBJECT, SRE_ENTITY_LIGHT };
+enum sreSceneEntityType { SRE_ENTITY_OBJECT, SRE_ENTITY_LIGHT };
 
-class SceneEntity {
+class sreSceneEntity {
 public :
     int type;
     union {
-        SceneObject *so;
+        sreObject *so;
         sreLight *light;
     };
 };
 
-class SceneEntityListElement {
+class sreSceneEntityListElement {
 public :
-    SceneEntity *entity;
-    SceneEntityListElement *next;
+    sreSceneEntity *entity;
+    sreSceneEntityListElement *next;
 };
 
-class SceneEntityList {
+class sreSceneEntityList {
 public :
-   SceneEntityListElement *head;
-   SceneEntityListElement *tail;
+   sreSceneEntityListElement *head;
+   sreSceneEntityListElement *tail;
 
-   SceneEntityList();
-   void AddElement(SceneEntity *entity);
-   void DeleteElement(SceneEntity *entity);
-   void DeleteSceneObject(SceneObject *so);
-   SceneEntity *Pop();
+   sreSceneEntityList();
+   void AddElement(sreSceneEntity *entity);
+   void DeleteElement(sreSceneEntity *entity);
+   void DeletesreObject(sreObject *so);
+   sreSceneEntity *Pop();
    void MakeEmpty();
 };
 
-class OctreeNodeBounds {
+class sreOctreeNodeBounds {
 public :
     sreBoundingVolumeAABB AABB;
     sreBoundingVolumeSphere sphere;
@@ -1292,9 +1289,9 @@ public :
 
 // Optimized octree.
 
-class SRE_API FastOctree {
+class SRE_API sreFastOctree {
 public :
-    OctreeNodeBounds *node_bounds;
+    sreOctreeNodeBounds *node_bounds;
     unsigned int *array;
 
     int GetNumberOfOctants(int offset) const {
@@ -1307,7 +1304,7 @@ public :
         return (char)array[offset];
 #endif
     }
-    void GetEntity(int offset, SceneEntityType& type, int& index) const {
+    void GetEntity(int offset, sreSceneEntityType& type, int& index) const {
         unsigned int value = array[offset];
         if (value & 0x80000000) {
             type = SRE_ENTITY_LIGHT;
@@ -1327,7 +1324,7 @@ public :
 #define SRE_LIGHT_POSITION_BEHIND_NEAR_PLANE 4
 #define SRE_LIGHT_POSITION_POINT_LIGHT 8
 
-class Frustum {
+class sreFrustum {
 public:
     // The most recent frame when the frustum changed.
     int most_recent_frame_changed;
@@ -1355,7 +1352,7 @@ public:
     // library's internally defined eye-space shadow map region.
     sreBoundingVolumeAABB shadow_map_region_AABB;
 
-    Frustum();
+    sreFrustum();
     // Set frustum projection parameters.
     void SetParameters(float angle, float ratio, float nearD, float farD);
     // Calculate frustum plane data based on current view matrix and projection parameters.
@@ -1364,11 +1361,11 @@ public:
     void CalculateNearClipVolume(const Vector4D& lightpos);
     void CalculateShadowCasterVolume(const Vector4D& lightpos, int nu_frustum_planes);
     void CalculateLightScissors(sreLight *light);
-    // Frustum-specific intersection tests.
-    // The const behind the function definition means the Frustum structure remains constant.
-    bool ObjectIntersectsNearClipVolume(const SceneObject& so) const;
-    bool ShadowVolumeIsOutsideFrustum(ShadowVolume& sv) const;
-    bool DarkCapIsOutsideFrustum(ShadowVolume& sv) const;
+    // sreFrustum-specific intersection tests.
+    // The const behind the function definition means the sreFrustum structure remains constant.
+    bool ObjectIntersectsNearClipVolume(const sreObject& so) const;
+    bool ShadowVolumeIsOutsideFrustum(sreShadowVolume& sv) const;
+    bool DarkCapIsOutsideFrustum(sreShadowVolume& sv) const;
     // Whether object is visible in the current frame, based on time-stamp comparison
     // of when the frustum last changed and the object's most recent visibility determination.
     bool ObjectIsVisibleInCurrentFrame(const sreObject& so, int current_frame) const {
@@ -1486,10 +1483,10 @@ public:
     int max_scene_objects;
     int max_models;
     int nu_lod_models;
-    FastOctree fast_octree_static;
-    FastOctree fast_octree_static_infinite_distance;
-    FastOctree fast_octree_dynamic;
-    FastOctree fast_octree_dynamic_infinite_distance;
+    sreFastOctree fast_octree_static;
+    sreFastOctree fast_octree_static_infinite_distance;
+    sreFastOctree fast_octree_dynamic;
+    sreFastOctree fast_octree_dynamic_infinite_distance;
     int nu_root_node_objects;
     int *visible_object;
     int *final_pass_object;
@@ -1512,7 +1509,7 @@ public:
     int nu_active_lights;
     int active_light[SRE_MAX_ACTIVE_LIGHTS];
     // List of deleted scene objects.
-    SceneObjectList *deleted_ids;
+    sreObjectList *deleted_ids;
     // State variables used during scene construction.
     Color current_diffuse_reflection_color;
     int current_flags;
@@ -1625,7 +1622,7 @@ public:
     // Handling of objects (functions used internally).
     void InstantiateObject(int object_index) const;
     void InstantiateObjectRotationMatrixAlreadySet(int object_index) const;
-    void FinishObjectInstantiation(SceneObject& so, bool rotated) const;
+    void FinishObjectInstantiation(sreObject& so, bool rotated) const;
     void DeleteObject(int object_index);
     int AddParticleSystem(sreModel *model, int nu_particles, Point3D center,
         float worst_case_bounding_sphere_radius, Vector3D *particles);
@@ -1652,7 +1649,7 @@ public:
     void InvalidateLightingShaders(int object_index) const;
     // sreModel processing functions used for preprocessing and when uploading models to the GPU.
     bool EliminateTJunctionsForModels(sreModel& o1, const sreModel& o2) const;
-    void DetermineStaticIntersectingObjects(const FastOctree& fast_oct, int array_index, int model_index,
+    void DetermineStaticIntersectingObjects(const sreFastOctree& fast_oct, int array_index, int model_index,
         const sreBoundingVolumeAABB& AABB, int *static_object_belonging_to_sceneobject, int &nu_intersecting_objects,
         int *intersecting_objects) const;
     void EliminateTJunctions();
@@ -1663,7 +1660,7 @@ public:
     void PrepareForRendering(bool preprocess_static_scenery);
     // Octree creation and static light volume objects calculation.
     void CreateOctrees();
-    void DetermineStaticLightVolumeIntersectingObjects(const FastOctree& fast_oct, int array_index,
+    void DetermineStaticLightVolumeIntersectingObjects(const sreFastOctree& fast_oct, int array_index,
         const sreLight& light, int &nu_intersecting_objects, int *intersecting_object) const;
     void CalculateStaticLightObjectLists();
     // Model objects.
@@ -1681,38 +1678,38 @@ public:
         return false;
     }
     // Internal functions used during rendering.
-    void DetermineObjectIsVisible(SceneObject& so, const Frustum& f, BoundsCheckResult r);
+    void DetermineObjectIsVisible(sreObject& so, const sreFrustum& f, BoundsCheckResult r);
     void CheckVisibleLightCapacity();
-    void DetermineFastOctreeNodeVisibleEntities(const FastOctree& fast_oct,
-        const Frustum& frustum, BoundsCheckResult bounds_check_result,
+    void DetermineFastOctreeNodeVisibleEntities(const sreFastOctree& fast_oct,
+        const sreFrustum& frustum, BoundsCheckResult bounds_check_result,
         int array_index, int nu_entities);
-    void DetermineVisibleEntitiesInFastOctree(const FastOctree& fast_octree, int array_index,
-        const Frustum& f, BoundsCheckResult r);
-    void DetermineVisibleEntitiesInFastOctreeNonRootNode(const FastOctree& fast_octree, int array_index,
-        const Frustum& f, BoundsCheckResult r);
-    void DetermineVisibleEntitiesInFastOctreeRootNode(const FastOctree& fast_octree, int array_index,
-        const Frustum& f, BoundsCheckResult r);
-    void DetermineVisibleEntitiesInFastStrictOptimizedOctree(const FastOctree& fast_oct,
-        const OctreeNodeBounds& node_bounds, int array_index, const Frustum& frustum,
+    void DetermineVisibleEntitiesInFastOctree(const sreFastOctree& fast_octree, int array_index,
+        const sreFrustum& f, BoundsCheckResult r);
+    void DetermineVisibleEntitiesInFastOctreeNonRootNode(const sreFastOctree& fast_octree, int array_index,
+        const sreFrustum& f, BoundsCheckResult r);
+    void DetermineVisibleEntitiesInFastOctreeRootNode(const sreFastOctree& fast_octree, int array_index,
+        const sreFrustum& f, BoundsCheckResult r);
+    void DetermineVisibleEntitiesInFastStrictOptimizedOctree(const sreFastOctree& fast_oct,
+        const sreOctreeNodeBounds& node_bounds, int array_index, const sreFrustum& frustum,
         BoundsCheckResult bounds_check_result);
-    void DetermineVisibleEntitiesInFastStrictOptimizedOctreeNonRootNode(const FastOctree& fast_oct,
-        const OctreeNodeBounds& node_bounds, int array_index, const Frustum& frustum,
+    void DetermineVisibleEntitiesInFastStrictOptimizedOctreeNonRootNode(const sreFastOctree& fast_oct,
+        const sreOctreeNodeBounds& node_bounds, int array_index, const sreFrustum& frustum,
         BoundsCheckResult bounds_check_result);
-    void DetermineVisibleEntitiesInFastStrictOptimizedOctreeRootNode(const FastOctree& fast_oct,
-        int array_index, const Frustum& frustum, BoundsCheckResult bounds_check_result);
-    void DetermineVisibleEntities(const Frustum& f);
-    void RenderVisibleObjectsSinglePass(const Frustum&) const;
-    void RenderFinalPassObjectsSinglePass(const Frustum&) const;
-    void RenderVisibleObjectsAmbientPass(const Frustum&) const;
-    void RenderVisibleObjectsLightingPass(const Frustum& f, const sreLight& light) const;
-    void RenderFinalPassObjectsMultiPass(const Frustum& f) const;
-    void UpdateGeometryScissorsCacheData(const Frustum& frustum, const sreLight& light) const;
+    void DetermineVisibleEntitiesInFastStrictOptimizedOctreeRootNode(const sreFastOctree& fast_oct,
+        int array_index, const sreFrustum& frustum, BoundsCheckResult bounds_check_result);
+    void DetermineVisibleEntities(const sreFrustum& f);
+    void RenderVisibleObjectsSinglePass(const sreFrustum&) const;
+    void RenderFinalPassObjectsSinglePass(const sreFrustum&) const;
+    void RenderVisibleObjectsAmbientPass(const sreFrustum&) const;
+    void RenderVisibleObjectsLightingPass(const sreFrustum& f, const sreLight& light) const;
+    void RenderFinalPassObjectsMultiPass(const sreFrustum& f) const;
+    void UpdateGeometryScissorsCacheData(const sreFrustum& frustum, const sreLight& light) const;
     // Render lighting passes with shadow volumes or shadow mapping. Will change the shadow caster
     // array in sreScene for each light.
-    void RenderLightingPasses(Frustum *f, sreView *view);
-    void RenderLightingPassesNoShadow(Frustum *f, sreView *view);
+    void RenderLightingPasses(sreFrustum *f, sreView *view);
+    void RenderLightingPassesNoShadow(sreFrustum *f, sreView *view);
     void ApplyGlobalTextureParameters(int flags, int filter, float anisotropy);
-    void sreVisualizeShadowMap(int light_index, Frustum *frustum);
+    void sreVisualizeShadowMap(int light_index, sreFrustum *frustum);
     // Physics.
     void DoBulletPhysics(double previous_time, double current_time) const;
     void BulletApplyCentralImpulse(int object_index, const Vector3D& v) const;
@@ -1721,9 +1718,6 @@ public:
     void BulletChangeVelocity(int soi, Vector3D velocity) const;
     void BulletChangeRotationMatrix(int soi, const Matrix3D& rot_matrix) const;
 };
-
-// Define Scene for backwards compatibility.
-typedef sreScene Scene;
 
 enum { SRE_OPENGL_VERSION_CORE = 0, SRE_OPENGL_VERSION_ES2 };
 

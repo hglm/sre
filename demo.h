@@ -23,7 +23,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #endif
 
 // Defined in main.cpp
-extern Scene *scene;
+extern sreScene *scene;
 extern sreView *view;
 extern bool lock_panning;
 extern void (*RenderFunc)();

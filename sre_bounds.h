@@ -252,13 +252,13 @@ BoundsCheckResult QueryIntersectionFull(const sreObject& so, const sreLight& lig
 
 BoundsCheckResult QueryIntersection(const sreObject& so, const sreBoundingVolumeSphere& sphere);
 
-BoundsCheckResult QueryIntersection(const OctreeNodeBounds& octree_bounds,
+BoundsCheckResult QueryIntersection(const sreOctreeNodeBounds& octree_bounds,
     const sreBoundingVolumeConvexHull& ch);
 
-BoundsCheckResult QueryIntersection(const OctreeNodeBounds& octree_bounds,
+BoundsCheckResult QueryIntersection(const sreOctreeNodeBounds& octree_bounds,
     const sreBoundingVolumeSphere& sphere);
 
-BoundsCheckResult QueryIntersection(const OctreeNodeBounds& octree_bounds, const sreLight& light);
+BoundsCheckResult QueryIntersection(const sreOctreeNodeBounds& octree_bounds, const sreLight& light);
 
 bool IsCompletelyInside(const sreLight& light, const sreBoundingVolumeAABB& AABB);
 

@@ -177,7 +177,7 @@ void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
     texcoords[v].Set(0, 0);
     v++;
 #endif
-    ModelTriangle *triangle = new ModelTriangle[(MESH_WIDTH - 1) * (MESH_HEIGHT - 1) * 2];
+    sreModelTriangle *triangle = new sreModelTriangle[(MESH_WIDTH - 1) * (MESH_HEIGHT - 1) * 2];
     int t = 0;
     for (int y = 0; y < MESH_HEIGHT - 1; y++)
         for (int x = 0; x < MESH_WIDTH - 1; x++) {
@@ -516,7 +516,7 @@ void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
             int counted_triangles_ymin = 0;
             int counted_triangles_ymax = 0;
 #endif
-            m->triangle = new ModelTriangle[m->nu_triangles];
+            m->triangle = new sreModelTriangle[m->nu_triangles];
             int t = 0;
             for (int y = 0; y < h - 1; y++)
                 for (int x = 0; x < w - 1; x++) {

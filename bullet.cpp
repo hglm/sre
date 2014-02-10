@@ -50,7 +50,7 @@ public :
     virtual ~MyMotionState() {
     }
 
-    void setSceneObject(int so_index) {
+    void setsreObject(int so_index) {
         mSoi = so_index;
     }
 
@@ -67,7 +67,7 @@ public :
         rot2.Set(row0.x(), row0.y(), row0.z(), row1.x(), row1.y(), row1.z(),
             row2.x(), row2.y(), row2.z());
         btVector3 pos = worldTrans.getOrigin();
-        SceneObject *so = scene->sceneobject[mSoi];
+        sreObject *so = scene->sceneobject[mSoi];
         Point3D position;
         position.Set(pos.x(), pos.y(), pos.z());
         position -= rot2 * so->collision_shape_center_offset;
@@ -84,10 +84,10 @@ public :
 class CollisionShapeInfo {
 public:
     btCollisionShape *shape;
-    SceneObject *so;
+    sreObject *so;
 };
 
-static bool IsSameScale(SceneObject *so1, SceneObject *so2) {
+static bool IsSameScale(sreObject *so1, sreObject *so2) {
     if (so1->scaling != so2->scaling)
         return false;
     return true;
@@ -141,7 +141,7 @@ void BulletInitialize() {
     bool *collision_shape_is_static = (bool *)alloca(sizeof(bool) * scene->nu_objects);
     bool *collision_shape_is_absolute = (bool *)alloca(sizeof(bool) * scene->nu_objects);
     for (int i = 0; i < scene->nu_objects; i++) {
-        SceneObject *so = scene->sceneobject[i];
+        sreObject *so = scene->sceneobject[i];
         if (so->flags & SRE_OBJECT_NO_PHYSICS)
             continue;
         // Pick LOD level 0. Chosing a lower detail LOD level may help performance.
@@ -317,7 +317,7 @@ void BulletInitialize() {
 
     // Add the objects to the collision world.
     for (int i = 0; i < scene->nu_objects; i++) {
-        SceneObject *so = scene->sceneobject[i];
+        sreObject *so = scene->sceneobject[i];
         if (so->flags & SRE_OBJECT_NO_PHYSICS)
             continue;
         // Static object instantiation. Generally physics objects with the

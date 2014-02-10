@@ -40,7 +40,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // Calculate the level of detail model to use.
 
-sreLODModel *sreCalculateLODModel(const SceneObject& so) {
+sreLODModel *sreCalculateLODModel(const sreObject& so) {
     sreModel *m = so.model;
     if (so.lod_flags & SRE_LOD_FIXED) {
         return m->lod_model[so.lod_level];
@@ -136,7 +136,7 @@ void sreLODModel::SetupAttributesInterleaved(sreObjectAttributeInfo *info) const
     } while (mask != 0);
 }
 
-static void GL3SetGLFlags(SceneObject *so) {
+static void GL3SetGLFlags(sreObject *so) {
     if (so->render_flags & SRE_OBJECT_INFINITE_DISTANCE) {
         glDepthMask(GL_FALSE);
     }
@@ -155,7 +155,7 @@ static void GL3SetGLFlags(SceneObject *so) {
 #endif
 }
 
-static void GL3ResetGLFlags(SceneObject *so) {
+static void GL3ResetGLFlags(sreObject *so) {
     if (so->render_flags & SRE_OBJECT_INFINITE_DISTANCE) {
         glDepthMask(GL_TRUE);
     }
@@ -171,7 +171,7 @@ static void GL3ResetGLFlags(SceneObject *so) {
 #endif
 }
 
-void sreDrawObjectLightHalo(SceneObject *so) {
+void sreDrawObjectLightHalo(sreObject *so) {
     // Initialize the shader.
     sreInitializeObjectShaderLightHalo(*so);
     sreLODModel *m = so->model->lod_model[0];
@@ -218,7 +218,7 @@ void sreDrawObjectLightHalo(SceneObject *so) {
 
 // Draw billboard object (single or particle system).
 
-void sreDrawObjectBillboard(SceneObject *so) {
+void sreDrawObjectBillboard(sreObject *so) {
     // Initialize the shader.
     sreInitializeObjectShaderBillboard(*so);
     sreLODModel *m = so->model->lod_model[0];
@@ -301,7 +301,7 @@ const sreAttributeInfo& model_attribute_info) {
 // This function issue the actual draw commands. The attribute information in info must be
 // initialized.
 
-static void sreFinishDrawingObject(SceneObject *so, sreLODModel *m,
+static void sreFinishDrawingObject(sreObject *so, sreLODModel *m,
 sreObjectAttributeInfo *info) {
     if (info->attribute_masks & 0xFF)
         m->SetupAttributesNonInterleaved(info);
@@ -384,7 +384,7 @@ static void PrintAttributeList(sreObjectAttributeInfo *info, bool interleaved) {
     }
 }
 
-static void PrintShaderInfo(const SceneObject *so, sreLODModel *m, sreObjectAttributeInfo *info,
+static void PrintShaderInfo(const sreObject *so, sreLODModel *m, sreObjectAttributeInfo *info,
 const char *pass,  int light_type_slot) {
     if (sre_internal_debug_message_level >= SRE_MESSAGE_LOG) {
         sreMessageNoNewline(SRE_MESSAGE_LOG,
@@ -400,7 +400,7 @@ const char *pass,  int light_type_slot) {
     }
 }
 
-static void PrintNewShaderInfo(const SceneObject *so, sreLODModel *m, sreObjectAttributeInfo *info,
+static void PrintNewShaderInfo(const sreObject *so, sreLODModel *m, sreObjectAttributeInfo *info,
 const char *pass, int light_type_slot) {
     if (sre_internal_debug_message_level >= SRE_MESSAGE_LOG) {
         sreMessage(SRE_MESSAGE_LOG, ("New shader selected: ");
@@ -408,7 +408,7 @@ const char *pass, int light_type_slot) {
     }
 }
 
-static void PrintDrawObjectInfo(const SceneObject *so, sreLODModel *m, sreObjectAttributeInfo *info,
+static void PrintDrawObjectInfo(const sreObject *so, sreLODModel *m, sreObjectAttributeInfo *info,
 const char *pass, int light_type_slot) {
     if (sre_internal_debug_message_level >= SRE_MESSAGE_VERBOSE_LOG) {
         sreMessage(SRE_MESSAGE_VERBOSE_LOG, ("sreDrawObject: ");
@@ -418,7 +418,7 @@ const char *pass, int light_type_slot) {
 
 #endif
 
-static inline void SetRenderFlags(SceneObject *so) {
+static inline void SetRenderFlags(sreObject *so) {
     so->render_flags = so->flags & sre_internal_object_flags_mask;
 }
 
@@ -430,7 +430,7 @@ static inline void SetRenderFlags(SceneObject *so) {
 //   SRE_OBJECT_PARTICLE_SYSTEM flags set, which indicates they consist of one or multiple billboards.
 //   They may be transparent such as halos or transparent emission maps.
 
-void sreDrawObjectFinalPass(SceneObject *so) {
+void sreDrawObjectFinalPass(sreObject *so) {
     // Explicitly apply the render settings object flags mask.
     SetRenderFlags(so);
     if (so->render_flags & SRE_OBJECT_LIGHT_HALO) {
@@ -490,7 +490,7 @@ void sreDrawObjectFinalPass(SceneObject *so) {
     sreFinishDrawingObject(so, m, &so->attribute_info);
 }
 
-void sreDrawObjectSinglePass(SceneObject *so) {
+void sreDrawObjectSinglePass(sreObject *so) {
     bool new_shader_selected = sreInitializeObjectShaderSinglePass(*so);
 
     GL3SetGLFlags(so);
@@ -539,7 +539,7 @@ void sreDrawObjectSinglePass(SceneObject *so) {
 // (multi-pass SHADER1), and certain attributes (such as normals and tangents) aren't used,
 // as well as normal maps and specularity maps.
 
-void sreDrawObjectAmbientPass(SceneObject *so) {
+void sreDrawObjectAmbientPass(sreObject *so) {
    bool new_shader_selected = sreInitializeObjectShaderAmbientPass(*so);
 
    GL3SetGLFlags(so);
@@ -575,7 +575,7 @@ void sreDrawObjectAmbientPass(SceneObject *so) {
     sreFinishDrawingObject(so, m, &so->attribute_info_ambient_pass);
 }
 
-void sreDrawObjectMultiPassLightingPass(SceneObject *so, bool shadow_map_required) {
+void sreDrawObjectMultiPassLightingPass(sreObject *so, bool shadow_map_required) {
     bool new_shader_selected;
     sreObjectAttributeInfo *info;
     if (shadow_map_required) {

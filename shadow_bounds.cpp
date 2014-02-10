@@ -50,7 +50,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // can happen with a completely flat object that is oriented parallel to the light direction),
 // or SRE_BOUNDING_VOLUME_EVERYWHERE if no shadow volume could be calculated).
 
-sreBoundingVolumeType SceneObject::CalculateShadowVolumePyramid(const sreLight& light, Point3D *Q,
+sreBoundingVolumeType sreObject::CalculateShadowVolumePyramid(const sreLight& light, Point3D *Q,
 int& n_convex_hull) const {
         bool P_included[8];
         if (box.PCA[2].SizeIsZero()) {
@@ -151,7 +151,7 @@ again :
 // can happen with a completely flat object that is oriented parallel to the light direction),
 // or SRE_BOUNDING_VOLUME_EVERYWHERE if no shadow volume could be calculated).
 
-sreBoundingVolumeType SceneObject::CalculatePointSourceOrSpotShadowVolume(
+sreBoundingVolumeType sreObject::CalculatePointSourceOrSpotShadowVolume(
 const sreLight& light, Point3D *Q, int& n_convex_hull, Vector3D& axis, float& radius,
 float& cos_half_angular_size) const {
         bool P_included[8];
@@ -238,7 +238,7 @@ float& cos_half_angular_size) const {
 // (cylinder that is open-ended on one end) is created, based on the object's bounding sphere.
 // Always returns the bounding volume type SRE_BOUNDING_VOLUME_HALF_CYLINDER.
 
-sreBoundingVolumeType SceneObject::CalculateShadowVolumeHalfCylinderForDirectionalLight(
+sreBoundingVolumeType sreObject::CalculateShadowVolumeHalfCylinderForDirectionalLight(
 const sreLight& light, Point3D &E, float& cylinder_radius, Vector3D& cylinder_axis) const {
     // Calculate the endpoint. It is situated on the bounding sphere of the object in
     // the direction of where the light is (which is the inverse of the direction of the
@@ -300,8 +300,8 @@ float& cylinder_radius) const {
 // However, SRE_BOUNDING_SPHERICAL_SECTOR may be used in certain cases, and for beam lights,
 // a potential cylinder-shaped shadow volume would have to converted to a box.
 
-bool SceneObject::CalculateShadowVolumeScissors(const sreLight& light, const Frustum& frustum,
-const ShadowVolume& sv, sreScissors& shadow_volume_scissors) const {
+bool sreObject::CalculateShadowVolumeScissors(const sreLight& light, const sreFrustum& frustum,
+const sreShadowVolume& sv, sreScissors& shadow_volume_scissors) const {
     if (sv.type == SRE_BOUNDING_VOLUME_PYRAMID_CONE) {
         shadow_volume_scissors.SetEmptyRegion();
         sreScissorsRegionType t = shadow_volume_scissors.UpdateWithWorldSpaceBoundingPyramid(
@@ -323,7 +323,7 @@ const ShadowVolume& sv, sreScissors& shadow_volume_scissors) const {
 // Temporary shadow volume structures used when a geometrical shadow volume has
 // to be calculated, but not stored, on the fly.
 
-static ShadowVolume sre_internal_sv_pyramid, sre_internal_sv_half_cylinder,
+static sreShadowVolume sre_internal_sv_pyramid, sre_internal_sv_half_cylinder,
     sre_internal_sv_cylinder, sre_internal_sv_pyramid_cone, sre_internal_sv_spherical_sector;
 
 void sreInitializeInternalShadowVolume() {
@@ -352,7 +352,7 @@ void sreInitializeInternalShadowVolume() {
 // The shadow volume is for temporary use and may only be valid until the next
 // shadow volume is calculate using this function. It should not be freed.
 
-void SceneObject::CalculateTemporaryShadowVolume(const sreLight& light, ShadowVolume **sv) const {
+void sreObject::CalculateTemporaryShadowVolume(const sreLight& light, sreShadowVolume **sv) const {
     // If the light does not produce changing shadow volumes out of itself,
     // and the object does not move, look up the precalculated shadow volume
     // in the object's static shadow volume list.
@@ -412,7 +412,7 @@ void SceneObject::CalculateTemporaryShadowVolume(const sreLight& light, ShadowVo
     (*sv)->type = t; // Normally SRE_BOUNDING_VOLUME_PYRAMID_CONE.
     (*sv)->is_complete = true;
     if (t == SRE_BOUNDING_VOLUME_SPHERICAL_SECTOR) {
-        ShadowVolume *sv2;
+        sreShadowVolume *sv2;
         sv2 = &sre_internal_sv_spherical_sector;
         sv2->spherical_sector->radius = (*sv)->pyramid_cone->radius;
         sv2->spherical_sector->axis = (*sv)->pyramid_cone->axis;

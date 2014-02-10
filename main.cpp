@@ -29,7 +29,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "demo.h"
 #include "gui-common.h"
 
-Scene *scene;
+sreScene *scene;
 sreView *view;
 bool lock_panning = false;
 

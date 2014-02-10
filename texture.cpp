@@ -959,7 +959,7 @@ static void RegisterTexture(sreTexture *tex, int type) {
     nu_registered_textures++;
 }
 
-void Scene::ApplyGlobalTextureParameters(int flags, int filter, float anisotropy) {
+void sreScene::ApplyGlobalTextureParameters(int flags, int filter, float anisotropy) {
     printf("Searching list of %d registered textures to apply new texture parameters.\n",
         nu_registered_textures);
     for (int i = 0; i < nu_registered_textures; i++) {

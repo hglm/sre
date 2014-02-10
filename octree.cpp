@@ -34,35 +34,35 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // Unoptimized octree used for initial octree creation.
 
-class Octree : public OctreeNodeBounds {
+class Octree : public sreOctreeNodeBounds {
 public :
 //    sreBoundingVolumeAABB AABB;
 //    sreBoundingVolumeBox box;
 //    float sphere_radius;
     Octree *subnode[8];
-    SceneEntityList entity_list;  // Linked list of entities used during creation process.
+    sreSceneEntityList entity_list;  // Linked list of entities used during creation process.
     int nu_entities;              // Converted to array of entities for performance.
-    SceneEntity *entity_array;
+    sreSceneEntity *entity_array;
 
     Octree();
     Octree(const Vector3D& dim_min, const Vector3D& dim_max);
     void Initialize(const Vector3D& dmin, const Vector3D& dmax);
-    void AddSceneObject(SceneObject& so);
-    void AddSceneObjectAtRootLevel(SceneObject& so);
+    void AddsreObject(sreObject& so);
+    void AddsreObjectAtRootLevel(sreObject& so);
     void AddLight(sreLight& light);
     void AddLightAtRootLevel(sreLight& light);
     void MakeEmpty();
     void CountNodes(int& counted_nodes, int& counted_leafs, int& counted_entities) const;
-    void AddEntitiesBalanced(int nu_input_entiies, SceneEntity *input_entity_array, int depth);
-    void AddEntitiesBalancedAtRootLevel(int nu_input_entities, SceneEntity *input_entity_array);
-    void AddEntityIntoBalancedOctree(const SceneEntity& entity);
-    void AddEntityIntoBalancedOctreeAtRootLevel(const SceneEntity& entity);
-    void ConvertToFastOctree(FastOctree& fast_oct);
+    void AddEntitiesBalanced(int nu_input_entiies, sreSceneEntity *input_entity_array, int depth);
+    void AddEntitiesBalancedAtRootLevel(int nu_input_entities, sreSceneEntity *input_entity_array);
+    void AddEntityIntoBalancedOctree(const sreSceneEntity& entity);
+    void AddEntityIntoBalancedOctreeAtRootLevel(const sreSceneEntity& entity);
+    void ConvertToFastOctree(sreFastOctree& fast_oct);
 private :
-    void AddEntityRecursive(SceneEntity *entity, int depth);
+    void AddEntityRecursive(sreSceneEntity *entity, int depth);
     void ConvertToArrays(int& counted_nodes, int& counted_leafs, int& counted_entities);
-    void ConvertToFastOctreeRecursive(FastOctree& fast_oct) const;
-    void ConvertToFastOctree(FastOctree& fast_oct, int counted_nodes, int counted_leafs,
+    void ConvertToFastOctreeRecursive(sreFastOctree& fast_oct) const;
+    void ConvertToFastOctree(sreFastOctree& fast_oct, int counted_nodes, int counted_leafs,
         int counted_entities) const;
 };
 
@@ -171,9 +171,9 @@ Vector3D& dmin_out, Vector3D& dmax_out) {
     dmax_out.z = dim_min.z + factor[i].maxz * (dim_max.z - dim_min.z);
 }
 
-// SceneObject octree follows.
+// sreObject octree follows.
 
-static bool SceneObjectFitsNode(const SceneObject& so, const Vector3D& dmin, const Vector3D& dmax) {
+static bool sreObjectFitsNode(const sreObject& so, const Vector3D& dmin, const Vector3D& dmax) {
     if (so.AABB.dim_min.x < dmin.x)
         return false;
     if (so.AABB.dim_max.x > dmax.x)
@@ -189,9 +189,9 @@ static bool SceneObjectFitsNode(const SceneObject& so, const Vector3D& dmin, con
     return true;
 }
 
-static bool SceneEntityFitsNode(SceneEntity *entity, const Vector3D& dmin, const Vector3D& dmax) {
+static bool sreSceneEntityFitsNode(sreSceneEntity *entity, const Vector3D& dmin, const Vector3D& dmax) {
    if (entity->type == SRE_ENTITY_OBJECT)
-      return SceneObjectFitsNode(*entity->so, dmin, dmax);
+      return sreObjectFitsNode(*entity->so, dmin, dmax);
    if (entity->type == SRE_ENTITY_LIGHT) {
       sreBoundingVolumeAABB AABB;
       AABB.dim_min = dmin;
@@ -242,7 +242,7 @@ Octree::Octree(const Vector3D& dmin, const Vector3D& dmax) {
     Initialize(dmin, dmax);
 }
 
-void Octree::AddEntityRecursive(SceneEntity *entity, int depth) {
+void Octree::AddEntityRecursive(sreSceneEntity *entity, int depth) {
     if (depth >= SRE_MAX_OCTREE_DEPTH) {
         entity_list.AddElement(entity);
         if (entity->type == SRE_ENTITY_OBJECT)
@@ -254,7 +254,7 @@ void Octree::AddEntityRecursive(SceneEntity *entity, int depth) {
     for (int i = 0; i < 8; i++) {
         Vector3D dmin, dmax;
         CalculateNodeDimensions(i, AABB.dim_min, AABB.dim_max, dmin, dmax);
-        if (SceneEntityFitsNode(entity, dmin, dmax)) {
+        if (sreSceneEntityFitsNode(entity, dmin, dmax)) {
             if (subnode[i] == NULL)
                 subnode[i] = new Octree(dmin, dmax);
             subnode[i]->AddEntityRecursive(entity, depth + 1);
@@ -268,16 +268,16 @@ void Octree::AddEntityRecursive(SceneEntity *entity, int depth) {
         entity->so->octree_list = &entity_list;
 }
 
-void Octree::AddSceneObject(SceneObject& so) {
-    SceneEntity *entity = new SceneEntity;
+void Octree::AddsreObject(sreObject& so) {
+    sreSceneEntity *entity = new sreSceneEntity;
     entity->type = SRE_ENTITY_OBJECT;
     entity->so = &so;
     AddEntityRecursive(entity, 0);
 }
 
-void Octree::AddSceneObjectAtRootLevel(SceneObject& so) {
+void Octree::AddsreObjectAtRootLevel(sreObject& so) {
     // Add the object to the list of this node.
-    SceneEntity *entity = new SceneEntity;
+    sreSceneEntity *entity = new sreSceneEntity;
     entity->type = SRE_ENTITY_OBJECT;
     entity->so = &so;
     entity_list.AddElement(entity);
@@ -285,7 +285,7 @@ void Octree::AddSceneObjectAtRootLevel(SceneObject& so) {
 }
 
 void Octree::AddLight(sreLight& light) {
-    SceneEntity *entity = new SceneEntity;
+    sreSceneEntity *entity = new sreSceneEntity;
     entity->type = SRE_ENTITY_LIGHT;
     entity->light = &light;
     AddEntityRecursive(entity, 0);
@@ -293,7 +293,7 @@ void Octree::AddLight(sreLight& light) {
 
 void Octree::AddLightAtRootLevel(sreLight& light) {
     // Add the object to the list of this node.
-    SceneEntity *entity = new SceneEntity;
+    sreSceneEntity *entity = new sreSceneEntity;
     entity->type = SRE_ENTITY_LIGHT;
     entity->light = &light;
     entity_list.AddElement(entity);
@@ -316,15 +316,15 @@ void Octree::MakeEmpty() {
 
 void Octree::ConvertToArrays(int& counted_nodes, int& counted_leafs, int& counted_entities) {
     int count = 0;
-    for (SceneEntityListElement *e = entity_list.head; e != NULL; e = e->next)
+    for (sreSceneEntityListElement *e = entity_list.head; e != NULL; e = e->next)
         count++;
-    entity_array = new SceneEntity[count];
-//    SceneEntityListElement *e = entity_list.head;
+    entity_array = new sreSceneEntity[count];
+//    sreSceneEntityListElement *e = entity_list.head;
     for (int i = 0; i < count; i++) {
-        SceneEntity *entity = entity_list.Pop();
-//        SceneEntity *entity = e->entity;
+        sreSceneEntity *entity = entity_list.Pop();
+//        sreSceneEntity *entity = e->entity;
         entity_array[i].type = entity->type;
-        entity_array[i].so = entity->so; // This copies the union of SceneObject and Light pointers.
+        entity_array[i].so = entity->so; // This copies the union of sreObject and Light pointers.
         delete entity;
 //        e = e->next;
     }
@@ -406,12 +406,12 @@ sreBoundingVolumeAABB *octant_AABB) {
 // Middle points at coordinates 1/4th and 3/4th into the octree.
 // #define MIDDLE_OFFSET 0.25f
 
-void Octree::AddEntitiesBalanced(int nu_input_entities, SceneEntity *input_entity_array,
+void Octree::AddEntitiesBalanced(int nu_input_entities, sreSceneEntity *input_entity_array,
 int depth) {
 //    printf("AddEntitiesBalanced (nu_input_entities = %d)\n", nu_input_entities);
 //    printf("Octree dimensions %f, %f, %f.\n", AABB.dim_max.x - AABB.dim_min.x, AABB.dim_max.y - AABB.dim_min.y, AABB.dim_max.z - AABB.dim_min.z);
     if (depth >= SRE_MAX_OCTREE_DEPTH) {
-        entity_array = new SceneEntity[nu_input_entities];
+        entity_array = new sreSceneEntity[nu_input_entities];
         nu_entities = 0;
         for (int i = 0; i < nu_input_entities; i++) {
             entity_array[nu_entities] = input_entity_array[i];
@@ -432,7 +432,7 @@ int depth) {
         else
             Initialize(input_entity_array[0].light->AABB.dim_min, input_entity_array[0].light->AABB.dim_max);
         nu_entities = 1;
-        entity_array = new SceneEntity[1];
+        entity_array = new sreSceneEntity[1];
         entity_array[0] = input_entity_array[0];
         printf("Balanced octree: 1 entity (last object) in node of depth %d\n", depth);
         // It may be better to store the object in the list for the node above.
@@ -469,8 +469,8 @@ int depth) {
             subnode[1] = new Octree(Vector3D(x_split, AABB.dim_min.y, AABB.dim_min.z), AABB.dim_max);
             subnode[0]->nu_entities = 1;
             subnode[1]->nu_entities = 1;
-            subnode[0]->entity_array = new SceneEntity[1];
-            subnode[1]->entity_array = new SceneEntity[1];
+            subnode[0]->entity_array = new sreSceneEntity[1];
+            subnode[1]->entity_array = new sreSceneEntity[1];
             if (is_left) {
                 subnode[0]->entity_array[0] = input_entity_array[0];
                 subnode[1]->entity_array[0] = input_entity_array[1];
@@ -775,11 +775,11 @@ int depth) {
     CalculateOctantAABBs(best_nu_octants, AABB, best_middle_point, octant_AABB);
 
     // Add entities that fit entirely in one node into the array for that node.
-    SceneEntity *subnode_entity_array[8];
+    sreSceneEntity *subnode_entity_array[8];
     int nu_subnode_entities[8];
     unsigned char *fits_in_node = new unsigned char[nu_input_entities];
     for (int i = 0; i < best_nu_octants; i++)
-        subnode_entity_array[i] = new SceneEntity[nu_input_entities];
+        subnode_entity_array[i] = new sreSceneEntity[nu_input_entities];
     for (int i = 0; i < best_nu_octants; i++)
         nu_subnode_entities[i] = 0;
     int left_over_entities = nu_input_entities;
@@ -819,7 +819,7 @@ int depth) {
                 }
         }
         if (!in_same_node) {
-            entity_array = new SceneEntity[nu_input_entities];
+            entity_array = new sreSceneEntity[nu_input_entities];
             nu_entities = 0;
             for (int i = 0; i < nu_input_entities; i++) {
                 entity_array[nu_entities] = input_entity_array[i];
@@ -847,10 +847,10 @@ int depth) {
     nu_entities = 0;
 #ifdef NO_SINGLE_ENTITY_NODES
     if (left_over_entities + nodes_with_single_entity > 0) {
-        entity_array = new SceneEntity[left_over_entities + nodes_with_single_entity];
+        entity_array = new sreSceneEntity[left_over_entities + nodes_with_single_entity];
 #else
     if (left_over_entities > 0) {
-        entity_array = new SceneEntity[left_over_entities];
+        entity_array = new sreSceneEntity[left_over_entities];
 #endif
         for (int i = 0; i < nu_input_entities; i++) {
             bool only_entity_in_node = false;
@@ -888,8 +888,8 @@ int depth) {
     }
 }
 
-void Octree::AddEntitiesBalancedAtRootLevel(int nu_input_entities, SceneEntity *input_entity_array) {
-    SceneEntity *new_entity_array = new SceneEntity[nu_entities + nu_input_entities];
+void Octree::AddEntitiesBalancedAtRootLevel(int nu_input_entities, sreSceneEntity *input_entity_array) {
+    sreSceneEntity *new_entity_array = new sreSceneEntity[nu_entities + nu_input_entities];
     for (int i = 0; i < nu_entities; i++)
         new_entity_array[i] = entity_array[i];
     for (int i = 0; i < nu_input_entities; i++)
@@ -902,7 +902,7 @@ void Octree::AddEntitiesBalancedAtRootLevel(int nu_input_entities, SceneEntity *
 
 // Add an entity to a pre-existing balanced octree, no new nodes are created.
 
-void Octree::AddEntityIntoBalancedOctree(const SceneEntity& entity) {
+void Octree::AddEntityIntoBalancedOctree(const sreSceneEntity& entity) {
     // Check whether the entity fits in one of the octants.
     for (int i = 0; i < 8; i++) {
         if (subnode[i] != NULL) {
@@ -922,8 +922,8 @@ void Octree::AddEntityIntoBalancedOctree(const SceneEntity& entity) {
     AddEntityIntoBalancedOctreeAtRootLevel(entity);
 }
 
-void Octree::AddEntityIntoBalancedOctreeAtRootLevel(const SceneEntity& entity) {
-    SceneEntity *new_entity_array = new SceneEntity[nu_entities + 1];
+void Octree::AddEntityIntoBalancedOctreeAtRootLevel(const sreSceneEntity& entity) {
+    sreSceneEntity *new_entity_array = new sreSceneEntity[nu_entities + 1];
     for (int i = 0; i < nu_entities; i++)
         new_entity_array[i] = entity_array[i];
     new_entity_array[nu_entities] = entity;;
@@ -939,7 +939,7 @@ static int node_index;
 
 // Conversion to optimized "fast" octree.
 
-void Octree::ConvertToFastOctreeRecursive(FastOctree& fast_oct) const {
+void Octree::ConvertToFastOctreeRecursive(sreFastOctree& fast_oct) const {
     // Copy node bounds information.
     fast_oct.node_bounds[node_index].AABB = AABB;
     fast_oct.node_bounds[node_index].sphere = sphere;
@@ -1020,7 +1020,7 @@ void Octree::ConvertToFastOctreeRecursive(FastOctree& fast_oct) const {
 
 // Convert octree to fast octree with the given number of nodes, leafs and entities.
 
-void Octree::ConvertToFastOctree(FastOctree& fast_oct, int counted_nodes, int counted_leafs,
+void Octree::ConvertToFastOctree(sreFastOctree& fast_oct, int counted_nodes, int counted_leafs,
 int counted_entities) const {
     int size;
     if (sre_internal_octree_type == SRE_OCTREE_STRICT_OPTIMIZED || sre_internal_octree_type ==
@@ -1031,7 +1031,7 @@ int counted_entities) const {
     sreMessage(SRE_MESSAGE_INFO,
         "Creating fast octree (%d nodes, %d leafs, %d entities), array size = %d.",
         counted_nodes, counted_leafs, counted_entities, size);
-    fast_oct.node_bounds = new OctreeNodeBounds[counted_nodes];
+    fast_oct.node_bounds = new sreOctreeNodeBounds[counted_nodes];
     fast_oct.array = new unsigned int[size];
     array_index = 0;
     node_index = 0;
@@ -1042,7 +1042,7 @@ int counted_entities) const {
 // Convert octree to fast octree, first counting the required number of nodes, leafs
 // and entities.
 
-void Octree::ConvertToFastOctree(FastOctree& fast_oct) {
+void Octree::ConvertToFastOctree(sreFastOctree& fast_oct) {
     int counted_nodes, counted_leafs, counted_entities;
     counted_nodes = 0;
     counted_leafs = 0;
@@ -1053,12 +1053,12 @@ void Octree::ConvertToFastOctree(FastOctree& fast_oct) {
     MakeEmpty();
 }
 
-void FastOctree::Destroy() {
+void sreFastOctree::Destroy() {
     delete [] node_bounds;
     delete [] array;
 }
 
-// Create the scene octrees (in FastOctree format).
+// Create the scene octrees (in sreFastOctree format).
 
 void sreScene::CreateOctrees() {
     sreMessage(SRE_MESSAGE_INFO, "Creating octrees.");
@@ -1142,7 +1142,7 @@ void sreScene::CreateOctrees() {
     octree_static.Initialize(root_AABB.dim_min, root_AABB.dim_max);
 
     // Add the static objects to an entity array for use by the balanced tree building function.
-    SceneEntity *entity_array = new SceneEntity[nu_objects + nu_lights]; // Upper limit of the size.
+    sreSceneEntity *entity_array = new sreSceneEntity[nu_objects + nu_lights]; // Upper limit of the size.
     int size = 0;
     for (int i = 0; i < nu_objects; i++)
         if (!((sceneobject[i]->flags & SRE_OBJECT_DYNAMIC_POSITION) ||
@@ -1258,14 +1258,14 @@ void sreScene::CreateOctrees() {
     for (int i = 0; i < nu_objects; i++)
         if (!((sceneobject[i]->flags & SRE_OBJECT_DYNAMIC_POSITION) ||
         (sceneobject[i]->flags & SRE_OBJECT_INFINITE_DISTANCE)))
-            octree.AddSceneObject(*sceneobject[i]);
+            octree.AddsreObject(*sceneobject[i]);
     // Add the dynamic objects to the octree at root level.
     for (int i = 0; i < nu_objects; i++)
         if (sceneobject[i]->flags & SRE_OBJECT_DYNAMIC_POSITION)
-            octree.AddSceneObjectAtRootLevel(*sceneobject[i]);
+            octree.AddsreObjectAtRootLevel(*sceneobject[i]);
     for (int i = 0; i < nu_objects; i++)
         if (sceneobject[i]->flags & SRE_OBJECT_INFINITE_DISTANCE)
-            octree_infinite_distance.AddSceneObjectAtRootLevel(*sceneobject[i]);
+            octree_infinite_distance.AddsreObjectAtRootLevel(*sceneobject[i]);
     // Add lights.
     for (int i = 0; i < nu_lights; i++)
         if (!(global_light[i]->type & SRE_LIGHT_DIRECTIONAL) &&
@@ -1295,43 +1295,43 @@ void sreScene::CreateOctrees() {
 #endif
 }
 
-// Implementation of SceneEntityList.
+// Implementation of sreSceneEntityList.
 
-SceneEntityList::SceneEntityList() {
+sreSceneEntityList::sreSceneEntityList() {
     head = NULL;
     tail = NULL;
 }
 
-void SceneEntityList::AddElement(SceneEntity *entity) {
+void sreSceneEntityList::AddElement(sreSceneEntity *entity) {
 // printf("Adding element with id %d.\n", so);
     if (tail == NULL) {
-        head = tail = new SceneEntityListElement;
+        head = tail = new sreSceneEntityListElement;
         head->next = NULL;
         head->entity = entity;
         return;
     }
-    SceneEntityListElement *e = new SceneEntityListElement;
+    sreSceneEntityListElement *e = new sreSceneEntityListElement;
     tail->next = e;
     e->next = NULL;
     tail = e;
     e->entity = entity;
 }
 
-void SceneEntityList::DeleteElement(SceneEntity *entity) {
+void sreSceneEntityList::DeleteElement(sreSceneEntity *entity) {
 // printf("Deleting element with id %d.\n", so);
     // Handle the case where the element to be deleted is first in the list.
     if (head->entity == entity) {
-        SceneEntityListElement *e = head;
+        sreSceneEntityListElement *e = head;
         head = head->next;
         if (head == NULL)
             tail = NULL;
         delete e;
         return;
     }
-    SceneEntityListElement *e = head;
+    sreSceneEntityListElement *e = head;
     while (e->next != NULL) {
         if (e->next->entity == entity) {
-            SceneEntityListElement *f = e->next;
+            sreSceneEntityListElement *f = e->next;
             e->next = f->next;
             delete f;
             if (e->next == NULL)
@@ -1340,15 +1340,15 @@ void SceneEntityList::DeleteElement(SceneEntity *entity) {
         }
         e = e->next;
     }
-    printf("Error in DeleteElement -- could not find SceneEntity id in list.\n");
+    printf("Error in DeleteElement -- could not find sreSceneEntity id in list.\n");
     exit(1);
 }
 
-void SceneEntityList::DeleteSceneObject(SceneObject *so) {
+void sreSceneEntityList::DeletesreObject(sreObject *so) {
 // printf("Deleting element with id %d.\n", so);
     // Handle the case where the element to be deleted is first in the list.
     if (head->entity->type == SRE_ENTITY_OBJECT && head->entity->so == so) {
-        SceneEntityListElement *e = head;
+        sreSceneEntityListElement *e = head;
         head = head->next;
         if (head == NULL)
             tail = NULL;
@@ -1356,10 +1356,10 @@ void SceneEntityList::DeleteSceneObject(SceneObject *so) {
         delete e;
         return;
     }
-    SceneEntityListElement *e = head;
+    sreSceneEntityListElement *e = head;
     while (e->next != NULL) {
         if (e->next->entity->type == SRE_ENTITY_OBJECT && e->next->entity->so == so) {
-            SceneEntityListElement *f = e->next;
+            sreSceneEntityListElement *f = e->next;
             e->next = f->next; 
             delete f->entity;
             delete f;
@@ -1369,14 +1369,14 @@ void SceneEntityList::DeleteSceneObject(SceneObject *so) {
         }
         e = e->next;
     }
-    printf("Error in DeleteElement -- could not find SceneEntity id in list.\n");
+    printf("Error in DeleteElement -- could not find sreSceneEntity id in list.\n");
     exit(1);
 }
 
-SceneEntity *SceneEntityList::Pop() {
+sreSceneEntity *sreSceneEntityList::Pop() {
 // printf("Popping element with id %d.\n", head->so);
-    SceneEntity *entity = head->entity;
-    SceneEntityListElement *e = head->next;
+    sreSceneEntity *entity = head->entity;
+    sreSceneEntityListElement *e = head->next;
     if (tail == head)
         tail = NULL;
     delete head;
@@ -1384,9 +1384,9 @@ SceneEntity *SceneEntityList::Pop() {
     return entity;
 }
 
-void SceneEntityList::MakeEmpty() {
+void sreSceneEntityList::MakeEmpty() {
     while (head != NULL) {
-        SceneEntity *entity = Pop();
+        sreSceneEntity *entity = Pop();
         delete entity;
     }
 }

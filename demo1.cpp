@@ -46,7 +46,7 @@ static float disturbance_displacement_func() {
 }
 #endif
 
-static SceneObject *fluid_scene_object;
+static sreObject *fluid_scene_object;
 static int light_object[13 * 28];
 
 void Demo1CreateScene() {

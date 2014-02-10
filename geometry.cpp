@@ -59,16 +59,16 @@ sreModel *sreModel::CreateNewInstance() const {
 // Polygon data types; only used with higher level sreModel class
 // for preprocessing purposes.
 
-ModelPolygon::ModelPolygon() {
+sreModelPolygon::sreModelPolygon() {
     nu_vertices = 0;
 }
 
-void ModelPolygon::InitializeWithSize(int n) {
+void sreModelPolygon::InitializeWithSize(int n) {
     nu_vertices = n;
     vertex_index = new int[n];
 }
 
-void ModelPolygon::AddVertex(int j) {
+void sreModelPolygon::AddVertex(int j) {
     int *new_vertex_index = new int[nu_vertices + 1];
     for (int i = 0; i < nu_vertices; i++)
         new_vertex_index[i] = vertex_index[i];
@@ -144,7 +144,7 @@ sreBaseModel::sreBaseModel() {
 sreBaseModel::sreBaseModel(int nu_vertices, int nu_triangles, int flags) {
     sreBaseModel();
     vertex = new Point3D[nu_vertices];
-    triangle = new ModelTriangle[nu_triangles];
+    triangle = new sreModelTriangle[nu_triangles];
     if (flags & SRE_NORMAL_MASK)
         vertex_normal = new Vector3D[nu_vertices];
     if (flags & SRE_TEXCOORDS_MASK)
@@ -523,7 +523,7 @@ void sreBaseModel::CloneGeometry(sreBaseModel *clone) {
      for (int i = 0; i < nu_vertices; i++)
          clone->vertex[i] = vertex[i];
      clone->nu_triangles = nu_triangles;
-     clone->triangle = new ModelTriangle[nu_triangles];
+     clone->triangle = new sreModelTriangle[nu_triangles];
      for (int i = 0; i < nu_triangles; i++)
          clone->triangle[i] = triangle[i];
      clone->sorting_dimension = sorting_dimension;
@@ -819,7 +819,7 @@ void sreBaseModel::RemoveEmptyTriangles() {
     if (count == 0)
         return;
     // Remove the empty triangles.
-    ModelTriangle *new_triangle = new ModelTriangle[nu_triangles - count];
+    sreModelTriangle *new_triangle = new sreModelTriangle[nu_triangles - count];
     int j = 0;
     for (int i = 0; i < nu_triangles; i++) {
         int vindex0 = triangle[i].vertex_index[0];
@@ -843,7 +843,7 @@ void sreBaseModel::RemoveEmptyTriangles() {
 // Library, 2005. http://www.terathon.com/code/edges.html
 
 static int BuildEdges(int vertexCount, int triangleCount,
-                const ModelTriangle *triangleArray, ModelEdge *edgeArray)
+                const sreModelTriangle *triangleArray, ModelEdge *edgeArray)
 {
     int maxEdgeCount = triangleCount * 3;
     unsigned int *firstEdge = new unsigned int[vertexCount + maxEdgeCount];
@@ -860,7 +860,7 @@ static int BuildEdges(int vertexCount, int triangleCount,
     // find an edge in the second pass whose higher-numbered vertex index is i.
     
     int edgeCount = 0;
-    const ModelTriangle *triangle = triangleArray;
+    const sreModelTriangle *triangle = triangleArray;
     for (int a = 0; a < triangleCount; a++)
     {
         int i1 = triangle->vertex_index[2];
@@ -1515,7 +1515,7 @@ void sreObject::CalculateAABB() {
 
 // Convert an instantation of a sceneobject to static scenery polygons with absolute coordinates.
 
-sreModel *SceneObject::ConvertToStaticScenery() const {
+sreModel *sreObject::ConvertToStaticScenery() const {
     sreModel *m = model;
     sreModel *new_m = new sreModel;
     sreLODModel *lm = model->lod_model[0];
@@ -1554,7 +1554,7 @@ sreModel *SceneObject::ConvertToStaticScenery() const {
 
     // Initialize the polygon data for the sreModel.
     new_m->nu_polygons = lm->nu_triangles;
-    new_m->polygon = new ModelPolygon[new_m->nu_polygons];
+    new_m->polygon = new sreModelPolygon[new_m->nu_polygons];
     for (int i = 0; i < new_m->nu_polygons; i++)
         new_m->polygon[i].InitializeWithSize(3);
     for (int i = 0; i < lm->nu_triangles; i++) {
@@ -1927,7 +1927,7 @@ bool sreScene::EliminateTJunctionsForModels(sreModel& m1, const sreModel& m2) co
     return changed;
 }
 
-void sreScene::DetermineStaticIntersectingObjects(const FastOctree& fast_oct, int array_index,
+void sreScene::DetermineStaticIntersectingObjects(const sreFastOctree& fast_oct, int array_index,
 int model_index, const sreBoundingVolumeAABB& AABB, int *static_object_belonging_to_sceneobject,
 int &nu_intersecting_objects, int *intersecting_object) const {
     int node_index = fast_oct.array[array_index];
@@ -1937,7 +1937,7 @@ int &nu_intersecting_objects, int *intersecting_object) const {
     int nu_entities = fast_oct.array[array_index + 2];
     array_index += 3;
     for (int i = 0; i < nu_entities; i++) {
-        SceneEntityType type;
+        sreSceneEntityType type;
         int index;
         fast_oct.GetEntity(array_index + i, type, index);
         if (type == SRE_ENTITY_OBJECT && static_object_belonging_to_sceneobject[index] != - 1) {
@@ -2353,7 +2353,7 @@ void sreModel::Triangulate() {
     }
     // The model will always have just one LOD level.
     sreLODModel *m = lod_model[0];
-    m->triangle = new ModelTriangle[triangle_count];
+    m->triangle = new sreModelTriangle[triangle_count];
     Triangle *tri = new Triangle[max_triangle_count_per_polygon];
     Point3D *polygon_vertex = new Point3D[max_triangle_count_per_polygon + 2];
     m->nu_triangles = 0;
@@ -2470,7 +2470,7 @@ void sreScene::RemoveUnreferencedModels() {
     // between different models) to - 1.
     int scene_triangle_count = 0;
     for (int i = 0; i < nu_objects; i++) {
-        SceneObject *so = sceneobject[i];
+        sreObject *so = sceneobject[i];
         sreModel *m = so->model;
         if (m == NULL)
             continue;

@@ -1445,7 +1445,7 @@ BoundsCheckResult QueryIntersection(const sreObject& so, const sreBoundingVolume
 // Octree intersection tests. These return not only false or true, but give more detail
 // (such as completely inside, partially inside or completely inside).
 
-BoundsCheckResult QueryIntersection(const OctreeNodeBounds& octree_bounds,
+BoundsCheckResult QueryIntersection(const sreOctreeNodeBounds& octree_bounds,
 const sreBoundingVolumeConvexHull& ch) {
     // Check whether the bounding sphere of the octree is inside, partially inside or outside.
     BoundsCheckResult r = QueryIntersection(octree_bounds.sphere, ch);
@@ -1461,7 +1461,7 @@ const sreBoundingVolumeConvexHull& ch) {
 
 // Check whether the octree bounds intersect with a sphere.
 
-BoundsCheckResult QueryIntersection(const OctreeNodeBounds& octree_bounds,
+BoundsCheckResult QueryIntersection(const sreOctreeNodeBounds& octree_bounds,
 const sreBoundingVolumeSphere& sphere) {
     // First perform a sphere check, using the octree's bounding sphere.
     // This is not a definite test, but can quickly identify octrees that
@@ -1485,7 +1485,7 @@ const sreBoundingVolumeSphere& sphere) {
 
 // Check whether the octree bounds intersect with a light volume.
 
-BoundsCheckResult QueryIntersection(const OctreeNodeBounds& octree_bounds, const sreLight& light) {
+BoundsCheckResult QueryIntersection(const sreOctreeNodeBounds& octree_bounds, const sreLight& light) {
     if (light.type & SRE_LIGHT_DIRECTIONAL)
         return SRE_COMPLETELY_INSIDE;
     if (light.type & SRE_LIGHT_POINT_SOURCE)

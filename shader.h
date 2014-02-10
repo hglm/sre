@@ -233,16 +233,16 @@ extern const sreBuiltinShaderTable sre_builtin_shader_table[];
 
 extern float shadow_cube_segment_distance_scaling[6];
 
-// void sreInitializeShader(const SceneObject& so);
+// void sreInitializeShader(const sreObject& so);
 void sreInitializeLightingShaderUniformWithDefaultValue(int uniform_id, int loc);
 void sreInitializeMiscShaderUniformWithDefaultValue(int uniform_id, int loc);
-void sreInitializeShaderWithMesh(SceneObject *so, sreModelMesh *mesh);
-bool sreInitializeObjectShaderEmissionOnly(SceneObject& so);
-bool sreInitializeObjectShaderSinglePass(SceneObject& so);
-bool sreInitializeObjectShaderAmbientPass(SceneObject& so);
-bool sreInitializeObjectShaderMultiPassLightingPass(SceneObject& so);
-void sreInitializeObjectShaderLightHalo(const SceneObject& so);
+void sreInitializeShaderWithMesh(sreObject *so, sreModelMesh *mesh);
+bool sreInitializeObjectShaderEmissionOnly(sreObject& so);
+bool sreInitializeObjectShaderSinglePass(sreObject& so);
+bool sreInitializeObjectShaderAmbientPass(sreObject& so);
+bool sreInitializeObjectShaderMultiPassLightingPass(sreObject& so);
+void sreInitializeObjectShaderLightHalo(const sreObject& so);
 void sreInitializeObjectShaderBillboard(const sreObject& so);
-bool sreInitializeObjectShaderMultiPassShadowMapLightingPass(SceneObject& so);
+bool sreInitializeObjectShaderMultiPassShadowMapLightingPass(sreObject& so);
 void sreBindShadowMapTexture(sreLight *light);
 

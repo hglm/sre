@@ -170,7 +170,7 @@ sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d, f
     lm->vertex = new Point3D[lm->nu_vertices];
     lm->texcoords = new Point2D[lm->nu_vertices];
     lm->nu_triangles = (height / 2) * (width / 2) * 8;
-    lm->triangle = new ModelTriangle[lm->nu_triangles];
+    lm->triangle = new sreModelTriangle[lm->nu_triangles];
     for (int y = 0; y <= height; y++)
         for (int x = 0; x <= width; x++) {
             lm->vertex[y * (width + 1) + x].Set(x * d, y * d, 0);

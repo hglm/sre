@@ -783,7 +783,7 @@ void sreScene::CalculateVisibleActiveLights(sreView *view, int max_lights) {
 // is made to clip the scissors region to the screen, although the depth bounds should be beyond the
 // near plane (i.e. valid given an infinite projection matrix).
 
-BoundsCheckResult SceneObject::CalculateGeometryScissors(const sreLight& light, const Frustum& frustum,
+BoundsCheckResult sreObject::CalculateGeometryScissors(const sreLight& light, const sreFrustum& frustum,
 sreScissors& scissors) {
     // Do a sphere check first.
     float dist_squared = SquaredMag(sphere.center - light.sphere.center);
@@ -1030,7 +1030,7 @@ sreScissors& scissors) {
 // Calculate a list of all static object that intersect a light volume. Objects that
 // don't receive light, but can cast shadows are also included.
 
-void sreScene::DetermineStaticLightVolumeIntersectingObjects(const FastOctree& fast_oct,
+void sreScene::DetermineStaticLightVolumeIntersectingObjects(const sreFastOctree& fast_oct,
 int array_index, const sreLight& light, int &nu_intersecting_objects,
 int *intersecting_object) const {
     int node_index = fast_oct.array[array_index];
@@ -1084,7 +1084,7 @@ int *intersecting_object) const {
 #endif
     array_index += 3;
     for (int i = 0; i < nu_entities; i++) {
-        SceneEntityType type;
+        sreSceneEntityType type;
         int index;
         fast_oct.GetEntity(array_index + i, type, index);
         if (type == SRE_ENTITY_OBJECT) {
@@ -1167,7 +1167,7 @@ void sreScene::CalculateStaticLightObjectLists() {
             nu_shadow_caster_objects = 0;
             for (int k = 0; k < nu_intersecting_objects; k++) {
                 int j = intersecting_object[k];
-                SceneObject *so = sceneobject[j];
+                sreObject *so = sceneobject[j];
                 // Dynamic objects shouldn't be encountered, but check anyway.
                 if (so->flags & SRE_OBJECT_DYNAMIC_POSITION)
                     continue;
@@ -1201,7 +1201,7 @@ void sreScene::CalculateStaticLightObjectLists() {
                     // Calculate the shadow volume pyramid for the object.
                     sreBoundingVolumeType t = so->CalculateShadowVolumePyramid(*global_light[i],
                         Q, n_convex_hull);
-                    ShadowVolume *sv = new ShadowVolume;
+                    sreShadowVolume *sv = new sreShadowVolume;
                     if (t == SRE_BOUNDING_VOLUME_EMPTY)
                         sv->SetEmpty();
                     else
@@ -1219,7 +1219,7 @@ void sreScene::CalculateStaticLightObjectLists() {
                     // Calculate the shadow volume pyramid cone for the object.
                     sreBoundingVolumeType t = so->CalculatePointSourceOrSpotShadowVolume(*global_light[i],
                         Q, n_convex_hull, axis, radius, cos_half_angular_size);
-                    ShadowVolume *sv = new ShadowVolume;
+                    sreShadowVolume *sv = new sreShadowVolume;
                     if (t == SRE_BOUNDING_VOLUME_EMPTY)
                         sv->SetEmpty();
                     else if (t == SRE_BOUNDING_VOLUME_EVERYWHERE)
@@ -1240,7 +1240,7 @@ void sreScene::CalculateStaticLightObjectLists() {
                     Point3D E;
                     so->CalculateShadowVolumeHalfCylinderForDirectionalLight(
                         *global_light[i], E, cylinder_radius, cylinder_axis);
-                    ShadowVolume *sv = new ShadowVolume;
+                    sreShadowVolume *sv = new sreShadowVolume;
                     sv->SetHalfCylinder(E, cylinder_radius, cylinder_axis);
                     sv->light = i;
                     so->AddShadowVolume(sv);
@@ -1254,7 +1254,7 @@ void sreScene::CalculateStaticLightObjectLists() {
                     float cylinder_radius;
                     so->CalculateShadowVolumeCylinderForBeamLight(
                         *global_light[i], center, length, cylinder_axis, cylinder_radius);
-                    ShadowVolume *sv = new ShadowVolume;
+                    sreShadowVolume *sv = new sreShadowVolume;
                     sv->SetCylinder(center, length, cylinder_axis, cylinder_radius);
                     sv->light = i;
                     so->AddShadowVolume(sv);
@@ -1294,7 +1294,7 @@ void sreScene::CalculateStaticLightObjectLists() {
             // be checked (after bounding volume tests suggest intersection).
             for (int k = 0; k < nu_intersecting_objects; k++) {
                 int j = intersecting_object[k];
-                SceneObject *so = sceneobject[j];
+                sreObject *so = sceneobject[j];
                 if (so->flags & SRE_OBJECT_DYNAMIC_POSITION)
                     continue;
                 // Emission-only objects are not affected by the light.
@@ -1340,7 +1340,7 @@ void sreScene::CalculateStaticLightObjectLists() {
             // Secondly the objects that are completely inside the light volume.
             for (int k = 0; k < nu_intersecting_objects; k++) {
                 int j = intersecting_object[k];
-                SceneObject *so = sceneobject[j];
+                sreObject *so = sceneobject[j];
                 if (so->flags & SRE_OBJECT_DYNAMIC_POSITION)
                     continue;
                 if (so->flags & SRE_OBJECT_EMISSION_ONLY)
