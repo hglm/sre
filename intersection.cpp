@@ -1196,7 +1196,7 @@ bool Intersects(const sreObject& so, const sreBoundingVolumeConvexHull& ch) {
 // Check whether the light volume of a light intersects with a convex hull
 // (such as the frustum).
 
-bool Intersects(const Light& light, const sreBoundingVolumeConvexHull& ch) {
+bool Intersects(const sreLight& light, const sreBoundingVolumeConvexHull& ch) {
     if (light.type & (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_DYNAMIC_SPOT_EXPONENT))
         // Perform a sphere check for a point source light, or a spot light
         // with a dynamic spot exponent, which is hard to pin down to a
@@ -1230,7 +1230,7 @@ bool Intersects(const sreObject& so, const sreBoundingVolumeSphere& sphere) {
 
 // Test intersection of a scene object against a light volume.
 
-bool Intersects(const sreObject& so, const Light& light) {
+bool Intersects(const sreObject& so, const sreLight& light) {
     if (light.type & SRE_LIGHT_DIRECTIONAL)
         return true;
     // For point source lights, check the object against the light volume sphere.
@@ -1273,7 +1273,7 @@ bool Intersects(const sreObject& so, const Light& light) {
 
 // More detailed intersection test of a scene object against a light volume.
 
-BoundsCheckResult QueryIntersection(const sreObject& so, const Light& light) {
+BoundsCheckResult QueryIntersection(const sreObject& so, const sreLight& light) {
     // Directional lights have an unbounded light volume (this function is not
     // normally called for directional lights, but it might still happen).
     if (light.type & SRE_LIGHT_DIRECTIONAL)
@@ -1333,7 +1333,7 @@ BoundsCheckResult QueryIntersection(const sreObject& so, const Light& light) {
 // Full (slow) intersection test of every object vertex against a light volume. Useful
 // for preprocessing.
 
-BoundsCheckResult QueryIntersectionFull(const sreObject& so, const Light& light,
+BoundsCheckResult QueryIntersectionFull(const sreObject& so, const sreLight& light,
 bool use_worst_case_bounds) {
     if (light.type & SRE_LIGHT_DIRECTIONAL)
         return SRE_COMPLETELY_INSIDE;
@@ -1425,7 +1425,7 @@ bool use_worst_case_bounds) {
     return r;
 }
 
-BoundsCheckResult QueryIntersectionFull(const sreObject& so, const Light& light) {
+BoundsCheckResult QueryIntersectionFull(const sreObject& so, const sreLight& light) {
     return QueryIntersectionFull(so, light, false);
 }
 
@@ -1485,7 +1485,7 @@ const sreBoundingVolumeSphere& sphere) {
 
 // Check whether the octree bounds intersect with a light volume.
 
-BoundsCheckResult QueryIntersection(const OctreeNodeBounds& octree_bounds, const Light& light) {
+BoundsCheckResult QueryIntersection(const OctreeNodeBounds& octree_bounds, const sreLight& light) {
     if (light.type & SRE_LIGHT_DIRECTIONAL)
         return SRE_COMPLETELY_INSIDE;
     if (light.type & SRE_LIGHT_POINT_SOURCE)
@@ -1524,7 +1524,7 @@ BoundsCheckResult QueryIntersection(const OctreeNodeBounds& octree_bounds, const
 
 // The following is necessary for octree creation.
 
-bool IsCompletelyInside(const Light& light, const sreBoundingVolumeAABB& AABB) {
+bool IsCompletelyInside(const sreLight& light, const sreBoundingVolumeAABB& AABB) {
     if (light.type & (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM)) {
         if (!(light.type & (SRE_LIGHT_DYNAMIC_SPOT_EXPONENT | SRE_LIGHT_DYNAMIC_DIRECTION))) {
             // Construct two spheres at the endpoints.

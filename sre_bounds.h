@@ -237,17 +237,17 @@ bool IsCompletelyInside(const sreBoundingVolumeAABB& AABB1, const sreBoundingVol
 
 bool Intersects(const sreObject& so, const sreBoundingVolumeConvexHull& ch);
 
-bool Intersects(const Light& light, const sreBoundingVolumeConvexHull& ch);
+bool Intersects(const sreLight& light, const sreBoundingVolumeConvexHull& ch);
 
 bool Intersects(const sreObject& so, const sreBoundingVolumeSphere& sphere);
 
-bool Intersects(const sreObject& so, const Light& light);
+bool Intersects(const sreObject& so, const sreLight& light);
 
-BoundsCheckResult QueryIntersection(const sreObject& so, const Light& light);
+BoundsCheckResult QueryIntersection(const sreObject& so, const sreLight& light);
 
-BoundsCheckResult QueryIntersectionFull(const sreObject& so, const Light& light);
+BoundsCheckResult QueryIntersectionFull(const sreObject& so, const sreLight& light);
 
-BoundsCheckResult QueryIntersectionFull(const sreObject& so, const Light& light,
+BoundsCheckResult QueryIntersectionFull(const sreObject& so, const sreLight& light,
     bool use_worst_case_bounds);
 
 BoundsCheckResult QueryIntersection(const sreObject& so, const sreBoundingVolumeSphere& sphere);
@@ -258,9 +258,9 @@ BoundsCheckResult QueryIntersection(const OctreeNodeBounds& octree_bounds,
 BoundsCheckResult QueryIntersection(const OctreeNodeBounds& octree_bounds,
     const sreBoundingVolumeSphere& sphere);
 
-BoundsCheckResult QueryIntersection(const OctreeNodeBounds& octree_bounds, const Light& light);
+BoundsCheckResult QueryIntersection(const OctreeNodeBounds& octree_bounds, const sreLight& light);
 
-bool IsCompletelyInside(const Light& light, const sreBoundingVolumeAABB& AABB);
+bool IsCompletelyInside(const sreLight& light, const sreBoundingVolumeAABB& AABB);
 
 bool Intersects(const sreObject& so, const sreBoundingVolumeFrustum& fr);
 

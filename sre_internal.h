@@ -35,7 +35,7 @@ extern float sre_internal_zoom;
 extern Frustum *sre_internal_frustum;
 extern int sre_internal_current_frame;
 extern int sre_internal_current_light_index;
-extern Light *sre_internal_current_light;
+extern sreLight *sre_internal_current_light;
 extern int sre_internal_object_flags_mask;
 extern Scene *sre_internal_scene;
 extern sreSwapBuffersFunc sre_internal_swap_buffers_func;
@@ -211,14 +211,14 @@ void GL3InitializeTextShader(int update_mask, sreTextShaderInfo *info, Vector4D 
 void GL3InitializeImageShader(int set_flags, sreImageShaderInfo *info, Vector4D *rect);
 
 // Defined in shadow.cpp:
-void sreRenderShadowVolumes(sreScene *scene, Light *light, Frustum& frustum);
+void sreRenderShadowVolumes(sreScene *scene, sreLight *light, Frustum& frustum);
 void sreReportShadowCacheStats();
 void sreResetShadowCacheStats();
 void sreSetShadowCacheStatsInfo(sreShadowRenderingInfo *info);
 void sreClearShadowCache();
 
 // Defined in shadowmap.cpp:
-bool GL3RenderShadowMapWithOctree(sreScene *scene, Light& light, Frustum &frustum);
+bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, Frustum &frustum);
 void sreVisualizeDirectionalLightShadowMap(int light_index);
 void sreVisualizeCubeMap(int light_index);
 void sreVisualizeBeamOrSpotLightShadowMap(int light_index);

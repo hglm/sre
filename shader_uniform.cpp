@@ -437,7 +437,7 @@ static void GL3InitializeShaderWithCubeShadowMapTexture() {
     glBindTexture(GL_TEXTURE_2D_ARRAY, sre_internal_depth_cube_map_texture);
 }
 
-void sreBindShadowMapTexture(Light *light) {
+void sreBindShadowMapTexture(sreLight *light) {
     // Note there's no need to call UseProgram here, because we only bind the shadow map texture to one
     // of the texture units (TEXTURE4).
     if (light->type & SRE_LIGHT_DIRECTIONAL)

@@ -948,9 +948,6 @@ public:
     }
 };
 
-// Compatibility with existing code.
-typedef sreLight Light;
-
 class Frustum;
 
 // Scissors region used for GPU scissors optimization.
@@ -1197,23 +1194,23 @@ public:
     ~sreObject();
     sreModel *ConvertToStaticScenery() const;
     void CalculateAABB();
-    bool IntersectsWithLightVolume(const Light& light) const;
-    BoundsCheckResult CalculateGeometryScissors(const Light& light, const Frustum &frustum,
+    bool IntersectsWithLightVolume(const sreLight& light) const;
+    BoundsCheckResult CalculateGeometryScissors(const sreLight& light, const Frustum &frustum,
         sreScissors& scissors);
-    bool CalculateShadowVolumeScissors(const Light& light, const Frustum& frustum,
+    bool CalculateShadowVolumeScissors(const sreLight& light, const Frustum& frustum,
         const ShadowVolume& sv, sreScissors& shadow_volume_scissors) const;
-    sreBoundingVolumeType CalculateShadowVolumePyramid(const Light& light, Point3D *Q,
+    sreBoundingVolumeType CalculateShadowVolumePyramid(const sreLight& light, Point3D *Q,
         int &n_convex_hull) const;
-    sreBoundingVolumeType CalculatePointSourceOrSpotShadowVolume(const Light& light, Point3D *Q,
+    sreBoundingVolumeType CalculatePointSourceOrSpotShadowVolume(const sreLight& light, Point3D *Q,
         int &n_convex_hull, Vector3D& axis, float& radius, float& cos_half_angular_size) const;
-    sreBoundingVolumeType CalculateShadowVolumeHalfCylinderForDirectionalLight(const Light &light,
+    sreBoundingVolumeType CalculateShadowVolumeHalfCylinderForDirectionalLight(const sreLight &light,
         Point3D &E, float& cylinder_radius, Vector3D& cylinder_axis) const;
     sreBoundingVolumeType CalculateShadowVolumeCylinderForBeamLight(
-        const Light& light, Point3D& center, float& length, Vector3D& cylinder_axis,
+        const sreLight& light, Point3D& center, float& length, Vector3D& cylinder_axis,
         float& cylinder_radius) const;
     void AddShadowVolume(ShadowVolume *sv);
     ShadowVolume *LookupShadowVolume(int light_index) const;
-    void CalculateTemporaryShadowVolume(const Light& light, ShadowVolume **sv) const;
+    void CalculateTemporaryShadowVolume(const sreLight& light, ShadowVolume **sv) const;
     bool IsChangingPositionEveryFrame(int current_frame) const {
         return (rapid_change_flags & SRE_OBJECT_POSITION_CHANGE)
             && (most_recent_position_change == current_frame); 
@@ -1264,7 +1261,7 @@ public :
     int type;
     union {
         SceneObject *so;
-        Light *light;
+        sreLight *light;
     };
 };
 
@@ -1366,7 +1363,7 @@ public:
     void Calculate();
     void CalculateNearClipVolume(const Vector4D& lightpos);
     void CalculateShadowCasterVolume(const Vector4D& lightpos, int nu_frustum_planes);
-    void CalculateLightScissors(Light *light);
+    void CalculateLightScissors(sreLight *light);
     // Frustum-specific intersection tests.
     // The const behind the function definition means the Frustum structure remains constant.
     bool ObjectIntersectsNearClipVolume(const SceneObject& so) const;
@@ -1510,7 +1507,7 @@ public:
     Color ambient_color;
     int nu_lights;
     int max_scene_lights;
-    Light **global_light;
+    sreLight **global_light;
     // Active lights for shaders that are limited by the number of lights.
     int nu_active_lights;
     int active_light[SRE_MAX_ACTIVE_LIGHTS];
@@ -1624,7 +1621,7 @@ public:
     void CalculateWholeSceneActiveLights(sreView *view, int max_lights);
     void CalculateVisibleActiveLights(sreView *view, int max_lights);
     void CheckLightCapacity();
-    void RegisterLight(Light *l);
+    void RegisterLight(sreLight *l);
     // Handling of objects (functions used internally).
     void InstantiateObject(int object_index) const;
     void InstantiateObjectRotationMatrixAlreadySet(int object_index) const;
@@ -1667,7 +1664,7 @@ public:
     // Octree creation and static light volume objects calculation.
     void CreateOctrees();
     void DetermineStaticLightVolumeIntersectingObjects(const FastOctree& fast_oct, int array_index,
-        const Light& light, int &nu_intersecting_objects, int *intersecting_object) const;
+        const sreLight& light, int &nu_intersecting_objects, int *intersecting_object) const;
     void CalculateStaticLightObjectLists();
     // Model objects.
     void RegisterModel(sreModel *m);
@@ -1707,7 +1704,7 @@ public:
     void RenderVisibleObjectsSinglePass(const Frustum&) const;
     void RenderFinalPassObjectsSinglePass(const Frustum&) const;
     void RenderVisibleObjectsAmbientPass(const Frustum&) const;
-    void RenderVisibleObjectsLightingPass(const Frustum& f, const Light& light) const;
+    void RenderVisibleObjectsLightingPass(const Frustum& f, const sreLight& light) const;
     void RenderFinalPassObjectsMultiPass(const Frustum& f) const;
     void UpdateGeometryScissorsCacheData(const Frustum& frustum, const sreLight& light) const;
     // Render lighting passes with shadow volumes or shadow mapping. Will change the shadow caster

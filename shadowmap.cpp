@@ -56,7 +56,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // Draw object into shadow map. Transparent textures are supported.
 
-static void RenderShadowMapObject(SceneObject *so, const Light& light) {
+static void RenderShadowMapObject(SceneObject *so, const sreLight& light) {
     // Apply the global object flags mask. Note render_flags will (unnecessarily)
     // be set again in the lighting pass, but the overhead is of course minimal.
     so->render_flags = so->flags & sre_internal_object_flags_mask;
@@ -120,7 +120,7 @@ static void RenderShadowMapObject(SceneObject *so, const Light& light) {
         glDisableVertexAttribArray(1);
 }
 
-static void RenderShadowMapFromCasterArray(sreScene *scene, const Light& light) {
+static void RenderShadowMapFromCasterArray(sreScene *scene, const sreLight& light) {
     for (int i = 0; i < scene->nu_shadow_caster_objects; i++)
         RenderShadowMapObject(scene->sceneobject[scene->shadow_caster_object[i]], light);
 }
@@ -235,7 +235,7 @@ const Frustum& frustum, BoundsCheckResult octree_bounds_check_result) {
 // Also keep track of the shadow receivers AABB.
 
 static void FindAABBLocalLight(const FastOctree& fast_oct, int array_index, Scene *scene,
-const Frustum& frustum, const Light& light, BoundsCheckResult octree_bounds_check_result) {
+const Frustum& frustum, const sreLight& light, BoundsCheckResult octree_bounds_check_result) {
     int node_index = fast_oct.array[array_index];
     if (SRE_BOUNDS_NOT_EQUAL_AND_TEST_ALLOWED(octree_bounds_check_result, SRE_COMPLETELY_INSIDE)) {
         // If checks are allowed and the octree is not already completely inside the light volume,
@@ -297,7 +297,7 @@ static const Vector3D signs_table[8] = {
     Vector3D(0.0f, 0.0f, 0.0f)       // +x, +y, +z
 };
 
-void RenderSpotOrBeamLightShadowMap(sreScene *scene, const Light& light, const Frustum &frustum) {
+void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, const Frustum &frustum) {
     sreBoundingVolumeAABB relative_AABB;
     relative_AABB.dim_min = AABB_shadow_caster.dim_min - light.vector.GetVector3D();
     relative_AABB.dim_max = AABB_shadow_caster.dim_max - light.vector.GetVector3D();
@@ -394,7 +394,7 @@ static Vector3D cube_map_up_vector[6] = {
     Vector3D(0, 0, - 1.0f), Vector3D(0, - 1.0f, 0), Vector3D(0, - 1.0f, 0)
     };
 
-void RenderPointLightShadowMap(sreScene *scene, const Light& light, const Frustum &frustum) {
+void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const Frustum &frustum) {
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_cube_shadow_map_framebuffer);
         glViewport(0, 0, SRE_CUBE_SHADOW_BUFFER_SIZE, SRE_CUBE_SHADOW_BUFFER_SIZE);
         glDisable(GL_CULL_FACE);
@@ -528,7 +528,7 @@ void RenderPointLightShadowMap(sreScene *scene, const Light& light, const Frustu
     return;
 }
 
-bool GL3RenderShadowMapWithOctree(sreScene *scene, Light& light, Frustum &frustum) {
+bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, Frustum &frustum) {
     // Calculate shadow caster volume.
     frustum.CalculateShadowCasterVolume(light.vector, 6);
     scene->nu_shadow_caster_objects = 0;

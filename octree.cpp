@@ -49,8 +49,8 @@ public :
     void Initialize(const Vector3D& dmin, const Vector3D& dmax);
     void AddSceneObject(SceneObject& so);
     void AddSceneObjectAtRootLevel(SceneObject& so);
-    void AddLight(Light& light);
-    void AddLightAtRootLevel(Light& light);
+    void AddLight(sreLight& light);
+    void AddLightAtRootLevel(sreLight& light);
     void MakeEmpty();
     void CountNodes(int& counted_nodes, int& counted_leafs, int& counted_entities) const;
     void AddEntitiesBalanced(int nu_input_entiies, SceneEntity *input_entity_array, int depth);
@@ -284,14 +284,14 @@ void Octree::AddSceneObjectAtRootLevel(SceneObject& so) {
     so.octree_list = &entity_list;
 }
 
-void Octree::AddLight(Light& light) {
+void Octree::AddLight(sreLight& light) {
     SceneEntity *entity = new SceneEntity;
     entity->type = SRE_ENTITY_LIGHT;
     entity->light = &light;
     AddEntityRecursive(entity, 0);
 }
 
-void Octree::AddLightAtRootLevel(Light& light) {
+void Octree::AddLightAtRootLevel(sreLight& light) {
     // Add the object to the list of this node.
     SceneEntity *entity = new SceneEntity;
     entity->type = SRE_ENTITY_LIGHT;

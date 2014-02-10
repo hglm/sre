@@ -622,7 +622,7 @@ void sreScissors::Print() {
 // the light scissors region will never be lit, so the GPU scissors region can
 // set to this region to reduce unnecessary processing and memory access.
 
-void Frustum::CalculateLightScissors(Light *light) {
+void Frustum::CalculateLightScissors(sreLight *light) {
     if (light->type & (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM)) {
         // Approximate the bounding volume of the light by the bounding box of the bounding cylinder.
         Vector3D up;

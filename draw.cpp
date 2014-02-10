@@ -480,7 +480,7 @@ const Frustum& frustum, BoundsCheckResult bounds_check_result, int array_index, 
                 DetermineObjectIsVisible(*so, frustum, bounds_check_result);
         }
         else if (type == SRE_ENTITY_LIGHT) {
-            Light *light = global_light[index];
+            sreLight *light = global_light[index];
 //            printf("Checking visibility of light %d\n", light->id);
             if (!(light->type & SRE_LIGHT_DIRECTIONAL)) {
                 if (light->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE) {
@@ -1140,7 +1140,7 @@ static int light_volume_intersection_test_count;
 // RenderVisibleObjectLightingPassCompletelyInside() should be used.
 
 static void RenderVisibleObjectLightingPass(SceneObject& so,
-const Light& light, const Frustum &frustum) {
+const sreLight& light, const Frustum &frustum) {
     // Do an intersection test against the light volume.
     light_volume_intersection_test_count++;
     if (!Intersects(so, light))
@@ -1180,7 +1180,7 @@ static bool custom_depth_bounds_set;
 // they are still set for a previous object).
 
 static void RenderVisibleObjectLightingPassWithSpecifiedScissors(SceneObject& so,
-const Light& light, const Frustum &frustum, const sreScissors& object_scissors) {
+const sreLight& light, const Frustum &frustum, const sreScissors& object_scissors) {
     // Since the geometry scissors may still be set for a previously drawn object,
     // carefully check whether new scissors/depth bounds are required.
     bool viewport_adjusted = false;
@@ -1301,7 +1301,7 @@ const Light& light, const Frustum &frustum, const sreScissors& object_scissors) 
 // without caching/storing the used scissors (useful for dynamic objects).
 
 static void RenderVisibleObjectLightingPassGeometryScissors(SceneObject& so,
-const Light& light, const Frustum &frustum) {
+const sreLight& light, const Frustum &frustum) {
     sreScissors object_scissors;
 
     // Decide whether to use geometry scissors using a heuristic.
@@ -1356,7 +1356,7 @@ const Light& light, const Frustum &frustum) {
 // are partially within the light volume of a static light.
 
 static void RenderVisibleObjectLightingPassCacheGeometryScissors(SceneObject& so,
-const Light& light, const Frustum &frustum) {
+const sreLight& light, const Frustum &frustum) {
     // Decide whether to use geometry scissors using a heuristic.
     bool use_geometry_scissors = false;
     // Use the projected size calculated for the object during visible object
@@ -1425,7 +1425,7 @@ const Light& light, const Frustum &frustum) {
 // are partially within the light volume of a static light.
 
 static void RenderVisibleObjectLightingPassReuseGeometryScissors(SceneObject& so,
-const Light& light, const Frustum &frustum) {
+const sreLight& light, const Frustum &frustum) {
     // When the last frustum change was before the current frame, as indicated
     // by the flag, any previously calculated geometry scissors information for
     // a static object/static light combination must still be valid.
@@ -1454,7 +1454,7 @@ static int intersection_tests_all_lights;
 // that have a limited sphere of influence.
 // This does directly affect any field in the sreScene class so is declared const.
 
-void sreScene::RenderVisibleObjectsLightingPass(const Frustum& frustum, const Light& light) const {
+void sreScene::RenderVisibleObjectsLightingPass(const Frustum& frustum, const sreLight& light) const {
     object_count = 0;
     light_volume_intersection_test_count = 0;
     if (light.type & SRE_LIGHT_DIRECTIONAL) {
@@ -1756,7 +1756,8 @@ void sreScene::RenderFinalPassObjectsMultiPass(const Frustum& frustum) const {
 // that have a variable light volume which has only just come into view (some time after
 // the last frustum change).
 
-void sreScene::UpdateGeometryScissorsCacheData(const Frustum& frustum, const sreLight& light) const {
+void sreScene::UpdateGeometryScissorsCacheData(const Frustum& frustum,
+const sreLight& light) const {
     if (sre_internal_current_frame > frustum.most_recent_frame_changed)
         return;
     if (!(light.type & SRE_LIGHT_STATIC_OBJECTS_LIST))

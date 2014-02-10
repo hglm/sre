@@ -45,7 +45,7 @@ sreScene::sreScene(int _max_scene_objects, int _max_models, int _max_scene_light
     model = new sreModel *[max_models];
     nu_lights = 0;
     max_scene_lights = _max_scene_lights;
-    global_light = new Light *[max_scene_lights];
+    global_light = new sreLight *[max_scene_lights];
     ambient_color = Color(0.1, 0.1, 0.1);
     // Scene building helpers.
     SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));

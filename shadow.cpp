@@ -285,7 +285,7 @@ enum {
     SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN = 4
 };
 
-static void AddSides(sreLODModelShadowVolume *m, EdgeArray *ea, const Light& light, int array_buffer_flags) {
+static void AddSides(sreLODModelShadowVolume *m, EdgeArray *ea, const sreLight& light, int array_buffer_flags) {
     // Add the sides of the shadow volume based on the silhouette. For light cap vertices
     // projected to the dark cap, a w component of 0 is used.
     if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
@@ -356,7 +356,7 @@ add_sides_int :
 // each side "quad". This saves just one index value per pair of side triangles; the savings are not
 // great (it would be difficult to generate larger triangle strips form silhouette data).
 
-static void AddSidesTriangleStrip(sreLODModelShadowVolume *m, EdgeArray *ea, const Light& light,
+static void AddSidesTriangleStrip(sreLODModelShadowVolume *m, EdgeArray *ea, const sreLight& light,
 int array_buffer_flags) {
     // Add the sides of the shadow volume based on the silhouette. For light cap vertices
     // projected to the dark cap, a w component of 0 is used.
@@ -421,7 +421,7 @@ add_sides_triangle_strip_int :
 // resulting triangle fan will be relatively cache-coherent, and should be fast to draw.
 // Returns true when succesful, false otherwise.
 
-static bool AddSidesTriangleFan(sreLODModelShadowVolume *m, EdgeArray *ea, const Light& light,
+static bool AddSidesTriangleFan(sreLODModelShadowVolume *m, EdgeArray *ea, const sreLight& light,
 int array_buffer_flags) {
     // Add the sides of the shadow volume based on the silhouette. For light cap vertices
     // projected to the dark cap, a w component of 0 is used.
@@ -1060,7 +1060,7 @@ static EdgeArray *silhouette_edges = NULL;
 //
 // Any GPU scissors settings have been applied.
 
-static void DrawShadowVolume(SceneObject *so, Light *light, Frustum &frustum, ShadowVolume *sv_in) {
+static void DrawShadowVolume(SceneObject *so, sreLight *light, Frustum &frustum, ShadowVolume *sv_in) {
         // Determine whether depth-pass or depth-fail rendering must be used.
         // If the shadow volume visibility test is enabled, also test whether the geometrical
         // shadow volume intersects with the view frustum.
@@ -1411,7 +1411,7 @@ static bool custom_depth_bounds_set;
 // scissors enabled. A specific scissors region for the object's shadow volume is
 // calculated and applied if it is smaller than the pre-existing light scissors region.
 
-static void RenderShadowVolumeGeometryScissors(SceneObject *so, Light *light, Frustum& frustum) {
+static void RenderShadowVolumeGeometryScissors(SceneObject *so, sreLight *light, Frustum& frustum) {
             ShadowVolume *sv;
             bool viewport_adjusted = false;
             bool depth_bounds_adjusted = false;
@@ -1480,7 +1480,7 @@ static void RenderShadowVolumeGeometryScissors(SceneObject *so, Light *light, Fr
             DrawShadowVolume(so, light, frustum, sv);
 }
 
-static void RenderShadowVolume(SceneObject *so, Light *light, Frustum& frustum) {
+static void RenderShadowVolume(SceneObject *so, sreLight *light, Frustum& frustum) {
     DrawShadowVolume(so, light, frustum, NULL);
 }
 
@@ -1509,7 +1509,7 @@ enum {
 #if 0
 
 static void RenderShadowVolumesForFastOctree(const FastOctree& fast_oct, int array_index,
-Scene *scene, Light *light, Frustum &frustum, int intersection_flags) {
+Scene *scene, sreLight *light, Frustum &frustum, int intersection_flags) {
     octree_count++;
 
         // Update whether the intersection of the light volume and
@@ -1638,7 +1638,7 @@ static void CheckShadowCasterCapacity(Scene *scene) {
 // the way visible object lists are reused in this scenario).
 
 static void DetermineShadowCastersFromFastOctreeRootNode(const FastOctree& fast_oct,
-Scene *scene, Light *light, Frustum &frustum, int intersection_flags) {
+Scene *scene, sreLight *light, Frustum &frustum, int intersection_flags) {
     octree_count++;
     // Render all objects in this node.
     int nu_entities = fast_oct.array[2];
@@ -1682,7 +1682,7 @@ Scene *scene, Light *light, Frustum &frustum, int intersection_flags) {
 // object octree.
 
 static void DetermineShadowCastersFromFastOctree(const FastOctree& fast_oct, int array_index,
-Scene *scene, Light *light, Frustum &frustum, int intersection_flags) {
+Scene *scene, sreLight *light, Frustum &frustum, int intersection_flags) {
         // Update whether the intersection of the light volume and
         // the shadow caster volume intersect with the octree.
         int node_index = fast_oct.array[array_index];
@@ -1775,7 +1775,7 @@ Scene *scene, Light *light, Frustum &frustum, int intersection_flags) {
 // caster array.
 
 static void DetermineShadowCastersFromLightStaticCasterArray(const FastOctree& fast_oct,
-Scene *scene, Light *light, Frustum &frustum) {
+Scene *scene, sreLight *light, Frustum &frustum) {
     for (int i = 0; i < light->nu_shadow_caster_objects; i++) {
         int j = light->shadow_caster_object[i];
         SceneObject *so = scene->sceneobject[j];
@@ -1799,7 +1799,7 @@ Scene *scene, Light *light, Frustum &frustum) {
 // shadow caster volume for the current frustum.
 
 static void RenderShadowVolumesFromCompiledCasterArray(sreScene *scene,
-Light *light, Frustum &frustum) {
+sreLight *light, Frustum &frustum) {
     bool use_geometry_scissors;
     if ((sre_internal_scissors & SRE_SCISSORS_GEOMETRY_MASK) &&
     !(light->type & SRE_LIGHT_DIRECTIONAL))
@@ -1820,7 +1820,7 @@ Light *light, Frustum &frustum) {
 
 // Render all shadow volumes for a light.
 
-void sreRenderShadowVolumes(sreScene *scene, Light *light, Frustum &frustum) {
+void sreRenderShadowVolumes(sreScene *scene, sreLight *light, Frustum &frustum) {
     // Calculate the shadow caster volume that encloses the light source and the view volume.
     frustum.CalculateShadowCasterVolume(scene->global_light[sre_internal_current_light_index]->vector, 5);
 

@@ -38,7 +38,7 @@ Point3D sre_internal_viewpoint;
 float sre_internal_zoom;
 int sre_internal_current_frame = 0;
 int sre_internal_current_light_index;
-Light *sre_internal_current_light;
+sreLight *sre_internal_current_light;
 Scene *sre_internal_scene;
 sreSwapBuffersFunc sre_internal_swap_buffers_func;
 int sre_internal_window_width;

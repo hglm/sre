@@ -50,7 +50,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // can happen with a completely flat object that is oriented parallel to the light direction),
 // or SRE_BOUNDING_VOLUME_EVERYWHERE if no shadow volume could be calculated).
 
-sreBoundingVolumeType SceneObject::CalculateShadowVolumePyramid(const Light& light, Point3D *Q,
+sreBoundingVolumeType SceneObject::CalculateShadowVolumePyramid(const sreLight& light, Point3D *Q,
 int& n_convex_hull) const {
         bool P_included[8];
         if (box.PCA[2].SizeIsZero()) {
@@ -152,7 +152,7 @@ again :
 // or SRE_BOUNDING_VOLUME_EVERYWHERE if no shadow volume could be calculated).
 
 sreBoundingVolumeType SceneObject::CalculatePointSourceOrSpotShadowVolume(
-const Light& light, Point3D *Q, int& n_convex_hull, Vector3D& axis, float& radius,
+const sreLight& light, Point3D *Q, int& n_convex_hull, Vector3D& axis, float& radius,
 float& cos_half_angular_size) const {
         bool P_included[8];
         if (box.PCA[2].SizeIsZero()) {
@@ -239,7 +239,7 @@ float& cos_half_angular_size) const {
 // Always returns the bounding volume type SRE_BOUNDING_VOLUME_HALF_CYLINDER.
 
 sreBoundingVolumeType SceneObject::CalculateShadowVolumeHalfCylinderForDirectionalLight(
-const Light &light, Point3D &E, float& cylinder_radius, Vector3D& cylinder_axis) const {
+const sreLight& light, Point3D &E, float& cylinder_radius, Vector3D& cylinder_axis) const {
     // Calculate the endpoint. It is situated on the bounding sphere of the object in
     // the direction of where the light is (which is the inverse of the direction of the
     // light).
@@ -258,7 +258,7 @@ const Light &light, Point3D &E, float& cylinder_radius, Vector3D& cylinder_axis)
 // outside the light volume.
 
 sreBoundingVolumeType sreObject::CalculateShadowVolumeCylinderForBeamLight(
-const Light& light, Point3D& center, float& length, Vector3D& cylinder_axis,
+const sreLight& light, Point3D& center, float& length, Vector3D& cylinder_axis,
 float& cylinder_radius) const {
     // Define the plane through the beam light position, with normal in the beam light direction.
     // The axis from beam light's cylinder bounding volume is used, which should be the same as the
@@ -300,7 +300,7 @@ float& cylinder_radius) const {
 // However, SRE_BOUNDING_SPHERICAL_SECTOR may be used in certain cases, and for beam lights,
 // a potential cylinder-shaped shadow volume would have to converted to a box.
 
-bool SceneObject::CalculateShadowVolumeScissors(const Light& light, const Frustum& frustum,
+bool SceneObject::CalculateShadowVolumeScissors(const sreLight& light, const Frustum& frustum,
 const ShadowVolume& sv, sreScissors& shadow_volume_scissors) const {
     if (sv.type == SRE_BOUNDING_VOLUME_PYRAMID_CONE) {
         shadow_volume_scissors.SetEmptyRegion();
@@ -352,7 +352,7 @@ void sreInitializeInternalShadowVolume() {
 // The shadow volume is for temporary use and may only be valid until the next
 // shadow volume is calculate using this function. It should not be freed.
 
-void SceneObject::CalculateTemporaryShadowVolume(const Light& light, ShadowVolume **sv) const {
+void SceneObject::CalculateTemporaryShadowVolume(const sreLight& light, ShadowVolume **sv) const {
     // If the light does not produce changing shadow volumes out of itself,
     // and the object does not move, look up the precalculated shadow volume
     // in the object's static shadow volume list.

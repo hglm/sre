@@ -244,5 +244,5 @@ bool sreInitializeObjectShaderMultiPassLightingPass(SceneObject& so);
 void sreInitializeObjectShaderLightHalo(const SceneObject& so);
 void sreInitializeObjectShaderBillboard(const sreObject& so);
 bool sreInitializeObjectShaderMultiPassShadowMapLightingPass(SceneObject& so);
-void sreBindShadowMapTexture(Light *light);
+void sreBindShadowMapTexture(sreLight *light);
 

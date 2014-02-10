@@ -88,7 +88,7 @@ sreLight::sreLight() {
 
 // This code has been replaced by a more direct analytical method.
 
-void Light::CalculateSpotLightCylinderRadius() {
+void sreLight::CalculateSpotLightCylinderRadius() {
     if (type & SRE_LIGHT_SPOT) {
         // Calculate the maximum cylinder radius where attenuation * pow(maxf(Dot(-R, L), 0.0), p)
         // is greater than some small value.
@@ -169,15 +169,15 @@ void sreScene::CheckLightCapacity() {
         if (sre_internal_debug_message_level >= 1)
             printf("Maximum number of  lights reached -- doubling capacity to %d.\n",
                 max_scene_lights * 2);
-        Light **new_global_light = new Light *[max_scene_lights * 2];
-        memcpy(new_global_light, global_light, sizeof(Light *) * max_scene_lights);
+        sreLight **new_global_light = new sreLight *[max_scene_lights * 2];
+        memcpy(new_global_light, global_light, sizeof(sreLight *) * max_scene_lights);
         delete [] global_light;
         global_light = new_global_light;
         max_scene_lights *= 2;
     }
 }
 
-void sreScene::RegisterLight(Light *l) {
+void sreScene::RegisterLight(sreLight *l) {
     global_light[nu_lights] = l;
     l->id = nu_lights;
     nu_lights++;
@@ -185,7 +185,7 @@ void sreScene::RegisterLight(Light *l) {
 
 int sreScene::AddDirectionalLight(int type, Vector3D direction, Color color) {
     CheckLightCapacity();
-    Light *l = new Light;
+    sreLight *l = new sreLight;
     l->type = type | SRE_LIGHT_DIRECTIONAL;
     l->shader_light_type = SRE_SHADER_LIGHT_TYPE_DIRECTIONAL;
     if (l->type & SRE_LIGHT_DYNAMIC_DIRECTION)
@@ -199,7 +199,7 @@ int sreScene::AddDirectionalLight(int type, Vector3D direction, Color color) {
 
 int sreScene::AddPointSourceLight(int type, Point3D position, float linear_range, Color color) {
     CheckLightCapacity();
-    Light *l = new Light;
+    sreLight *l = new sreLight;
     // Linear attenuation is forced, even though some of the shaders support the classical
     // type of attenuation.
     l->type = type | SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE;
@@ -223,7 +223,7 @@ int sreScene::AddPointSourceLight(int type, Point3D position, float linear_range
 int sreScene::AddSpotLight(int type, Point3D position, Vector3D direction, float exponent, float linear_range,
 Color color) {
     CheckLightCapacity();
-    Light *l = new Light;
+    sreLight *l = new sreLight;
     l->type = type | SRE_LIGHT_SPOT | SRE_LIGHT_LINEAR_ATTENUATION_RANGE;
     l->shader_light_type = SRE_SHADER_LIGHT_TYPE_SPOT_OR_BEAM;
     if (l->type & (SRE_LIGHT_DYNAMIC_ATTENUATION | SRE_LIGHT_DYNAMIC_DIRECTION |
@@ -259,7 +259,7 @@ Color color) {
 int sreScene::AddBeamLight(int type, Point3D position, Vector3D direction, float beam_radius, float
 radial_linear_range, float cutoff_distance, float linear_range, Color color) {
     CheckLightCapacity();
-    Light *l = new Light;
+    sreLight *l = new sreLight;
     l->type = type | SRE_LIGHT_BEAM | SRE_LIGHT_LINEAR_ATTENUATION_RANGE;
     l->shader_light_type = SRE_SHADER_LIGHT_TYPE_SPOT_OR_BEAM;
     if (l->type & (SRE_LIGHT_DYNAMIC_ATTENUATION | SRE_LIGHT_DYNAMIC_DIRECTION |
@@ -287,7 +287,7 @@ radial_linear_range, float cutoff_distance, float linear_range, Color color) {
 
 // Calculate bounding volumes.
 
-void Light::CalculateBoundingVolumes() {
+void sreLight::CalculateBoundingVolumes() {
     // For non-directional lights, always calculate a bounding sphere.
     // For variable lights, we also calculate worst case sphere bounds.
     // For spot and beam lights, calculate a bounding cylinder.
@@ -379,7 +379,7 @@ void Light::CalculateBoundingVolumes() {
 
 // Calculate an AABB using current light parameters.
 
-void Light::CalculateLightVolumeAABB(sreBoundingVolumeAABB& AABB_out) {
+void sreLight::CalculateLightVolumeAABB(sreBoundingVolumeAABB& AABB_out) {
     if (type & SRE_LIGHT_SPOT) {
         // Use the spherical sector of the spot light to calculate the AABB.
         CalculateAABB(spherical_sector, AABB_out);
@@ -395,7 +395,7 @@ void Light::CalculateLightVolumeAABB(sreBoundingVolumeAABB& AABB_out) {
 
 // Calculate an AABB using the light's worst case bounding volume.
 
-void Light::CalculateWorstCaseLightVolumeAABB(sreBoundingVolumeAABB& AABB_out) {
+void sreLight::CalculateWorstCaseLightVolumeAABB(sreBoundingVolumeAABB& AABB_out) {
     if (type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE) {
         // Variable light with worst case bounds (sphere).
         // Use the worst-case bounding sphere's AABB.
@@ -407,7 +407,7 @@ void Light::CalculateWorstCaseLightVolumeAABB(sreBoundingVolumeAABB& AABB_out) {
 }
 
 void sreScene::SetLightWorstCaseBounds(int i, const sreBoundingVolumeSphere& sphere) {
-    Light *l = global_light[i];
+    sreLight *l = global_light[i];
     l->worst_case_sphere = sphere;
     l->type |= SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE;
 }
@@ -418,7 +418,7 @@ void sreScene::SetLightWorstCaseBounds(int i, const sreBoundingVolumeSphere& sph
 
 void sreScene::SetPointLightWorstCaseBounds(int i, float max_range,
 const sreBoundingVolumeSphere& position_sphere) {
-    Light *l = global_light[i];
+    sreLight *l = global_light[i];
     l->worst_case_sphere = l->sphere;
     l->worst_case_sphere.radius += max_range;
     l->type |= SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE;
@@ -434,7 +434,7 @@ const sreBoundingVolumeSphere& position_sphere) {
 
 void sreScene::SetSpotLightWorstCaseBounds(int i, float max_direction_angle, float min_exponent,
 float max_range, const sreBoundingVolumeSphere& position_sphere) {
-    Light *l = global_light[i];
+    sreLight *l = global_light[i];
     // Calculate the worst case spherical sector.
     float exponent_cos_max_half_angle = expf(logf(0.01f) / min_exponent);
     float max_half_angle = clampf(max_direction_angle + acosf(exponent_cos_max_half_angle), 0,
@@ -462,7 +462,7 @@ float max_range, const sreBoundingVolumeSphere& position_sphere) {
 
 void sreScene::SetBeamLightWorstCaseBounds(int i, float max_direction_angle, float max_range,
 float max_beam_radius, const sreBoundingVolumeSphere& position_sphere) {
-    Light *l = global_light[i];
+    sreLight *l = global_light[i];
     // Varying the axis of the bounding cylinder will create a spherical cap on the exterior end;
     // However bounding volume will not be a true spherical sector.
     // We can however combine all the possible cylinder bounding spheres.
@@ -495,7 +495,7 @@ float max_beam_radius, const sreBoundingVolumeSphere& position_sphere) {
 }
 
 void sreScene::ChangeDirectionalLightDirection(int i, Vector3D direction) const {
-    Light *l = global_light[i];
+    sreLight *l = global_light[i];
     l->vector = Vector4D(- direction, 0);
     if (l->most_recent_shadow_volume_change == sre_internal_current_frame - 1)
         l->changing_every_frame = true;
@@ -507,7 +507,7 @@ void sreScene::ChangeDirectionalLightDirection(int i, Vector3D direction) const 
 }
 
 void sreScene::ChangeLightPosition(int i, Point3D position) const {
-    Light *l = global_light[i];
+    sreLight *l = global_light[i];
     if (l->vector.GetPoint3D() == position)
         // Position didn't actually change.
         return;
@@ -537,7 +537,7 @@ void sreScene::ChangeLightColor(int i, Color color) const {
 }
 
 void sreScene::ChangeSpotLightDirection(int i, Vector3D direction) const {
-    Light *l = global_light[i];
+    sreLight *l = global_light[i];
     l->spotlight = Vector4D(direction, l->spotlight.w);
     // Note that the bounding sphere will be affected too.
     if (l->type & SRE_LIGHT_SPOT) {
@@ -568,7 +568,7 @@ void sreScene::ChangeSpotLightDirection(int i, Vector3D direction) const {
 
 void sreScene::ChangePointSourceLightAttenuation(int i, float range) const {
     // It is assumed that SRE_LIGHT_DYNAMIC_ATTENUATION is set.
-    Light *l = global_light[i];
+    sreLight *l = global_light[i];
     l->attenuation.Set(range, 0, 0);
     l->sphere.radius = range;
 }
@@ -576,7 +576,7 @@ void sreScene::ChangePointSourceLightAttenuation(int i, float range) const {
 void sreScene::ChangeSpotLightAttenuationAndExponent(int i, float range, float exponent) const {
     // It is assumed that SRE_LIGHT_DYNAMIC_ATTENUATION or SRE_LIGHT_DYNAMIC_SPOT_EXPONENT
     // is set when appropriate.
-    Light *l = global_light[i];
+    sreLight *l = global_light[i];
     l->attenuation.Set(range, 0, 0);
     l->spotlight.w = exponent;
     // Spherical sector has to be recalculated.
@@ -593,7 +593,7 @@ void sreScene::ChangeSpotLightAttenuationAndExponent(int i, float range, float e
 void sreScene::ChangeBeamLightAttenuation(int i, float beam_radius, float
 radial_linear_range, float cutoff_distance, float linear_range) const {
     // It is assumed that SRE_LIGHT_DYNAMIC_ATTENUATION is set.
-    Light *l = global_light[i];
+    sreLight *l = global_light[i];
     l->attenuation.Set(linear_range, cutoff_distance, radial_linear_range);
     l->spotlight.w = beam_radius;
     // Update bounding volumes. It is normally assumed that beam_radius is
@@ -783,7 +783,7 @@ void sreScene::CalculateVisibleActiveLights(sreView *view, int max_lights) {
 // is made to clip the scissors region to the screen, although the depth bounds should be beyond the
 // near plane (i.e. valid given an infinite projection matrix).
 
-BoundsCheckResult SceneObject::CalculateGeometryScissors(const Light& light, const Frustum& frustum,
+BoundsCheckResult SceneObject::CalculateGeometryScissors(const sreLight& light, const Frustum& frustum,
 sreScissors& scissors) {
     // Do a sphere check first.
     float dist_squared = SquaredMag(sphere.center - light.sphere.center);
@@ -1031,7 +1031,7 @@ sreScissors& scissors) {
 // don't receive light, but can cast shadows are also included.
 
 void sreScene::DetermineStaticLightVolumeIntersectingObjects(const FastOctree& fast_oct,
-int array_index, const Light& light, int &nu_intersecting_objects,
+int array_index, const sreLight& light, int &nu_intersecting_objects,
 int *intersecting_object) const {
     int node_index = fast_oct.array[array_index];
     BoundsCheckResult r;
