@@ -129,6 +129,7 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     (1 << UNIFORM_ROUGHNESS) | (1 << UNIFORM_ROUGHNESS_WEIGHTS) | (1 << UNIFORM_ANISOTROPIC),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
     (1 << ATTRIBUTE_COLOR) },
+#ifndef NO_SHADOW_MAP
     { "Complete shadow map multi-pass lighting shader for directional lights", (UNIFORM_MASK_COMMON ^ (
     (1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_LIGHT_ATT) |
     (1 << UNIFORM_CURRENT_LIGHT) | (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) |
@@ -185,6 +186,7 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     (1 << UNIFORM_SPECULARITY_MAP_SAMPLER) | (1 << UNIFORM_EMISSION_MAP_SAMPLER) |
     (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) },
+#endif
     { "Earth multi-pass lighting shader for directional light", (1 << UNIFORM_MVP) | (1 << UNIFORM_MODEL_MATRIX) |
     (1 << UNIFORM_MODEL_ROTATION_MATRIX) | (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) |
     (1 << UNIFORM_LIGHT_POSITION) | (1 << UNIFORM_LIGHT_COLOR) | (1 << UNIFORM_SPECULAR_REFLECTION_COLOR) |
@@ -385,6 +387,7 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define POINT_SOURCE_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n"
     "#define MICROFACET\n",
+#ifndef NO_SHADOW_MAP
     // Complete shadow map lighting pass shader with support for all options except emission color and map,
     // for directional lights.
     "#define TEXCOORD_IN\n"
@@ -543,6 +546,7 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define DIRECTIONAL_LIGHT\n"
     "#define SHADOW_MAP\n"
     "#define EARTH_SHADER\n",
+#endif
     // Earth lighting pass shader for directional light
     "#define TEXCOORD_IN\n"
     "#define NORMAL_IN\n"
@@ -1105,13 +1109,12 @@ static const MiscShaderInfo misc_shader_info[] = {
     (1 << ATTRIBUTE_POSITION),
     "gl3_image.vert", "gl3_image.frag", "#define UV_TRANSFORM\n#define ONE_COMPONENT\n"
     },
+#ifndef OPENGL_ES2
     {
     "2D texture array image shader",
     SRE_SHADER_MASK_IMAGE,
     (1 << UNIFORM_MISC_TEXTURE_SAMPLER) |
-#ifndef OPENGL_ES2
     (1 << UNIFORM_MISC_ARRAY_INDEX) |
-#endif
     (1 << UNIFORM_MISC_RECTANGLE) | (1 << UNIFORM_MISC_UV_TRANSFORM) |
     (1 << UNIFORM_MISC_MULT_COLOR) | (1 << UNIFORM_MISC_ADD_COLOR),
     (1 << ATTRIBUTE_POSITION),
@@ -1121,15 +1124,14 @@ static const MiscShaderInfo misc_shader_info[] = {
     "2D texture array image shader (one component)",
     SRE_SHADER_MASK_IMAGE,
     (1 << UNIFORM_MISC_TEXTURE_SAMPLER) |
-#ifndef OPENGL_ES2
     (1 << UNIFORM_MISC_ARRAY_INDEX) |
-#endif
     (1 << UNIFORM_MISC_RECTANGLE) | (1 << UNIFORM_MISC_UV_TRANSFORM) |
     (1 << UNIFORM_MISC_MULT_COLOR) | (1 << UNIFORM_MISC_ADD_COLOR),
     (1 << ATTRIBUTE_POSITION),
     "gl3_image.vert", "gl3_image.frag",
         "#define UV_TRANSFORM\n#define TEXTURE_ARRAY\n#define ONE_COMPONENT\n"
     },
+#endif
     {
     "Shadow volume shader",
     SRE_SHADER_MASK_SHADOW_VOLUME,
@@ -1137,6 +1139,7 @@ static const MiscShaderInfo misc_shader_info[] = {
     (1 << ATTRIBUTE_POSITION),
     "gl3_shadow_volume.vert", "gl3_shadow_volume.frag", ""
     },
+#ifndef NO_SHADOW_MAP
     {
     "Shadow map shader",
     SRE_SHADER_MASK_SHADOW_MAP,
@@ -1169,6 +1172,7 @@ static const MiscShaderInfo misc_shader_info[] = {
      "gl3_shadow_map.vert", "gl3_shadow_map.frag",
      "#define CUBE_MAP\n#define TEXTURE_ALPHA\n#define UV_TRANSFORM\n"   
     },
+#endif
     {
     "Halo shader (single and particle system)",
     SRE_SHADER_MASK_EFFECTS,
@@ -1186,6 +1190,7 @@ static const MiscShaderInfo misc_shader_info[] = {
     (1 << ATTRIBUTE_POSITION) | (1 < ATTRIBUTE_TEXCOORDS),
     "gl3_billboard.vert", "gl3_billboard.frag", ""
     },
+#ifndef NO_HDR
     {
     "HDR log luminance shader",
     SRE_SHADER_MASK_HDR,
@@ -1214,6 +1219,7 @@ static const MiscShaderInfo misc_shader_info[] = {
     (1 << ATTRIBUTE_POSITION),
     "gl3_HDR_lum_history_comparison.vert", "gl3_HDR_lum_history_comparison.frag", ""
     },
+#endif
 };
 
 void sreShader::InitializeUniformLocationsMiscShaderNew() {
@@ -1293,85 +1299,21 @@ static void sreInitializeShadowVolumeShaders() {
 static void sreInitializeShadowMapShaders() {
 #ifndef NO_SHADOW_MAP
     sreInitializeMiscShaders(SRE_SHADER_MASK_SHADOW_MAP);
-#if 0
-    shadow_map_shader.name = "Shadow map shader";
-    shadow_map_shader.type = SRE_SHADER_MASK_SHADOW_MAP;
-    shadow_map_shader.uniform_mask = (1 << UNIFORM_MISC_MVP);
-    shadow_map_shader.attribute_mask = (1 << ATTRIBUTE_POSITION);
-    shadow_map_shader.Initialize("gl3_shadow_map.vert", "gl3_shadow_map.frag", "");
-    shadow_map_transparent_shader.name = "Shadow map shader for transparent textures";
-    shadow_map_transparent_shader.type = SRE_SHADER_MASK_SHADOW_MAP;
-    shadow_map_transparent_shader.uniform_mask = (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_TEXTURE_SAMPLER);
-    shadow_map_transparent_shader.attribute_mask = (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS);
-    shadow_map_transparent_shader.Initialize("gl3_shadow_map.vert", "gl3_shadow_map.frag", "#define TEXTURE_ALPHA\n");
-    cube_shadow_map_shader.name = "Shadow cube-map shader";
-    cube_shadow_map_shader.type = SRE_SHADER_MASK_SHADOW_MAP;
-    cube_shadow_map_shader.uniform_mask = (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_LIGHT_POSITION) |
-        (1 << UNIFORM_MISC_MODEL_MATRIX) | (1 << UNIFORM_MISC_SEGMENT_DISTANCE_SCALING);
-    cube_shadow_map_shader.attribute_mask = (1 << ATTRIBUTE_POSITION);
-    cube_shadow_map_shader.Initialize("gl3_shadow_map.vert", "gl3_shadow_map.frag", "#define CUBE_MAP\n");
-    misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT].name = "Shadow cube-map shader for transparent textures";
-    misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT].type = SRE_SHADER_MASK_SHADOW_MAP;
-    misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT].uniform_mask = (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_TEXTURE_SAMPLER) |
-        (1 << UNIFORM_MISC_LIGHT_POSITION) | (1 << UNIFORM_MISC_MODEL_MATRIX) |
-        (1 << UNIFORM_MISC_SEGMENT_DISTANCE_SCALING);
-    misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT].attribute_mask = (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS);
-    misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT].Initialize("gl3_shadow_map.vert", "gl3_shadow_map.frag",
-        "#define CUBE_MAP\n#define TEXTURE_ALPHA\n");
-#endif
 #endif
 }
 
 static void sreInitializeEffectsShaders() {
     sreInitializeMiscShaders(SRE_SHADER_MASK_EFFECTS);
-#if 0
-    halo_shader.name = "Halo shader";
-    halo_shader.type = SRE_SHADER_MASK_EFFECTS;
-    halo_shader.uniform_mask = (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_VIEW_PROJECTION_MATRIX) |
-        (1 << UNIFORM_MISC_BASE_COLOR) | (1 << UNIFORM_MISC_ASPECT_RATIO) | (1 << UNIFORM_MISC_HALO_SIZE);
-    halo_shader.attribute_mask = (1 << ATTRIBUTE_POSITION);
-    halo_shader.Initialize("gl3_halo.vert", "gl3_halo.frag", "");
-    ps_shader.name = "Particle system shader";
-    ps_shader.type = SRE_SHADER_MASK_EFFECTS;
-    ps_shader.uniform_mask = (1 << UNIFORM_MISC_VIEW_PROJECTION_MATRIX) |
-        (1 << UNIFORM_MISC_BASE_COLOR) | (1 << UNIFORM_MISC_ASPECT_RATIO) | (1 << UNIFORM_MISC_HALO_SIZE);
-    ps_shader.attribute_mask = (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_NORMAL);
-    ps_shader.Initialize("gl3_ps.vert", "gl3_ps.frag", "");
-#endif
 }
 
 static const char *tone_map_prologue[] = {
-     "#define TONE_MAP_LINEAR\n", "#define TONE_MAP_REINHARD\n", "#define TONE_MAP_EXPONENTIAL\n"
+     "#define TONE_MAP_LINEAR\n", "#define TONE_MAP_REINHARD\n",
+     "#define TONE_MAP_EXPONENTIAL\n"
 };
 
 static void sreInitializeHDRShaders() {
 #ifndef NO_HDR
     sreInitializeMiscShaders(SRE_SHADER_MASK_HDR);
-#if 0
-    misc_shader[SRE_MISC_SHADER_HDR_LOG_LUMINANCE].name = "HDR log luminance shader";
-    misc_shader[SRE_MISC_SHADER_HDR_LOG_LUMINANCE].type = SRE_SHADER_MASK_HDR;
-    misc_shader[SRE_MISC_SHADER_HDR_LOG_LUMINANCE].uniform_mask = (1 << UNIFORM_MISC_TEXTURE_SAMPLER);
-    misc_shader[SRE_MISC_SHADER_HDR_LOG_LUMINANCE].attribute_mask = (1 << ATTRIBUTE_POSITION);
-    misc_shader[SRE_MISC_SHADER_HDR_LOG_LUMINANCE].Initialize("gl3_HDR_log_lum.vert", "gl3_HDR_log_lum.frag", "");
-    misc_shader[SRE_MISC_SHADER_HDR_AVERAGE_LUMINANCE].name = "HDR average log luminance shader";
-    misc_shader[SRE_MISC_SHADER_HDR_AVERAGE_LUMINANCE].type = SRE_SHADER_MASK_HDR;
-    misc_shader[SRE_MISC_SHADER_HDR_AVERAGE_LUMINANCE].uniform_mask = (1 << UNIFORM_MISC_TEXTURE_SAMPLER);
-    misc_shader[SRE_MISC_SHADER_HDR_AVERAGE_LUMINANCE].attribute_mask = (1 << ATTRIBUTE_POSITION);
-    misc_shader[SRE_MISC_SHADER_HDR_AVERAGE_LUMINANCE].Initialize("gl3_HDR_average_lum.vert", "gl3_HDR_average_lum.frag", "");
-    misc_shader[SRE_MISC_SHADER_HDR_LUMINANCE_HISTORY_STORAGE].name = "HDR luminance history storage shader";
-    misc_shader[SRE_MISC_SHADER_HDR_LUMINANCE_HISTORY_STORAGE].type = SRE_SHADER_MASK_HDR;
-    misc_shader[SRE_MISC_SHADER_HDR_LUMINANCE_HISTORY_STORAGE].uniform_mask = (1 << UNIFORM_MISC_TEXTURE_SAMPLER) |
-        (1 << UNIFORM_MISC_AVERAGE_LUM_SAMPLER);
-    misc_shader[SRE_MISC_SHADER_HDR_LUMINANCE_HISTORY_STORAGE].attribute_mask = (1 << ATTRIBUTE_POSITION);
-    misc_shader[SRE_MISC_SHADER_HDR_LUMINANCE_HISTORY_STORAGE].Initialize("gl3_HDR_lum_history_storage.vert", "gl3_HDR_lum_history_storage.frag", "");
-    misc_shader[SRE_MISC_SHADER_HDR_LUMINANCE_HISTORY_COMPARISON].name = "HDR luminance history shader";
-    misc_shader[SRE_MISC_SHADER_HDR_LUMINANCE_HISTORY_COMPARISON].type = SRE_SHADER_MASK_HDR;
-    misc_shader[SRE_MISC_SHADER_HDR_LUMINANCE_HISTORY_COMPARISON].uniform_mask = (1 << UNIFORM_MISC_TEXTURE_SAMPLER) |
-        (1 << UNIFORM_MISC_LUMINANCE_HISTORY_SLOT);
-    misc_shader[SRE_MISC_SHADER_HDR_LUMINANCE_HISTORY_COMPARISON].attribute_mask = (1 << ATTRIBUTE_POSITION);
-    misc_shader[SRE_MISC_SHADER_HDR_LUMINANCE_HISTORY_COMPARISON].Initialize("gl3_HDR_lum_history_comparison.vert",
-        "gl3_HDR_lum_history_comparison.frag", "");
-#endif
     for (int i = 0; i < SRE_NUMBER_OF_TONE_MAPPING_SHADERS; i++) {
         char name[64];
         sprintf(name, "HDR %s tone mapping shader", sreGetToneMappingShaderName(i));
@@ -1389,10 +1331,6 @@ static void sreInitializeHDRShaders() {
 static void sreInitializeMultiPassLightingShaders() {
     // New style shader loading for lighting shaders.
     for (int i = 0; i < NU_LIGHTING_PASS_SHADERS; i++) {
-#ifdef NO_SHADOW_MAP
-        if (i >= 12 && i <= 18)
-            continue;
-#endif
         lighting_pass_shader[i].Initialize(
             lighting_pass_shader_info[i].name,
             SRE_SHADER_MASK_LIGHTING_MULTI_PASS,
@@ -1444,6 +1382,8 @@ void sreValidateShadowVolumeShaders() {
    misc_shader[SRE_MISC_SHADER_SHADOW_VOLUME].Validate();
 }
 
+#ifndef NO_SHADOW_MAP
+
 void sreValidateShadowMapShaders() {
    misc_shader[SRE_MISC_SHADER_SHADOW_MAP].Validate();
    misc_shader[SRE_MISC_SHADER_SHADOW_MAP_TRANSPARENT].Validate();
@@ -1452,6 +1392,11 @@ void sreValidateShadowMapShaders() {
 
 }
 
+#endif
+
+
+#ifndef NO_HDR
+
 void sreValidateHDRShaders() {
     misc_shader[SRE_MISC_SHADER_HDR_LOG_LUMINANCE].Validate();
     misc_shader[SRE_MISC_SHADER_HDR_AVERAGE_LUMINANCE].Validate();
@@ -1459,3 +1404,5 @@ void sreValidateHDRShaders() {
     misc_shader[SRE_MISC_SHADER_HDR_LUMINANCE_HISTORY_COMPARISON].Validate();
     HDR_tone_map_shader[sre_internal_HDR_tone_mapping_shader].Validate();
 }
+
+#endif

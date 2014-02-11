@@ -578,15 +578,18 @@ void sreDrawObjectAmbientPass(sreObject *so) {
 void sreDrawObjectMultiPassLightingPass(sreObject *so, bool shadow_map_required) {
     bool new_shader_selected;
     sreObjectAttributeInfo *info;
+#ifndef NO_SHADOW_MAP
     if (shadow_map_required) {
         // Note: For the same object and light type, a different vertex attribute
         // configuration may be required for the shadow map-enabled shader compared
-        // to the regular one. We therefor have a seperate attribute info when a shadow
+        // to the regular one. We therefore have a seperate attribute info when a shadow
         // map is required for drawing the object.
         new_shader_selected = sreInitializeObjectShaderMultiPassShadowMapLightingPass(*so);
         info = &so->attribute_info_shadow_map;
     }
-    else {
+    else
+#endif
+    {
         new_shader_selected = sreInitializeObjectShaderMultiPassLightingPass(*so);
         info = &so->attribute_info;
     }

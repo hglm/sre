@@ -138,11 +138,20 @@ void sreSetShadowsMethod(int method) {
            "Invalid shadow rendering method requested (shadow volumes are disabled).\n");
        return;
     }
-    sre_internal_shadows = method;
+#ifdef NO_SHADOW_MAP
+    if (method == SRE_SHADOWS_SHADOW_MAPPING) {
+        sreMessage(SRE_MESSAGE_WARNING,
+           "Invalid shadow rendering method requested (shadow mapping is not supported)\n");
+        return;    
+    }
+#endif
     if (method == SRE_SHADOWS_SHADOW_VOLUMES)
         sreValidateShadowVolumeShaders();
+#ifdef NO_SHADOW_MAP
     else if (method == SRE_SHADOWS_SHADOW_MAPPING)
         sreValidateShadowMapShaders();
+#endif
+    sre_internal_shadows = method;
     sre_internal_reselect_shaders = true;
 }
 
@@ -256,13 +265,18 @@ void sreSetHDRKeyValue(float value) {
 }
 
 void sreSetHDRToneMappingShader(int i) {
+#ifdef NO_HDR
+    sreMessage(SRE_MESSAGE_WARNING,
+            "sre: Invalid tone mapping shader request (HDR rendering is disabled).");
+#else
     if (i >= 0 && i < SRE_NUMBER_OF_TONE_MAPPING_SHADERS) {
         sre_internal_HDR_tone_mapping_shader = i;
         sreValidateHDRShaders();
     }
     else
         sreMessage(SRE_MESSAGE_WARNING,
-            "sre: Invalid tone mapping shader selected.\n");
+            "sre: Invalid tone mapping shader selected.");
+#endif
 }
 
 int sreGetCurrentHDRToneMappingShader() {

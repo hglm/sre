@@ -514,10 +514,23 @@ void sreInitializeMiscShaderUniformWithDefaultValue(int uniform_id, int loc) {
     }
 }
 
-enum MultiPassShaderSelection { SHADER0, SHADER1, SHADER2, SHADER3, SHADER4, SHADER5, SHADER6, SHADER7, SHADER8,
-    SHADER9, SHADER10, SHADER11, SHADER12, SHADER13, SHADER14, SHADER15, SHADER16, SHADER17, SHADER18, SHADER19 };
-enum SinglePassShaderSelection { SINGLE_PASS_SHADER0, SINGLE_PASS_SHADER1, SINGLE_PASS_SHADER2, SINGLE_PASS_SHADER3,
-SINGLE_PASS_SHADER4, SINGLE_PASS_SHADER5, SINGLE_PASS_SHADER6, SINGLE_PASS_SHADER7 };
+// Make sure the enum does not have any unused values, so that a switch statement
+// can be optimized further by the compiler. Start the enum at zero because it
+// used to index arrays.
+enum MultiPassShaderSelection {
+    SHADER0 = 0, SHADER1, SHADER2, SHADER3, SHADER4, SHADER5, SHADER6, SHADER7,
+    SHADER8, SHADER9, SHADER10, SHADER11,
+#ifndef NO_SHADOW_MAP
+    SHADER12, SHADER13, SHADER14, SHADER15, SHADER16, SHADER17, SHADER18,
+#endif
+    SHADER19
+};
+
+enum SinglePassShaderSelection {
+    SINGLE_PASS_SHADER0 = 0, SINGLE_PASS_SHADER1, SINGLE_PASS_SHADER2,
+    SINGLE_PASS_SHADER3, SINGLE_PASS_SHADER4, SINGLE_PASS_SHADER5, SINGLE_PASS_SHADER6,
+    SINGLE_PASS_SHADER7
+};
 
 
 // Uniform initialization before each frame. This includes the camera viewpoint,
@@ -678,145 +691,102 @@ void GL3InitializeShadersBeforeFrame() {
 
 class MultiPassShaderList {
 public :
-    MultiPassShaderSelection default_shader; // Unused.
     int nu_shaders;
-    int shader[6];
+    MultiPassShaderSelection shader[6];
 };
 
+// Define the set of shaders that may be used for a light given rendering settings and
+// light-specific parameters. This is used when initializing shaders before a lighting
+// pass.
+
 static MultiPassShaderList shader_list_directional_standard = {
-    SHADER4,
     4,
-    { 0, 4, 5, 19 }
+    { SHADER0, SHADER4, SHADER5, SHADER19 }
 };
 
 static MultiPassShaderList shader_list_directional_microfacet = {
-    SHADER10,
     1,
-    { 10 }
+    { SHADER10 }
 };
 
-#if 0
+#ifndef NO_SHADOW_MAP
+
+// Note that non-shadow map shaders are also included (for lights that do not have
+// any shadow casters or receivers).
 
 static MultiPassShaderList shader_list_directional_shadow_map_standard = {
-    SHADER12,
-    2,
-    { 12, 18 }
-};
-
-static MultiPassShaderList shader_list_directional_shadow_map_microfacet = {
-    SHADER14,
-    1,
-    { 14 }
-};
-
-#else
-
-static MultiPassShaderList shader_list_directional_shadow_map_standard = {
-    SHADER12,
     6,
-    { 0, 4, 5, 19, 12, 18 }
+    { SHADER0, SHADER4, SHADER5, SHADER19, SHADER12, SHADER18 }
 };
 
 static MultiPassShaderList shader_list_directional_shadow_map_microfacet = {
-    SHADER14,
     2,
-    { 10, 14 }
+    { SHADER10, SHADER14 }
 };
 
 #endif
 
 static MultiPassShaderList shader_list_point_source = {
-    SHADER0,
     6,
-    { 0, 2, 3, 6, 8, 10 }
+    { SHADER0, SHADER2, SHADER3, SHADER6, SHADER8, SHADER10 }
 }; 
 
 static MultiPassShaderList shader_list_spot_light_standard = {
-    SHADER7,
     2,
-    { 7, 9 }
+    { SHADER7, SHADER9 }
 };
 
 static MultiPassShaderList shader_list_spot_light_microfacet = {
-    SHADER11,
     1,
-    { 11 }
+    { SHADER11 }
 };
 
-#if 0
+#ifndef NO_SHADOW_MAP
+
+// Note that non-shadow map shaders are also included (for lights that do not have
+// any shadow casters or receivers).
 
 static MultiPassShaderList shader_list_spot_light_shadow_map_standard = {
-    SHADER16,
-    1,
-    { 16 }
-};
-
-static MultiPassShaderList shader_list_spot_light_shadow_map_microfacet = {
-    SHADER17,
-    1,
-    { 17 }
-};
-
-#else
-
-static MultiPassShaderList shader_list_spot_light_shadow_map_standard = {
-    SHADER16,
     3,
-    { 7, 9, 16 }
+    { SHADER7, SHADER9, SHADER16 }
 };
 
 static MultiPassShaderList shader_list_spot_light_shadow_map_microfacet = {
-    SHADER17,
     2,
-    { 11, 17 }
+    { SHADER11, SHADER17 }
 };
 
 #endif
 
 static MultiPassShaderList shader_list_point_source_linear_attenuation_range_standard = {
-    SHADER7,
     2,
-    { 7, 9 }
+    { SHADER7, SHADER9 }
 };
 
 static MultiPassShaderList shader_list_point_source_linear_attenuation_range_microfacet = {
-    SHADER11,
     1,
-    { 11 }
+    { SHADER11 }
 };
 
-#if 0
+#ifndef NO_SHADOW_MAP
+
+// Note that non-shadow map shaders are also included (for lights that do not have
+// any shadow casters or receivers).
 
 static MultiPassShaderList shader_list_point_source_linear_attenuation_range_shadow_map_standard = {
-    SHADER13,
-    1,
-    { 13 }
-};
-
-static MultiPassShaderList shader_list_point_source_linear_attenuation_range_shadow_map_microfacet = {
-    SHADER15,
-    1,
-    { 15 }
-};
-
-#else
-
-static MultiPassShaderList shader_list_point_source_linear_attenuation_range_shadow_map_standard = {
-    SHADER13,
     3,
-    { 7, 9, 13 }
+    { SHADER7, SHADER9, SHADER13 }
 };
 
 static MultiPassShaderList shader_list_point_source_linear_attenuation_range_shadow_map_microfacet = {
-    SHADER15,
     2,
-    { 11, 15 }
+    { SHADER11, SHADER15 }
 };
 
 #endif
 
 // Initialization of multi-pass shaders before each light. It would be better to initialize the
-// shaders on a completety on-demand basis (the current implementation does initialize only the
+// shaders on a completely on-demand basis (the current implementation does initialize only the
 // possible shaders for the light, which may not all be used).
 
 void GL3InitializeShadersBeforeLight() {
@@ -827,12 +797,14 @@ void GL3InitializeShadersBeforeLight() {
     // enabled, more shaders have to be initialized before each light.
     MultiPassShaderList *list;
     if (sre_internal_current_light->type & SRE_LIGHT_DIRECTIONAL)
+#ifndef NO_SHADOW_MAP
         if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING)
             if (sre_internal_reflection_model == SRE_REFLECTION_MODEL_MICROFACET)
                 list = &shader_list_directional_shadow_map_microfacet;
             else
                 list = &shader_list_directional_shadow_map_standard;
         else
+#endif
             if (sre_internal_reflection_model == SRE_REFLECTION_MODEL_MICROFACET)
                 list = &shader_list_directional_microfacet;
             else 
@@ -840,23 +812,27 @@ void GL3InitializeShadersBeforeLight() {
     else
         if (sre_internal_current_light->type & SRE_LIGHT_LINEAR_ATTENUATION_RANGE)
             if (sre_internal_current_light->type & (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM))
+#ifndef NO_SHADOW_MAP
                 if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING)
                     if (sre_internal_reflection_model == SRE_REFLECTION_MODEL_MICROFACET)
                         list = &shader_list_spot_light_shadow_map_microfacet;
                     else
                         list = &shader_list_spot_light_shadow_map_standard;
                 else
+#endif
                     if (sre_internal_reflection_model == SRE_REFLECTION_MODEL_MICROFACET)
                         list = &shader_list_spot_light_microfacet;
                     else 
                         list = &shader_list_spot_light_standard;
             else
+#ifndef NO_SHADOW_MAP
                 if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING)
                     if (sre_internal_reflection_model == SRE_REFLECTION_MODEL_MICROFACET)
                         list = &shader_list_point_source_linear_attenuation_range_shadow_map_microfacet;
                     else
                         list = &shader_list_point_source_linear_attenuation_range_shadow_map_standard;
                 else
+#endif
                     if (sre_internal_reflection_model == SRE_REFLECTION_MODEL_MICROFACET)
                         list = &shader_list_point_source_linear_attenuation_range_microfacet;
                     else 
@@ -990,37 +966,6 @@ static MultiPassShaderSelection sreSelectMultiPassShader(const sreObject& so) {
     int flags = so.render_flags;
     // Note: sreSelectMultiPassShadowMapShader should be used when shadow mapping is
     // actually required for the object.
-#if 0
-        if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING)
-            if (sre_internal_current_light->type & SRE_LIGHT_DIRECTIONAL)
-                // Directional light.
-                if (sre_internal_reflection_model == SRE_REFLECTION_MODEL_MICROFACET)
-                    shader = SHADER14;
-                else
-                    if (flags & SRE_OBJECT_EARTH_SHADER)
-                        shader = SHADER18;
-                    else
-                        shader = SHADER12;
-            else
-                if (sre_internal_current_light->type &
-                SRE_LIGHT_LINEAR_ATTENUATION_RANGE)
-                    if (sre_internal_current_light->type &
-                    (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM))
-                        if (sre_internal_reflection_model == SRE_REFLECTION_MODEL_MICROFACET)
-                            shader = SHADER17;
-                        else
-                            shader = SHADER16;
-                    else
-                        // Point source light with linear attenuation range. 
-                        if (sre_internal_reflection_model == SRE_REFLECTION_MODEL_MICROFACET)
-                            shader = SHADER15;
-                        else
-                            shader = SHADER13;
-                else
-                    // Point source light with traditional attenuation.
-                    shader = SHADER6; // Not implemented yet.
-        else // Not shadow mapping.
-#endif
         if (sre_internal_reflection_model == SRE_REFLECTION_MODEL_MICROFACET)
             if (sre_internal_current_light->type & SRE_LIGHT_LINEAR_ATTENUATION_RANGE)
                 shader = SHADER11;
@@ -1066,6 +1011,8 @@ static MultiPassShaderSelection sreSelectMultiPassShader(const sreObject& so) {
         return shader;
 }
 
+#ifndef NO_SHADOW_MAP
+
 // Select shader when shadow mapping is enabled, and is actually required for the object.
 
 static MultiPassShaderSelection sreSelectMultiPassShadowMapShader(const sreObject& so) {
@@ -1101,6 +1048,7 @@ static MultiPassShaderSelection sreSelectMultiPassShadowMapShader(const sreObjec
         return shader;
 }
 
+#endif
 
 static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSelection shader) {
         // Handle demand-loading of lighting-pass shaders.
@@ -1589,6 +1537,7 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
             GL3InitializeShaderWithShadowMapTransformationMatrix(
                 lighting_pass_shader[18].uniform_location[UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX], so);
             break;
+#endif
         case SHADER19 : // Earth shader, directional light.
             glUseProgram(lighting_pass_shader[19].program);
             GL3InitializeShaderWithMVP(lighting_pass_shader[19].uniform_location[UNIFORM_MVP], so);
@@ -1605,7 +1554,6 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
             GL3InitializeShaderWithObjectSpecularMap(so);
             GL3InitializeShaderWithObjectEmissionMap(so);
             break;
-#endif
         }
 }
 
@@ -1933,6 +1881,8 @@ bool sreInitializeObjectShaderMultiPassLightingPass(sreObject& so) {
     return select_new_shader;
 }
 
+#ifndef NO_SHADOW_MAP
+
 // Select shader when shadow mapping is needed. Note that when shadow mapping
 // is enabled but not needed for the object, the function above should be used
 // to select a non-shadow map shader.
@@ -1953,6 +1903,8 @@ bool sreInitializeObjectShaderMultiPassShadowMapLightingPass(sreObject& so) {
     return select_new_shader;
 }
 
+#endif
+
 // Initialize a sub-mesh of an object.
 
 void sreInitializeShaderWithMesh(sreObject *so, sreModelMesh *mesh) {
@@ -1967,44 +1919,6 @@ void sreInitializeShaderWithMesh(sreObject *so, sreModelMesh *mesh) {
         GL3InitializeShaderWithModelSubEmissionMap(mesh->emission_map_opengl_id);
 }
 
-#if 0
-// Either select the shader for the object, or use the previously configured shader
-// for the object, and then initialize the shader's uniforms.
-
-bool sreInitializeObjectShader(sreObject& so) {
-    bool select_new_shader = (sre_internal_reselect_shaders ||
-        so.current_shader == - 1);
-    if (so.renderer & (SRE_OBJECT_USE_LIGHTING_PASS | SRE_OBJECT_USE_AMBIENT_ONLY)) {
-         MultiPassShaderSelection s;
-         if (select_new_shader) {
-             s = sreSelectMultiPassShader(so);
-             so.current_shader = (int)s;
-         }
-         else
-             s = (MultiPassShaderSelection)so.current_shader;
-         sreInitializeMultiPassShader(so, s);
-    }
-    else if (so.renderer & RENDER_ELEMENT_LIGHT_HALO) {
-         // Selecting a halo shader isn't much work (only two cases), so we don't
-         // explictly store the selected shader.
-         sreInitializeHaloShader(so);
-         if (select_new_shader)
-             // As long as so.current_shader is not equal to - 1 it's OK.
-             so.current_shader = 0;
-    }
-    else {
-         SinglePassShaderSelection s;
-         if (select_new_shader) {
-             s = sreSelectSinglePassShader(so);
-             so.current_shader = (int)s;
-         }
-         else
-             s = (SinglePassShaderSelection)so.current_shader;
-         sreInitializeSinglePassShader(so, s);
-    }
-    return select_new_shader;
-}
-#endif
 
 // Initialization of other shaders.
 
@@ -2019,15 +1933,19 @@ void GL3InitializeTextShader(Color *colorp) {
 void GL3InitializeImageShader(int update_mask, sreImageShaderInfo *info, Vector4D *rect) {
     int shader;
     if (info->source_flags & SRE_IMAGE_SOURCE_FLAG_ONE_COMPONENT_SOURCE) {
+#ifndef OPENGL_ES2
         if (info->source_flags & SRE_IMAGE_SOURCE_FLAG_TEXTURE_ARRAY)
             shader = SRE_MISC_SHADER_IMAGE_TEXTURE_ARRAY_ONE_COMPONENT;
         else
+#endif
             shader = SRE_MISC_SHADER_IMAGE_TEXTURE_ONE_COMPONENT;
     }
     else {
+#ifndef OPENGL_ES2
         if (info->source_flags & SRE_IMAGE_SOURCE_FLAG_TEXTURE_ARRAY)
             shader = SRE_MISC_SHADER_IMAGE_TEXTURE_ARRAY;
         else
+#endif
             shader = SRE_MISC_SHADER_IMAGE_TEXTURE;
     }
     misc_shader[shader].Validate();
@@ -2041,9 +1959,11 @@ void GL3InitializeImageShader(int update_mask, sreImageShaderInfo *info, Vector4
         glUniform4fv(misc_shader[shader].uniform_location[UNIFORM_MISC_ADD_COLOR], 1,
             (GLfloat *)&info->add_color);
     }
+#ifndef OPENGL_ES2
     if (update_mask & SRE_IMAGE_SET_TEXTURE_ARRAY_INDEX)
         glUniform1i(misc_shader[shader].uniform_location[UNIFORM_MISC_ARRAY_INDEX],
             info->array_index);
+#endif
     if (update_mask & SRE_IMAGE_SET_TRANSFORM)
         glUniformMatrix3fv(misc_shader[shader].uniform_location[UNIFORM_MISC_UV_TRANSFORM], 1,
             GL_FALSE, (GLfloat *)&info->uv_transform);
@@ -2150,14 +2070,16 @@ const char *string, int length) {
         glUniform4fv(misc_shader[shader].uniform_location[UNIFORM_MISC_ADD_COLOR], 1,
             (GLfloat *)&info->add_color);
     }
+#ifndef OPENGL_ES2
     if (update_mask & SRE_IMAGE_SET_TEXTURE_ARRAY_INDEX)
         glUniform1i(misc_shader[shader].uniform_location[UNIFORM_MISC_ARRAY_INDEX],
             info->array_index);
+#endif
     if (update_mask & SRE_TEXT_SET_SCREEN_SIZE_IN_CHARS)
         glUniform2fv(misc_shader[shader].uniform_location[UNIFORM_MISC_SCREEN_SIZE_IN_CHARS], 1,
             (GLfloat *)&info->screen_size_in_chars);
     if (update_mask & SRE_IMAGE_SET_TEXTURE) {
-#ifndef NO_SHADOW_MAP
+#ifndef OPENGL_ES2
         glActiveTexture(GL_TEXTURE0);
         if (info->source_flags & SRE_IMAGE_SOURCE_FLAG_TEXTURE_ARRAY)
             glBindTexture(GL_TEXTURE_2D_ARRAY, info->opengl_id);
