@@ -33,6 +33,7 @@ sreFrustum::sreFrustum() {
      near_clip_volume.AllocateStorage(6);
      shadow_caster_volume.AllocateStorage(12);
      most_recent_frame_changed = 0;
+     changing_every_frame = false;
 }
 
 // Set frustum projection parameters based on viewing angle, aspect ratio, and near
@@ -123,7 +124,13 @@ void sreFrustum::Calculate() {
     }
 #endif
    // Set information indicating when the frustum has changed.
-   most_recent_frame_changed = sre_internal_current_frame;
+    if (most_recent_frame_changed == sre_internal_current_frame - 1)
+        changing_every_frame = true;
+    // Before to setting changing_every_frame to false, have to check that
+    // the frustum wasn't changed already this frame.
+    else if (most_recent_frame_changed != sre_internal_current_frame)
+        changing_every_frame = false;
+    most_recent_frame_changed = sre_internal_current_frame;
 }
 
 // The near-clip volume is the volume bounded by the lightsource and the near plane of the

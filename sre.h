@@ -942,7 +942,7 @@ public:
     // Whether the GPU shadow volumes of the light's shadow casters are changing every frame due
     // to light changes. This reflects changes to the GPU's shadow volumes that are extruded to
     // infinity; just changing the range (attenuation) of the light does not affect it, while that
-    // does affect the geometrical (capped) shadow volumez for positional lights.
+    // does affect the geometrical (capped) shadow volumes for positional lights.
     bool ShadowVolumeIsChangingEveryFrame(int current_frame) const {
         return changing_every_frame && (most_recent_shadow_volume_change == current_frame); 
     }
@@ -1328,6 +1328,7 @@ class sreFrustum {
 public:
     // The most recent frame when the frustum changed.
     int most_recent_frame_changed;
+    bool changing_every_frame;
     sreBoundingVolumeFrustum frustum_world;
     sreBoundingVolumeFrustum frustum_eye;
     sreBoundingVolumeFrustum frustum_without_far_plane_world;
@@ -1375,6 +1376,9 @@ public:
         else
             // For static objects, visibility is only determined when the frustum changes.
             return so.most_recent_frame_visible >= most_recent_frame_changed;
+    }
+    bool IsChangingEveryFrame(int current_frame) const {
+        return changing_every_frame && (most_recent_frame_changed == current_frame); 
     }
 };
 

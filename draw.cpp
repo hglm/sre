@@ -1489,9 +1489,14 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
             // the light's data structure, only rendering visible objects.
             // First the render objects that are partially inside the light volume; the
             // geometry scissors are likely to be applied on a per-object basis.
-            if (sre_internal_current_frame > frustum.most_recent_frame_changed &&
+            if (sre_internal_current_frame > frustum.most_recent_frame_changed + 1 &&
             !sre_internal_invalidate_geometry_scissors_cache) {
                 // If the frustum has not changed, we can reuse previously calculated scissors.
+                // Note that we wait one extra frame after the frustum stops changing before
+                // starting to store cached geometry scissors; in the common case of a
+                // continuously changing frustum, this saves overhead.
+//                sreMessage(SRE_MESSAGE_INFO, "Frame %d: reusing geometry scissors",
+//                    sre_internal_current_frame);
                 for (int i = 0; i < light.nu_light_volume_objects_partially_inside; i++) {
                     sreObject *so = sceneobject[light.light_volume_object[i]];
                     // Many objects in the light's light volume object list might not be visible.
@@ -1560,8 +1565,24 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
                 }
             }
             else {
-                // If the frustum has changed, store the calculated scissors for potential
-                // subsequent use.
+                // If the frustum has just changed, store the calculated scissors for potential
+                // subsequent use. However, when the frustum is changing every frame, do not
+                // store scissors until the frustums stops changing.
+                if (frustum.IsChangingEveryFrame(sre_internal_current_frame))
+                    for (int i = 0; i < light.nu_light_volume_objects_partially_inside; i++) {
+                        sreObject *so = sceneobject[light.light_volume_object[i]];
+                        // Comparing the frame time-stamps for the object's visibility
+                        // and the last frustum change should ensure that the object is
+                        // currently visible (since static object visibility was determined
+                        // at the time of the last frustum change).
+                        if (so->most_recent_frame_visible < frustum.most_recent_frame_changed)
+                            // Object is not visible, skip it.
+                            continue;
+                        RenderVisibleObjectLightingPassGeometryScissors(*so, light, frustum);
+                    }
+                else {
+//                sreMessage(SRE_MESSAGE_INFO, "Frame %d: storing (caching) geometry scissors",
+//                    sre_internal_current_frame);
                 for (int i = 0; i < light.nu_light_volume_objects_partially_inside; i++) {
                     sreObject *so = sceneobject[light.light_volume_object[i]];
                     // Comparing the frame time-stamps for the object's visibility
@@ -1597,6 +1618,7 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
 #endif
                     // Update the light order for the geometry scissors cache.
                     so->static_light_order++;
+                }
                 }
             }
             // Finally draw objects that are completely inside the light volume.
@@ -1640,7 +1662,8 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
                     RenderVisibleObjectLightingPassCompletelyInside(*so);
             }
             // When geometry scissors are enabled, the geometry scissors cache data still need to
-            // be initialized when the frustum changes.
+            // be initialized during frames when the cache date is being initialized for other
+            // lights.
             if (sre_internal_scissors & SRE_SCISSORS_GEOMETRY_MASK)
                 UpdateGeometryScissorsCacheData(frustum, light);
             // Finally draw the objects that are completely inside the light volume.
@@ -1750,7 +1773,8 @@ void sreScene::RenderFinalPassObjectsMultiPass(const sreFrustum& frustum) const 
      RenderFinalPassObjectsSinglePass(frustum);
 }
 
-// Process a skipped light; when the frustum has just changed, need to create the geometry
+// Process a skipped light; when the frustum has recently changed, and the same frame that
+// geometry scissors data is cached for other lights, need to create the geometry
 // scissors cache entries for the list of object that are partially inside the light volume
 // that are also visible (intersect the frustum). Generally this only happens for lights
 // that have a variable light volume which has only just come into view (some time after
@@ -1758,12 +1782,14 @@ void sreScene::RenderFinalPassObjectsMultiPass(const sreFrustum& frustum) const 
 
 void sreScene::UpdateGeometryScissorsCacheData(const sreFrustum& frustum,
 const sreLight& light) const {
-    if (sre_internal_current_frame > frustum.most_recent_frame_changed)
+    if (sre_internal_current_frame > frustum.most_recent_frame_changed + 1)
+        return;
+    if (frustum.IsChangingEveryFrame(sre_internal_current_frame))
         return;
     if (!(light.type & SRE_LIGHT_STATIC_OBJECTS_LIST))
         return;
 #ifdef DEBUG_SCISSORS
-    sreMessage(SRE_MESSAGE_INFO, "Updating object scissors cache data for light %d.", light.id);
+    sreMessage(SRE_MESSAGE_INFO, "Initializing object scissors cache data for light %d.", light.id);
 #endif
     for (int i = 0; i < light.nu_light_volume_objects_partially_inside; i++) {
         sreObject *so = sceneobject[light.light_volume_object[i]];
