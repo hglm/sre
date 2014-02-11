@@ -613,8 +613,7 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     GLfloat border_color[4];
     border_color[0] = 1.0f;
-    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_
-BORDER_COLOR, &border_color[0]);
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, &border_color[0]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
@@ -699,8 +698,7 @@ BORDER_COLOR, &border_color[0]);
 #endif
 
 #ifndef NO_HDR
-    // Set up render-to-texture framebuffer f
-or HDR rendering.
+    // Set up render-to-texture framebuffer for HDR rendering.
     SetupHDRFramebuffer();
     // Set up intermediate textures for tone mapping.
     glGenFramebuffers(1, &sre_internal_HDR_log_luminance_framebuffer);
@@ -744,8 +742,7 @@ or HDR rendering.
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_HDR_luminance_history_storage_framebuffer);
     glGenTextures(1, &sre_internal_HDR_luminance_history_texture);
     glBindTexture(GL_TEXTURE_RECTANGLE, sre_internal_HDR_luminance_history_texture);
-    // Initialize the luminance history texture 
-with sane values.
+    // Initialize the luminance history texture with sane values.
     GLfloat data[16 * 4];
     for (int i = 0; i < 16; i++) {
         data[i * 4] = 0.4;
