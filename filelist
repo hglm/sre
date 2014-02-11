@@ -31,6 +31,7 @@ sre/intersection.cpp
 sre/lights.cpp
 sre/linux-fb-ui.cpp
 sre/main.cpp
+sre/mipmap.cpp
 sre/MatrixClasses.cpp
 sre/MouseEventQueue.cpp
 sre/octree.cpp

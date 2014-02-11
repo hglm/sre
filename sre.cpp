@@ -131,6 +131,8 @@ int sre_internal_interleaved_vertex_buffers_mode = SRE_INTERLEAVED_BUFFERS_DISAB
 bool sre_internal_shadow_volumes_disabled = false;
 int sre_internal_object_flags_mask = SRE_OBJECT_FLAGS_MASK_FULL;
 int sre_internal_visualized_shadow_map = - 1;
+int sre_internal_max_texture_size;
+int sre_internal_texture_detail_flags;
 
 void sreSetShadowsMethod(int method) {
     if (method == SRE_SHADOWS_SHADOW_VOLUMES && sre_internal_shadow_volumes_disabled) {
@@ -421,6 +423,28 @@ void sreSetForceDepthFailRendering(bool enabled) {
    }
 }
 
+void sreSetGlobalTextureDetail(int set_mask, int flags) {
+   if (set_mask & SRE_TEXTURE_DETAIL_SET_LEVEL) {
+       sre_internal_texture_detail_flags &= ~SRE_TEXTURE_DETAIL_LEVEL_MASK;
+       sre_internal_texture_detail_flags = flags  & SRE_TEXTURE_DETAIL_LEVEL_MASK;
+   }
+   if (set_mask & SRE_TEXTURE_DETAIL_SET_POT) {
+#ifdef OPENGL_ES2
+       if (flags & SRE_TEXTURE_DETAIL_ALLOW_NPOT) {
+           sreMessage(SRE_MESSAGE_WARNING, "sreSetGlobalTextureDetail: Non-power-of-two"
+               "textures not supported by hardware.");
+           return;
+       }
+#endif
+       sre_internal_texture_detail_flags &= ~SRE_TEXTURE_DETAIL_POT_MASK;
+       sre_internal_texture_detail_flags |= flags & SRE_TEXTURE_DETAIL_POT_MASK;
+   }
+}
+
+void sreSetGlobalTextureDetailFlags(int flags) {
+   sre_internal_texture_detail_flags = flags;
+}
+
 // Allocate UV transformation matrix that flips U or V.
 
 Matrix3D *sreNewMirroringUVTransform(bool flip_u, bool flip_v) {
@@ -528,6 +552,14 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     glViewport(0, 0, window_width, window_height);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
+    // Initialize texture detail flags first because the text font may be loaded early.
+    // Get maximum texture dimension in pixels.
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &sre_internal_max_texture_size);
+    sre_internal_texture_detail_flags = 0;
+    // These settings will be overriden later during initialization.
+    sreSetGlobalTextureDetail(SRE_TEXTURE_DETAIL_SET_LEVEL, SRE_TEXTURE_DETAIL_HIGH);
+    sreSetGlobalTextureDetail(SRE_TEXTURE_DETAIL_SET_POT, SRE_TEXTURE_DETAIL_FORCE_POT);
+
     // Note: Boolean rendering flags settings should be concentrated into the single variable
     // sre_internal_rendering_flags for efficiency.
 
@@ -581,7 +613,8 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     GLfloat border_color[4];
     border_color[0] = 1.0f;
-    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, &border_color[0]);
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_
+BORDER_COLOR, &border_color[0]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
@@ -666,7 +699,8 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
 #endif
 
 #ifndef NO_HDR
-    // Set up render-to-texture framebuffer for HDR rendering.
+    // Set up render-to-texture framebuffer f
+or HDR rendering.
     SetupHDRFramebuffer();
     // Set up intermediate textures for tone mapping.
     glGenFramebuffers(1, &sre_internal_HDR_log_luminance_framebuffer);
@@ -710,7 +744,8 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_HDR_luminance_history_storage_framebuffer);
     glGenTextures(1, &sre_internal_HDR_luminance_history_texture);
     glBindTexture(GL_TEXTURE_RECTANGLE, sre_internal_HDR_luminance_history_texture);
-    // Initialize the luminance history texture with sane values.
+    // Initialize the luminance history texture 
+with sane values.
     GLfloat data[16 * 4];
     for (int i = 0; i < 16; i++) {
         data[i * 4] = 0.4;
@@ -803,6 +838,23 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     // Do not enable the darkcap visibility test for now because of bugs.
 //    sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_VOLUME_DARKCAP_VISIBILITY_TEST;
 
+    const char *texture_detail_str;
+#ifdef OPENGL_ES2
+    // Set texture detail level to medium (reduce large textures).
+    sreSetGlobalTextureDetail(SRE_TEXTURE_DETAIL_SET_LEVEL, SRE_TEXTURE_DETAIL_LOW);
+    sreSetGlobalTextureDetail(SRE_TEXTURE_DETAIL_SET_POT,
+        SRE_TEXTURE_DETAIL_ALLOW_NPOT_WITHOUT_MIPMAPS);
+    texture_detail_str = "low (reduction of average-sized and large textures)";
+#else
+    // Set texture detail level to high (preserve original texture size when possible).
+    sreSetGlobalTextureDetail(SRE_TEXTURE_DETAIL_SET_LEVEL, SRE_TEXTURE_DETAIL_HIGH);
+    sreSetGlobalTextureDetail(SRE_TEXTURE_DETAIL_SET_POT, SRE_TEXTURE_DETAIL_ALLOW_NPOT);
+    texture_detail_str = "high (no reduction)";
+#endif
+    sreMessage(SRE_MESSAGE_INFO, "Maximum texture size %dx%d, global texture detail set to %s.",
+       sre_internal_max_texture_size, sre_internal_max_texture_size,
+       texture_detail_str);
+
     // Make sure all objects have their shader selected when first drawn.
     sre_internal_reselect_shaders = true;
     // Invalidate geometry scissors cache (not strictly required).
@@ -836,11 +888,24 @@ void sreCheckGLError(const char *format, ...) {
         if (sre_internal_debug_message_level != SRE_MESSAGE_QUIET) {
             va_list args;
             va_start(args, format);
-            printf(format, args);
+            vprintf(format, args);
             va_end(args);
             fflush(stdout);
         }
         while (glGetError() != GL_NO_ERROR);
+    }
+}
+
+void sreAbortOnGLError(const char *format, ...) {
+    GLenum errorTmp = glGetError();
+    if (errorTmp != GL_NO_ERROR) {
+        va_list args;
+        va_start(args, format);
+        printf("(libsre) Unexpected OpenGL error: ");
+        vprintf(format, args);
+        va_end(args);
+        fflush(stdout);
+        raise(SIGABRT);
     }
 }
 

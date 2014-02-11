@@ -16,69 +16,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 */
 
-
 // This is a header file bounding volume handling and intersections tests that is
 // internal to the library. Some intersection tests are declared static in
 // intersection.cpp and not included in this header file; these can be made
 // non-static and added to this header file when required by a different module.
-
-// This header file contains useful inline functions for general use such as
-// square (x * x), and the minimum and maximum of two or three values.
-
-static inline float sqrf(float x) {
-    return x * x;
-}
-
-static inline float minf(float x, float y) {
-    if (x < y)
-        return x;
-    return y;
-}
-
-static inline float min3f(float x, float y, float z) {
-    float m = x;
-    if (y < m)
-        m = y;
-    if (z < m)
-        m = z;
-    return m;
-}
-
-static inline float maxf(float x, float y) {
-    if (y > x)
-        return y;
-    return x;
-}
-
-static inline float max3f(float x, float y, float z) {
-    float m = x;
-    if (y > m)
-        m = y;
-    if (z > m)
-        m = z;
-    return m;
-}
-
-static inline float max3f(const Vector3D& V) {
-    float m = V.x;
-    if (V.y > m)
-        m = V.y;
-    if (V.z > m)
-        m = V.z;
-    return m;
-}
-
-static inline Vector3D maxf(const Vector3D& V1, const Vector3D& V2) {
-    return Vector3D(maxf(V1.x, V2.x), maxf(V1.y, V2.y), maxf(V1.z, V2.z));
-}
-
-static inline float clampf(float x, float min_value, float max_value) {
-    if (x < min_value)
-        return min_value;
-    if (x > max_value)
-        return max_value;
-    return x;
-}   
 
 // Inline AABB utility functions.
 

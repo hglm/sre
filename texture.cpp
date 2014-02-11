@@ -54,7 +54,7 @@ static float max_anisotropy, min_anisotropy;
 static sreTexture *standard_texture = NULL;
 static sreTexture *standard_texture_wrap_repeat = NULL;
 
-static void RegisterTexture(sreTexture *tex, int type);
+static void RegisterTexture(sreTexture *tex);
 
 static void CheckTextureFormats() {
    GLint num = 0;
@@ -133,7 +133,21 @@ sreTexture::~sreTexture() {
     delete [] data;
 }
 
-void sreTexture::UploadGL(int type) {
+static int CountPowersOfTwo(int w, int h) {
+    // Count how many of width or height are a power of two.
+    int count = 0;
+    for (int i = 0; i < 18; i++) {
+        if (w == (1 << i))
+            count++;
+        if (h == (1 << i))
+            count++;
+        if (count == 2 || (w < (1 << i) && h < (1 << i)))
+            break;
+    }
+    return count;
+}
+
+void sreTexture::UploadGL() {
 #ifndef NO_SRGB
     if (format == TEXTURE_FORMAT_RAW) {
         // Regular (image) textures should handled as SRGB.
@@ -153,19 +167,9 @@ void sreTexture::UploadGL(int type) {
     glGenTextures(1, &texid);
     opengl_id = texid;
     glBindTexture(GL_TEXTURE_2D, opengl_id);
-    int count = 0;
-    for (int i = 0; i < 16; i++) {
-        if (width == (1 << i))
-            count++;
-        if (height == (1 << i))
-            count++;
-    }
-// printf("count = %d, bytes_per_pixel = %d\n", count, bytes_per_pixel);
+    int count = CountPowersOfTwo(width, height);
     bool generate_mipmaps = false;
-    if (glGetError() != GL_NO_ERROR) {
-        printf("Error before glTexParameteri.\n");
-        exit(1);
-    }
+    sreAbortOnGLError("Error before glTexParameteri.\n");
     if (count != 2 || format == TEXTURE_FORMAT_ETC1) {
         // Mip-maps not supported for textures that are not a power of two in width and height.
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -178,8 +182,7 @@ void sreTexture::UploadGL(int type) {
     }
     if (type == TEXTURE_TYPE_WRAP_REPEAT) {
         if (count != 2) {
-            printf("Error - repeating textures require power of two texture dimensions.\n");
-            exit(1);
+            sreFatalError("Repeating textures require power of two texture dimensions.");
         }
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -188,13 +191,11 @@ void sreTexture::UploadGL(int type) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     }
-    if (glGetError() != GL_NO_ERROR) {
-        printf("Error after glTexParameteri.\n");
-        exit(1);
-    }
+    sreAbortOnGLError("Error after glTexParameteri.\n");
     GLint internal_format;
     if (format == TEXTURE_FORMAT_ETC1) {
-        glCompressedTexImage2D(GL_TEXTURE_2D, 0, ETC1_internal_format, width, height, 0, (width / 4) * (height / 4) * 8, data);
+        glCompressedTexImage2D(GL_TEXTURE_2D, 0, ETC1_internal_format,
+            width, height, 0, (width / 4) * (height / 4) * 8, data);
         internal_format = ETC1_internal_format;
     }
     else {
@@ -216,36 +217,32 @@ void sreTexture::UploadGL(int type) {
                 internal_format = GL_SRGB;
         }
         else {
-            printf("Error -- unknown texture format.\n");
-            exit(1);
+            sreFatalError("Unknown texture format.");
         }
 #endif
         if (bytes_per_pixel == 4)
-            glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+            glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0, GL_RGBA,
+               GL_UNSIGNED_BYTE, data);
         else {
             /* Unpack alignment of 1. */
             GLint previousUnpackAlignment;
             glGetIntegerv(GL_UNPACK_ALIGNMENT, &previousUnpackAlignment);
             if (previousUnpackAlignment != 1)
                 glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-            glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+            glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0,
+                GL_RGB, GL_UNSIGNED_BYTE, data);
             if (previousUnpackAlignment != 1)
                 glPixelStorei(GL_UNPACK_ALIGNMENT, previousUnpackAlignment);
         }
     }
-    if (glGetError() != GL_NO_ERROR) {
-        printf("Error after glTexImage2D (internal_format = 0x%04X)\n", internal_format);
-        exit(1);
-    }
-    if (generate_mipmaps)
+    sreAbortOnGLError("Error after glTexImage2D (internal_format = 0x%04X)\n", internal_format);
+    if (generate_mipmaps) {
         glGenerateMipmap(GL_TEXTURE_2D);
-    if (glGetError() != GL_NO_ERROR) {
-        printf("Error after glGenerateMipmap (internal format = %d).\n", internal_format);
-        exit(1);
+        sreAbortOnGLError("Error after glGenerateMipmap (internal format = %d).\n", internal_format);
     }
     delete [] data;
  
-    RegisterTexture(this, type);
+    RegisterTexture(this);
 }
 
 void sreTexture::ConvertFrom24BitsTo32Bits() {
@@ -262,7 +259,7 @@ void sreTexture::ConvertFrom24BitsTo32Bits() {
 
 // PNG loading.
 
-void sreTexture::LoadPNG(const char *filename, int type) {
+void sreTexture::LoadPNG(const char *filename) {
     int png_width, png_height;
     png_byte color_type;
     png_byte bit_depth;
@@ -332,7 +329,8 @@ void sreTexture::LoadPNG(const char *filename, int type) {
 
     width = png_width;
     height = png_height;
-    printf("Loading texture with size (%d x %d), bit depth %d.\n", width, height, bit_depth);
+    printf("Loading uncompressed texture with size (%d x %d), bit depth %d.\n",
+        width, height, bit_depth);
     if (color_type != PNG_COLOR_TYPE_RGB && color_type != PNG_COLOR_TYPE_RGBA && color_type != PNG_COLOR_TYPE_GRAY) {
         printf("Error - expected truecolor color format.\n");
         exit(1);
@@ -380,17 +378,16 @@ void sreTexture::LoadPNG(const char *filename, int type) {
     free(row_pointers);
 
     format = TEXTURE_FORMAT_RAW;
+
+    ApplyTextureDetailSettings();
     if (type != TEXTURE_TYPE_WILL_MERGE_LATER) {
-        UploadGL(type);
+        UploadGL();
     }
 }
 
 #define KTX_HEADER_SIZE	(64)
 /* KTX files require an unpack alignment of 4 */
 #define KTX_GL_UNPACK_ALIGNMENT 4
-#ifndef MAX
-#define MAX(x, y) (((x) > (y)) ? (x) : (y))
-#endif
 
 typedef unsigned char khronos_uint8_t;
 typedef unsigned int khronos_uint32_t;
@@ -419,7 +416,7 @@ typedef struct KTX_header_t {
 	khronos_uint32_t bytesOfKeyValueData;
 } KTX_header;
 
-bool sreTexture::LoadKTX(const char *filename, int type) {
+bool sreTexture::LoadKTX(const char *filename) {
     FILE *f = fopen(filename, "rb");
     // Read header.
     KTX_header header;
@@ -457,7 +454,8 @@ bool sreTexture::LoadKTX(const char *filename, int type) {
 #ifndef OPENGL_ES2
     case GL_COMPRESSED_RGB_S3TC_DXT1_EXT :
 #ifndef NO_SRGB
-        if (type == TEXTURE_TYPE_NORMAL || type == TEXTURE_TYPE_SRGB || type == TEXTURE_TYPE_WRAP_REPEAT) {
+        if (type == TEXTURE_TYPE_NORMAL || type == TEXTURE_TYPE_SRGB ||
+        type == TEXTURE_TYPE_WRAP_REPEAT) {
     	    if (SRGB_DXT1_internal_format != - 1) {
                 supported_format = TEXTURE_FORMAT_SRGB_DXT1;
                 glInternalFormat = GL_COMPRESSED_SRGB_S3TC_DXT1_EXT;
@@ -521,30 +519,46 @@ default :
     khronos_uint32_t face;
     khronos_uint32_t dataSize = 0;
 
-    int count = 0;
-    for (int i = 0; i < 16; i++) {
-        if (header.pixelWidth == (1 << i))
-            count++;
-        if (header.pixelHeight == (1 << i))
-            count++;
+    width = header.pixelWidth;
+    height = header.pixelHeight;
+
+    // Count whether width or height is a power of two.
+    int count = CountPowersOfTwo(header.pixelWidth, header.pixelHeight);
+    int nu_mipmaps_used = header.numberOfMipmapLevels;
+    int target_width, target_height, nu_levels_skipped;
+    CalculateTargetSize(target_width, target_height, nu_levels_skipped);
+    nu_mipmaps_used -= nu_levels_skipped;
+    if (nu_mipmaps_used < 1) {
+        // When there insufficient lower detail compressed mipmap levels, use
+        // the single lowest defined mipmap level.
+        nu_levels_skipped -= 1 - nu_mipmaps_used;
+        nu_mipmaps_used = 1;
+        sreMessage(SRE_MESSAGE_WARNING, "Insufficient lower-order compressed texture mipmap "
+            "levels, cannot fully apply texture detail reduction settings.");
     }
-    if (header.numberOfMipmapLevels == 1) {
-        // Mip-maps not supported for textures that are not a power of two in width and height.
+    if (nu_levels_skipped > 0)
+         sreMessage(SRE_MESSAGE_INFO, "Highest-level compressed texture mipmap levels (n = %d) "
+             "omitted due to texture detail settings or limitations.",
+             nu_levels_skipped);
+    if (count != 2 && nu_mipmaps_used > 1) {
+        // Mipmaps not supported for textures that are not a power of two in width and height.
+        sreMessage(SRE_MESSAGE_WARNING,
+           "KTX compressed non-power-of-2 mipmapped textures not supported --"
+           "using single mipmap.");
+        nu_mipmaps_used = 1;
+    }
+
+    if (nu_mipmaps_used == 1) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
     else {
-        if (count != 2) {
-            printf("Error -- KTX compressed non-power-of-2 mipmapped textures not supported.\n");
-            exit(1);
-        }
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
     if (type == TEXTURE_TYPE_WRAP_REPEAT) {
         if (count != 2) {
-            printf("Error - repeating textures require power of two texture dimensions.\n");
-            exit(1);
+            sreFatalError("Repeating textures require power of two texture dimensions.");
         }
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -555,29 +569,31 @@ default :
     }
 
     data = NULL;
-    for (level = 0; level < header.numberOfMipmapLevels; level++) {
-        GLsizei pixelWidth  = MAX(1, header.pixelWidth  >> level);
-        GLsizei pixelHeight = MAX(1, header.pixelHeight >> level);
-        GLsizei pixelDepth  = MAX(1, header.pixelDepth  >> level);
+    for (level = 0; level < nu_mipmaps_used + nu_levels_skipped; level++) {
+        GLsizei pixelWidth  = maxi(1, header.pixelWidth  >> level);
+        GLsizei pixelHeight = maxi(1, header.pixelHeight >> level);
+        GLsizei pixelDepth  = maxi(1, header.pixelDepth  >> level);
+        if (level == nu_levels_skipped) {
+            width = pixelWidth;
+            height = pixelHeight;
+        }
 
         fread(&faceLodSize, 1, sizeof(khronos_uint32_t), f);
         faceLodSizeRounded = (faceLodSize + 3) & ~(khronos_uint32_t)3;
         if (!data) {
-            /* allocate memory sufficient for the first level */
+            /* Allocate memory sufficient for the first level. */
 	    data = (unsigned int *)malloc(faceLodSizeRounded);
  	    dataSize = faceLodSizeRounded;
         }
-        for (face = 0; face < header.numberOfFaces; ++face) {
+        for (face = 0; face < header.numberOfFaces; face++) {
             fread(data, 1, faceLodSizeRounded, f);
             if (header.numberOfArrayElements)
                 pixelHeight = header.numberOfArrayElements;
-            glCompressedTexImage2D(GL_TEXTURE_2D + face, level, glInternalFormat, pixelWidth, pixelHeight, 0,
-                    faceLodSize, data);
-            GLenum errorTmp = glGetError();
-            if (errorTmp != GL_NO_ERROR) {
-                printf("Error loading .ktx texture.\n");
-                exit(1);
-            }
+            if (level < nu_levels_skipped)
+                continue;
+            glCompressedTexImage2D(GL_TEXTURE_2D + face, level - nu_levels_skipped,
+                 glInternalFormat, pixelWidth, pixelHeight, 0, faceLodSize, data);
+            sreAbortOnGLError("Error uploading compressed KTX texture.\n");
         }
     }
     fclose(f);
@@ -585,14 +601,13 @@ default :
     /* restore previous GL state */
     if (previousUnpackAlignment != KTX_GL_UNPACK_ALIGNMENT)
         glPixelStorei(GL_UNPACK_ALIGNMENT, previousUnpackAlignment);
-//    glGenerateMipmap(GL_TEXTURE2D);
     format = supported_format;
 
-    RegisterTexture(this, type);
+    RegisterTexture(this);
     return true;
 }
 
-void sreTexture::LoadDDS(const char *filename, int type) {
+void sreTexture::LoadDDS(const char *filename) {
     unsigned char header[124];
  
     FILE *fp; 
@@ -670,13 +685,7 @@ void sreTexture::LoadDDS(const char *filename, int type) {
     glBindTexture(GL_TEXTURE_2D, textureID);
 
     // Check whether the texture dimensions are a power of two.
-    int count = 0;
-    for (int i = 0; i < 16; i++) {
-        if (width == (1 << i))
-            count++;
-        if (height == (1 << i))
-            count++;
-    }
+    int count = CountPowersOfTwo(width, height);
     // Check for buggy dds files that have too many mipmap levels for non-square textures.
     int w = width;
     int h = height;
@@ -759,7 +768,7 @@ void sreTexture::LoadDDS(const char *filename, int type) {
         h /= 2;
     }
     free(buffer); 
-    RegisterTexture(this, type);
+    RegisterTexture(this);
 }
 
 static bool FileExists(const char *filename) {
@@ -778,42 +787,44 @@ static bool FileExists(const char *filename) {
 #endif
 }
 
-sreTexture::sreTexture(const char *basefilename, int type) {
+sreTexture::sreTexture(const char *basefilename, int _type) {
     if (!checked_texture_formats)
         CheckTextureFormats();
     char s[80];
     sprintf(s, "%s.ktx", basefilename);
     bool success = false;
+    type = _type;
     if (type != TEXTURE_TYPE_USE_RAW_TEXTURE && FileExists(s))
-        success = LoadKTX(s, type);
+        success = LoadKTX(s);
     if (!success) {
         sprintf(s, "%s.dds", basefilename);
         if (DXT1_internal_format != -1 && type != TEXTURE_TYPE_USE_RAW_TEXTURE && FileExists(s)) {
-            LoadDDS(s, type);
-            success = 1;
+            LoadDDS(s);
+            success = true;
         }
     }
     if (!success) {
-            sprintf(s, "%s.png", basefilename);
-            if (FileExists(s))
-                LoadPNG(s, type);
-            else {
-                printf("Error -- texture file %s(.png, .ktx, .dds) not found or not supported.\n", basefilename);
-                printf("Replacing with internal standard texture.\n");
-                sreTexture *tex;
-                if (type == TEXTURE_TYPE_WRAP_REPEAT)
-                    tex = sreGetStandardTextureWrapRepeat();
-                else
-                    tex = sreGetStandardTexture();
-                // Copy the fields of the standard texture, not graceful but it works.
-                width = tex->width;
-                height = tex->height;
-                bytes_per_pixel = tex->bytes_per_pixel;
-                format = tex->format;
-                // Do not copy the data field because is invalid anyway (previously been freed after upload).
-                data = NULL;
-                opengl_id = tex->opengl_id;
-            }
+        sprintf(s, "%s.png", basefilename);
+        if (FileExists(s))
+            LoadPNG(s);
+        else {
+            sreMessage(SRE_MESSAGE_WARNING,
+                "Texture file %s(.png, .ktx, .dds) not found or not supported. "
+                "Replacing with internal standard texture.", basefilename);
+            sreTexture *tex;
+            if (type == TEXTURE_TYPE_WRAP_REPEAT)
+                tex = sreGetStandardTextureWrapRepeat();
+            else
+                tex = sreGetStandardTexture();
+            // Copy the fields of the standard texture, not graceful but it works.
+            width = tex->width;
+            height = tex->height;
+            bytes_per_pixel = tex->bytes_per_pixel;
+            format = tex->format;
+            // Do not copy the data field because is invalid anyway (previously been freed after upload).
+            data = NULL;
+            opengl_id = tex->opengl_id;
+        }
     }
 }
 
@@ -856,13 +867,17 @@ void sreTexture::ChangeParameters(int flags, int filtering, float anisotropy) {
 }
 
 void sreTexture::MergeTransparencyMap(sreTexture *t) {
+    if (t->width != width || t->height !=  height)
+        sreFatalError("sreTexture::MergeTransparencyMap: Transparency texture does not match"
+            "texture size.");
     for (int y = 0; y < height; y++)
         for (int x = 0; x < width; x++) {
             // Take the r value in the transparency map and assign it to the alpha value in the current texture.
             unsigned int pix = LookupPixel(x, y) + ((0xFF - (t->LookupPixel(x,y) & 0xFF)) << 24);
             SetPixel(x, y, pix);
         }
-    UploadGL(TEXTURE_TYPE_NORMAL);
+    type = TEXTURE_TYPE_NORMAL;
+    UploadGL();
 }
 
 unsigned int sreTexture::LookupPixel(int x, int y) {
@@ -901,12 +916,13 @@ static void CreateStandardTexture(int type) {
                 pixel = 0xFF2040C0;
             tex->SetPixel(x, y, pixel);
         }
-    tex->UploadGL(type);
+    tex->type = type;
+    tex->UploadGL();
     if (type == TEXTURE_TYPE_WRAP_REPEAT)
         standard_texture_wrap_repeat = tex;
     else
         standard_texture = tex;
-    RegisterTexture(tex, type);
+    RegisterTexture(tex);
 }
 
 sreTexture *sreGetStandardTexture() {
@@ -939,8 +955,7 @@ static int nu_registered_textures = 0;
 static int capacity = 0;
 static sreTexture **registered_textures;
 
-static void RegisterTexture(sreTexture *tex, int type) {
-    tex->type = type;
+static void RegisterTexture(sreTexture *tex) {
     if (nu_registered_textures == capacity) {
         int new_capacity;
         if (capacity == 0)
@@ -973,4 +988,176 @@ void sreScene::ApplyGlobalTextureParameters(int flags, int filter, float anisotr
             break;
         }
     }
+}
+
+// Apply global texture settings to uncompressed texture (possibly reducing the size
+// of the texture).
+
+// The treshold texture area in pixels that triggers reduction in texture size.
+#define SRE_TEXTURE_DETAIL_MEDIUM_AREA_THRESHOLD (1024 * 1024)
+#define SRE_TEXTURE_DETAIL_LOW_AREA_THRESHOLD (256 * 256)
+#define SRE_TEXTURE_DETAIL_VERY_LOW_AREA_THRESHOLD (128 * 128)
+
+void sreTexture::CalculateTargetSize(int& target_width, int& target_height,
+int &nu_levels_to_skip) {
+    // Use heuristics to reduce the texture size when the relevant settings
+    // are enabled.
+    int area = width * height;
+    int reduction_shift = 0;
+    if (sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_MEDIUM) {
+        if (area >= SRE_TEXTURE_DETAIL_MEDIUM_AREA_THRESHOLD)
+             reduction_shift = 1;
+        if (area >= SRE_TEXTURE_DETAIL_MEDIUM_AREA_THRESHOLD * 16)
+             reduction_shift = 2;
+    }
+    if (sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_LOW) {
+        if (area >= SRE_TEXTURE_DETAIL_LOW_AREA_THRESHOLD)
+             reduction_shift = 1;
+        if (area >= SRE_TEXTURE_DETAIL_LOW_AREA_THRESHOLD * 16)
+             reduction_shift = 2;
+    }
+    if (sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_VERY_LOW) {
+        // Reduce 128x128 textures to 64x64.
+        if (area >= SRE_TEXTURE_DETAIL_VERY_LOW_AREA_THRESHOLD)
+             reduction_shift = 1;
+        // Reduce 512x512 textures to 128x128,
+        // Reduce 1024x1024 textures to 256x256.
+        if (area >= SRE_TEXTURE_DETAIL_VERY_LOW_AREA_THRESHOLD * 16)
+             reduction_shift = 2;
+        // Reduce 2048x2048 and larger textures to 256x256.
+        if (area >= SRE_TEXTURE_DETAIL_VERY_LOW_AREA_THRESHOLD * 256)
+             reduction_shift = (int)floor(log2(sqrtf((float)area))) - 8;
+    }
+    int reduction_factor = 1 << reduction_shift;
+    if (sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_ALLOW_NPOT) {
+        target_width = width / reduction_factor;
+        target_height = height / reduction_factor;
+    }
+    else if (sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_ALLOW_NPOT_WITHOUT_MIPMAPS) {
+        // When NPOT textures are only supported with a single mipmap level, allow
+        // taking advantage if there are more than one mipmap levels defined in the source
+        // texture to potentially use a lower level one. If the selected reduction is not
+        // available, the lowest mipmap level for the texture will be used (which may be the
+        // only level if no mipmaps are defined in the source texture.
+        target_width = width / reduction_factor;
+        target_height = height / reduction_factor;
+    }
+    else {
+        // Force power-of-two.
+        target_width = width / reduction_factor;
+        target_height = height / reduction_factor;
+        target_width = 1 << (int)floorf(log2(target_width));
+        target_height = 1 << (int)floorf(log2(target_height));
+        // Since the rounding down to a power of two can result in a
+        // total reduction factor almost two times greater than targeted,
+        // use a one power of two larger size in extreme cases (in this case,
+        // the  total reduction factor will be less than targeted).
+        if (reduction_factor >= 2 &&(float)width / target_width > reduction_factor * 1.5f) {
+            target_width *= 2;
+            target_height *= 2;
+            reduction_shift--;
+        }
+    }
+    // For textures that were already a power of two, output the number of
+    // mipmap levels that may be skipped (e.g. for compressed textures).
+    nu_levels_to_skip = reduction_shift;
+    target_width = mini(target_width, sre_internal_max_texture_size);
+    target_height = mini(target_height, sre_internal_max_texture_size);
+    if (target_width == width && target_height == height)
+       return;
+    sreMessage(SRE_MESSAGE_INFO, "Reducing texture size from %dx%d to %dx%d.",
+       width, height, target_width, target_height);
+}
+
+static void AssignTextureToImage(sreTexture *tex, sreMipmapImage *image) {
+    image->pixels = tex->data;
+    image->width = tex->width;
+    image->height = tex->height;
+    image->extended_width = tex->width;
+    image->extended_height = tex->height;
+    image->alpha_bits = 0;          // 0 for no alpha, 1 if alpha is limited to 0 and 0xFF, 8 otherwise.
+    image->nu_components = 3;       // Indicates the number of components.
+    image->bits_per_component = 8;  // 8 or 16.
+    image->is_signed = 0;           // 1 if the components are signed, 0 if unsigned.
+    image->srgb = 0;                // Whether the image is stored in sRGB format.
+    image->is_half_float = 0;       // The image pixels are combinations of half-floats. The pixel size is 64-bit.
+}
+
+static void AssignImageToTexture(sreMipmapImage *image, sreTexture *tex) {
+    tex->data = image->pixels;
+    tex->width = image->width;
+    tex->height = image->height;
+    tex->bytes_per_pixel = 4;
+    if (image->alpha_bits == 8)
+        tex->format = TEXTURE_FORMAT_RAW_RGBA8;
+    else
+        tex->format = TEXTURE_FORMAT_RAW_RGBA8;
+    tex->type = TEXTURE_TYPE_NORMAL;
+}
+
+// Generate extra mipmap levels from Texture. Each new level will be allocated as a
+// texture and stored in textures (which must be allocated as an array of pointers).
+// The number of levels generated is indicated by the nu_levels arguments, zero
+// indicates going down to the smallest possible mipmap level. The number of levels
+// generated is returned in nu_levels.
+
+void sreTexture::GenerateMipmapLevels(int starting_level, int& nu_levels,
+sreTexture **textures) {
+    for (int i = 0;;) {
+        sreTexture *source_tex;
+        if (i == 0)
+            source_tex = this;
+        else
+            source_tex = textures[i - 1];
+        textures[i] = new sreTexture;
+        sreTexture *dest_tex = textures[i];
+        sreMipmapImage source_image, dest_image;
+        AssignTextureToImage(source_tex, &source_image);
+        if (i == 0)
+            generate_mipmap_level_from_original(&source_image, starting_level, &dest_image);
+        else
+            generate_mipmap_level_from_previous_level(&source_image, &dest_image);
+        AssignImageToTexture(&dest_image, dest_tex);
+        i++;
+        if (nu_levels == 0) {
+            if (dest_tex->width <= 1 || dest_tex->height <= 1) {
+                nu_levels = i;
+                break;
+            }
+        }
+        else if (i >= nu_levels)
+            break;
+    }
+    return;
+}
+
+// Apply texture detail settings to an uncompressed texture.
+
+void sreTexture::ApplyTextureDetailSettings() {
+    if (type == TEXTURE_TYPE_NORMAL_MAP)
+        return;
+    int target_width, target_height, levels_to_skip;
+    CalculateTargetSize(target_width, target_height, levels_to_skip);
+    if (target_width == width && target_height == height)
+        return;
+    // Scale down when necessary.
+    int count_target = CountPowersOfTwo(target_width, target_height);
+    int count_source = CountPowersOfTwo(width, height);
+    if (count_source < 2 && count_target == 2) {
+        sreMessage(SRE_MESSAGE_INFO, "Texture size reduction from NPOT to POT not yet implemented.");
+        return;
+    }
+    // In all remaining cases, 1 << levels_to_skip should be equivalent to the dividing factor
+    // for the largest mipmap level to be generated.
+    // Convert to 32-bit pixels when required.
+    if (bytes_per_pixel == 3)
+        ConvertFrom24BitsTo32Bits();
+    sreTexture *textures[32];
+    int nu_levels = 1;
+    GenerateMipmapLevels(levels_to_skip, nu_levels, textures);
+    // Copy the generated texture to the current texture.
+    delete [] data;
+    int saved_type = type;
+    *this = *textures[0];
+    type = saved_type;
 }

@@ -100,6 +100,8 @@ extern int sre_internal_visualized_shadow_map;
 extern int sre_internal_shadow_volume_count;
 extern int sre_internal_silhouette_count;
 extern int sre_internal_rendering_flags;
+extern int sre_internal_max_texture_size;
+extern int sre_internal_texture_detail_flags;
 
 extern Matrix3D *sre_internal_standard_UV_transformation_matrix;
 
@@ -226,8 +228,33 @@ void sreVisualizeBeamOrSpotLightShadowMap(int light_index);
 // Defined is lights.cpp:
 void sreInitializeInternalShadowVolume();
 
+
+// Image data structure for mipmaps.
+
+class sreMipmapImage {
+public :
+	unsigned int *pixels;
+	int width;
+	int height;
+	int extended_width;
+	int extended_height;
+	int alpha_bits;			// 0 for no alpha, 1 if alpha is limited to 0 and 0xFF, 8 otherwise.
+	int nu_components;		// Indicates the number of components.
+	int bits_per_component;		// 8 or 16.
+	int is_signed;			// 1 if the components are signed, 0 if unsigned.
+	int srgb;			// Whether the image is stored in sRGB format.
+	int is_half_float;		// The image pixels are combinations of half-floats. The pixel size is 64-bit.
+};
+
+// Defined in mipmap.cpp:
+void generate_mipmap_level_from_original(sreMipmapImage *source_image, int level, sreMipmapImage *dest_image);
+void generate_mipmap_level_from_previous_level(sreMipmapImage *source_image, sreMipmapImage *dest_image);
+int count_mipmap_levels(sreMipmapImage *image);
+
+
+// Error checking macro that is only defined if the DEBUG_OPENGL build flag was set.
 #ifdef DEBUG_OPENGL
-#define CHECK_GL_ERROR(s) sreCheckGLError(s);
+#define CHECK_GL_ERROR(s, ...) sreCheckGLError(s, ...);
 #else
 #define CHECK_GL_ERROR(s)
 #endif
@@ -236,4 +263,5 @@ void sreInitializeInternalShadowVolume();
 // the given formatted string if an error has occurred. It flushes
 // all previous errors. No newline is printed after the string.
 void sreCheckGLError(const char *format, ...);
-
+// Abort when a GL error is detected.
+void sreAbortOnGLError(const char *format, ...);

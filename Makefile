@@ -254,7 +254,7 @@ PKG_CONFIG_CFLAGS_DEMO = `pkg-config --cflags bullet $(EXTRA_PKG_CONFIG_DEMO)`
 PKG_CONFIG_LIBS_DEMO = `pkg-config --libs bullet $(EXTRA_PKG_CONFIG_DEMO)`
 
 CORE_LIBRARY_MODULE_OBJECTS = sre.o draw.o geometry.o read_model_file.o texture.o shadow.o \
-shadow_bounds.o MatrixClasses.o intersection.o preprocess.o \
+shadow_bounds.o MatrixClasses.o intersection.o preprocess.o mipmap.o \
 frustum.o bounds.o octree.o fluid.o standard_objects.o text.o scene.o lights.o shadowmap.o \
 bounding_volume.o random.o shader_matrix.o shader_loading.o vertex_buffer.o shader_uniform.o \
 draw_object.o

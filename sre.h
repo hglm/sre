@@ -132,26 +132,31 @@ enum { SRE_TEXTURE_FILTER_NEAREST, SRE_TEXTURE_FILTER_LINEAR, SRE_TEXTURE_FILTER
 
 class SRE_API sreTexture {
 public:
-   int width;
-   int height;
-   int bytes_per_pixel;
-   int format;
-   unsigned int *data;
-   int opengl_id;
-   int type;
+    int width;
+    int height;
+    int bytes_per_pixel;
+    int format;
+    unsigned int *data;
+    int opengl_id;
+    int type;
 
-   sreTexture(const char *basefilename, int type);
-   sreTexture(int w, int h);
-   ~sreTexture();
-   void UploadGL(int type);
-   unsigned int LookupPixel(int x, int y);
-   void SetPixel(int x, int y, unsigned int value);
-   void MergeTransparencyMap(sreTexture *t);
-   void ConvertFrom24BitsTo32Bits();
-   void LoadPNG(const char *filename, int type);
-   bool LoadKTX(const char *filename, int type);
-   void LoadDDS(const char *filename, int type);
-   void ChangeParameters(int flags, int filter, float anisotropy);
+    sreTexture() { }
+    sreTexture(const char *basefilename, int type);
+    sreTexture(int w, int h);
+    ~sreTexture();
+    void UploadGL();
+    unsigned int LookupPixel(int x, int y);
+    void SetPixel(int x, int y, unsigned int value);
+    void MergeTransparencyMap(sreTexture *t);
+    void ConvertFrom24BitsTo32Bits();
+    void LoadPNG(const char *filename);
+    bool LoadKTX(const char *filename);
+    void LoadDDS(const char *filename);
+    void ChangeParameters(int flags, int filter, float anisotropy);
+    void CalculateTargetSize(int& target_width, int& target_height,
+        int &nu_levels_to_skip);
+    void ApplyTextureDetailSettings();
+    void GenerateMipmapLevels(int starting_level, int& nu_levels, sreTexture **textures);
 };
 
 // Fluid data used for fluid models.
@@ -1843,6 +1848,29 @@ SRE_API void sreSetTriangleStripUseForShadowVolumes(bool enabled);
 SRE_API void sreSetTriangleFanUseForShadowVolumes(bool enabled);
 SRE_API void sreSetShadowVolumeCache(bool enabled);
 SRE_API void sreSetForceDepthFailRendering(bool enabled);
+// Global texture detail settings.
+enum {
+    // Use original texture size.
+    SRE_TEXTURE_DETAIL_HIGH = 1,
+    // Reduce large textures (e.g. use half-size).
+    SRE_TEXTURE_DETAIL_MEDIUM = 2,
+    // Reduce large textures significantly.
+    SRE_TEXTURE_DETAIL_LOW = 4,
+    SRE_TEXTURE_DETAIL_VERY_LOW = 8,
+    SRE_TEXTURE_DETAIL_LEVEL_MASK = 15,
+    // Force conversion of non-power-of-two textures to power-of-two.
+    SRE_TEXTURE_DETAIL_FORCE_POT = 0x100,
+    // Allow non-power-of-two textures.
+    SRE_TEXTURE_DETAIL_ALLOW_NPOT = 0x200,
+    // Some hardware supports NPOT textures, but only with one mipmap level.
+    SRE_TEXTURE_DETAIL_ALLOW_NPOT_WITHOUT_MIPMAPS = 0x400,
+    SRE_TEXTURE_DETAIL_POT_MASK = 0x700
+};
+enum {
+    SRE_TEXTURE_DETAIL_SET_LEVEL = 1,
+    SRE_TEXTURE_DETAIL_SET_POT = 2
+};
+SRE_API void sreSetGlobalTextureDetail(int set_mask, int flags);
 // Defined in texture.cpp:
 SRE_API sreTexture *sreGetStandardTexture();
 SRE_API sreTexture *sreGetStandardTextureWrapRepeat();

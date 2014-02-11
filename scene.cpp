@@ -28,12 +28,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre.h"
 #include "sre_internal.h"
 
-static inline float min(float x, float y) {
-    if (x < y)
-        return x;
-    return y;
-}
-
 // Constructor function for Scene.
 
 sreScene::sreScene(int _max_scene_objects, int _max_models, int _max_scene_lights) {
@@ -117,10 +111,10 @@ void sreScene::PrepareForRendering(bool preprocess_static_scenery) {
     // rendering. If the world is large, this can be much lower than the
     // total number of objects. The capacity will be automatically
     // increased when a limit is encountered.
-    max_visible_objects = min(SRE_DEFAULT_MAX_VISIBLE_OBJECTS, nu_objects);
-    max_final_pass_objects = min(SRE_DEFAULT_MAX_FINAL_PASS_OBJECTS, nu_objects);
-    max_shadow_caster_objects = min(SRE_DEFAULT_MAX_SHADOW_CASTER_OBJECTS, nu_objects);
-    max_visible_lights = min(SRE_DEFAULT_MAX_VISIBLE_LIGHTS, nu_lights);
+    max_visible_objects = mini(SRE_DEFAULT_MAX_VISIBLE_OBJECTS, nu_objects);
+    max_final_pass_objects = mini(SRE_DEFAULT_MAX_FINAL_PASS_OBJECTS, nu_objects);
+    max_shadow_caster_objects = mini(SRE_DEFAULT_MAX_SHADOW_CASTER_OBJECTS, nu_objects);
+    max_visible_lights = mini(SRE_DEFAULT_MAX_VISIBLE_LIGHTS, nu_lights);
 
     nu_visible_objects = 0;
     visible_object = new int[max_visible_objects];

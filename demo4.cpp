@@ -834,7 +834,8 @@ static void CreateSpacecraftTexture() {
             Fill(spacecraft_emission_map, i * 4, 24 + j, 2, 2, yellow); // Small windows.
             Fill(spacecraft_emission_map, i * 4, 103 - j, 2, 2, yellow);
         }
-    spacecraft_emission_map->UploadGL(TEXTURE_TYPE_LINEAR);
+    spacecraft_emission_map->type = TEXTURE_TYPE_LINEAR;
+    spacecraft_emission_map->UploadGL();
 }
 
 void Demo4CreateScene() {
