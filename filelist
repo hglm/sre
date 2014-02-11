@@ -35,6 +35,7 @@ sre/MatrixClasses.cpp
 sre/MouseEventQueue.cpp
 sre/octree.cpp
 sre/opengl-x11.cpp
+sre/preprocess.cpp
 sre/random.cpp
 sre/read_model_file.cpp
 sre/scene.cpp
