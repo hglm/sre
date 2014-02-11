@@ -45,7 +45,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
 
-Fluid::Fluid(int n, int m, float d, float t, float c, float mu)
+sreFluid::sreFluid(int n, int m, float d, float t, float c, float mu)
 {
 	width = n;
 	height = m;
@@ -81,7 +81,7 @@ Fluid::Fluid(int n, int m, float d, float t, float c, float mu)
 	}
 }
 
-Fluid::~Fluid()
+sreFluid::~sreFluid()
 {
 	delete[] tangent;
 	delete[] normal;
@@ -89,7 +89,7 @@ Fluid::~Fluid()
 	delete[] buffer[0];
 }
 
-void Fluid::Evaluate(void)
+void sreFluid::Evaluate(void)
 {
 	// Apply Equation (15.25).
 	for (int j = 1; j < height - 1; j++)
@@ -124,7 +124,7 @@ void Fluid::Evaluate(void)
 	}
 }
 
-void Fluid::CreateDisturbance(int x, int y, float z) {
+void sreFluid::CreateDisturbance(int x, int y, float z) {
     Vector3D *buf1 = buffer[renderBuffer];
     Vector3D *buf2 = buffer[1 - renderBuffer];
     buf1[y * width + x].z += z;
@@ -154,12 +154,10 @@ void Fluid::CreateDisturbance(int x, int y, float z) {
 sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d, float t, float c, float mu) {
     // Do a sanity check on t, c, and mu.
     if (c < 0 || c >= d * sqrtf(mu * t + 2) / (2 * t)) {
-        printf("Fluid c parameter out of range.\n");
-        exit(1);
+        sreFatalError("Fluid c parameter out of range.\n");
     }
     if (t < 0 || t >= (mu + sqrtf(mu * mu + 32 * c * c / (d * d))) / (8 * c * c / (d * d))) {
-        printf("Fluid t parameter out of range.\n");
-        exit(1);
+        sreFatalError("Fluid t parameter out of range.\n");
     }
     sreModel *m = new sreModel;
     sreLODModel *lm = sreNewLODModelNoShadowVolume();
@@ -201,7 +199,7 @@ sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d, f
     scene->RegisterModel(m);
     m->collision_shape_static = SRE_COLLISION_SHAPE_STATIC;
     m->collision_shape_dynamic = SRE_COLLISION_SHAPE_STATIC; 
-    m->fluid = new Fluid(width + 1, height + 1, d, t, c, mu);
+    m->fluid = new sreFluid(width + 1, height + 1, d, t, c, mu);
     return m;
 }
 

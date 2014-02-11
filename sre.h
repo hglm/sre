@@ -156,7 +156,7 @@ public:
 
 // Fluid data used for fluid models.
 
-class SRE_API Fluid {
+class SRE_API sreFluid {
 private :
     int	width;
     int	height;			
@@ -167,8 +167,8 @@ public :
     Vector3D *normal;
     Vector3D *tangent;
 
-    Fluid(int n, int m, float d, float t, float c, float mu);
-    ~Fluid();	
+    sreFluid(int n, int m, float d, float t, float c, float mu);
+    ~sreFluid();	
     void Evaluate(void);
     void CreateDisturbance(int x, int y, float z);
 };
@@ -830,7 +830,7 @@ public:
     float lod_threshold_scaling;
     sreLODModel *lod_model[SRE_MAX_LOD_LEVELS];
     // Fluid.
-    Fluid *fluid;
+    sreFluid *fluid;
 
     sreModel();
     sreModel *CreateNewInstance() const;
