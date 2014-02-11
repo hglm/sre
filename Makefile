@@ -266,6 +266,8 @@ ORIGINAL_LIBRARY_MODULE_OBJECTS = $(CORE_LIBRARY_MODULE_OBJECTS) $(EXTRA_LIBRARY
 LIBRARY_MODULE_OBJECTS = $(ORIGINAL_LIBRARY_MODULE_OBJECTS) $(EXTRA_GENERATED_LIBRARY_MODULE_OBJECTS)
 DEMO_MODULE_OBJECTS = $(PLATFORM_MODULE_OBJECTS) $(CORE_DEMO_MODULE_OBJECTS)
 
+LIBRARY_HEADER_FILES = sre.h sreVectorMath.h
+
 ifeq ($(LIBRARY_CONFIGURATION), SHARED)
 LIBRARY_OBJECT = libsre.so.$(VERSION)
 INSTALL_TARGET = install_shared
@@ -300,10 +302,12 @@ libsre_dbg.a : $(LIBRARY_MODULE_OBJECTS)
 	@echo 'Make demo to make the demo program without installing.'
 	@echo 'Both library and demo are compiled with debugging enabled.'
 
-install : $(INSTALL_TARGET) install_header
+install : $(INSTALL_TARGET) install_headers
 
-install_header : sre.h
-	install -m 0644 sre.h $(INCLUDE_DIR)/sre.h
+install_headers : $(LIBRARY_HEADER_FILES)
+	@for x in $(LIBRARY_HEADER_FILES); do \
+	echo Installing $$x.; \
+	install -m 0644 $$x $(INCLUDE_DIR)/$$x; done
 
 install_shared : $(LIBRARY_OBJECT)
 	install -m 0644 $(LIBRARY_OBJECT) $(SHARED_LIB_DIR)/$(LIBRARY_OBJECT)
