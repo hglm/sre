@@ -18,6 +18,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <math.h>
 #include <limits.h>
 #include <signal.h>
@@ -792,7 +793,7 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
 
 #ifdef OPENGL_ES2
     // For OpenGL-ES2, we don't use GLEW, so get the extensions string.
-    const GLubyte *extensions_str = glGetString(GL_EXTENSIONS);
+    const char *extensions_str = (const char *)glGetString(GL_EXTENSIONS);
 #endif
 
     // Depth clamping is mainly useful for shadow volumes, but we still try to enable it for
@@ -842,10 +843,12 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     // ES2 mandates limited NPOT support: no mipmaps, no wrap mode (clamp only).
     // Many devices support full NPOT: Adreno, Mali, but not PowerVR, determined by
     // GL_ARB_texture_non_power_of_two or GL_OES_texture_npot.
-    if (strstr(extensions, "GL_OES_texture_npot") != NULL ||
-    strstr(extensions, "GL_ARB_texture_non_power_of_two") != NULL)
+    if (strstr(extensions_str, "GL_OES_texture_npot") != NULL ||
+    strstr(extensions_str, "GL_ARB_texture_non_power_of_two") != NULL)
+        // Only compressed mipmapped NPOT textures not likely to be supported.
         sreSetGlobalTextureDetailFlags(SRE_TEXTURE_DETAIL_SET_NPOT,
-            SRE_TEXTURE_DETAIL_NPOT_FULL);
+            SRE_TEXTURE_DETAIL_NPOT | SRE_TEXTURE_DETAIL_NPOT_MIPMAPS |
+            SRE_TEXTURE_DETAIL_NPOT_WRAP);
     else
         sreSetGlobalTextureDetailFlags(SRE_TEXTURE_DETAIL_SET_NPOT,
             SRE_TEXTURE_DETAIL_NPOT);

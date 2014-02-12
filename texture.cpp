@@ -211,6 +211,34 @@ int& target_width, int& target_height, int& nu_levels_skipped) {
            "using single mipmap.");
         nu_mipmaps_used = 1;
     }
+    else if (!(sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_NPOT_MIPMAPS_COMPRESSED)
+    && (format & TEXTURE_FORMAT_COMPRESSED) && power_of_two_count != 2) {
+        if (nu_mipmaps_used > 1) {
+            sreMessage(SRE_MESSAGE_WARNING,
+                "Compressed non-power-of-2 mipmapped textures not supported --"
+                "using single mipmap.");
+                 nu_mipmaps_used = 1;
+        }
+        if ((target_width & 3) != 0) {
+            sreMessage(SRE_MESSAGE_WARNING,
+                "Selected single mipmap of compressed non-power-of-2 texture "
+                "is not a multiple of four -- picking a lower (larger) mipmap level.");
+            for (int level = nu_levels_skipped;; level--) {
+                // Obtain the actual width of this level.
+                int w = width >> level;
+                if ((w & 3) == 0) {
+                    nu_levels_skipped = level;
+                    break;
+                }
+                if (level == 0) {
+                    sreMessage(SRE_MESSAGE_WARNING,
+                        "No suitable lower-level mipmap found, keeping non-multiple-of-four "
+                        "mipmap.");
+                    break;
+                }
+            }
+        }
+    }
 }
 
 void sreTexture::UploadGL() {
@@ -564,7 +592,9 @@ default :
         break;
     }
     if (supported_format == - 1) {
-        printf("Texture format in KTX file not supported (glInternalFormat = 0x%04X).\n", glInternalFormat);
+        sreMessage(SRE_MESSAGE_INFO,
+            "Texture format in KTX file not supported (glInternalFormat = 0x%04X).",
+                glInternalFormat);
 	return false;
     }
 
@@ -587,6 +617,7 @@ default :
 
     width = header.pixelWidth;
     height = header.pixelHeight;
+    format = supported_format;
 
     int power_of_two_count, nu_mipmaps_used, target_width, target_height, nu_levels_skipped;
     SelectMipmaps(header.numberOfMipmapLevels, power_of_two_count, nu_mipmaps_used,
@@ -628,7 +659,6 @@ default :
     /* restore previous GL state */
     if (previousUnpackAlignment != KTX_GL_UNPACK_ALIGNMENT)
         glPixelStorei(GL_UNPACK_ALIGNMENT, previousUnpackAlignment);
-    format = supported_format;
 
     RegisterTexture(this);
     return true;
@@ -701,6 +731,22 @@ void sreTexture::LoadDDS(const char *filename) {
         exit(1);
     }
 
+    GLint internal_format;
+    format = TEXTURE_FORMAT_DXT1;
+#ifndef OPENGL_ES2
+    internal_format = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
+#ifndef NO_SRGB
+    if (type == TEXTURE_TYPE_NORMAL || type == TEXTURE_TYPE_SRGB || type == TEXTURE_TYPE_WRAP_REPEAT) {
+        internal_format = GL_COMPRESSED_SRGB_S3TC_DXT1_EXT;
+        format = TEXTURE_FORMAT_SRGB_DXT1;
+    }
+    else {
+        internal_format = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
+        format = TEXTURE_FORMAT_DXT1;
+    }
+#endif
+#endif
+
     // Create one OpenGL texture
     GLuint textureID;
     glGenTextures(1, &textureID);
@@ -731,23 +777,6 @@ void sreTexture::LoadDDS(const char *filename) {
 //    unsigned int blockSize = (format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) ? 8 : 16;
     unsigned int blockSize = 8;
     unsigned int offset = 0;
-
-    GLint internal_format;
-#ifndef OPENGL_ES2
-#ifdef NO_SRGB
-        internal_format = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
-        format = TEXTURE_FORMAT_DXT1;
-#else
-    if (type == TEXTURE_TYPE_NORMAL || type == TEXTURE_TYPE_SRGB || type == TEXTURE_TYPE_WRAP_REPEAT) {
-        internal_format = GL_COMPRESSED_SRGB_S3TC_DXT1_EXT;
-        format = TEXTURE_FORMAT_SRGB_DXT1;
-    }
-    else {
-        internal_format = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
-        format = TEXTURE_FORMAT_DXT1;
-    }
-#endif
-#endif
 
     /* Load the mipmaps. */
     w = width;
