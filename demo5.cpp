@@ -71,9 +71,7 @@ void Demo5CreateScene() {
     // Torus landscape.
     sreModel *torus_model = sreCreateTorusModel(scene);
     sreTexture *donut_normalmap[3];
-    donut_normalmap[0] = new sreTexture("normal_map", TEXTURE_TYPE_NORMAL_MAP);
-//    donut_normalmap[1] = new sreTexture("normal_map2", TEXTURE_TYPE_NORMAL_MAP);
-//    donut_normalmap[2] = new sreTexture("normal_map_large", TEXTURE_TYPE_NORMAL_MAP);
+    donut_normalmap[0] = new sreTexture("normal_map_bump_pattern", TEXTURE_TYPE_NORMAL_MAP);
     scene->SetFlags(SRE_OBJECT_USE_NORMAL_MAP /* | SRE_OBJECT_DYNAMIC_POSITION */ | SRE_OBJECT_CAST_SHADOWS);
     // Set diffuse fraction to 0.6 and roughness values of 0.1 and 0.15, anisotropic.
     scene->SetMicrofacetParameters(0.6, 0.1, 1.0, 0.15, 1.0, true);
@@ -119,9 +117,9 @@ void Demo5CreateScene() {
     y = 4 * (TORUS_RADIUS + TORUS_RADIUS2) * 2;
     float size = 3;
     float z = TORUS_RADIUS2 * size;
-    sreTexture *wall_texture = new sreTexture("tijolo.png", TEXTURE_TYPE_NORMAL);
+    sreTexture *wall_texture = new sreTexture("tijolo", TEXTURE_TYPE_NORMAL);
     scene->SetTexture(wall_texture);
-    sreTexture *wall_normals = new sreTexture("tijolo_normal_map.png", TEXTURE_TYPE_NORMAL_MAP);
+    sreTexture *wall_normals = new sreTexture("tijolo_normal_map", TEXTURE_TYPE_NORMAL_MAP);
     // Because we have 20 different-size instantiations of the same object, for directional lights use the
     // scene object shadow volume cache (normally only for point lights) instead of the model object shadow
     // volume cache (which doesn't have room for 20 entries for the same object).

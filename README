@@ -391,7 +391,7 @@ pipeline.
   cylinder.
 
 -- Large-scale normal-mapping causes a noticeable slowdown on some
-   OpenGL-ES 2.0 platforms, probably normal mapping is relatively
+   OpenGL-ES 2.0 platforms (demo5), probably normal mapping is relatively
    unoptimized in the lighting shaders (it passes a matrix as
    interpolated value, and is not a full tangent-space implementation;
    multiple normalizations may play a role). This should be optimized.
