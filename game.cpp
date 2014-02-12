@@ -66,7 +66,7 @@ static void CreateObjectsAndTextures() {
     block_30x2x5_model = sreCreateBlockModel(scene, 30, 2, 5, 0);
     block_2x96x5_model = sreCreateBlockModel(scene, 2, 96, 5, 0);
 
-    beachball_texture = new sreTexture("BeachBallTexture", TEXTURE_TYPE_NORMAL);
+    beachball_texture = new sreTexture("beachball", TEXTURE_TYPE_NORMAL);
     ground_texture = new sreTexture("MossAndGrass4", TEXTURE_TYPE_WRAP_REPEAT);
     water_texture = new sreTexture("water1", TEXTURE_TYPE_WRAP_REPEAT);
 #if defined(OPENGL) && !defined(NO_LARGE_TEXTURES)

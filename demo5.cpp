@@ -36,7 +36,7 @@ void Demo5CreateScene() {
     // isotropic.
     scene->SetMicrofacetParameters(0.6, 0.1, 0.4, 0.25, 0.6, false);
 
-    sreTexture *tex = new sreTexture("BeachBallTexture", TEXTURE_TYPE_NORMAL);
+    sreTexture *tex = new sreTexture("beachball", TEXTURE_TYPE_NORMAL);
 
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);
     // Add player sphere as scene object 0

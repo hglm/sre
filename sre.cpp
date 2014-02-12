@@ -330,6 +330,8 @@ static const char *reflection_model_str[2] = {
     "Micro-facet"
 };
 
+static const char *no_yes_str[2] = { "No", "Yes" };
+
 sreEngineSettingsInfo *sreGetEngineSettingsInfo() {
     sreEngineSettingsInfo *info = new sreEngineSettingsInfo;
     info->window_width = sre_internal_window_width;
@@ -423,26 +425,19 @@ void sreSetForceDepthFailRendering(bool enabled) {
    }
 }
 
-void sreSetGlobalTextureDetail(int set_mask, int flags) {
+void sreSetGlobalTextureDetailFlags(int set_mask, int flags) {
    if (set_mask & SRE_TEXTURE_DETAIL_SET_LEVEL) {
        sre_internal_texture_detail_flags &= ~SRE_TEXTURE_DETAIL_LEVEL_MASK;
        sre_internal_texture_detail_flags = flags  & SRE_TEXTURE_DETAIL_LEVEL_MASK;
    }
-   if (set_mask & SRE_TEXTURE_DETAIL_SET_POT) {
-#ifdef OPENGL_ES2
-       if (flags & SRE_TEXTURE_DETAIL_ALLOW_NPOT) {
-           sreMessage(SRE_MESSAGE_WARNING, "sreSetGlobalTextureDetail: Non-power-of-two"
-               "textures not supported by hardware.");
-           return;
-       }
-#endif
-       sre_internal_texture_detail_flags &= ~SRE_TEXTURE_DETAIL_POT_MASK;
-       sre_internal_texture_detail_flags |= flags & SRE_TEXTURE_DETAIL_POT_MASK;
+   if (set_mask & SRE_TEXTURE_DETAIL_SET_NPOT) {
+       sre_internal_texture_detail_flags &= ~SRE_TEXTURE_DETAIL_NPOT_MASK;
+       sre_internal_texture_detail_flags |= flags & SRE_TEXTURE_DETAIL_NPOT_MASK;
    }
 }
 
-void sreSetGlobalTextureDetailFlags(int flags) {
-   sre_internal_texture_detail_flags = flags;
+int sreGetGlobalTextureDetailFlags() {
+    return sre_internal_texture_detail_flags;
 }
 
 // Allocate UV transformation matrix that flips U or V.
@@ -557,8 +552,8 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &sre_internal_max_texture_size);
     sre_internal_texture_detail_flags = 0;
     // These settings will be overriden later during initialization.
-    sreSetGlobalTextureDetail(SRE_TEXTURE_DETAIL_SET_LEVEL, SRE_TEXTURE_DETAIL_HIGH);
-    sreSetGlobalTextureDetail(SRE_TEXTURE_DETAIL_SET_POT, SRE_TEXTURE_DETAIL_FORCE_POT);
+    sreSetGlobalTextureDetailFlags(SRE_TEXTURE_DETAIL_SET_LEVEL, SRE_TEXTURE_DETAIL_HIGH);
+    sreSetGlobalTextureDetailFlags(SRE_TEXTURE_DETAIL_SET_NPOT, 0);
 
     // Note: Boolean rendering flags settings should be concentrated into the single variable
     // sre_internal_rendering_flags for efficiency.
@@ -795,6 +790,11 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     // Switch back to window-system-provided framebuffer.
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+#ifdef OPENGL_ES2
+    // For OpenGL-ES2, we don't use GLEW, so get the extensions string.
+    const GLubyte *extensions_str = glGetString(GL_EXTENSIONS);
+#endif
+
     // Depth clamping is mainly useful for shadow volumes, but we still try to enable it for
     // all cases.
 #if defined(NO_DEPTH_CLAMP)
@@ -838,20 +838,32 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     const char *texture_detail_str;
 #ifdef OPENGL_ES2
     // Set texture detail level to medium (reduce large textures).
-    sreSetGlobalTextureDetail(SRE_TEXTURE_DETAIL_SET_LEVEL, SRE_TEXTURE_DETAIL_LOW);
-    sreSetGlobalTextureDetail(SRE_TEXTURE_DETAIL_SET_POT,
-        SRE_TEXTURE_DETAIL_ALLOW_NPOT_WITHOUT_MIPMAPS);
+    sreSetGlobalTextureDetailFlags(SRE_TEXTURE_DETAIL_SET_LEVEL, SRE_TEXTURE_DETAIL_LOW);
+    // ES2 mandates limited NPOT support: no mipmaps, no wrap mode (clamp only).
+    // Many devices support full NPOT: Adreno, Mali, but not PowerVR, determined by
+    // GL_ARB_texture_non_power_of_two or GL_OES_texture_npot.
+    if (strstr(extensions, "GL_OES_texture_npot") != NULL ||
+    strstr(extensions, "GL_ARB_texture_non_power_of_two") != NULL)
+        sreSetGlobalTextureDetailFlags(SRE_TEXTURE_DETAIL_SET_NPOT,
+            SRE_TEXTURE_DETAIL_NPOT_FULL);
+    else
+        sreSetGlobalTextureDetailFlags(SRE_TEXTURE_DETAIL_SET_NPOT,
+            SRE_TEXTURE_DETAIL_NPOT);
     texture_detail_str = "low (reduction of average-sized and large textures)";
 #else
     // Set texture detail level to high (preserve original texture size when possible).
-    sreSetGlobalTextureDetail(SRE_TEXTURE_DETAIL_SET_LEVEL, SRE_TEXTURE_DETAIL_HIGH);
-    sreSetGlobalTextureDetail(SRE_TEXTURE_DETAIL_SET_POT, SRE_TEXTURE_DETAIL_ALLOW_NPOT);
+    sreSetGlobalTextureDetailFlags(SRE_TEXTURE_DETAIL_SET_LEVEL, SRE_TEXTURE_DETAIL_HIGH);
+    // Assume an OpenGL 3/DX10 class CPU, supporting full NPOT textures.
+    sreSetGlobalTextureDetailFlags(SRE_TEXTURE_DETAIL_SET_NPOT,
+        SRE_TEXTURE_DETAIL_NPOT_FULL);
     texture_detail_str = "high (no reduction)";
 #endif
-    sreMessage(SRE_MESSAGE_INFO, "Maximum texture size %dx%d, global texture detail set to %s.",
+    sreMessage(SRE_MESSAGE_INFO, "Maximum texture size %dx%d, global texture detail set to %s, "
+       "NPOT mipmaps: %s, NPOT repeating textures: %s",
        sre_internal_max_texture_size, sre_internal_max_texture_size,
-       texture_detail_str);
-
+       texture_detail_str, no_yes_str[(sreGetGlobalTextureDetailFlags() &
+           SRE_TEXTURE_DETAIL_NPOT_MIPMAPS) != 0], no_yes_str[(sreGetGlobalTextureDetailFlags()
+           & SRE_TEXTURE_DETAIL_NPOT_MIPMAPS) != 0]);
     // Make sure all objects have their shader selected when first drawn.
     sre_internal_reselect_shaders = true;
     // Invalidate geometry scissors cache (not strictly required).

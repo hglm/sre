@@ -76,12 +76,14 @@ void Demo7CreateScene() {
 
     // Add transparent texture.
 #ifndef OPENGL_ES2
-    sreTexture *transparent_texture = new sreTexture("test2", TEXTURE_TYPE_WRAP_REPEAT);
+    // The texture is in BPTC format.
+    sreTexture *transparent_texture = new sreTexture("transparent_texture",
+        TEXTURE_TYPE_WRAP_REPEAT);
     sreModel *rectangle = sreCreateRepeatingRectangleModel(scene, 20.0, 5.0);
     scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
     scene->SetTexture(transparent_texture);
-    scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_NO_BACKFACE_CULLING | SRE_OBJECT_USE_TEXTURE |
-        SRE_OBJECT_TRANSPARENT_TEXTURE);
+    scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_NO_BACKFACE_CULLING |
+        SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_TRANSPARENT_TEXTURE);
     scene->AddObject(rectangle, - 50, 60, 0, M_PI / 4, 0, 0, 1.0);
 #endif
 

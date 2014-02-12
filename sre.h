@@ -153,8 +153,11 @@ public:
     bool LoadKTX(const char *filename);
     void LoadDDS(const char *filename);
     void ChangeParameters(int flags, int filter, float anisotropy);
+private :
     void CalculateTargetSize(int& target_width, int& target_height,
         int &nu_levels_to_skip);
+    void SelectMipmaps(int nu_mipmaps, int& power_of_two_count, int& nu_mipmaps_used,
+        int& target_width, int& target_height, int& nu_levels_skipped);
     void ApplyTextureDetailSettings();
     void GenerateMipmapLevels(int starting_level, int& nu_levels, sreTexture **textures);
 };
@@ -1858,19 +1861,22 @@ enum {
     SRE_TEXTURE_DETAIL_LOW = 4,
     SRE_TEXTURE_DETAIL_VERY_LOW = 8,
     SRE_TEXTURE_DETAIL_LEVEL_MASK = 15,
-    // Force conversion of non-power-of-two textures to power-of-two.
-    SRE_TEXTURE_DETAIL_FORCE_POT = 0x100,
-    // Allow non-power-of-two textures.
-    SRE_TEXTURE_DETAIL_ALLOW_NPOT = 0x200,
-    // Some hardware supports NPOT textures, but only with one mipmap level.
-    SRE_TEXTURE_DETAIL_ALLOW_NPOT_WITHOUT_MIPMAPS = 0x400,
-    SRE_TEXTURE_DETAIL_POT_MASK = 0x700
+    // Non-power-of-two texture flags.
+    // Whether at least limited NPOT textures are supported.
+    SRE_TEXTURE_DETAIL_NPOT = 0x100,
+    // Whether multiple mipmap levels are supported with NPOT textures.
+    SRE_TEXTURE_DETAIL_NPOT_MIPMAPS = 0x200,
+    // Whether full repeat/wrap mode NPOT textures are supported.
+    SRE_TEXTURE_DETAIL_NPOT_WRAP = 0x400,
+    SRE_TEXTURE_DETAIL_NPOT_FULL = 0x700,
+    SRE_TEXTURE_DETAIL_NPOT_MASK = 0x700
 };
 enum {
     SRE_TEXTURE_DETAIL_SET_LEVEL = 1,
-    SRE_TEXTURE_DETAIL_SET_POT = 2
+    SRE_TEXTURE_DETAIL_SET_NPOT = 2
 };
-SRE_API void sreSetGlobalTextureDetail(int set_mask, int flags);
+SRE_API void sreSetGlobalTextureDetailFlags(int set_mask, int flags);
+SRE_API int sreGetGlobalTextureDetailFlags();
 // Defined in texture.cpp:
 SRE_API sreTexture *sreGetStandardTexture();
 SRE_API sreTexture *sreGetStandardTextureWrapRepeat();

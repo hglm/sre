@@ -147,6 +147,72 @@ static int CountPowersOfTwo(int w, int h) {
     return count;
 }
 
+static void SetGLTextureParameters(int type, int nu_mipmaps_used, int power_of_two_count) {
+#ifndef OPENGL_ES2
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, nu_mipmaps_used - 1);
+#endif
+    if (nu_mipmaps_used == 1) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+    else {
+        if (power_of_two_count != 2) {
+            sreMessage(SRE_MESSAGE_INFO, "Note: Using non-power-of-two texture with mipmaps.");
+        }
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+    if (type == TEXTURE_TYPE_WRAP_REPEAT) {
+        if (power_of_two_count != 2) {
+            sreFatalError("Repeating textures require power of two texture dimensions.\n");
+        }
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    }
+    else {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
+}
+
+void sreTexture::SelectMipmaps(int nu_mipmaps, int& power_of_two_count, int& nu_mipmaps_used,
+int& target_width, int& target_height, int& nu_levels_skipped) {
+    // Count whether width or height is a power of two.
+    power_of_two_count = CountPowersOfTwo(width, height);
+    nu_mipmaps_used = nu_mipmaps;
+    CalculateTargetSize(target_width, target_height, nu_levels_skipped);
+    nu_mipmaps_used -= nu_levels_skipped;
+    if (nu_mipmaps_used < 1) {
+        // When there insufficient lower detail compressed mipmap levels, use
+        // the single lowest defined mipmap level.
+        nu_levels_skipped -= 1 - nu_mipmaps_used;
+        nu_mipmaps_used = 1;
+        sreMessage(SRE_MESSAGE_WARNING, "Insufficient lower-order compressed texture mipmap "
+            "levels, cannot fully apply texture detail reduction settings.");
+    }
+    if (nu_levels_skipped > 0)
+         sreMessage(SRE_MESSAGE_INFO, "Highest-level compressed texture mipmap levels (n = %d) "
+             "omitted due to texture detail settings or limitations.",
+             nu_levels_skipped);
+    if (!(sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_NPOT_MIPMAPS)
+    && power_of_two_count != 2 && nu_mipmaps_used > 1) {
+        // Mipmaps not supported for textures that are not a power of two in width and height.
+        sreMessage(SRE_MESSAGE_WARNING,
+           "Compressed non-power-of-2 mipmapped textures not supported --"
+           "using single mipmap.");
+        nu_mipmaps_used = 1;
+    }
+    else if (type == TEXTURE_TYPE_WRAP_REPEAT &&
+    !(sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_NPOT_WRAP)
+    && power_of_two_count != 2) {
+         sreMessage(SRE_MESSAGE_WARNING,
+           "Wrap mode non-power-of-2 mipmapped textures not supported --"
+           "using single mipmap.");
+        nu_mipmaps_used = 1;
+    }
+}
+
 void sreTexture::UploadGL() {
 #ifndef NO_SRGB
     if (format == TEXTURE_FORMAT_RAW) {
@@ -522,51 +588,11 @@ default :
     width = header.pixelWidth;
     height = header.pixelHeight;
 
-    // Count whether width or height is a power of two.
-    int count = CountPowersOfTwo(header.pixelWidth, header.pixelHeight);
-    int nu_mipmaps_used = header.numberOfMipmapLevels;
-    int target_width, target_height, nu_levels_skipped;
-    CalculateTargetSize(target_width, target_height, nu_levels_skipped);
-    nu_mipmaps_used -= nu_levels_skipped;
-    if (nu_mipmaps_used < 1) {
-        // When there insufficient lower detail compressed mipmap levels, use
-        // the single lowest defined mipmap level.
-        nu_levels_skipped -= 1 - nu_mipmaps_used;
-        nu_mipmaps_used = 1;
-        sreMessage(SRE_MESSAGE_WARNING, "Insufficient lower-order compressed texture mipmap "
-            "levels, cannot fully apply texture detail reduction settings.");
-    }
-    if (nu_levels_skipped > 0)
-         sreMessage(SRE_MESSAGE_INFO, "Highest-level compressed texture mipmap levels (n = %d) "
-             "omitted due to texture detail settings or limitations.",
-             nu_levels_skipped);
-    if (count != 2 && nu_mipmaps_used > 1) {
-        // Mipmaps not supported for textures that are not a power of two in width and height.
-        sreMessage(SRE_MESSAGE_WARNING,
-           "KTX compressed non-power-of-2 mipmapped textures not supported --"
-           "using single mipmap.");
-        nu_mipmaps_used = 1;
-    }
+    int power_of_two_count, nu_mipmaps_used, target_width, target_height, nu_levels_skipped;
+    SelectMipmaps(header.numberOfMipmapLevels, power_of_two_count, nu_mipmaps_used,
+        target_width, target_height, nu_levels_skipped);
 
-    if (nu_mipmaps_used == 1) {
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
-    else {
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
-    if (type == TEXTURE_TYPE_WRAP_REPEAT) {
-        if (count != 2) {
-            sreFatalError("Repeating textures require power of two texture dimensions.");
-        }
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    }
-    else {
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    }
+    SetGLTextureParameters(type, nu_mipmaps_used, power_of_two_count);
 
     data = NULL;
     for (level = 0; level < nu_mipmaps_used + nu_levels_skipped; level++) {
@@ -574,6 +600,7 @@ default :
         GLsizei pixelHeight = maxi(1, header.pixelHeight >> level);
         GLsizei pixelDepth  = maxi(1, header.pixelDepth  >> level);
         if (level == nu_levels_skipped) {
+            // Set the texture size to the first used mipmap level.
             width = pixelWidth;
             height = pixelHeight;
         }
@@ -614,8 +641,7 @@ void sreTexture::LoadDDS(const char *filename) {
     /* try to open the file */
     fp = fopen(filename, "rb");
     if (fp == NULL) {
-        printf("Error -- cannot access texture file %s.\n", filename);
-        exit(1);
+        sreFatalError("Cannot access texture file %s.", filename);
     }
  
     /* verify the type of file */
@@ -623,8 +649,7 @@ void sreTexture::LoadDDS(const char *filename) {
     fread(filecode, 1, 4, fp);
     if (strncmp(filecode, "DDS ", 4) != 0) {
         fclose(fp);
-        printf("Error -- .dds file is not a DDS file.\n");
-        exit(1);
+        sreFatalError(".dds file is not a DDS file.");
     }
  
     /* get the surface desc */
@@ -697,35 +722,11 @@ void sreTexture::LoadDDS(const char *filename) {
         w /= 2;
         h /= 2;
     }
-#ifndef OPENGL_ES2
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, mipMapCount - 1);
-#endif
-    if (mipMapCount == 1) {
-        // Mip-maps not supported for textures that are not a power of two in width and height.
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
-    else {
-        if (count != 2) {
-            printf("Error -- DXT1 compressed non-power-of-2 mipmapped textures not supported.\n");
-            exit(1);
-        }
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
-    if (type == TEXTURE_TYPE_WRAP_REPEAT) {
-        if (count != 2) {
-            printf("Error - repeating textures require power of two texture dimensions.\n");
-            exit(1);
-        }
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    }
-    else {
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    }
+
+    int power_of_two_count, nu_mipmaps_used, target_width, target_height, nu_levels_skipped;
+    SelectMipmaps(mipMapCount, power_of_two_count, nu_mipmaps_used, target_width, target_height,
+       nu_levels_skipped);
+    SetGLTextureParameters(type, nu_mipmaps_used, power_of_two_count);
 
 //    unsigned int blockSize = (format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) ? 8 : 16;
     unsigned int blockSize = 8;
@@ -751,18 +752,19 @@ void sreTexture::LoadDDS(const char *filename) {
     /* Load the mipmaps. */
     w = width;
     h = height;
-    for (unsigned int level = 0; level < mipMapCount; ++level)
-    {
+    for (unsigned int level = 0; level < nu_mipmaps_used + nu_levels_skipped; level++) {
+        if (level == nu_levels_skipped) {
+            // Set the texture size to the first used mipmap level.
+            width = w;
+            height = h;
+        }
         unsigned int size;
         size = ((w + 3) / 4) * ((h + 3) / 4) * blockSize;
-        glCompressedTexImage2D(GL_TEXTURE_2D, level, internal_format, w, h, 
-            0, size, buffer + offset);
-        GLenum errorTmp = glGetError();
-        if (errorTmp != GL_NO_ERROR) {
-            printf("Error loading .dds texture.\n");
-            exit(1);
+        if (level >= nu_levels_skipped) {
+            glCompressedTexImage2D(GL_TEXTURE_2D, level - nu_levels_skipped,
+                internal_format, w, h, 0, size, buffer + offset);
+            sreAbortOnGLError("Error loading .dds texture.");
         }
-
         offset += size;
         w /= 2;
         h /= 2;
@@ -929,7 +931,7 @@ sreTexture *sreGetStandardTexture() {
     if (standard_texture == NULL)
         CreateStandardTexture(TEXTURE_TYPE_LINEAR);
     if (standard_texture == NULL) {
-        printf("Error -- unable to upload standard texture (OpenGL problem?), giving up.\n");
+        sreFatalError("Unable to upload standard texture (OpenGL problem?), giving up.");
         exit(1);
     }
     return standard_texture;
@@ -939,8 +941,7 @@ sreTexture *sreGetStandardTextureWrapRepeat() {
    if (standard_texture_wrap_repeat == NULL)
         CreateStandardTexture(TEXTURE_TYPE_WRAP_REPEAT);
     if (standard_texture_wrap_repeat == NULL) {
-        printf("Error -- unable to upload standard texture (OpenGL problem?), giving up.\n");
-        exit(1);
+        sreFatalError("Unable to upload standard texture (OpenGL problem?), giving up.");
     }
     return standard_texture_wrap_repeat;
 }
@@ -975,7 +976,8 @@ static void RegisterTexture(sreTexture *tex) {
 }
 
 void sreScene::ApplyGlobalTextureParameters(int flags, int filter, float anisotropy) {
-    printf("Searching list of %d registered textures to apply new texture parameters.\n",
+    sreMessage(SRE_MESSAGE_INFO,
+        "Searching list of %d registered textures to apply new texture parameters.\n",
         nu_registered_textures);
     for (int i = 0; i < nu_registered_textures; i++) {
         switch (registered_textures[i]->type) {
@@ -1029,11 +1031,15 @@ int &nu_levels_to_skip) {
              reduction_shift = (int)floor(log2(sqrtf((float)area))) - 8;
     }
     int reduction_factor = 1 << reduction_shift;
-    if (sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_ALLOW_NPOT) {
-        target_width = width / reduction_factor;
-        target_height = height / reduction_factor;
-    }
-    else if (sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_ALLOW_NPOT_WITHOUT_MIPMAPS) {
+    bool force_power_of_two = false;
+    bool force_one_mipmap_level = false;
+    if (!(sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_NPOT)
+    || (type == TEXTURE_TYPE_WRAP_REPEAT &&
+    !(sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_NPOT_WRAP)))
+        force_power_of_two = true;
+    if (!(sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_NPOT_MIPMAPS))
+        force_one_mipmap_level = true;
+    if (!force_power_of_two) {
         // When NPOT textures are only supported with a single mipmap level, allow
         // taking advantage if there are more than one mipmap levels defined in the source
         // texture to potentially use a lower level one. If the selected reduction is not
@@ -1144,7 +1150,8 @@ void sreTexture::ApplyTextureDetailSettings() {
     int count_target = CountPowersOfTwo(target_width, target_height);
     int count_source = CountPowersOfTwo(width, height);
     if (count_source < 2 && count_target == 2) {
-        sreMessage(SRE_MESSAGE_INFO, "Texture size reduction from NPOT to POT not yet implemented.");
+        sreMessage(SRE_MESSAGE_INFO,
+            "Texture size reduction from NPOT to POT not yet implemented.");
         return;
     }
     // In all remaining cases, 1 << levels_to_skip should be equivalent to the dividing factor

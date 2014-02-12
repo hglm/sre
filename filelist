@@ -110,15 +110,14 @@ sre/tijolo.png
 sre/volcanic8.png
 sre/water1.png
 sre/yale8.png
-sre/BeachBallTexture.dds
-sre/BeachBallTexture.png
+sre/beachball.dds
+sre/beachball.ktx
 sre/Marble9.dds
 sre/MossAndGrass4.dds
 sre/StonesAndBricks5.dds
 sre/tijolo.dds
 sre/volcanic8.dds
 sre/water1.dds
-sre/BeachBallTexture.ktx
 sre/Marble9.ktx
 sre/MossAndGrass4.ktx
 sre/StonesAndBricks5.ktx
@@ -126,5 +125,6 @@ sre/tijolo.ktx
 sre/volcanic8.ktx
 sre/water1.ktx
 sre/yale8.ktx
+sre/transparent_texture.ktx
 sre/elephant.obj
 sre/venusm.obj
