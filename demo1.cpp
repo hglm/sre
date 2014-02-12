@@ -50,12 +50,14 @@ static sreObject *fluid_scene_object;
 static int light_object[13 * 28];
 
 void Demo1CreateScene() {
-    sreModel *globe_model = sreCreateSphereModel(scene, 0);
+    sreModel *sphere_model = sreCreateSphereModel(scene, 0);
     // Add player sphere as scene object 0.
-    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS);
-    scene->SetDiffuseReflectionColor(Color(0, 0.75, 1.0));
-    int i = scene->AddObject(globe_model, - 20, - 40, 3.0, 0, 0, 0, 3.0);
-    scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
+    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS |
+        SRE_OBJECT_USE_TEXTURE);
+    scene->SetTexture(sreCreateStripesTexture(TEXTURE_TYPE_LINEAR,
+        256, 256, 32, Color(0, 0.5f, 0.8f), Color(0.9f, 0.9f, 1.0f)));
+    scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
+    scene->AddObject(sphere_model, Point3D(- 20.0f, - 40.0f, 3.0f), Vector3D(0, 0, 0), 3.0f);
 #if 0
     // Ground floor is object 1.
     sreModel *checkerboard_model = sreCreateCheckerboardObject(32, 10,
@@ -215,7 +217,7 @@ void Demo1CreateScene() {
         Point3D(20.0, 0, 40.0), Vector3D(- 1.0, 0.8, - 1.2), 20.0f, 80.0, Color(3.0, 1.5, 1.5));
     scene->SetEmissionColor(Color(1.0, 0.7, 0.7));
     scene->SetDiffuseReflectionColor(Color(1.0, 0.5, 0.5));
-    j = scene->AddObject(globe_model, 20.0, 0, 40.0, 0, 0, 0, 3.0);
+    j = scene->AddObject(sphere_model, 20.0, 0, 40.0, 0, 0, 0, 3.0);
     scene->AttachLight(j, l, Vector3D(0, 0, 0));
     scene->SetEmissionColor(Color(0, 0, 0));
     scene->AddObject(block_model, 20.0, 0.0, 0, 0, 0, 0, 5.0);

@@ -101,11 +101,14 @@ void Demo8CreateScene() {
     rng = sreGetDefaultRNG();
 
     scene->SetAmbientColor(Color(0.15, 0.15, 0.15));
-    sreModel *globe_model = sreCreateSphereModel(scene, 0);
+    sreModel *sphere_model = sreCreateSphereModel(scene, 0);
     // Add player sphere as scene object 0
-    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS);
-    scene->SetDiffuseReflectionColor(Color(0, 0.75, 1.0));
-    scene->AddObject(globe_model, 100, 50, 3.0, 0, 0, 0, 3.0);
+    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS |
+        SRE_OBJECT_USE_TEXTURE);
+    scene->SetTexture(sreCreateStripesTexture(TEXTURE_TYPE_LINEAR,
+        256, 256, 32, Color(0, 0.5f, 0.8f), Color(0.9f, 0.9f, 1.0f)));
+    scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
+    scene->AddObject(sphere_model, Point3D(97.0f, - 40.0f, 3.0f), Vector3D(0, 0, 0), 3.0f);
 #ifdef CONTROL_OBJECT_LIGHT
     // Add a light source at the center of the controllable sphere.
     // Because the sphere naturally rolls, it is hard to realistically
@@ -146,19 +149,19 @@ void Demo8CreateScene() {
     scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 0.6));
     scene->SetSpecularReflectionColor(Color(1.0, 1.0, 1.0));
     scene->SetEmissionColor(Color(1.0, 1.0, 0.6));
-    int j = scene->AddObject(globe_model, 5.0, 5.0, 30.0, 0, 0, 0, 5.0);
+    int j = scene->AddObject(sphere_model, 5.0, 5.0, 30.0, 0, 0, 0, 5.0);
     corner_light_object_index[0] = j;
     l = scene->AddPointSourceLight(0, Point3D(5.0, 5.0, 30.0), 50.0, Color(1.0, 1.0, 0.8));
     corner_light_index[0] = l;
-    j = scene->AddObject(globe_model, 195.0, 5.0, 30.0, 0, 0, 0, 5.0);
+    j = scene->AddObject(sphere_model, 195.0, 5.0, 30.0, 0, 0, 0, 5.0);
     corner_light_object_index[1] = j;
     l = scene->AddPointSourceLight(0, Point3D(195.0, 5.0, 30.0), 50.0, Color(1.0, 1.0, 0.8));
     corner_light_index[1] = l;
-    j = scene->AddObject(globe_model, 5.0, 195.0, 30.0, 0, 0, 0, 5.0);
+    j = scene->AddObject(sphere_model, 5.0, 195.0, 30.0, 0, 0, 0, 5.0);
     corner_light_object_index[2] = j;
     l = scene->AddPointSourceLight(0, Point3D(5.0, 195.0, 30.0), 50, Color(1.0, 1.0, 0.8));
     corner_light_index[2] = l;
-    j = scene->AddObject(globe_model, 195.0, 195.0, 30.0, 0, 0, 0, 5.0);
+    j = scene->AddObject(sphere_model, 195.0, 195.0, 30.0, 0, 0, 0, 5.0);
     corner_light_object_index[3] = j;
     l = scene->AddPointSourceLight(0, Point3D(195.0, 195.0, 30.0), 50.0, Color(1.0, 1.0, 0.8));
     corner_light_index[3] = l;
@@ -205,9 +208,9 @@ void Demo8CreateScene() {
     scene->SetFlags(0);
     scene->SetDiffuseReflectionColor(Color(0.9f, 0.9f, 0.9f));
     scene->SetEmissionColor(Color(0.9f, 0.9f, 0.9f));
-    scene->AddObject(globe_model, P1 + Vector3D(0, 0, grating_light_pedestal_height + 2.0f),
+    scene->AddObject(sphere_model, P1 + Vector3D(0, 0, grating_light_pedestal_height + 2.0f),
         Vector3D(0, 0, 0), 2.0f);
-    scene->AddObject(globe_model, P2 + Vector3D(0, 0, grating_light_pedestal_height + 2.0f),
+    scene->AddObject(sphere_model, P2 + Vector3D(0, 0, grating_light_pedestal_height + 2.0f),
         Vector3D(0, 0, 0), 2.0f);
     // Add the light sources for the pedestal lights. Range 55.
     // Although unphysical except with HDR rendering, the lights are extra bright.
@@ -230,14 +233,14 @@ void Demo8CreateScene() {
         scene->SetEmissionMap(emission_map);
         scene->SetDiffuseReflectionColor(robot_color[i & 1]);
         scene->SetMass(0.5);
-        int object_index = scene->AddObject(globe_model, robot[i].initial_pos.x, robot[i].initial_pos.y,
+        int object_index = scene->AddObject(sphere_model, robot[i].initial_pos.x, robot[i].initial_pos.y,
             robot[i].initial_pos.z, 0, 0, 0, 5.0);
         robot[i].object_index = object_index;
         scene->SetDiffuseReflectionColor(robot_light_color[i & 1]);
         scene->SetEmissionColor(robot_light_color[i & 1]);
         scene->SetMass(0.2);
         scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS);
-        object_index = scene->AddObject(globe_model, robot[i].initial_pos.x, robot[i].initial_pos.y,
+        object_index = scene->AddObject(sphere_model, robot[i].initial_pos.x, robot[i].initial_pos.y,
             robot[i].initial_pos.z + 7.0, 0, 0, 0, 2.0);
         robot[i].light_object_index = object_index;
 #if 1
@@ -252,13 +255,13 @@ void Demo8CreateScene() {
 #endif
 
     // Landscape "lights".
-    sreModel *globe_model_simple = sreCreateSphereModelSimple(scene, 0);
+    sreModel *sphere_model_simple = sreCreateSphereModelSimple(scene, 0);
     scene->SetFlags(SRE_OBJECT_NO_PHYSICS | SRE_OBJECT_EMISSION_ONLY);
 //    scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
     scene->SetEmissionColor(Color(1.0, 1.0, 1.0));
     for (int x = 0; x < 51; x++)
         for (int y = 0; y < 51; y++) {
-            scene->AddObject(globe_model_simple, (x - 25) * 400.0 - 100.0, (y - 25) * 400.0 - 100.0, 0, 0, 0, 0, 1.0);
+            scene->AddObject(sphere_model_simple, (x - 25) * 400.0 - 100.0, (y - 25) * 400.0 - 100.0, 0, 0, 0, 0, 1.0);
         }
     // Landscape fields.
     sreModel *field_object = sreCreateRepeatingRectangleModel(scene, 200.0, 200.0);
@@ -279,7 +282,7 @@ void Demo8CreateScene() {
                 continue;
             scene->SetFlags(SRE_OBJECT_EMISSION_ONLY);
             scene->SetEmissionColor(Color(1.0, 1.0, 1.0));
-            scene->AddObject(globe_model, (x - 25) * 400.0 + 100.0, (y - 25) * 400.0 + 100.0, 23.0, 0, 0, 0, 3.0);
+            scene->AddObject(sphere_model, (x - 25) * 400.0 + 100.0, (y - 25) * 400.0 + 100.0, 23.0, 0, 0, 0, 3.0);
             scene->SetFlags(SRE_OBJECT_EMISSION_ONLY);
             scene->SetEmissionColor(Color(0, 0.4, 0));
             scene->AddObject(pedestal2, (x - 25) * 400 + 100.0, (y - 25) * 400.0 + 100.0, 0, 0, 0, 0, 1.0);

@@ -1095,10 +1095,18 @@ Color Color::GetSRGBFromLinear() const {
         );
 }
 
-float Color::LinearIntensity() const{
+float Color::LinearIntensity() const {
     return Dot((*this), Crgb);
 }
 
 float Color::SRGBIntensity() const {
     return SRGBGamma(GetLinearFromSRGB().LinearIntensity());
+}
+
+unsigned int Color::GetRGBX8() const {
+    unsigned int pixel;
+    pixel = (unsigned int)floorf(r * 255.0f + 0.5f) +
+        ((unsigned int)floorf(g * 255.0f + 0.5f) << 8) +
+        ((unsigned int)floorf(b * 255.0f + 0.5f) << 16) + 0xFF000000;
+    return pixel;
 }

@@ -30,14 +30,13 @@ void Demo11CreateScene() {
     // Add player sphere as scene object 0.
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);
 
-    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS);
     scene->SetMass(1.0f);
-    Color c;
-    c.r = 0;
-    c.g = 0.75;
-    c.b = 1.0;
-    scene->SetColor(c);
-    scene->AddObject(sphere_model, 0, - 40, 3.0, 0, 0, 0, 3.0);
+    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS |
+        SRE_OBJECT_USE_TEXTURE);
+    scene->SetTexture(sreCreateStripesTexture(TEXTURE_TYPE_LINEAR,
+        256, 256, 32, Color(0, 0.5f, 0.8f), Color(0.9f, 0.9f, 1.0f)));
+    scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
+    scene->AddObject(sphere_model, Point3D(0, - 40.0f, 3.0f), Vector3D(0, 0, 0), 3.0f);
     scene->SetMass(0);
 
     // Add ground

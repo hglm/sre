@@ -36,14 +36,13 @@ static int lightsource_object_index[2];
 void Demo7CreateScene() {
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);
 
-    // Add player sphere as scene object 0
-    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS);
-    Color c;
-    c.r = 0.00;
-    c.g = 0.75;
-    c.b = 1.0;
-    scene->SetColor(c);
-    scene->AddObject(sphere_model, - 15, 5, 3.0, 0, 0, 0, 3.0);
+    // Add player sphere as scene object 0.
+    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS |
+        SRE_OBJECT_USE_TEXTURE);
+    scene->SetTexture(sreCreateStripesTexture(TEXTURE_TYPE_LINEAR,
+        256, 256, 32, Color(0, 0.5f, 0.8f), Color(0.9f, 0.9f, 1.0f)));
+    scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
+    scene->AddObject(sphere_model, Point3D(0, - 40.0f, 3.0f), Vector3D(0, 0, 0), 3.0f);
 
 #if 1
     // Add floor as object 1
@@ -57,19 +56,13 @@ void Demo7CreateScene() {
 #if 1
     // Add sphere
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
-    c.r = 0.75;
-    c.g = 0.75;
-    c.b = 1.0;
-    scene->SetColor(c);
+    scene->SetColor(Color(0.75f, 0.75f, 1.0f));
     scene->AddObject(sphere_model, 0, 30, 10, 0, 0, 0, 5.0);
 #endif
 
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
     sreModel *torus_model = sreCreateTorusModel(scene);
-    c.r = 1.0;
-    c.g = 0.25;
-    c.b = 0;
-    scene->SetColor(c);
+    scene->SetColor(Color(1.0f, 0.25f, 0));
     for (int y = 0; y < 9; y++)
         for (int x = 0; x < 5; x++)
             scene->AddObject(sphere_model, - 10 + x * 6.0, 40 + y * 6.0, 8.0, 0, 0, 0, 3.0);
@@ -91,17 +84,11 @@ void Demo7CreateScene() {
     sreModel *grating_model = sreCreateGratingModel(scene, 10, 10, 0.2, 0.9, 0.1, 0.2);
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
     // Add big rotated grating in background.
-    c.r = 0.5;
-    c.g = 0.8;
-    c.b = 0.2;
-    scene->SetColor(c);
+    scene->SetColor(Color(0.5f, 0.8f, 0.2f));
     scene->AddObject(grating_model, - 20, 100, 0, M_PI / 2, 0, 0, 4.0);
     sreModel *elongated_grating_model = sreCreateGratingModel(scene, 20, 8, 0.2, 0.9, 0.1, 0.2);
     // Create steps of elongated gratings.
-    c.r = 1.0;
-    c.g = 0.5;
-    c.b = 0.5;
-    scene->SetColor(c);
+    scene->SetColor(Color(1.0f, 0.5f, 0.5f));
     for (int i = 0; i < 12; i++) {
         scene->AddObject(elongated_grating_model, - 5, 0.0 + i * (0.2 + 8 * (0.9 + 0.1) + 0.2),
             1.0 + i * 5.0, 0, 0, 0, 1.0);

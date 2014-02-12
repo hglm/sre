@@ -932,43 +932,65 @@ void sreTexture::SetPixel(int x, int y, unsigned int value) {
     data[y * width + x] = value;
 }
 
-// Create a standard texture for fall-back and test purposes.
 
-static void CreateStandardTexture(int type) {
-    sreTexture *tex = new sreTexture(256, 256);
-    for (int y = 0; y < 256; y++)
-        for (int x = 0; x < 256; x++) {
-            // Create a reddish checkerboard.
-            int tile_on = ((x / 16) + (y / 16)) & 1;
-            uint32_t pixel;
-            if (tile_on == 0)
-                pixel = 0xFF001020;
-            else
-                pixel = 0xFF2040C0;
-            tex->SetPixel(x, y, pixel);
+sreTexture *sreCreateCheckerboardTexture(int type, int w, int h, int bw, int bh,
+Color color0, Color color1) {
+    sreTexture *tex = new sreTexture(w, h);
+    unsigned int pixel[2];
+    pixel[0] = color0.GetRGBX8();
+    pixel[1] = color1.GetRGBX8();
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++) {
+            int tile_on = ((x / bw) + (y / bh)) & 1;
+            tex->SetPixel(x, y, pixel[tile_on]);
         }
+    tex->width = w;
+    tex->height = h;
+    tex->bytes_per_pixel = 4;
+    tex->format == TEXTURE_FORMAT_RAW;
     tex->type = type;
     tex->UploadGL();
-    if (type == TEXTURE_TYPE_WRAP_REPEAT)
-        standard_texture_wrap_repeat = tex;
-    else
-        standard_texture = tex;
     RegisterTexture(tex);
+    return tex;
 }
+
+sreTexture *sreCreateStripesTexture(int type, int w, int h, int bh,
+Color color0, Color color1) {
+    sreTexture *tex = new sreTexture(w, h);
+    unsigned int pixel[2];
+    pixel[0] = color0.GetRGBX8();
+    pixel[1] = color1.GetRGBX8();
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++) {
+            int tile_on = (y / bh) & 1;
+            tex->SetPixel(x, y, pixel[tile_on]);
+        }
+    tex->width = w;
+    tex->height = h;
+    tex->bytes_per_pixel = 4;
+    tex->format == TEXTURE_FORMAT_RAW;
+    tex->type = type;
+    tex->UploadGL();
+    RegisterTexture(tex);
+    return tex;
+}
+
+// Create a standard texture for fall-back and test purposes.
 
 sreTexture *sreGetStandardTexture() {
     if (standard_texture == NULL)
-        CreateStandardTexture(TEXTURE_TYPE_LINEAR);
+        standard_texture = sreCreateCheckerboardTexture(TEXTURE_TYPE_LINEAR,
+            256, 256, 16, 16, Color(0, 0, 0), Color(1.0f, 1.0f, 1.0f));
     if (standard_texture == NULL) {
         sreFatalError("Unable to upload standard texture (OpenGL problem?), giving up.");
-        exit(1);
     }
     return standard_texture;
 }
 
 sreTexture *sreGetStandardTextureWrapRepeat() {
    if (standard_texture_wrap_repeat == NULL)
-        CreateStandardTexture(TEXTURE_TYPE_WRAP_REPEAT);
+        standard_texture_wrap_repeat = sreCreateCheckerboardTexture(TEXTURE_TYPE_WRAP_REPEAT,
+            256, 256, 16, 16, Color(0, 0, 0), Color(1.0f, 1.0f, 1.0f));
     if (standard_texture_wrap_repeat == NULL) {
         sreFatalError("Unable to upload standard texture (OpenGL problem?), giving up.");
     }

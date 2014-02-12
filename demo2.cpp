@@ -86,13 +86,12 @@ void Demo2CreateScene() {
 
     // Add player sphere as scene object 0.
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);
-    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS);
-    Color c;
-    c.r = 0;
-    c.g = 0.75;
-    c.b = 1.0;
-    scene->SetColor(c);
-    scene->AddObject(sphere_model, 0, - 40, 3.0, 0, 0, 0, 3.0);
+    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS |
+        SRE_OBJECT_USE_TEXTURE);
+    scene->SetTexture(sreCreateStripesTexture(TEXTURE_TYPE_LINEAR,
+        256, 256, 32, Color(0, 0.5f, 0.8f), Color(0.9f, 0.9f, 1.0f)));
+    scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
+    scene->AddObject(sphere_model, Point3D(0, - 40.0f, 3.0f), Vector3D(0, 0, 0), 3.0f);
 
     // Add ground
     sreModel *checkerboard_model = sreCreateCheckerboardModel(scene, 20, 10,
@@ -122,7 +121,7 @@ void Demo2CreateScene() {
 
     sreModel *elephant_model = sreReadModelFromFile(scene, "elephant.obj", SRE_MODEL_FILE_TYPE_OBJ, 0);
     elephant_model->SetLODModelFlags(SRE_LOD_MODEL_NOT_CLOSED);
-    c.r = 1.0; c.g = 0.5, c.b = 0.5;
+    Color c = Color(1.0f, 0.5f, 0.5f);
     scene->SetDiffuseReflectionColor(c);
 //    scene->SetFlags(SRE_OBJECT_NO_PHYSICS | SRE_OBJECT_CAST_SHADOWS);
     // Place the object on the ground at a reasonable scale. 

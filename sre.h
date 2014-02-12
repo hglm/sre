@@ -1888,6 +1888,12 @@ SRE_API int sreGetGlobalTextureDetailFlags();
 // Defined in texture.cpp:
 SRE_API sreTexture *sreGetStandardTexture();
 SRE_API sreTexture *sreGetStandardTextureWrapRepeat();
+// Create a checkboard texture of size w x h consisting of two clors, with fields
+// of size bw x bh.
+SRE_API sreTexture *sreCreateCheckerboardTexture(int type, int w, int h, int bw, int bh,
+    Color color0, Color color1);
+SRE_API sreTexture *sreCreateStripesTexture(int type, int w, int h, int bh,
+    Color color0, Color color1);
 SRE_API float sreGetMaxAnisotropyLevel();
 
 // Defined in text.cpp:

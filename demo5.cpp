@@ -40,14 +40,15 @@ void Demo5CreateScene() {
 
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);
     // Add player sphere as scene object 0
-//    scene->SetTexture(tex);
-//    scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS);
-    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS);
-    scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 0));
-    scene->SetSpecularReflectionColor(Color(0.9, 0.9, 0.6));
-    scene->AddObject(sphere_model, - 15, - 100, 3.0, 0, 0, 0, 3.0);
-    scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
-    scene->SetSpecularReflectionColor(Color(1.0, 1.0, 1.0));
+    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS | 
+        SRE_OBJECT_USE_TEXTURE);
+    scene->SetTexture(sreCreateStripesTexture(TEXTURE_TYPE_LINEAR,
+        256, 256, 32, Color(1.0f, 1.0f, 0), Color(0.6f, 0.6f, 0)));
+    scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
+    scene->SetSpecularReflectionColor(Color(0.9f, 0.9f, 0.6f));
+    scene->AddObject(sphere_model, - 15.0f, - 100.0f, 3.0f, 0, 0, 0, 3.0f);
+    scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
+    scene->SetSpecularReflectionColor(Color(1.0f, 1.0f, 1.0f));
     int i;
 
     sreModel *ground_model = sreCreateRepeatingRectangleModel(scene, 1000.0, 20.0);
