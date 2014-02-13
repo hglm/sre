@@ -116,8 +116,6 @@ int sreRNG::Random16() {
     return r & 0xFFFF;
 }
 
-
-
 int sreRNG::RandomBits(int n) {
     unsigned int r;
     unsigned int mask = (1 << n) - 1;
@@ -146,52 +144,69 @@ void sreRNG::SeedWithTimer() {
     Seed(tv.tv_sec * 1000000 + tv.tv_usec);
 }
 
-static unsigned char power_of_2_table[257] = {
-    255, 0, 1, 255, 2, 255, 255, 255, 3, 255, 255, 255, 255 ,255, 255, 255, 
-    4, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 ,255, 255, 255, 
-    5, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 ,255, 255, 255, 
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 ,255, 255, 255,
-    6, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 ,255, 255, 255, 
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 ,255, 255, 255, 
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 ,255, 255, 255, 
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 ,255, 255, 255, 
-    7, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 ,255, 255, 255, 
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 ,255, 255, 255, 
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 ,255, 255, 255, 
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 ,255, 255, 255, 
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 ,255, 255, 255, 
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 ,255, 255, 255, 
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 ,255, 255, 255, 
-    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 ,255, 255, 255,
+// Table with log(2) of n, starting from n = 1 to n = 256. If n is not
+// a power of two (there is a remainder), bit 7 is set (0x80 added). 
+static unsigned char power_of_2_table[256] = {
+    0, 1, 0x81, 2, 0x82, 0x82, 0x82, 3, 0x83, 0x83, 0x83, 0x83 ,0x83, 0x83, 0x83, 
+    4, 0x84, 0x84, 0x84, 0x84, 0x84, 0x84, 0x84, 0x84, 0x84, 0x84, 0x84, 0x84 ,0x84, 0x84, 0x84, 
+    5, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85 ,0x85, 0x85, 0x85, 
+    0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x85 ,0x85, 0x85, 0x85,
+    6, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86 ,0x86, 0x86, 0x86, 
+    0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86 ,0x86, 0x86, 0x86, 
+    0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86 ,0x86, 0x86, 0x86, 
+    0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86 ,0x86, 0x86, 0x86, 
+    7, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87 ,0x87, 0x87, 0x87, 
+    0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87 ,0x87, 0x87, 0x87, 
+    0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87 ,0x87, 0x87, 0x87, 
+    0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87 ,0x87, 0x87, 0x87, 
+    0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87 ,0x87, 0x87, 0x87, 
+    0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87 ,0x87, 0x87, 0x87, 
+    0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87 ,0x87, 0x87, 0x87, 
+    0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87, 0x87 ,0x87, 0x87, 0x87,
     8
 };
 
 // Return an integer from 0 to n - 1.
-// This function becomes biased as for very large values for n because of the use
-// of the modulo operator.
+// This functions has only a minor bias (1 part in 256) for non-power-of-two values
+// <= 65535,  a smaller bias for 65536 > non-power-of-two value  < (1 << 24), and as
+// n increases above (1 << 24) the bias gradually increases to an unacceptable level
+// for very large values for n because of the use of the modulo operator.
+// n <= 0 is an invalid argument.
 
 int sreRNG::RandomInt(int n) {
     // Fast path to most common occurence of repeating power of two.
     if (n == last_random_n_power_of_2) {
         return RandomBits(last_random_n_power_of_2_bit_count);
     }
-    // Optimize power of two.
+    // Optimize power of two. Handle powers of two from 1 to 256,
+    // and use modulo with Random16() for other values <= 255.
     if (n <= 256) {
-        int bit_count = power_of_2_table[n];
-        if (bit_count != 255) {
+        int table_value = power_of_2_table[n - 1];
+        int shift = (table_value & 0x7F);
+        if ((table_value & 0x80) == 0) {
             last_random_n_power_of_2 = n;
-            last_random_n_power_of_2_bit_count = bit_count;
-            return RandomBits(bit_count);
+            last_random_n_power_of_2_bit_count = shift;
+            return RandomBits(shift);
         }
-        return Random16() % n;
+        // Use modulo of a random value eight bits larger than 1 << (log2(n) + 1),
+        // introducing only a minor bias for n <= 255.
+        // Note that shift is guaranteed to be <= 7 at this point, so RandomBits()
+        // will fit in an unsigned short.
+        return (unsigned short)RandomBits(shift + 9) % n;
     }
-    if (n <= 65536 && (n & 0xFF) == 0) {
-        int bit_count = power_of_2_table[n >> 8];
-        if (bit_count != 255) {
+    // Handle powers of two between 512 and 1 << 16, and use modulo with random bits
+    // for other values > 256 and < (1 << 16).
+    if (n <= (1 << 16)) {
+        int table_value = power_of_2_table[(n >> 8) - 1];
+        int shift = (table_value & 0x7F) + 8;
+        if ((table_value & 0x80) == 0 && (n & 0x1FF) == 0) {
             last_random_n_power_of_2 = n;
-            last_random_n_power_of_2_bit_count = bit_count + 8;
-            return RandomBits(bit_count + 8);
+            last_random_n_power_of_2_bit_count = shift;
+            return RandomBits(shift);
         }
+        // Use a modulo of a random value eight bits larger than 1 << (log2(n) + 1),
+        // introducing only a minor bias.
+        return (unsigned int)RandomBits(shift + 9) % n;
     }
     return Random32() % n;
 }
@@ -209,7 +224,8 @@ double sreRNG::RandomDouble(double range) {
  */
 
 float sreRNG::RandomFloat(float range) {
-    return (float)Random32() * range / ((uint64_t)1 << 32);
+    // Use double math to preserve 32 bits of precision in the return value.
+    return (float)((double)Random32() * range / ((uint64_t)1 << 32));
 }
 
 // Return a random float from min_bound to max_bound (exclusive).
