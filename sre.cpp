@@ -54,7 +54,6 @@ bool sre_internal_invalidate_geometry_scissors_cache;
 bool sre_internal_use_depth_clamping;
 int sre_internal_shadow_volume_count;
 int sre_internal_silhouette_count;
-sreDefaultRNG *sre_internal_rng;
 void (*sreDrawTextOverlayFunc)();
 Matrix3D *sre_internal_standard_UV_transformation_matrix;
 
@@ -374,10 +373,6 @@ void sreSetDemandLoadShaders(bool flag) {
     sre_internal_demand_load_shaders = flag;
 }
 
-sreDefaultRNG *sreGetDefaultRNG() {
-   return sre_internal_rng;
-}
-
 void sreSetVisualizedShadowMap(int light_index) {
     sre_internal_visualized_shadow_map = light_index;
 }
@@ -530,8 +525,6 @@ static void sreDrawSplashScreen() {
 }
 
 void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_buffers_func) {
-    // Initialize the default random number generator.
-    sre_internal_rng = new sreDefaultRNG;
 
     // Initialize the internal bounding volume structures used for temporary shadow volumes.
     sreInitializeInternalShadowVolume();

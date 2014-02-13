@@ -22,6 +22,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <math.h>
 
 #include "sre.h"
+#include "sreRandom.h"
+
 #include "demo.h"
 
 #define ROBOTS
@@ -94,7 +96,7 @@ static float star_billboard_size_target[NU_STARS];
 static double star_last_twinkle_time[NU_STARS];
 static float star_dec[NU_STARS];
 
-static sreDefaultRNG *rng;
+static sreRNG *rng;
 
 void Demo8CreateScene() {
     int l;

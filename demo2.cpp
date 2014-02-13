@@ -26,9 +26,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <math.h>
 
 #include "sre.h"
+#include "sreRandom.h"
+
 #include "demo.h"
 
-static sreDefaultRNG *rng;
+static sreRNG *rng;
 static sreModel *particle_system_500_model = NULL;
 
 #define PARTICLE_SYSTEM_RADIUS_XY 15.0f

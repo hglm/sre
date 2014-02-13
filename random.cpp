@@ -31,6 +31,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #endif
 
 #include "sre.h"
+#include "sreRandom.h"
 
 #ifndef __GNUC__
 
@@ -59,8 +60,8 @@ void gettimeofday(struct timeval *tv, struct timezone *tz) {
 #endif
 
 
-sreGenericRNG::sreGenericRNG() {
-//    printf("sreGenericRNG constructor called.\n");
+sreRNG::sreRNG() {
+//    printf("sreRNG constructor called.\n");
     storage = 0;
     storage_size = 0;
     last_random_n_power_of_2 = - 1; 
@@ -68,7 +69,7 @@ sreGenericRNG::sreGenericRNG() {
 
 // Return a random integer value of 0 or 1.
 
-int sreGenericRNG::RandomBit() {
+int sreRNG::RandomBit() {
     unsigned int r;
     if (storage_size > 0) {
        int bit;
@@ -85,7 +86,7 @@ int sreGenericRNG::RandomBit() {
 
 // Return a random integer value from 0 to 255.
 
-int sreGenericRNG::Random8() {
+int sreRNG::Random8() {
     unsigned int r;
     if (storage_size >= 8) {
         r = storage & 0xFF;
@@ -101,7 +102,7 @@ int sreGenericRNG::Random8() {
 
 // Return a random integer value from 0 to 65535.
 
-int sreGenericRNG::Random16() {
+int sreRNG::Random16() {
     unsigned int r;
     if (storage_size >= 16) {
         r = storage & 0xFFFF;
@@ -117,7 +118,7 @@ int sreGenericRNG::Random16() {
 
 
 
-int sreGenericRNG::RandomBits(int n) {
+int sreRNG::RandomBits(int n) {
     unsigned int r;
     unsigned int mask = (1 << n) - 1;
     if (storage_size >= n) {
@@ -138,7 +139,7 @@ int sreGenericRNG::RandomBits(int n) {
 
 // Randomize the seed of the random number generator with a value from the system timer.
 
-void sreGenericRNG::SeedWithTimer() {
+void sreRNG::SeedWithTimer() {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     /* The multiplication by 1000000 will overflow, but that is not important. */
@@ -169,7 +170,7 @@ static unsigned char power_of_2_table[257] = {
 // This function becomes biased as for very large values for n because of the use
 // of the modulo operator.
 
-int sreGenericRNG::RandomInt(int n) {
+int sreRNG::RandomInt(int n) {
     // Fast path to most common occurence of repeating power of two.
     if (n == last_random_n_power_of_2) {
         return RandomBits(last_random_n_power_of_2_bit_count);
@@ -199,7 +200,7 @@ int sreGenericRNG::RandomInt(int n) {
  * Return a random double from 0 to range (exclusive).
  */
 
-double sreGenericRNG::RandomDouble(double range) {
+double sreRNG::RandomDouble(double range) {
     return (double)Random32() * range / ((uint64_t)1 << 32);
 }
 
@@ -207,25 +208,25 @@ double sreGenericRNG::RandomDouble(double range) {
  * Return a random float from 0 to range (exclusive).
  */
 
-float sreGenericRNG::RandomFloat(float range) {
+float sreRNG::RandomFloat(float range) {
     return (float)Random32() * range / ((uint64_t)1 << 32);
 }
 
 // Return a random float from min_bound to max_bound (exclusive).
 
-float sreGenericRNG::RandomWithinBounds(float min_bound, float max_bound) {
+float sreRNG::RandomWithinBounds(float min_bound, float max_bound) {
     return min_bound + RandomFloat(max_bound - min_bound);
 }
 
 // Return a random double from min_bound to max_bound (exclusive).
 
-double sreGenericRNG::RandomWithinBounds(double min_bound, double max_bound) {
+double sreRNG::RandomWithinBounds(double min_bound, double max_bound) {
     return min_bound + RandomDouble(max_bound - min_bound);
 }
 
 /* Calculate a random permutation of the numbers 0 to (n - 1). */
 
-void sreGenericRNG::CalculateRandomOrder(int *order, int n) {
+void sreRNG::CalculateRandomOrder(int *order, int n) {
     int i;
     for (i = 0; i < n; i++)
         order[i] = i;
@@ -246,7 +247,7 @@ void sreGenericRNG::CalculateRandomOrder(int *order, int n) {
 // Create a random number generator data structure and returns it. The RNG is initialized
 // with a seed of 0.
 
-sreDefaultRNG::sreDefaultRNG() {
+sreCMWCRNG::sreCMWCRNG() {
     state_size = SRE_DEFAULT_RNG_STATE_SIZE;
     c = 362436;
     Q = new unsigned int[state_size];
@@ -254,7 +255,7 @@ sreDefaultRNG::sreDefaultRNG() {
     Seed(0);
 }
 
-sreDefaultRNG::sreDefaultRNG(int _state_size) {
+sreCMWCRNG::sreCMWCRNG(int _state_size) {
     state_size = _state_size;
     c = 362436;
     Q = new unsigned int[state_size];
@@ -262,13 +263,13 @@ sreDefaultRNG::sreDefaultRNG(int _state_size) {
     Seed(0);
 }
 
-sreDefaultRNG::~sreDefaultRNG() {
+sreCMWCRNG::~sreCMWCRNG() {
     delete [] Q;
 }
 
 // Seed the random number generator with an unsigned integer from 0 to 2^32 - 1.
 
-void sreDefaultRNG::Seed(unsigned int seed) {
+void sreCMWCRNG::Seed(unsigned int seed) {
     int i;
     Q[0] = seed;
     Q[1] = seed + PHI;
@@ -279,7 +280,7 @@ void sreDefaultRNG::Seed(unsigned int seed) {
  
 // Return a random integer value from 0 to 2^32 - 1;
 
-unsigned int sreDefaultRNG::Random32() {
+unsigned int sreCMWCRNG::Random32() {
     uint64_t t, a = 18782LL;
     unsigned int x, r = 0xfffffffe;
     _index = (_index + 1) & (state_size - 1);
@@ -291,4 +292,22 @@ unsigned int sreDefaultRNG::Random32() {
          c++;
     }
     return (Q[_index] = r - x);
+}
+
+// This global variable definition will trigger the constructor at
+// program initialization time.
+static sreCMWCRNG sre_internal_rng;
+static sreRNG *sre_default_rng = NULL;
+
+SRE_API sreRNG *sreGetDefaultRNG() {
+   if (sre_default_rng == NULL)
+       sre_default_rng = &sre_internal_rng;
+   return sre_default_rng;
+}
+
+SRE_API void sreSetDefaultRNG(sreRNG* rng) {
+    if (rng == NULL)
+        sre_default_rng = &sre_internal_rng;
+    else
+        sre_default_rng = rng;
 }

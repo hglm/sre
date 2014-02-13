@@ -23,6 +23,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <math.h>
 
 #include "sre.h"
+#include "sreRandom.h"
+
 #include "demo.h"
 
 #define NU_TESTS 5
@@ -34,7 +36,7 @@ typedef void (*TextDemoDrawFuncType)();
 typedef void (*TextDemoSetTextFuncType)(double dt);
 
 
-static sreDefaultRNG *rng;
+static sreRNG *rng;
 
 static int current_test = - 1;
 static double test_start_time, test_time;

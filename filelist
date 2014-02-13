@@ -65,6 +65,8 @@ sre/sre_bounds.h
 sre/sre.h
 sre/sre_internal.h
 sre/shader.h
+sre/sreBoundingVolume.h
+sre/sreRandom.h
 sre/sreVectorMath.h
 sre/win32_compat.h
 sre/x11-common.h

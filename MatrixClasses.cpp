@@ -34,6 +34,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <math.h>
 
 #include "sre.h"
+#include "sreRandom.h"
 #include "sre_internal.h"
 
 Matrix3D::Matrix3D(const Vector3D& c1, const Vector3D& c2, const Vector3D& c3)
@@ -1050,9 +1051,10 @@ Matrix4D Transpose(const MatrixTransform& m)
 // Additional color member functions.
 
 Color& Color::SetRandom() {
-    r = sre_internal_rng->RandomFloat(1.0);
-    g = sre_internal_rng->RandomFloat(1.0);
-    b = sre_internal_rng->RandomFloat(1.0);
+    sreRNG *rng = sreGetDefaultRNG();
+    r = rng->RandomFloat(1.0f);
+    g = rng->RandomFloat(1.0f);
+    b = rng->RandomFloat(1.0f);
     return (*this);
 }
 

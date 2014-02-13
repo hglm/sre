@@ -48,8 +48,6 @@ extern bool sre_internal_reselect_shaders;
 extern bool sre_internal_invalidate_geometry_scissors_cache;
 extern bool sre_internal_use_depth_clamping;
 extern void (*sreDrawTextOverlayFunc)();
-extern sreDefaultRNG *sre_internal_rng;
-
 extern SRE_GLUINT sre_internal_depth_texture;
 extern SRE_GLUINT sre_internal_depth_cube_map_texture;
 extern SRE_GLUINT sre_internal_shadow_map_framebuffer;
