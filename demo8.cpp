@@ -471,7 +471,7 @@ void Demo8TimeIteration(double time_previous, double time_current) {
         float f = ((0.5 * M_PI - star_dec[i]) / (0.5 * M_PI));
         f = f * f * f;
         float billboard_size;
-        if ((rng->RandomBit()) == 0)
+        if ((rng->RandomBits(1)) == 0)
             billboard_size = star_object_billboard_size[i] * (1 + 0.2 * f);
         else
             billboard_size = star_object_billboard_size[i] * (1 - 0.2 * f);
