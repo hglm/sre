@@ -495,6 +495,9 @@ class SRE_API Vector3D
 		{
 			return (*this *= InverseSqrt(x * x + y * y + z * z));
 		}
+
+		// Return text respresentation. To be freed with delete [].
+		char *GetString() const;
 };
 
 
@@ -1079,6 +1082,9 @@ class SRE_API Vector4D
 		}
 
                 Vector4D OrientPlaneTowardsPoint(const Point3D &P);
+
+		// Return text respresentation. To be freed with delete [].
+		char *GetString() const;
 };
 
 
@@ -1321,7 +1327,9 @@ class SRE_API Matrix3D
                 SRE_API Matrix3D& AssignTranslation(const Vector2D& translation);
                 SRE_API Matrix3D& AssignScaling(float scaling);
 		SRE_API bool RotationMatrixPreservesAABB();
-	
+		// Return text respresentation. To be freed with delete [].
+		SRE_API char *GetString() const;
+
 		friend SRE_API Matrix3D operator *(const Matrix3D& m1, const Matrix3D& m2);
 		friend SRE_API Matrix3D operator *(const Matrix3D& m, float t);
 		friend SRE_API Matrix3D operator /(const Matrix3D& m, float t);
@@ -1417,6 +1425,8 @@ class SRE_API Matrix4D
                 SRE_API Matrix4D& AssignRotationAlongZAxis(float angle);
                 SRE_API Matrix4D& AssignTranslation(const Vector3D& translation);
                 SRE_API Matrix4D& AssignScaling(float scaling);
+		// Return text respresentation. To be freed with delete [].
+		char *GetString() const;
 		
 		friend SRE_API Matrix4D operator *(const Matrix4D& m1, const Matrix4D& m2);
 		friend SRE_API Matrix4D operator *(const Matrix4D& m1, const Matrix3D& m2);

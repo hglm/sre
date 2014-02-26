@@ -31,6 +31,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // Some changes and extensions by Harm Hanemaaijer, 2012-2014.
 
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <math.h>
 
 #include "sre.h"
@@ -1047,6 +1049,45 @@ Matrix4D Transpose(const MatrixTransform& m)
 	return (Matrix4D(m(0,0), m(1,0), m(2,0), 0, m(0,1), m(1,1), m(2,1), 0, m(0,2), m(1,2), m(2,2), 0, m(0,3), m(1,3), m(2,3), 1.0));
 }
 
+// Additional member functions for debugging.
+
+char *Vector3D::GetString() const {
+    char *s = new char[64];
+    sprintf(s, "Vector3D(%f, %f, %f)", x, y, z);
+    return s;
+}
+
+char *Vector4D::GetString() const {
+    char *s = new char[64];
+    sprintf(s, "Vector4D(%f, %f, %f, %f)", x, y, z, w);
+    return s;
+}
+
+char *Matrix3D::GetString() const {
+    char *s = new char[128];
+    sprintf(s, "Matrix3D( ");
+    for (int i = 0; i < 3; i++) {
+        Vector3D V = GetRow(i);
+        char rowstr[64];
+        sprintf(rowstr, "(%f, %f, %f) ", V.x, V.y, V.z);
+        strcat(s, rowstr);
+    }
+    strcat(s, ")");
+    return s;
+}
+
+char *Matrix4D::GetString() const {
+    char *s = new char[256];
+    sprintf(s, "Matrix4D( ");
+    for (int i = 0; i < 3; i++) {
+        Vector4D V = GetRow(i);
+        char rowstr[64];
+        sprintf(rowstr, "(%f, %f, %f, %f) ", V.x, V.y, V.z, V.w);
+        strcat(s, rowstr);
+    }
+    strcat(s, ")");
+    return s;
+}
 
 // Additional color member functions.
 
