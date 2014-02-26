@@ -151,7 +151,7 @@ void GUIInitialize(int *argc, char ***argv) {
     printf("Chosen visual ID = 0x%x\n", vi->visualid );
  
     // Create an X window with that visual.
-    X11CreateWindow(window_width, window_height, vi, "render OpenGL 3.0+ X11 demo");
+    X11CreateWindow(window_width, window_height, vi, "SRE OpenGL 3.0+ X11 demo");
     XFree(vi);
     state->XWindow = (GLXWindow)X11GetWindow();
 
