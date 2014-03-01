@@ -20,6 +20,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <math.h>
 #include <float.h>
 
@@ -28,8 +29,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "demo.h"
 #include "gui-common.h"
 
-#define DAY_INTERVAL 1000.0
-#define YEAR_INTERVAL (DAY_INTERVAL * 365.0)
+// Number of seconds for a complete rotation of the earth.
+#define DEFAULT_DAY_INTERVAL 1000.0f
+#define YEAR_INTERVAL (DEFAULT_DAY_INTERVAL * 365.0f)
 
 // A submesh of size 129x129 takes 17685 * (4 * 4 + 3 * 4 + 2 * 4) + 33806 * (3 * 2) = 636660 + 202836 = 839496 bytes,
 // or 839496 + 282960 = 1122456 bytes with shadow vertices.
@@ -51,16 +53,24 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // 3285444/4276768 (76%) removed (treshold = 0.999).
 // 3561292/4276768 (83%) removed (threshold = 0.995).
 
-//#define RESOLUTION_16K
+// When RESOLUTION_16K is defined, a specific 16K Earth texture data set is used with
+// resolution of 16200x8100. When RESOLUTION_8K is defined, a specific 8K Earth texture
+// data set is used with a resolution of 8192x4096. When neither is set, custom textures
+// can be used.
+#define RESOLUTION_16K
 #define SPHERE
 //#define CLOSED_SEGMENTS_FOR_SHADOW_VOLUMES
 //#define NIGHT
 // The heightmap texture size is 16200x8100 if RESOLUTION_16K is set, 8192x4096 otherwise.
 // The mesh size. MESH_WIDTH and MESH_HEIGHT must be a factor of the heightmap width and height, respectively, minus one.
-#define MESH_WIDTH 1023
-#define MESH_HEIGHT 511
-// #define MESH_WIDTH (4050 - 1)
-// #define MESH_HEIGHT (2025 - 1)
+// Low-res setting (must be used with RESOLUTION_8K).
+// #define MESH_WIDTH 1023
+// #define MESH_HEIGHT 511
+// High-res setting (used with RESOLUTION_16K).
+#define MESH_WIDTH (4050 - 1)
+#define MESH_HEIGHT (2025 - 1)
+// #define MESH_WIDTH (8100 - 1)
+// #define MESH_HEIGHT (4050 - 1)
 // The size of submeshes. Maximum MESH_WIDTH + 2 and MESH_HEIGHT + 2.
 #define SUB_MESH_WIDTH 200
 #define SUB_MESH_HEIGHT 200
@@ -70,9 +80,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // west.
 #define LONGITUDE 0
 #define LATITUDE 0
-// Scaling defines the coordinate size in the world.
+// Scaling defines the coordinate size in the world (for a sphere, it is the radius * 2).
 #define X_SCALE 10000.0f
-#define Z_SCALE (5.0f * ZOOM)
+// Z_SCALE defines the range of the height map. The source value from the height map
+// ranges from 0 to 1 (usually normalized from a byte value from 0 to 255). This
+// normalized value to scaled so that the maximum possible height is bounded by Z_SCALE.
+#define Z_SCALE (200.0f * ZOOM)
 
 #define MESH_TEXTURE_WIDTH (earth_heightmap->width / (MESH_WIDTH + 1))
 #define MESH_TEXTURE_HEIGHT (earth_heightmap->height / (MESH_HEIGHT + 1))
@@ -81,16 +94,32 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define X_OFFSET ((LONGITUDE + 180.0) * (MESH_WIDTH + 1) / 360.0 - (MESH_WIDTH + 1) / 2 / ZOOM)
 #define Y_OFFSET ((LATITUDE + 90.0) * (MESH_HEIGHT + 1) / 180.0 - (MESH_HEIGHT + 1) / 2 / ZOOM)
 #define Y_SCALE (X_SCALE * (MESH_WIDTH + 1) / (MESH_HEIGHT + 1) * 0.5)
+
 #ifdef RESOLUTION_16K
 static const char *earth_texture_filename = "4_no_ice_clouds_mts_16k";
 static const char *earth_heightmap_filename = "elev_bump_16k";
 static const char *earth_night_light_filename = "cities_16k";
 static const char *earth_specularity_filename = "water_16k";
-#else
+#elif defined(RESOLUTION_8K)
 static const char *earth_texture_filename = "4_no_ice_clouds_mts_8k";
 static const char *earth_heightmap_filename = "elev_bump_8k";
 static const char *earth_night_light_filename = "cities_8k";
 static const char *earth_specularity_filename = "water_8k";
+#else
+static const char *earth_texture_filename = "custom_planet_color_map";
+// The elevatation map is expected to be an image file in which each red component
+// (normalized from range 0-255) represents the height (e.g. a red or white monochrome
+// texture). Higher precision is not yet supported.
+static const char *earth_heightmap_filename = "custom_elevation_map";
+// The dark side texture is used (additively) when there is no illumination from the sun.
+// To disable, use a small black texture.
+static const char *earth_night_light_filename = "custom_dark_side_color_map";
+// The specularity map is expected to be an image file in which each texel represents
+// the specular reflection color. Black means no specular reflection, (1.0, 1.0, 1.0)
+// is full white specular reflection.
+// Use a small black texture to disable specularity entirely or a small texture with
+// a fixed color for constant specularity.
+static const char *earth_specularity_filename = "custom_specularity_map";
 #endif
 
 static sreTexture *earth_texture;
@@ -106,6 +135,9 @@ static int spacecraft_spot_light;
 static float saved_hovering_height;
 static Matrix3D saved_spacecraft_rotation_matrix;
 
+static float day_interval = DEFAULT_DAY_INTERVAL;
+static bool display_time = true;
+
 void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
     printf("Creating mesh objects.\n");
     printf("Calculating vertices.\n");
@@ -115,16 +147,20 @@ void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
     for (int y = 0; y < MESH_HEIGHT; y++)
         for (int x = 0; x < MESH_WIDTH; x++) {
             // Calculate the average height in the area of size MESH_TEXTURE_WIDTH * MESH_TEXTURE_HEIGHT.
-            long int h = 0;
+            int64_t h = 0;
             for (int i = 0; i < MESH_TEXTURE_HEIGHT / ZOOM; i++)
-                for (int j = 0; j < MESH_TEXTURE_WIDTH / ZOOM; j++)
+                for (int j = 0; j < MESH_TEXTURE_WIDTH / ZOOM; j++) {
+                    // Assume the first color component (red) is a value from 0 to 255
+                    // representing the height.
                     h += earth_heightmap->LookupPixel(x * (MESH_TEXTURE_WIDTH / ZOOM) + j + X_OFFSET * MESH_TEXTURE_WIDTH,
                         earth_heightmap->height - Y_OFFSET * MESH_TEXTURE_HEIGHT - (MESH_TEXTURE_HEIGHT / ZOOM) -
-                            y * (MESH_TEXTURE_HEIGHT / ZOOM) + i);
+                        y * (MESH_TEXTURE_HEIGHT / ZOOM) + i)
+                        & 0xFF;
+                }
 #ifdef SPHERE
             float longitude = ((float)x + 0.5) / MESH_WIDTH * 2.0 * M_PI - M_PI;
             float latitude = ((float)y + 0.5) / MESH_HEIGHT * M_PI - 0.5 * M_PI;
-            float radius = 0.5 * X_SCALE + (float)h * Z_SCALE / (500000.0 * (MESH_TEXTURE_WIDTH / ZOOM) *
+            float radius = 0.5 * X_SCALE + (float)h * Z_SCALE / (256.0 * (MESH_TEXTURE_WIDTH / ZOOM) *
                 (MESH_TEXTURE_HEIGHT / ZOOM));
             float xcoord = radius * cosf(latitude) * cosf(longitude);
             float ycoord = radius * cosf(latitude) * sinf(longitude);
@@ -132,7 +168,7 @@ void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
 #else
             float xcoord = (x - MESH_WIDTH / 2) * X_SCALE / MESH_WIDTH;
             float ycoord = (y - MESH_HEIGHT / 2) * Y_SCALE / MESH_WIDTH;
-            float zcoord = (float)h * Z_SCALE / (2000000.0 * (MESH_TEXTURE_WIDTH / ZOOM) * (MESH_TEXTURE_HEIGHT / ZOOM));
+            float zcoord = (float)h * Z_SCALE / (256.0 * (MESH_TEXTURE_WIDTH / ZOOM) * (MESH_TEXTURE_HEIGHT / ZOOM));
 #endif
             vertex[v].Set(xcoord, ycoord, zcoord);
             // Set the texcoords to the middle of the sampled area.
@@ -250,7 +286,7 @@ void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
     for (int sub_mesh_y = 0; sub_mesh_y < SUB_MESHES_Y; sub_mesh_y++)
         for (int sub_mesh_x = 0; sub_mesh_x < SUB_MESHES_X; sub_mesh_x++) {
             sreModel *model = mesh_model[sub_mesh_y][sub_mesh_x];
-            sreLODModel *m = model->lod_model[0];
+            sreLODModel *m = sreNewLODModel();
             int w = SUB_MESH_WIDTH;
             int h = SUB_MESH_HEIGHT;
             int x_offset = 0;
@@ -849,8 +885,11 @@ void Demo4CreateScene() {
 #endif
     sreModel *globe_model = sreCreateSphereModel(scene, 0);
     // Add player sphere as scene object 0.
-    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS);
-    scene->SetDiffuseReflectionColor(Color(0, 0.75, 1.0));
+    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS |
+       SRE_OBJECT_USE_TEXTURE);
+    scene->SetTexture(sreCreateStripesTexture(TEXTURE_TYPE_LINEAR,
+        256, 256, 32, Color(0, 0.5f, 0.8f), Color(0.9f, 0.9f, 1.0f)));
+    scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
 #ifdef SPHERE
     Point3D pos = Point3D(0, 0, 0) + (0.5 * X_SCALE + 200.0) * initial_ascend_vector;
     player_object = scene->AddObject(globe_model, pos.x, pos.y, pos.z, 0, 0, 0, 3.0);
@@ -932,8 +971,10 @@ void Demo4CreateScene() {
 //    int l = scene->AddPointSourceLight(SRE_LIGHT_DYNAMIC_POSITION, Point3D(0, 0, 100.0), 300.0, Color(1.0, 1.0, 1.0));
 //    scene->AttachLight(player_object, l, Vector3D(0, 0, 0));
 #ifndef NIGHT
-    directional_light = scene->AddDirectionalLight(SRE_LIGHT_DYNAMIC_DIRECTION, Vector3D(- 0.6, - 0.8, - 0.5),
-        Color(0.5, 0.5, 0.5));
+    Vector3D lightdir = Vector3D(- 0.6, - 0.8, - 0.5);
+    lightdir.Normalize();
+    directional_light = scene->AddDirectionalLight(SRE_LIGHT_DYNAMIC_DIRECTION,
+        lightdir, Color(0.7, 0.7, 0.7));
 #endif
 #if defined(NIGHT) || defined(SPHERE)
     spacecraft_spot_light = scene->AddSpotLight(SRE_LIGHT_DYNAMIC_POSITION | SRE_LIGHT_DYNAMIC_DIRECTION,
@@ -1113,28 +1154,37 @@ void Demo4Render() {
 #endif
 }
 
-char message[80];
+static char message[80];
+
+#define HOUR_OFFSET 11.0f
 
 void Demo4TimeIteration(double time_previous, double time_current) {
 #if defined(SPHERE) && !defined(NIGHT)
+    float hour = fmodf(demo_time + HOUR_OFFSET * day_interval / 24.0, day_interval) * 24.0 / day_interval;
     Matrix3D r1;
-    r1.AssignRotationAlongZAxis(fmodf(- demo_time + 7.0 * DAY_INTERVAL / 24.0, DAY_INTERVAL) * 2.0 * M_PI / DAY_INTERVAL);
+    r1.AssignRotationAlongZAxis(- hour * 2.0 * M_PI / 24.0);
     Matrix3D r2;
     r2.AssignRotationAlongXAxis(23.4 * M_PI / 180.0);
     Matrix3D r3;
     r3.AssignRotationAlongZAxis(fmodf(demo_time, YEAR_INTERVAL) * 2.00 * M_PI / YEAR_INTERVAL);
-    Point3D sun_pos = Point3D(1000000.0, 0, 0);
-    sun_pos = (r3 * (r2 * r1)) * sun_pos;
+    Point3D sun_pos = Point3D(- X_SCALE * 1000.0f, 0, 0);
+    sun_pos = ((r3 * r2) * r1) * sun_pos;
     Vector3D light_dir = (- sun_pos).Normalize();
     scene->ChangeDirectionalLightDirection(directional_light, light_dir);
     scene->ChangePosition(sun_object, sun_pos.x, sun_pos.y, sun_pos.z);
-    float hour = - fmodf(- demo_time - 8.0 * DAY_INTERVAL / 24.0, DAY_INTERVAL) * 24.0 / DAY_INTERVAL;
-    sprintf(message, "%02d:%02dh Day %d", (int)floorf(hour),  (int)floorf((hour - (int)floorf(hour)) * 60.0 / 100.0),
-        (int)(floorf(fmodf(demo_time, YEAR_INTERVAL) * 365.0 / YEAR_INTERVAL) + 1));
-    text_message[0] = message; 
-    text_message_time = GUIGetCurrentTime();
-    nu_text_message_lines = 1;
+    if (display_time) {
+        sprintf(message, "%02d:%02dh Day %d", (int)floorf(hour),
+            (int)floorf((hour - (int)floorf(hour)) * 60.0 / 100.0),
+            (int)(floorf(fmodf(demo_time, YEAR_INTERVAL) * 365.0 / YEAR_INTERVAL) + 1));
+        text_message[0] = message; 
+        text_message_time = GUIGetCurrentTime();
+        nu_text_message_lines = 1;
+    }
 #endif
     saved_hovering_height = hovering_height;
 }
 
+void Demo4SetParameters(float interval, bool _display_time) {
+   day_interval = interval;
+   display_time = _display_time;
+}

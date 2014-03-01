@@ -455,6 +455,12 @@ int main(int argc, char **argv) {
             TimeIterationFunc = Demo4TimeIteration;
             RunDemo();
         }
+        else if (strcmp(argv[argi], "demo4b") == 0) {
+            Demo4bCreateScene();
+            RenderFunc = Demo4bRender;
+            TimeIterationFunc = Demo4TimeIteration;
+            RunDemo();
+        }
         else if (strcmp(argv[argi], "demo5") == 0) {
             Demo5CreateScene();
             view->SetViewModeFollowObject(0, 40.0, Vector3D(0, 0, 10.0));
