@@ -127,6 +127,8 @@ sreTexture::sreTexture(int w, int h) {
     data = new unsigned int[w * h];
     bytes_per_pixel = 4;
     format = TEXTURE_FORMAT_RAW;
+    nu_components = 4;
+    bit_depth = 8;
 }
 
 sreTexture::~sreTexture() {
@@ -244,17 +246,21 @@ int& target_width, int& target_height, int& nu_levels_skipped) {
 void sreTexture::UploadGL() {
 #ifndef NO_SRGB
     if (format == TEXTURE_FORMAT_RAW) {
-        // Regular (image) textures should handled as SRGB.
+        // Regular (image) textures should be handled as SRGB.
         if (type == TEXTURE_TYPE_NORMAL || type == TEXTURE_TYPE_SRGB || type == TEXTURE_TYPE_WRAP_REPEAT)
             if (bytes_per_pixel == 4)
                 format = TEXTURE_FORMAT_RAW_SRGBA8;
-            else
+            else if (bytes_per_pixel == 3)
                 format = TEXTURE_FORMAT_RAW_SRGB8;
+            else
+                format = TEXTURE_FORMAT_RAW_R8;
         else // Normal maps etc. are stored stored in linear color space format.
             if (bytes_per_pixel == 4)
                 format = TEXTURE_FORMAT_RAW_RGBA8;
-            else
+            else if (bytes_per_pixel == 3)
                 format = TEXTURE_FORMAT_RAW_RGB8;
+            else
+                format = TEXTURE_FORMAT_RAW_R8;
     }
 #endif
     GLuint texid;
@@ -296,10 +302,14 @@ void sreTexture::UploadGL() {
 #ifdef OPENGL_ES2
         if (bytes_per_pixel == 4)
             internal_format = GL_RGBA;
-        else
+        else if (bytes_per_pixel == 3)
             internal_format = GL_RGB;
+        else
+            internal_format = GL_LUMINANCE;
 #else
-        if (format == TEXTURE_FORMAT_RAW_RGBA8 || format == TEXTURE_FORMAT_RAW_RGB8)
+        if (nu_components == 1)
+             internal_format = GL_RED;
+        else if (format == TEXTURE_FORMAT_RAW_RGBA8 || format == TEXTURE_FORMAT_RAW_RGB8)
             if (bytes_per_pixel == 4)
                 internal_format = GL_RGBA8;
             else
@@ -317,7 +327,7 @@ void sreTexture::UploadGL() {
         if (bytes_per_pixel == 4)
             glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0, GL_RGBA,
                GL_UNSIGNED_BYTE, data);
-        else {
+        else if (bytes_per_pixel == 3) {
             /* Unpack alignment of 1. */
             GLint previousUnpackAlignment;
             glGetIntegerv(GL_UNPACK_ALIGNMENT, &previousUnpackAlignment);
@@ -325,6 +335,23 @@ void sreTexture::UploadGL() {
                 glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
             glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0,
                 GL_RGB, GL_UNSIGNED_BYTE, data);
+            if (previousUnpackAlignment != 1)
+                glPixelStorei(GL_UNPACK_ALIGNMENT, previousUnpackAlignment);
+        }
+        else {
+            // Assume single 8-bit component.
+            /* Unpack alignment of 1. */
+            GLint previousUnpackAlignment;
+            glGetIntegerv(GL_UNPACK_ALIGNMENT, &previousUnpackAlignment);
+            if (previousUnpackAlignment != 1)
+                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            int format;
+            if (internal_format == GL_LUMINANCE)
+                format = GL_LUMINANCE;
+            else
+                format = GL_RED;
+            glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0,
+                format, GL_UNSIGNED_BYTE, data);
             if (previousUnpackAlignment != 1)
                 glPixelStorei(GL_UNPACK_ALIGNMENT, previousUnpackAlignment);
         }
@@ -349,6 +376,7 @@ void sreTexture::ConvertFrom24BitsTo32Bits() {
     delete [] data;
     data = data2;
     bytes_per_pixel = 4;
+    nu_components = 4;
 }
 
 // PNG loading.
@@ -356,7 +384,7 @@ void sreTexture::ConvertFrom24BitsTo32Bits() {
 void sreTexture::LoadPNG(const char *filename) {
     int png_width, png_height;
     png_byte color_type;
-    png_byte bit_depth;
+    png_byte png_bit_depth;
     png_structp png_ptr;
     png_infop info_ptr;
     png_bytep *row_pointers;
@@ -402,9 +430,11 @@ void sreTexture::LoadPNG(const char *filename) {
         png_width = png_get_image_width(png_ptr, info_ptr);
         png_height = png_get_image_height(png_ptr, info_ptr);
         color_type = png_get_color_type(png_ptr, info_ptr);
-        bit_depth = png_get_bit_depth(png_ptr, info_ptr);
+        png_bit_depth = png_get_bit_depth(png_ptr, info_ptr);
 
         int number_of_passes = png_set_interlace_handling(png_ptr);
+        if (png_bit_depth == 16)
+            png_set_swap(png_ptr);
         png_read_update_info(png_ptr, info_ptr);
 
         /* read file */
@@ -423,23 +453,36 @@ void sreTexture::LoadPNG(const char *filename) {
 
     width = png_width;
     height = png_height;
-    printf("Loading uncompressed texture with size (%d x %d), bit depth %d.\n",
-        width, height, bit_depth);
     if (color_type != PNG_COLOR_TYPE_RGB && color_type != PNG_COLOR_TYPE_RGBA && color_type != PNG_COLOR_TYPE_GRAY) {
-        printf("Error - expected truecolor color format.\n");
-        exit(1);
+        sreFatalError("Error - expected truecolor color format.\n");
     }
-    if (bit_depth != 8) {
-        printf("Error - expected bit depth of 8 in PNG file (depth = %d).\n", bit_depth);
-        exit(1);
+    if (png_bit_depth != 8 && png_bit_depth != 16) {
+        sreFatalError("Error - expected bit depth of 8 or 16 in PNG file (depth = %d).\n",
+            png_bit_depth);
     }
-    if (color_type == PNG_COLOR_TYPE_RGB)
-        bytes_per_pixel = 3;
+    bit_depth = png_bit_depth;
+    if (color_type == PNG_COLOR_TYPE_RGB) {
+        bytes_per_pixel = 3 * (bit_depth / 8);
+        nu_components = 3;
+    }
     else
-    if (color_type == PNG_COLOR_TYPE_RGBA)
-        bytes_per_pixel = 4;
+    if (color_type == PNG_COLOR_TYPE_RGBA) {
+        bytes_per_pixel = 4 * (bit_depth / 8);
+        nu_components = 4;
+    }
     else
-        bytes_per_pixel = 3; // Greyscale.
+    if (color_type == PNG_COLOR_TYPE_GRAY) {
+        bytes_per_pixel = (bit_depth / 8); // Grayscale.
+        nu_components = 1;
+#ifdef EXPAND_SINGLE_COMPONENT_TEXTURES
+        bytes_per_pixel *= 3;
+        nu_components *= 3;
+#endif
+    }
+    else
+        sreFatalError("Unexpected PNG file color type %d.", color_type);
+    printf("Loading uncompressed texture with size (%d x %d), bit depth %d, %d components.\n",
+        width, height, png_bit_depth, nu_components);
     GLint max_texture_size;
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size);
     if (width > max_texture_size || height > max_texture_size) {
@@ -448,24 +491,24 @@ void sreTexture::LoadPNG(const char *filename) {
         exit(1);
     }
     if (color_type == PNG_COLOR_TYPE_GRAY) {
-        data = (unsigned int *)new unsigned char[width * height * 3];
+        data = (unsigned int *)new unsigned char[width * height * (bit_depth / 8) *
+            nu_components];
         for (int y = 0; y < height; y++)
-            for (int x = 0; x < width; x++) {
-                 *((unsigned char *)data + y * width * 3 + x * 3) = *((unsigned char *)row_pointers[y] + x);
-                 *((unsigned char *)data + y * width * 3 + x * 3 + 1) = *((unsigned char *)row_pointers[y] + x);
-                 *((unsigned char *)data + y * width * 3 + x * 3 + 2) = *((unsigned char *)row_pointers[y] + x);
-            }
+            for (int x = 0; x < width; x++)
+                 for (int i = 0; i < nu_components; i++) {
+                     if (bit_depth == 8)
+                         *((unsigned char *)data + y * width * nu_components + x * nu_components + i) =
+                             *((unsigned char *)row_pointers[y] + x * nu_components + i);
+                     else // bit_depth == 16
+                         *((unsigned short *)data + y * width * nu_components + x * nu_components + i) =
+                         *((unsigned short *)row_pointers[y] + x * nu_components + i);
+                 }
     }
-    else
-    if (bytes_per_pixel == 3) {
-        data = (unsigned int *)new unsigned char[width * height * 3];
+    else { // RGB or RGBA
+        data = (unsigned int *)new unsigned char[width * height * bytes_per_pixel];
         for (int y = 0; y < height; y++)
-            memcpy((unsigned char *)data + y * width * 3, row_pointers[y], width * bytes_per_pixel);
-    }
-    else {
-        data = new unsigned int[width * height];
-        for (int y = 0; y < height; y++)
-            memcpy(data + y * width, row_pointers[y], width * bytes_per_pixel);
+            memcpy((unsigned char *)data + y * width * bytes_per_pixel, row_pointers[y],
+                width * bytes_per_pixel);
     }
     for (int y = 0; y < height; y++)
         free(row_pointers[y]);
@@ -922,11 +965,25 @@ unsigned int sreTexture::LookupPixel(int x, int y) {
         y = height - 1;
     if (bytes_per_pixel == 4)
         return data[y * width + x];
-    int offset = (y * width + x) * 3;
-    unsigned char *datap = (unsigned char *)data;
-    return (int)datap[offset] | ((int)datap[offset + 1] << 8) | ((int)datap[offset + 2] << 16);
+    int offset = (y * width + x) * nu_components;
+    if (bytes_per_pixel == 3) {
+        unsigned char *datap = (unsigned char *)data;
+        return (unsigned int)datap[offset] | ((unsigned int)datap[offset + 1] << 8) |
+            ((unsigned int)datap[offset + 2] << 16);
+    }
+    else if (bytes_per_pixel == 2) {
+        // Assume 16-bit depth grayscale texture.
+        unsigned short *datap = (unsigned short *)data;
+        return (unsigned int)datap[offset];
+    }
+    else {
+        // Assume bytes_per_pixel == 1 (8-bit grayscale or red only).
+        unsigned char *datap = (unsigned char *)data;
+        return (unsigned int)datap[offset];
+    }
 }
 
+// SetPixel assumes 32-bit pixels.
 
 void sreTexture::SetPixel(int x, int y, unsigned int value) {
     data[y * width + x] = value;
