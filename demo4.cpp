@@ -61,16 +61,17 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define SPHERE
 //#define CLOSED_SEGMENTS_FOR_SHADOW_VOLUMES
 //#define NIGHT
-// The heightmap texture size is 16200x8100 if RESOLUTION_16K is set, 8192x4096 otherwise.
-// The mesh size. MESH_WIDTH and MESH_HEIGHT must be a factor of the heightmap width and height, respectively, minus one.
-// Low-res setting (must be used with RESOLUTION_8K).
-// #define MESH_WIDTH 1023
-// #define MESH_HEIGHT 511
-// High-res setting (used with RESOLUTION_16K).
-#define MESH_WIDTH (4050 - 1)
-#define MESH_HEIGHT (2025 - 1)
-// #define MESH_WIDTH (8100 - 1)
-// #define MESH_HEIGHT (4050 - 1)
+// ELEVATION_MAP_DETAIL_FACTOR is the number of elevation map samples that are combined
+// in both dimensions. It must be a power of two. A value of one produces the most complex
+// mesh, a value two halves the complexity, etc.
+// Since the elevation map texture size is 16200x8100 if RESOLUTION_16K is set, the maximum
+// value is four in this case.
+// When RESOLUTION_8K is set, the elevation map used has a resolution of 8192x4096, so any
+// level of detail is allowed.
+// When ELEVATION_MAP_16_BIT is set, a high-precision elevation map with a resolution of
+// 10800x5400 is used, so the maximum detail divisor value is eight.
+#define ELEVATION_MAP_16_BIT
+#define ELEVATION_MAP_DETAIL_FACTOR 4
 // The size of submeshes. Maximum MESH_WIDTH + 2 and MESH_HEIGHT + 2.
 #define SUB_MESH_WIDTH 200
 #define SUB_MESH_HEIGHT 200
@@ -85,8 +86,29 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // Z_SCALE defines the range of the height map. The source value from the height map
 // ranges from 0 to 1 (usually normalized from a byte value from 0 to 255). This
 // normalized value to scaled so that the maximum possible height is bounded by Z_SCALE.
-#define Z_SCALE (200.0f * ZOOM)
+// #define Z_SCALE (200.0f * ZOOM)
+#define Z_SCALE (150.0f * ZOOM)
 
+// End of configurable parameters.
+
+// The mesh size:
+// MESH_WIDTH and MESH_HEIGHT must be equal to the elevation map width and height, divided by
+// a power of two, with one subtracted.
+#ifdef ELEVATION_MAP_16_BIT
+#define ELEVATION_MAP_WIDTH 10800
+#define ELEVATION_MAP_HEIGHT 5400
+#elif defined(RESOLUTION_16K)
+#define ELEVATION_MAP_WIDTH 16200
+#define ELEVATION_MAP_HEIGHT 8100
+#elif defined(RESOLUTION_8K)
+#define ELEVATION_MAP_WIDTH 8192
+#define ELEVATION_MAP_HEIGHT 4096
+#else
+#define ELEVATION_MAP_WIDTH 8192
+#define ELEVATION_MAP_HEIGHT 4096
+#endif
+#define MESH_WIDTH (ELEVATION_MAP_WIDTH / ELEVATION_MAP_DETAIL_FACTOR - 1)
+#define MESH_HEIGHT (ELEVATION_MAP_HEIGHT / ELEVATION_MAP_DETAIL_FACTOR - 1)
 #define MESH_TEXTURE_WIDTH (earth_heightmap->width / (MESH_WIDTH + 1))
 #define MESH_TEXTURE_HEIGHT (earth_heightmap->height / (MESH_HEIGHT + 1))
 #define SUB_MESHES_X ((MESH_WIDTH + SUB_MESH_WIDTH - 1) / (SUB_MESH_WIDTH - 1))
@@ -96,13 +118,14 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define Y_SCALE (X_SCALE * (MESH_WIDTH + 1) / (MESH_HEIGHT + 1) * 0.5)
 
 #ifdef RESOLUTION_16K
-static const char *earth_texture_filename = "4_no_ice_clouds_mts_16k";
-static const char *earth_heightmap_filename = "elev_bump_16k";
+// static const char *earth_texture_filename = "4_no_ice_clouds_mts_16k";
+static const char *earth_texture_filename = "6_merged_color_ice_16k";
+#define ELEVATION_MAP_FILENAME = "elev_bump_16k";
 static const char *earth_night_light_filename = "cities_16k";
 static const char *earth_specularity_filename = "water_16k";
 #elif defined(RESOLUTION_8K)
 static const char *earth_texture_filename = "4_no_ice_clouds_mts_8k";
-static const char *earth_heightmap_filename = "elev_bump_8k";
+#define ELEVATION_MAP_FILENAME = "elev_bump_8k";
 static const char *earth_night_light_filename = "cities_8k";
 static const char *earth_specularity_filename = "water_8k";
 #else
@@ -110,17 +133,21 @@ static const char *earth_texture_filename = "custom_planet_color_map";
 // The elevatation map is expected to be an image file in which each red component
 // (normalized from range 0-255) represents the height (e.g. a red or white monochrome
 // texture). Higher precision is not yet supported.
-static const char *earth_heightmap_filename = "custom_elevation_map";
+static const char *earth_heightmap_filename = "custom_planet_elevation_map";
 // The dark side texture is used (additively) when there is no illumination from the sun.
 // To disable, use a small black texture.
-static const char *earth_night_light_filename = "custom_dark_side_color_map";
+static const char *earth_night_light_filename = "custom_planet_dark_side_color_map";
 // The specularity map is expected to be an image file in which each texel represents
 // the specular reflection color. Black means no specular reflection, (1.0, 1.0, 1.0)
 // is full white specular reflection.
 // Use a small black texture to disable specularity entirely or a small texture with
 // a fixed color for constant specularity.
-static const char *earth_specularity_filename = "custom_specularity_map";
+static const char *earth_specularity_filename = "custom_planet_specularity_map";
 #endif
+#ifdef ELEVATION_MAP_16_BIT
+#define ELEVATION_MAP_FILENAME "16_bit_elevation";
+#endif
+static const char *earth_heightmap_filename = ELEVATION_MAP_FILENAME;
 
 static sreTexture *earth_texture;
 static sreTexture *earth_heightmap;
@@ -144,31 +171,47 @@ void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
     int v = 0;
     Point3D *vertex = new Point3D[MESH_WIDTH * MESH_HEIGHT + MESH_HEIGHT * 2 + 2];
     Point2D *texcoords = new Point2D[MESH_WIDTH * MESH_HEIGHT + MESH_HEIGHT * 2 + 2];
+    int elevation_bits;
+    float elevation_scale, elevation_offset;
+#ifdef ELEVATION_MAP_16_BIT
+    elevation_bits = 16;
+    elevation_scale = 65535.0f;
+    // The 16-bit elevation map sea-level is at 186.
+    elevation_offset = - 186.0f * Z_SCALE / 65535.0f;
+#else
+    elevation_bits = 8;
+    elevation_scale = 255.0f;
+    // The sea-level value for the 8-bit elevation maps is 23.
+    elevation_offset = - 23.0f * Z_SCALE / 255.0f;
+#endif
     for (int y = 0; y < MESH_HEIGHT; y++)
         for (int x = 0; x < MESH_WIDTH; x++) {
             // Calculate the average height in the area of size MESH_TEXTURE_WIDTH * MESH_TEXTURE_HEIGHT.
-            int64_t h = 0;
+            double h = 0;
             for (int i = 0; i < MESH_TEXTURE_HEIGHT / ZOOM; i++)
                 for (int j = 0; j < MESH_TEXTURE_WIDTH / ZOOM; j++) {
-                    // Assume the first color component (red) is a value from 0 to 255
+                    // Assume the first color component (red) is a value from 0 to 255 (or 65535)
                     // representing the height.
-                    h += earth_heightmap->LookupPixel(x * (MESH_TEXTURE_WIDTH / ZOOM) + j + X_OFFSET * MESH_TEXTURE_WIDTH,
+                    unsigned int v = earth_heightmap->LookupPixel(x * (MESH_TEXTURE_WIDTH / ZOOM) + j + X_OFFSET * MESH_TEXTURE_WIDTH,
                         earth_heightmap->height - Y_OFFSET * MESH_TEXTURE_HEIGHT - (MESH_TEXTURE_HEIGHT / ZOOM) -
                         y * (MESH_TEXTURE_HEIGHT / ZOOM) + i)
-                        & 0xFF;
+                        & (((unsigned int)1 << elevation_bits) - 1);
+                    h += v;
                 }
 #ifdef SPHERE
             float longitude = ((float)x + 0.5) / MESH_WIDTH * 2.0 * M_PI - M_PI;
             float latitude = ((float)y + 0.5) / MESH_HEIGHT * M_PI - 0.5 * M_PI;
-            float radius = 0.5 * X_SCALE + (float)h * Z_SCALE / (256.0 * (MESH_TEXTURE_WIDTH / ZOOM) *
-                (MESH_TEXTURE_HEIGHT / ZOOM));
+            float normalized_height = h / (elevation_scale *
+                (MESH_TEXTURE_WIDTH / ZOOM) * (MESH_TEXTURE_HEIGHT / ZOOM));
+            float radius = 0.5f * X_SCALE + normalized_height * Z_SCALE + elevation_offset;
             float xcoord = radius * cosf(latitude) * cosf(longitude);
             float ycoord = radius * cosf(latitude) * sinf(longitude);
             float zcoord = radius * sinf(latitude);
 #else
             float xcoord = (x - MESH_WIDTH / 2) * X_SCALE / MESH_WIDTH;
             float ycoord = (y - MESH_HEIGHT / 2) * Y_SCALE / MESH_WIDTH;
-            float zcoord = (float)h * Z_SCALE / (256.0 * (MESH_TEXTURE_WIDTH / ZOOM) * (MESH_TEXTURE_HEIGHT / ZOOM));
+            float zcoord = h * Z_SCALE / (elevation_scale *
+                (MESH_TEXTURE_WIDTH / ZOOM) * (MESH_TEXTURE_HEIGHT / ZOOM)) + elevation_offset;
 #endif
             vertex[v].Set(xcoord, ycoord, zcoord);
             // Set the texcoords to the middle of the sampled area.
@@ -177,7 +220,10 @@ void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
                 X_OFFSET * MESH_TEXTURE_WIDTH;
             float texcoords_y = earth_heightmap->height - Y_OFFSET * MESH_TEXTURE_HEIGHT - (MESH_TEXTURE_HEIGHT / ZOOM) -
                 y * (MESH_TEXTURE_HEIGHT / ZOOM) + 0.5 * (MESH_TEXTURE_HEIGHT / ZOOM) + 0.5;
-            texcoords[v].Set(texcoords_x / earth_texture->width, texcoords_y / earth_texture->height);
+            // The color/specularity/nightlight textures may have a different size, but the
+            // normalized texture coordinates will be the same.
+            texcoords[v].Set(texcoords_x / earth_heightmap->width, texcoords_y /
+                earth_heightmap->height);
             v++;
         }
 #ifdef SPHERE
@@ -188,7 +234,7 @@ void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
             0, 0.5 * (vertex[y * MESH_WIDTH].z + vertex[y * MESH_WIDTH + MESH_WIDTH - 1].z));
         float texcoords_y = earth_heightmap->height - Y_OFFSET * MESH_TEXTURE_HEIGHT - (MESH_TEXTURE_HEIGHT / ZOOM) -
             y * (MESH_TEXTURE_HEIGHT / ZOOM) + 0.5 * (MESH_TEXTURE_HEIGHT / ZOOM) + 0.5;
-        texcoords[v].Set(0, texcoords_y / earth_texture->height);
+        texcoords[v].Set(0, texcoords_y / earth_heightmap->height);
         v++;
     }
     // Define special column of vertices at 180 degrees longitude.
@@ -198,18 +244,22 @@ void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
             0, 0.5 * (vertex[y * MESH_WIDTH].z + vertex[y * MESH_WIDTH + MESH_WIDTH - 1].z));
         float texcoords_y = earth_heightmap->height - Y_OFFSET * MESH_TEXTURE_HEIGHT - (MESH_TEXTURE_HEIGHT / ZOOM) -
             y * (MESH_TEXTURE_HEIGHT / ZOOM) + 0.5 * (MESH_TEXTURE_HEIGHT / ZOOM) + 0.5;
-        texcoords[v].Set(1.0, texcoords_y / earth_texture->height);
+        texcoords[v].Set(1.0, texcoords_y / earth_heightmap->height);
         v++;
     }
     // Define special vertices at the south and north polar caps.
     int vertex_index_latitude_minus_90 = v;
-    int height = earth_heightmap->LookupPixel(earth_heightmap->width / 2, earth_heightmap->height - 1);
-    vertex[v].Set(0, 0, - 0.5 * X_SCALE - (float)height * Z_SCALE / 500000.0);
+    unsigned int height = earth_heightmap->LookupPixel(earth_heightmap->width / 2, earth_heightmap->height - 1);
+    float radius = 0.5f * X_SCALE + height * Z_SCALE / (elevation_scale *
+        (MESH_TEXTURE_WIDTH / ZOOM) * (MESH_TEXTURE_HEIGHT / ZOOM)) + elevation_offset;
+    vertex[v].Set(0, 0, - radius);
     texcoords[v].Set(0, 1.0);
     v++;
     int vertex_index_latitude_90 = v;
     height = earth_heightmap->LookupPixel(earth_heightmap->width / 2, 0);
-    vertex[v].Set(0, 0, 0.5 * X_SCALE + (float)height * Z_SCALE / 500000.0);
+    radius = 0.5f * X_SCALE + height * Z_SCALE / (elevation_scale *
+        (MESH_TEXTURE_WIDTH / ZOOM) * (MESH_TEXTURE_HEIGHT / ZOOM)) + elevation_offset;
+    vertex[v].Set(0, 0, radius);
     texcoords[v].Set(0, 0);
     v++;
 #endif
