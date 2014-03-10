@@ -45,9 +45,13 @@ static int ETC1_internal_format = - 1;
 static int ETC2_RGB8_internal_format = - 1;
 static int DXT1_internal_format = - 1;
 static int SRGB_DXT1_internal_format = - 1;
+static int DXT1A_internal_format = - 1;
+static int SRGB_DXT1A_internal_format = - 1;
 static int BPTC_internal_format = - 1;
 static int SRGB_BPTC_internal_format = - 1;
 static int BPTC_float_internal_format = - 1;
+static int RGTC1_internal_format = - 1;
+static int RGTC2_internal_format = - 1;
 static float max_anisotropy, min_anisotropy;
 
 // Standard textures for fall-back when texture doesn't load.
@@ -82,12 +86,15 @@ static void CheckTextureFormats() {
 	}
 #if defined(OPENGL)
          if (formats[index] == GL_COMPRESSED_RGB_S3TC_DXT1_EXT) {
+             // Assume that alpha and SRGB variants are also supported.
              printf("DXT1 texture format supported.\n");
              DXT1_internal_format = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
-         }
-         if (formats[index] == GL_COMPRESSED_SRGB_S3TC_DXT1_EXT) {
              printf("SRGB DXT1 texture format supported.\n");
              SRGB_DXT1_internal_format = GL_COMPRESSED_SRGB_S3TC_DXT1_EXT;
+             printf("DXT1A texture format supported.\n");
+             DXT1A_internal_format = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+             printf("SRGB DXT1A texture format supported.\n");
+             SRGB_DXT1A_internal_format = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
          }
 #endif
       }
@@ -105,6 +112,11 @@ static void CheckTextureFormats() {
         SRGB_BPTC_internal_format = GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB;
         BPTC_float_internal_format = GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_ARB;
         printf("BPTC texture formats supported.\n");
+    }
+    if (GLEW_ARB_texture_compression_rgtc) {
+        RGTC1_internal_format = GL_COMPRESSED_RED_RGTC1;
+        RGTC2_internal_format = GL_COMPRESSED_RG_RGTC2;
+        printf("RGTC texture formats supported.\n");
     }
 #endif
 
@@ -149,7 +161,8 @@ static int CountPowersOfTwo(int w, int h) {
     return count;
 }
 
-static void SetGLTextureParameters(int type, int nu_mipmaps_used, int power_of_two_count) {
+static void SetGLTextureParameters(int type, int nu_components, int nu_mipmaps_used,
+int power_of_two_count) {
 #ifndef OPENGL_ES2
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, nu_mipmaps_used - 1);
@@ -176,6 +189,13 @@ static void SetGLTextureParameters(int type, int nu_mipmaps_used, int power_of_t
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     }
+#ifndef OPENGL_ES2
+    // Replicate single component textures to all components.
+    if (nu_components == 1) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+    }
+#endif
 }
 
 void sreTexture::SelectMipmaps(int nu_mipmaps, int& power_of_two_count, int& nu_mipmaps_used,
@@ -291,6 +311,13 @@ void sreTexture::UploadGL() {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     }
+#ifndef OPENGL_ES2
+    // Replicate single component textures to all components.
+    if (nu_components == 1) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+    }
+#endif
     sreAbortOnGLError("Error after glTexParameteri.\n");
     GLint internal_format;
     if (format == TEXTURE_FORMAT_ETC1) {
@@ -454,7 +481,7 @@ void sreTexture::LoadPNG(const char *filename) {
     width = png_width;
     height = png_height;
     if (color_type != PNG_COLOR_TYPE_RGB && color_type != PNG_COLOR_TYPE_RGBA && color_type != PNG_COLOR_TYPE_GRAY) {
-        sreFatalError("Error - expected truecolor color format.\n");
+        sreFatalError("Error - unexpected color format.\n");
     }
     if (png_bit_depth != 8 && png_bit_depth != 16) {
         sreFatalError("Error - expected bit depth of 8 or 16 in PNG file (depth = %d).\n",
@@ -641,6 +668,16 @@ default :
 	return false;
     }
 
+    switch (supported_format) {
+    case TEXTURE_FORMAT_BPTC :
+    case TEXTURE_FORMAT_SRGB_BPTC :
+         nu_components = 4;
+         break;
+    default :
+         nu_components = 3;
+         break;
+    }
+
     /* KTX files require an unpack alignment of 4 */
     GLint previousUnpackAlignment;
     glGetIntegerv(GL_UNPACK_ALIGNMENT, &previousUnpackAlignment);
@@ -666,7 +703,7 @@ default :
     SelectMipmaps(header.numberOfMipmapLevels, power_of_two_count, nu_mipmaps_used,
         target_width, target_height, nu_levels_skipped);
 
-    SetGLTextureParameters(type, nu_mipmaps_used, power_of_two_count);
+    SetGLTextureParameters(type, nu_components, nu_mipmaps_used, power_of_two_count);
 
     data = NULL;
     for (level = 0; level < nu_mipmaps_used + nu_levels_skipped; level++) {
@@ -732,63 +769,133 @@ void sreTexture::LoadDDS(const char *filename) {
     width         = *(unsigned int *)(header + 12);
     unsigned int linearSize     = *(unsigned int *)(header + 16);
     unsigned int mipMapCount = *(unsigned int *)(header + 24);
-    unsigned int fourCC      = *(unsigned int *)(header + 80);
 
     printf("Loading DDS texture with size (%d x %d), %d mipmap levels.\n", width, height, mipMapCount);
 
-    unsigned char * buffer;
-    unsigned int bufsize;
-    /* how big is it going to be including all mipmaps? */
-    bufsize = mipMapCount > 1 ? linearSize * 2 : linearSize;
-    buffer = (unsigned char*)malloc(bufsize * sizeof(unsigned char));
-    fread(buffer, 1, bufsize, fp);
-    /* close the file pointer */
-    fclose(fp);
-
-#if 0
-    unsigned int components  = (fourCC == FOURCC_DXT1) ? 3 : 4;
-    unsigned int _format;
-    switch(fourCC)
-    {
-    case FOURCC_DXT1:
-        _format = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
-        break;
-    case FOURCC_DXT3:
-        _format = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
-        break;
-    case FOURCC_DXT5:
-        _format = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
-        break;
-    default:
-        printf("DXT texture format not supported.\n");
-        exit(1);
-    }
-    if (_format != GL_COMPRESSED_RGBA_S3TC_DX1_EXT) {
-        printf("Error -- only DXT1 is supported.\n");
-        exit(1);
-    }
-#endif
-
-    if (glGetError() != GL_NO_ERROR) {
-        printf("Error before loading DDS texture.\n");
-        exit(1);
+    char four_cc[5];
+    strncpy(four_cc, (char *)&header[80], 4);
+    four_cc[4] = '\0';
+    unsigned int dx10_format = 0;
+    if (strncmp(four_cc, "DX10", 4) == 0) {
+        unsigned char dx10_header[20];
+	fread(dx10_header, 1, 20, fp);
+	dx10_format = *(unsigned int *)&dx10_header[0];
+	unsigned int resource_dimension = *(unsigned int *)&dx10_header[4];
+        if (resource_dimension != 3)
+            sreFatalError("Only 2D textures supported for .dds files.\n");
     }
 
     GLint internal_format;
-    format = TEXTURE_FORMAT_DXT1;
-#ifndef OPENGL_ES2
-    internal_format = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
-#ifndef NO_SRGB
-    if (type == TEXTURE_TYPE_NORMAL || type == TEXTURE_TYPE_SRGB || type == TEXTURE_TYPE_WRAP_REPEAT) {
-        internal_format = GL_COMPRESSED_SRGB_S3TC_DXT1_EXT;
-        format = TEXTURE_FORMAT_SRGB_DXT1;
-    }
-    else {
-        internal_format = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
+#ifdef OPENGL_ES2
+    // For OpenGL-ES 2.0, only check for DXT1 compression.
+    if ((dx10_format == 0 && strncmp(four_cc, "DXT1", 4) != 0)
+    || (dx10_format > 0 && dx10_format != 0x83F0))
+        sreFatalError("Only DXT1 compression format supported in .dds file with OpenGL-ES 2.0");
+    if (DXT1_internal_format >= 0) {
         format = TEXTURE_FORMAT_DXT1;
+        internal_format = DXT1_internal_format;
+    }
+    else
+        sreFatalError("DXT1 format not supported by OpenGL-ES 2.0 implementation.");
+#else
+    if (dx10_format == 0) {
+        if (strncmp(four_cc, "DXT1", 4) == 0) {
+           format = TEXTURE_FORMAT_DXT1;
+           internal_format = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
+        }
+        else if (strncmp(four_cc, "ATI1", 4) == 0) {
+           format = TEXTURE_FORMAT_RGTC1;
+           internal_format = GL_COMPRESSED_RED_RGTC1;
+        }
+        else if (strncmp(four_cc, "ATI2", 4) == 0) {
+           format = TEXTURE_FORMAT_RGTC2;
+           internal_format = GL_COMPRESSED_RG_RGTC2;
+        }
+        else
+            sreFatalError("Unsupported FOURCC (%s) in .dds file.", four_cc);
+    }
+    else if (dx10_format == 70 || dx10_format == 71) {
+       format = TEXTURE_FORMAT_DXT1;
+       internal_format = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
+    }
+#if 0
+    else if (dx10_format == 70) {
+       format = TEXTURE_FORMAT_DXT1A;
+       internal_format = GL_COMPRESSED_RGB_S3TC_DXT1A_EXT;
     }
 #endif
+    else if (dx10_format == 79 || dx10_format == 80) {
+       format = TEXTURE_FORMAT_RGTC1;
+       internal_format = GL_COMPRESSED_RED_RGTC1;
+    }
+    else if (dx10_format == 83) {
+       format = TEXTURE_FORMAT_RGTC2;
+       internal_format = GL_COMPRESSED_RG_RGTC2;
+    }
+    else
+        sreFatalError("Unsupported DX10 format %d in .dds file.", dx10_format);
 #endif
+
+    sreAbortOnGLError("Error before loading DDS texture.\n");
+
+#ifndef OPENGL_ES2
+    // When transparency is set, use a DXT1A instead of DXT1 texture format.
+    if (type == TEXTURE_TYPE_TRANSPARENT && format == TEXTURE_FORMAT_DXT1) {
+        internal_format = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+        format = TEXTURE_FORMAT_DXT1A;
+    }
+#ifndef NO_SRGB
+    // Force SRGB mode for color textures.
+    if (type == TEXTURE_TYPE_NORMAL || type == TEXTURE_TYPE_SRGB || type == TEXTURE_TYPE_WRAP_REPEAT) {
+        if (format == TEXTURE_FORMAT_DXT1) {
+            internal_format = GL_COMPRESSED_SRGB_S3TC_DXT1_EXT;
+            format = TEXTURE_FORMAT_SRGB_DXT1;
+        }
+        else if (format == TEXTURE_FORMAT_DXT1A) {
+            internal_format = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
+            format = TEXTURE_FORMAT_SRGB_DXT1A;
+        }
+    }
+#endif
+    if ((format == TEXTURE_FORMAT_DXT1 && DXT1_internal_format < 0)
+    || (format == TEXTURE_FORMAT_SRGB_DXT1 && SRGB_DXT1_internal_format < 0)
+    || (format == TEXTURE_FORMAT_DXT1A && DXT1A_internal_format < 0)
+    || (format == TEXTURE_FORMAT_SRGB_DXT1A && SRGB_DXT1A_internal_format < 0)
+    || (format == TEXTURE_FORMAT_RGTC1 && RGTC1_internal_format < 0)
+    || (format == TEXTURE_FORMAT_RGTC2 && RGTC2_internal_format < 0))
+        sreFatalError("Compressed texture format 0x%04X not supported by GPU.",
+            internal_format);
+#endif
+
+    switch (format) {
+    case TEXTURE_FORMAT_DXT1A :
+    case TEXTURE_FORMAT_SRGB_DXT1A :
+    case TEXTURE_FORMAT_BPTC :
+    case TEXTURE_FORMAT_SRGB_BPTC :
+         nu_components = 4;
+         break;
+    case TEXTURE_FORMAT_RGTC1 :
+         nu_components = 1;
+         break;
+    case TEXTURE_FORMAT_RGTC2 :
+         nu_components = 2;
+         break;
+    default :
+         nu_components = 3;
+         break;
+    }
+
+    unsigned char *buffer;
+    unsigned int bufsize;
+    // Only RGTC2 (BC5) has a 16-byte block size.
+    unsigned int blockSize = (format == TEXTURE_FORMAT_RGTC2) ? 16 : 8;
+    unsigned int size = ((width + 3) / 4) * ((height + 3) / 4) * blockSize;
+    // Allocate a buffer of sufficient size to hold all the mipmaps.
+    bufsize = mipMapCount > 1 ? size * 2 : size;
+    buffer = (unsigned char*)malloc(bufsize * sizeof(unsigned char));
+    // Read the compressed texture data into the buffer.
+    fread(buffer, 1, bufsize, fp);
+    fclose(fp);
 
     // Create one OpenGL texture
     GLuint textureID;
@@ -815,33 +922,31 @@ void sreTexture::LoadDDS(const char *filename) {
     int power_of_two_count, nu_mipmaps_used, target_width, target_height, nu_levels_skipped;
     SelectMipmaps(mipMapCount, power_of_two_count, nu_mipmaps_used, target_width, target_height,
        nu_levels_skipped);
-    SetGLTextureParameters(type, nu_mipmaps_used, power_of_two_count);
-
-//    unsigned int blockSize = (format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) ? 8 : 16;
-    unsigned int blockSize = 8;
-    unsigned int offset = 0;
+    SetGLTextureParameters(type, nu_components, nu_mipmaps_used, power_of_two_count);
+    sreAbortOnGLError("Error after setting texture parameters.\n");
 
     /* Load the mipmaps. */
     w = width;
     h = height;
+    unsigned int offset = 0;
     for (unsigned int level = 0; level < nu_mipmaps_used + nu_levels_skipped; level++) {
         if (level == nu_levels_skipped) {
             // Set the texture size to the first used mipmap level.
             width = w;
             height = h;
         }
-        unsigned int size;
-        size = ((w + 3) / 4) * ((h + 3) / 4) * blockSize;
+        unsigned int level_size;
+        level_size = ((w + 3) / 4) * ((h + 3) / 4) * blockSize;
         if (level >= nu_levels_skipped) {
             glCompressedTexImage2D(GL_TEXTURE_2D, level - nu_levels_skipped,
-                internal_format, w, h, 0, size, buffer + offset);
-            sreAbortOnGLError("Error loading .dds texture.");
+                internal_format, w, h, 0, level_size, buffer + offset);
+            sreAbortOnGLError("Error loading .dds texture level.\n");
         }
-        offset += size;
+        offset += level_size;
         w /= 2;
         h /= 2;
     }
-    free(buffer); 
+    free(buffer);
     RegisterTexture(this);
 }
 
@@ -1004,7 +1109,7 @@ Color color0, Color color1) {
     tex->width = w;
     tex->height = h;
     tex->bytes_per_pixel = 4;
-    tex->format == TEXTURE_FORMAT_RAW;
+    tex->format = TEXTURE_FORMAT_RAW;
     tex->type = type;
     tex->UploadGL();
     RegisterTexture(tex);
@@ -1025,7 +1130,7 @@ Color color0, Color color1) {
     tex->width = w;
     tex->height = h;
     tex->bytes_per_pixel = 4;
-    tex->format == TEXTURE_FORMAT_RAW;
+    tex->format = TEXTURE_FORMAT_RAW;
     tex->type = type;
     tex->UploadGL();
     RegisterTexture(tex);

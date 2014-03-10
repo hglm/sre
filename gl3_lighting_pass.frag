@@ -259,7 +259,7 @@ void main() {
 	// Scale to 0 and 0.4 (real lighting factor).
 	atmospheric_illumination *= 0.4;
 	if (atmospheric_illumination < 0.08)
-		c = texture2D(emission_map_in, texcoord_var).xyz;
+		c = texture2D(emission_map_in, texcoord_var).rgb;
         else
 		c = vec3(0, 0, 0);
 #endif

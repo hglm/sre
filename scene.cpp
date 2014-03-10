@@ -472,6 +472,7 @@ void sreScene::DeleteObject(int soi) {
         delete so->particles;
     deleted_ids->AddElement(so->id);
     so->exists = false;
+    so->flags |= SRE_OBJECT_HIDDEN;
 }
 
 // Scene object dynamic change helper functions.

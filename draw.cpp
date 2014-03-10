@@ -476,7 +476,7 @@ const sreFrustum& frustum, BoundsCheckResult bounds_check_result, int array_inde
         fast_oct.GetEntity(array_index + i, type, index);
         if (type == SRE_ENTITY_OBJECT) {
             sreObject *so = sceneobject[index];
-            if (so->exists)
+            if (!(so->flags & SRE_OBJECT_HIDDEN))
                 DetermineObjectIsVisible(*so, frustum, bounds_check_result);
         }
         else if (type == SRE_ENTITY_LIGHT) {
