@@ -1017,6 +1017,73 @@ sreModel *sreCreateRepeatingRectangleModel(sreScene *scene, float size, float un
     return model;
 }
 
+static sreModel *FinishPlaneRectangleModel(sreScene *scene, Point3D *mesh) {
+    sreModel *model = new sreModel;
+    sreLODModel *m = model->lod_model[0] = sreNewLODModel();
+    model->nu_lod_levels = 1;
+    m->nu_triangles = 2;
+    m->nu_vertices = m->nu_triangles * 3;
+    m->vertex = new Point3D[m->nu_vertices];
+    m->triangle = new sreModelTriangle[m->nu_triangles];
+    m->texcoords = new Point2D[m->nu_vertices];
+    int i = 0;
+    sreModelTriangle *t1 = &m->triangle[0];
+    sreModelTriangle *t2 = &m->triangle[1];
+    m->vertex[i] = mesh[0];
+    m->vertex[i + 1] = mesh[1];
+    m->vertex[i + 2] = mesh[2];
+    t1->AssignVertices(i, i + 1, i + 2);
+    m->texcoords[0].Set(0, 0);
+    m->texcoords[1].Set(1.0f, 0);
+    m->texcoords[2].Set(0, 1.0f);
+    i += 3;
+    m->vertex[i] = mesh[1];
+    m->vertex[i + 1] = mesh[3];
+    m->vertex[i + 2] = mesh[2];
+    t2->AssignVertices(i, i + 1, i + 2);
+    m->texcoords[3].Set(1.0f, 0);
+    m->texcoords[4].Set(1.0f, 1.0f);
+    m->texcoords[5].Set(0, 1.0f);
+    i += 3;
+    delete [] mesh;
+    m->flags |= SRE_POSITION_MASK | /* SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT | */
+        SRE_LOD_MODEL_NOT_CLOSED | SRE_TEXCOORDS_MASK;
+    m->SortVertices(0); // Sort on x-coordinate.
+    m->MergeIdenticalVertices();
+    m->vertex_normal = new Vector3D[m->nu_vertices];
+    m->CalculateNormalsNotSmooth();
+    m->CalculateTangentVectors();
+    model->CalculateBounds();
+    model->collision_shape_static = SRE_COLLISION_SHAPE_BOX;
+    model->collision_shape_dynamic = SRE_COLLISION_SHAPE_BOX;
+    scene->RegisterModel(model);
+    return model;
+}
+
+sreModel *sreCreateCenteredXPlaneRectangleModel(sreScene *scene, float dimy, float dimz) {
+    Point3D *mesh = new Point3D[2 * 2];
+    for (int z = 0; z <= 1; z++)
+        for (int y = 0; y <= 1; y++)
+            mesh[z * 2 + y].Set(0, ((float)y - 0.5f) * dimy, ((float)z - 0.5f) * dimz);
+    return FinishPlaneRectangleModel(scene, mesh);
+}
+
+sreModel *sreCreateCenteredYPlaneRectangleModel(sreScene *scene, float dimx, float dimz) {
+    Point3D *mesh = new Point3D[2 * 2];
+    for (int z = 0; z <= 1; z++)
+        for (int x = 0; x <= 1; x++)
+            mesh[z * 2 + x].Set(((float)x - 0.5f) * dimx, 0, ((float)z - 0.5f) * dimz);
+    return FinishPlaneRectangleModel(scene, mesh);
+}
+
+sreModel *sreCreateCenteredZPlaneRectangleModel(sreScene *scene, float dimx, float dimy) {
+    Point3D *mesh = new Point3D[2 * 2];
+    for (int y = 0; y <= 1; y++)
+        for (int x = 0; x <= 1; x++)
+            mesh[y * 2 + x].Set(((float)x - 0.5f) * dimx, ((float)y - 0.5f) * dimy, 0);
+    return FinishPlaneRectangleModel(scene, mesh);
+}
+
 static void sreInitializeCylinderModel(sreBaseModel *m, int LONGITUDE_SEGMENTS, float zdim,
 bool include_top, bool include_bottom) {
     int *grid_vertex = (int *)alloca(sizeof(int) * (LONGITUDE_SEGMENTS + 1) * 4);

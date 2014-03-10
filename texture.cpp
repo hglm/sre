@@ -194,6 +194,8 @@ int power_of_two_count) {
     if (nu_components == 1) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+        if (type == TEXTURE_TYPE_TRANSPARENT)
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
     }
 #endif
 }
@@ -263,7 +265,7 @@ int& target_width, int& target_height, int& nu_levels_skipped) {
     }
 }
 
-void sreTexture::UploadGL() {
+void sreTexture::UploadGL(bool keep_data) {
 #ifndef NO_SRGB
     if (format == TEXTURE_FORMAT_RAW) {
         // Regular (image) textures should be handled as SRGB.
@@ -316,7 +318,9 @@ void sreTexture::UploadGL() {
     if (nu_components == 1) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
-    }
+        if (type == TEXTURE_TYPE_TRANSPARENT)
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
+     }
 #endif
     sreAbortOnGLError("Error after glTexParameteri.\n");
     GLint internal_format;
@@ -388,7 +392,8 @@ void sreTexture::UploadGL() {
         glGenerateMipmap(GL_TEXTURE_2D);
         sreAbortOnGLError("Error after glGenerateMipmap (internal format = %d).\n", internal_format);
     }
-    delete [] data;
+    if (!keep_data)
+        delete [] data;
  
     RegisterTexture(this);
 }
@@ -408,7 +413,7 @@ void sreTexture::ConvertFrom24BitsTo32Bits() {
 
 // PNG loading.
 
-void sreTexture::LoadPNG(const char *filename) {
+void sreTexture::LoadPNG(const char *filename, int flags) {
     int png_width, png_height;
     png_byte color_type;
     png_byte png_bit_depth;
@@ -544,8 +549,9 @@ void sreTexture::LoadPNG(const char *filename) {
     format = TEXTURE_FORMAT_RAW;
 
     ApplyTextureDetailSettings();
-    if (type != TEXTURE_TYPE_WILL_MERGE_LATER) {
-        UploadGL();
+    if (type != TEXTURE_TYPE_WILL_MERGE_LATER &&
+    !(flags & SRE_TEXTURE_TYPE_FLAG_NO_UPLOAD)) {
+        UploadGL((flags & SRE_TEXTURE_TYPE_FLAG_KEEP_DATA) != 0);
     }
 }
 
@@ -966,13 +972,20 @@ static bool FileExists(const char *filename) {
 #endif
 }
 
+sreTexture *sreCreateTexture(const char *filename, int type) {
+    return new sreTexture(filename, type);
+}
+
 sreTexture::sreTexture(const char *basefilename, int _type) {
     if (!checked_texture_formats)
         CheckTextureFormats();
     char s[80];
     sprintf(s, "%s.ktx", basefilename);
     bool success = false;
-    type = _type;
+    bool keep_data = false;
+    if (_type & SRE_TEXTURE_TYPE_FLAG_KEEP_DATA)
+        keep_data = true;
+    type = _type & (~SRE_TEXTURE_TYPE_FLAGS_MASK);
     if (type != TEXTURE_TYPE_USE_RAW_TEXTURE && FileExists(s))
         success = LoadKTX(s);
     if (!success) {
@@ -985,7 +998,7 @@ sreTexture::sreTexture(const char *basefilename, int _type) {
     if (!success) {
         sprintf(s, "%s.png", basefilename);
         if (FileExists(s))
-            LoadPNG(s);
+            LoadPNG(s, _type & SRE_TEXTURE_TYPE_FLAGS_MASK);
         else {
             sreMessage(SRE_MESSAGE_WARNING,
                 "Texture file %s(.png, .ktx, .dds) not found or not supported. "
@@ -1056,7 +1069,7 @@ void sreTexture::MergeTransparencyMap(sreTexture *t) {
             SetPixel(x, y, pix);
         }
     type = TEXTURE_TYPE_NORMAL;
-    UploadGL();
+    UploadGL(false);
 }
 
 unsigned int sreTexture::LookupPixel(int x, int y) {
@@ -1111,7 +1124,7 @@ Color color0, Color color1) {
     tex->bytes_per_pixel = 4;
     tex->format = TEXTURE_FORMAT_RAW;
     tex->type = type;
-    tex->UploadGL();
+    tex->UploadGL(false);
     RegisterTexture(tex);
     return tex;
 }
@@ -1132,7 +1145,7 @@ Color color0, Color color1) {
     tex->bytes_per_pixel = 4;
     tex->format = TEXTURE_FORMAT_RAW;
     tex->type = type;
-    tex->UploadGL();
+    tex->UploadGL(false);
     RegisterTexture(tex);
     return tex;
 }
@@ -1381,3 +1394,42 @@ void sreTexture::ApplyTextureDetailSettings() {
     *this = *textures[0];
     type = saved_type;
 }
+
+// Create a text string texture.
+
+sreTexture *sreCreateTextTexture(const char *str, sreFont *font) {
+    int n = strlen(str);
+    int char_width_in_pixels = font->tex->width / font->chars_horizontal;
+    int w = n * char_width_in_pixels;
+    sreTexture *tex = new sreTexture;
+    tex->width = w;
+    tex->height = font->char_height * font->tex->height;
+    tex->nu_components = 1;
+    tex->bit_depth = 8;
+    tex->data = new unsigned int[(tex->width * tex->height + 3) / 4];
+    tex->bytes_per_pixel = 1;
+    tex->format = TEXTURE_FORMAT_RAW_R8;
+    tex->type = TEXTURE_TYPE_TRANSPARENT;
+    for (int i = 0; i < n; i++)
+        for (int y = 0; y < tex->height; y++)
+            for (int x = 0; x < char_width_in_pixels; x++) {
+                int fonty = str[i] / font->chars_horizontal;
+                int fontx = str[i] % font->chars_horizontal;
+                unsigned char pix;
+                // Assume any black font pixel (zero) is the background.
+                if (font->tex->LookupPixel(fontx * char_width_in_pixels + x,
+                fonty * tex->height + y) > 0)
+                    // Map each foreground pixel to intensity of 1.0.
+                    // The color is regulated by the emission color when a
+                    // billboard object is used (which is multiplied by the
+                    // texture (emission map) pixel).
+                    pix = 0xFF;
+                else
+                    pix = 0;
+                *((unsigned char *)tex->data + y * w + i * char_width_in_pixels + x) = pix;
+            }
+    tex->UploadGL(false);
+    RegisterTexture(tex);
+    return tex; 
+}
+

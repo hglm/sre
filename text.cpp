@@ -40,7 +40,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // avoid expensive integer divide operation when drawing text.
 
 sreFont::sreFont(const char *texture_name, int chars_x, int chars_y) {
-    tex = new sreTexture(texture_name, TEXTURE_TYPE_NORMAL);
+    tex = new sreTexture(texture_name, TEXTURE_TYPE_NORMAL |
+        SRE_TEXTURE_TYPE_FLAG_KEEP_DATA);
     chars_horizontal = chars_x;
     shift = 0;
     for (int i = 0; i < 16; i++)
@@ -50,8 +51,8 @@ sreFont::sreFont(const char *texture_name, int chars_x, int chars_y) {
             break;
         }
     chars_vertical = chars_y;
-    char_width = 1.0 / (float)chars_x;
-    char_height = 1.0 / (float)chars_y;
+    char_width = 1.0f / (float)chars_x;
+    char_height = 1.0f / (float)chars_y;
     tex->ChangeParameters(SRE_TEXTURE_FLAG_SET_FILTER,
         SRE_TEXTURE_FILTER_LINEAR, 1.0);
 }
@@ -59,6 +60,26 @@ sreFont::sreFont(const char *texture_name, int chars_x, int chars_y) {
 void sreFont::SetFiltering(int filtering) const {
     tex->ChangeParameters(SRE_TEXTURE_FLAG_SET_FILTER,
         filtering, 1.0);
+}
+
+sreFont *sreCreateSystemMemoryFont(const char *filename, int chars_x, int chars_y) {
+    sreFont *font = new sreFont;
+    font->tex = new sreTexture;
+    font->tex->type = TEXTURE_TYPE_NORMAL | SRE_TEXTURE_TYPE_FLAG_KEEP_DATA |
+        SRE_TEXTURE_TYPE_FLAG_NO_UPLOAD;
+    font->tex->LoadPNG(filename, true);
+    font->chars_horizontal = chars_x;
+    font->shift = 0;
+    for (int i = 0; i < 16; i++)
+        if (chars_x == (1 << i)) {
+            // Font width in characters is a power of two.
+            font->shift = i;
+            break;
+        }
+    font->chars_vertical = chars_y;
+    font->char_width = 1.0f / (float)chars_x;
+    font->char_height = 1.0f / (float)chars_y;
+    return font;
 }
 
 #define MAX_TEXT_WIDTH 256  // In characters.
@@ -606,6 +627,12 @@ sreFont *sreSetFont(sreFont *font) {
 
     sreSetTextSource(SRE_IMAGE_SET_TEXTURE, current_font_32x8->tex->opengl_id, 0);
     return current_font_32x8;
+}
+
+sreFont *sreGetStandardFont() {
+    if (standard_font_32x8 == NULL)
+       standard_font_32x8 = new sreFont("Lat2-TerminusBold32x16", 32, 8);
+    return standard_font_32x8;
 }
 
 // Draw text with current font size with string length specified.

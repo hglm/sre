@@ -117,11 +117,14 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define SRE_MAX_OCTREE_DEPTH 12
 
 
-enum { TEXTURE_TYPE_NORMAL, TEXTURE_TYPE_SRGB, TEXTURE_TYPE_LINEAR,
+enum { TEXTURE_TYPE_NORMAL = 0, TEXTURE_TYPE_SRGB, TEXTURE_TYPE_LINEAR,
     TEXTURE_TYPE_TRANSPARENT, TEXTURE_TYPE_TRANSPARENT_EXTEND_TO_ALPHA,
     TEXTURE_TYPE_WILL_MERGE_LATER, TEXTURE_TYPE_NORMAL_MAP,
     TEXTURE_TYPE_SPECULARITY_MAP, TEXTURE_TYPE_TABLE,
-    TEXTURE_TYPE_USE_RAW_TEXTURE, TEXTURE_TYPE_WRAP_REPEAT };
+    TEXTURE_TYPE_USE_RAW_TEXTURE, TEXTURE_TYPE_WRAP_REPEAT,
+    SRE_TEXTURE_TYPE_FLAG_KEEP_DATA = 0x1000,
+    SRE_TEXTURE_TYPE_FLAG_NO_UPLOAD = 0x2000,
+    SRE_TEXTURE_TYPE_FLAGS_MASK = 0x3000 };
 
 enum {
     TEXTURE_FORMAT_RAW = 0, TEXTURE_FORMAT_RAW_RGBA8, TEXTURE_FORMAT_RAW_RGB8,
@@ -156,12 +159,12 @@ public:
     sreTexture(const char *basefilename, int type);
     sreTexture(int w, int h);
     ~sreTexture();
-    void UploadGL();
+    void UploadGL(bool keep_data);
     unsigned int LookupPixel(int x, int y);
     void SetPixel(int x, int y, unsigned int value);
     void MergeTransparencyMap(sreTexture *t);
     void ConvertFrom24BitsTo32Bits();
-    void LoadPNG(const char *filename);
+    void LoadPNG(const char *filename, int flags);
     bool LoadKTX(const char *filename);
     void LoadDDS(const char *filename);
     void ChangeParameters(int flags, int filter, float anisotropy);
@@ -1311,6 +1314,8 @@ public:
     // The following function is deprecated; used the following one.
     int AddObject(sreModel *model, float dx, float dy, float dz, float rot_x, float rot_y,
         float rot_z, float scaling);
+    // Add an object instantiation of a model at position pos, with specified rotation
+    // angles (radians) and scaling.
     int AddObject(sreModel *model, Point3D pos, Vector3D rot_along_axi, float scaling);
     // Lights.
     void SetAmbientColor(Color color);
@@ -1612,7 +1617,11 @@ enum {
 };
 SRE_API void sreSetGlobalTextureDetailFlags(int set_mask, int flags);
 SRE_API int sreGetGlobalTextureDetailFlags();
+
+class sreFont;
+
 // Defined in texture.cpp:
+
 SRE_API sreTexture *sreGetStandardTexture();
 SRE_API sreTexture *sreGetStandardTextureWrapRepeat();
 // Create a checkboard texture of size w x h consisting of two clors, with fields
@@ -1621,7 +1630,9 @@ SRE_API sreTexture *sreCreateCheckerboardTexture(int type, int w, int h, int bw,
     Color color0, Color color1);
 SRE_API sreTexture *sreCreateStripesTexture(int type, int w, int h, int bh,
     Color color0, Color color1);
+SRE_API sreTexture *sreCreateTexture(const char *filename, int type);
 SRE_API float sreGetMaxAnisotropyLevel();
+SRE_API sreTexture *sreCreateTextTexture(const char *str, sreFont *font);
 
 // Defined in text.cpp:
 
@@ -1634,6 +1645,7 @@ public:
     float char_width;     // Width of each character in texture coordinates.
     float char_height;    // Height of each character in texture coordinates.
 
+    sreFont() { }
     sreFont(const char *texture_name, int chars_x, int chars_y);
     void SetFiltering(int filtering) const;
 };
@@ -1672,6 +1684,8 @@ SRE_API void sreSetImageBlendingMode(int mode);
 SRE_API void sreInitializeTextEngine();
 SRE_API void sreSetTextParameters(int set_mask, const Vector4D *colors, const Vector2D *font_size);
 SRE_API sreFont *sreSetFont(sreFont *font);
+SRE_API sreFont *sreGetStandardFont();
+SRE_API sreFont *sreCreateSystemMemoryFont(const char *filename, int chars_x, int chars_y);
 SRE_API void sreDrawText(const char *string, float x, float y);
 SRE_API void sreDrawTextN(const char *string, int n, float x, float y);
 SRE_API void sreDrawTextCentered(const char *text, float x, float y, float w);
@@ -1746,6 +1760,9 @@ float BAR_WIDTH, float THICKNESS);
 #define SRE_BLOCK_NO_TOP 32
 SRE_API sreModel *sreCreateBlockModel(sreScene *scene, float xdim, float ydim, float zdim, int flags);
 SRE_API sreModel *sreCreateRepeatingRectangleModel(sreScene *scene, float size, float unit_size);
+SRE_API sreModel *sreCreateCenteredXPlaneRectangleModel(sreScene *scene, float dimx, float dimz);
+SRE_API sreModel *sreCreateCenteredYPlaneRectangleModel(sreScene *scene, float dimx, float dimz);
+SRE_API sreModel *sreCreateCenteredZPlaneRectangleModel(sreScene *scene, float dimx, float dimy);
 SRE_API sreModel *sreCreateCylinderModel(sreScene *scene, float zdim, bool include_top,
     bool include_bottom);
 SRE_API sreModel *sreCreateEllipsoidModel(sreScene *scene, float radius_y, float radius_z);
