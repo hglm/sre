@@ -76,7 +76,8 @@ void Demo3TimeIteration(double time_previous, double time_current);
 void Demo4CreateScene();
 void Demo4Render();
 void Demo4TimeIteration(double time_previous, double time_current);
-void Demo4SetParameters(float day_interval, bool display_time);
+void Demo4SetParameters(float day_interval, bool display_time, bool physics,
+    bool create_spacecraft, bool show_spacecraft, float sun_light_factor);
 
 void Demo4bCreateScene();
 void Demo4bRender();

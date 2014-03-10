@@ -55,9 +55,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // When RESOLUTION_16K is defined, a specific 16K Earth texture data set is used with
 // resolution of 16200x8100. When RESOLUTION_8K is defined, a specific 8K Earth texture
-// data set is used with a resolution of 8192x4096. When neither is set, custom textures
+// data set is used with a resolution of 8192x4096. When RESOLUTION_16384 is set, power-
+// of-two upscaled versions of the 16K textures are used. When neither is set, custom textures
 // can be used.
-#define RESOLUTION_16K
+#define RESOLUTION_16384
 #define SPHERE
 //#define CLOSED_SEGMENTS_FOR_SHADOW_VOLUMES
 //#define NIGHT
@@ -71,7 +72,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // When ELEVATION_MAP_16_BIT is set, a high-precision elevation map with a resolution of
 // 10800x5400 is used, so the maximum detail divisor value is eight.
 #define ELEVATION_MAP_16_BIT
-#define ELEVATION_MAP_DETAIL_FACTOR 4
+#define ELEVATION_MAP_DETAIL_FACTOR 1
 // The size of submeshes. Maximum MESH_WIDTH + 2 and MESH_HEIGHT + 2.
 #define SUB_MESH_WIDTH 200
 #define SUB_MESH_HEIGHT 200
@@ -88,6 +89,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // normalized value to scaled so that the maximum possible height is bounded by Z_SCALE.
 // #define Z_SCALE (200.0f * ZOOM)
 #define Z_SCALE (150.0f * ZOOM)
+
+// Whether to show the user-controlled spacecraft in the center of the window.
+// #define SHOW_SPACECRAFT
 
 // End of configurable parameters.
 
@@ -117,12 +121,17 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define Y_OFFSET ((LATITUDE + 90.0) * (MESH_HEIGHT + 1) / 180.0 - (MESH_HEIGHT + 1) / 2 / ZOOM)
 #define Y_SCALE (X_SCALE * (MESH_WIDTH + 1) / (MESH_HEIGHT + 1) * 0.5)
 
-#ifdef RESOLUTION_16K
+#ifdef RESOLUTION_16384
+static const char *earth_texture_filename = "6_merged_color_ice_16384";
+#define ELEVATION_MAP_FILENAME = "elev_bump_16k";
+static const char *earth_night_light_filename = "cities_16384";
+static const char *earth_specularity_filename = "water_16384";
+#elif defined(RESOLUTION_16K)
 // static const char *earth_texture_filename = "4_no_ice_clouds_mts_16k";
 static const char *earth_texture_filename = "6_merged_color_ice_16k";
 #define ELEVATION_MAP_FILENAME = "elev_bump_16k";
-static const char *earth_night_light_filename = "cities_16k";
-static const char *earth_specularity_filename = "water_16k";
+static const char *earth_night_light_filename = "cities_16k_one_component";
+static const char *earth_specularity_filename = "water_16k_one_component";
 #elif defined(RESOLUTION_8K)
 static const char *earth_texture_filename = "4_no_ice_clouds_mts_8k";
 #define ELEVATION_MAP_FILENAME = "elev_bump_8k";
@@ -164,6 +173,14 @@ static Matrix3D saved_spacecraft_rotation_matrix;
 
 static float day_interval = DEFAULT_DAY_INTERVAL;
 static bool display_time = true;
+static bool physics = true;
+static bool create_spacecraft = true;
+#ifdef SHOW_SPACECRAFT
+static bool show_spacecraft = true;
+#else
+static bool show_spacecraft = false;
+#endif
+static float sun_light_factor = 1.0f;
 
 void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
     printf("Creating mesh objects.\n");
@@ -192,11 +209,11 @@ void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
                 for (int j = 0; j < MESH_TEXTURE_WIDTH / ZOOM; j++) {
                     // Assume the first color component (red) is a value from 0 to 255 (or 65535)
                     // representing the height.
-                    unsigned int v = earth_heightmap->LookupPixel(x * (MESH_TEXTURE_WIDTH / ZOOM) + j + X_OFFSET * MESH_TEXTURE_WIDTH,
+                    unsigned int heightmap_value = earth_heightmap->LookupPixel(x * (MESH_TEXTURE_WIDTH / ZOOM) + j + X_OFFSET * MESH_TEXTURE_WIDTH,
                         earth_heightmap->height - Y_OFFSET * MESH_TEXTURE_HEIGHT - (MESH_TEXTURE_HEIGHT / ZOOM) -
                         y * (MESH_TEXTURE_HEIGHT / ZOOM) + i)
                         & (((unsigned int)1 << elevation_bits) - 1);
-                    h += v;
+                    h += heightmap_value;
                 }
 #ifdef SPHERE
             float longitude = ((float)x + 0.5) / MESH_WIDTH * 2.0 * M_PI - M_PI;
@@ -339,6 +356,7 @@ void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
             sreLODModel *m = sreNewLODModel();
             int w = SUB_MESH_WIDTH;
             int h = SUB_MESH_HEIGHT;
+            
             int x_offset = 0;
             int y_offset = 0;
 #ifdef SPHERE
@@ -368,6 +386,14 @@ void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
                 h++;
 #endif
             }
+            // Use a smaller number of longitudinal vertices at higher latitudes.
+            // This requires more work and is disabled.
+            int longitudinal_step = 1;
+#if defined(SPHERE) && false
+            if (90.0f * sub_mesh_y * (SUB_MESH_HEIGHT - 1) / MESH_HEIGHT > 60.0f ||
+            90.f * (sub_mesh_y * (SUB_MESH_HEIGHT - 1) + SUB_MESH_HEIGHT - 1) < - 60.0f)
+                longitudual_step = 2;
+#endif
             m->nu_vertices = w * h;
 #ifdef CLOSED_SEGMENTS_FOR_SHADOW_VOLUMES
             m->nu_vertices += w * 2 + w * 2 + h * 2 + h * 2 + 8 + 4; // Extra edge vertices.
@@ -377,7 +403,12 @@ void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
             m->vertex_normal = new Vector3D[m->nu_vertices];
             float zmin = FLT_MAX;
             for (int y = 0; y < h; y++)
-                for (int x = 0; x < w; x++) {
+                for (int x = 0;; x += longitudinal_step) {
+                    // Make sure the rightmost vertex is always included.
+                    if (longitudinal_step > 1 && x >= w && x < w - 1 + longitudinal_step)
+                        x = w - 1;
+                    else if (x >= w)
+                        break;
                     int mesh_x = sub_mesh_x * (SUB_MESH_WIDTH - 1);
                     int mesh_y = sub_mesh_y * (SUB_MESH_HEIGHT - 1);
                     int index;
@@ -867,7 +898,7 @@ void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
             m->RemoveUnusedVertices();
             m->CalculateTriangleNormals();
             total_triangle_count += m->nu_triangles;
-            m->ReduceTriangleCount(0.5, 0.03, true, 0.995);
+            m->ReduceTriangleCount(0.5, 0.05, true, 0.995); // Cost threshold was 0.03.
             total_triangle_count_reduced += m->nu_triangles;
             m->SortVertices(1);
             // Vertex normals cannot be recalculated because it would result in discrepancies at the edges.
@@ -876,7 +907,8 @@ void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
             model->lod_model[1] = sreNewLODModel();
             model->nu_lod_levels = 2;
             m->Clone(model->lod_model[1]);
-            model->lod_model[1]->ReduceTriangleCount(0.2, 0.5, true, 0.98);
+            // Cost threshold was 0.5.
+            model->lod_model[1]->ReduceTriangleCount(0.2, 0.7, true, 0.98);
             model->lod_model[1]->SortVertices(1);
             model->lod_model[1]->CalculateTriangleNormals();
             model->CalculateBounds();
@@ -925,6 +957,12 @@ static void CreateSpacecraftTexture() {
 }
 
 void Demo4CreateScene() {
+    int physics_flag = 0;
+    if (!physics)
+        physics_flag = SRE_OBJECT_NO_PHYSICS;
+    int hidden_flag = 0;
+    if (!show_spacecraft)
+        hidden_flag = SRE_OBJECT_HIDDEN;
     Vector3D initial_ascend_vector = Vector3D(1.0, 0, 0);
 //    Vector3D initial_ascend_vector = Vector3D(0, 0, 1.0);
     initial_ascend_vector.Normalize();
@@ -934,35 +972,44 @@ void Demo4CreateScene() {
     scene->SetAmbientColor(Color(0.2, 0.2, 0.2));
 #endif
     sreModel *globe_model = sreCreateSphereModel(scene, 0);
-    // Add player sphere as scene object 0.
-    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS |
-       SRE_OBJECT_USE_TEXTURE);
-    scene->SetTexture(sreCreateStripesTexture(TEXTURE_TYPE_LINEAR,
-        256, 256, 32, Color(0, 0.5f, 0.8f), Color(0.9f, 0.9f, 1.0f)));
-    scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
+    if (create_spacecraft) {
+        // Add player sphere as scene object 0.
+        scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS |
+            SRE_OBJECT_USE_TEXTURE | physics_flag | hidden_flag);
+        scene->SetTexture(sreCreateStripesTexture(TEXTURE_TYPE_LINEAR,
+            256, 256, 32, Color(0, 0.5f, 0.8f), Color(0.9f, 0.9f, 1.0f)));
+        scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
 #ifdef SPHERE
-    Point3D pos = Point3D(0, 0, 0) + (0.5 * X_SCALE + 200.0) * initial_ascend_vector;
-    player_object = scene->AddObject(globe_model, pos.x, pos.y, pos.z, 0, 0, 0, 3.0);
+        Point3D pos = Point3D(0, 0, 0) + (0.5 * X_SCALE + 200.0) * initial_ascend_vector;
+        player_object = scene->AddObject(globe_model, pos.x, pos.y, pos.z, 0, 0, 0, 3.0);
 #else
-    player_object = scene->AddObject(globe_model, 0, 0, 200.0, 0, 0, 0, 3.0);
+        player_object = scene->AddObject(globe_model, 0, 0, 200.0, 0, 0, 0, 3.0);
 #endif
+    }
     // Add player spacecraft as scene object 1.
-    sreModel *spacecraft_model = sreCreateEllipsoidModel(scene, 1.0, 0.3);
+    Point3D spacecraft_pos;
+    sreModel *spacecraft_model;
+    if (!create_spacecraft)
+        goto skip_spacecraft;
+    spacecraft_model = sreCreateEllipsoidModel(scene, 1.0, 0.3);
     scene->SetDiffuseReflectionColor(Color(0.1, 0.5, 0.1));
     scene->SetSpecularReflectionColor(Color(0.2, 0.2, 0.2));
     CreateSpacecraftTexture();
     scene->SetEmissionColor(Color(1.0, 1.0, 1.0));  
     scene->SetEmissionMap(spacecraft_emission_map);
-    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_USE_EMISSION_MAP);
+    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS |
+        SRE_OBJECT_USE_EMISSION_MAP | physics_flag | hidden_flag);
 #ifdef SPHERE
-    Point3D spacecraft_pos = Point3D(0, 0, 0) + (0.5 * X_SCALE + 300.0) * initial_ascend_vector;
+    spacecraft_pos = Point3D(0, 0, 0) + (0.5 * X_SCALE + 300.0) * initial_ascend_vector;
     spacecraft_object = scene->AddObject(spacecraft_model, spacecraft_pos.x, spacecraft_pos.y, spacecraft_pos.z, 0, 0, 0, 8.0);
 #else
     spacecraft_object = scene->AddObject(spacecraft_model, 0, 0, 300.0, 0, 0, 0, 8.0);
 #endif
+skip_spacecraft :
     scene->SetSpecularReflectionColor(Color(1.0, 1.0, 1.0));
     // Add sun sphere.
-    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_NO_PHYSICS | SRE_OBJECT_EMISSION_ONLY | SRE_OBJECT_INFINITE_DISTANCE);
+    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_NO_PHYSICS |
+        SRE_OBJECT_EMISSION_ONLY | SRE_OBJECT_INFINITE_DISTANCE);
     scene->SetEmissionColor(Color(3.0, 3.0, 2.4));
 #ifdef SPHERE
     sun_object = scene->AddObject(globe_model, 1000000.0, 0, 0, 0, 0, 0, 30000.0);
@@ -981,14 +1028,15 @@ void Demo4CreateScene() {
     scene->SetEmissionMap(earth_night_light_texture);
     scene->SetEmissionColor(Color(1.0, 1.0, 1.0));
     scene->SetFlags(SRE_OBJECT_USE_EMISSION_MAP | SRE_OBJECT_USE_TEXTURE |
-        SRE_OBJECT_USE_SPECULARITY_MAP | SRE_OBJECT_CAST_SHADOWS);
+        SRE_OBJECT_USE_SPECULARITY_MAP | SRE_OBJECT_CAST_SHADOWS |
+        physics_flag);
 #else
 #ifdef SPHERE
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_EARTH_SHADER |
-        SRE_OBJECT_USE_SPECULARITY_MAP | SRE_OBJECT_CAST_SHADOWS);
+        SRE_OBJECT_USE_SPECULARITY_MAP | SRE_OBJECT_CAST_SHADOWS | physics_flag);
 #else
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | /* SRE_OBJECT_NO_PHYSICS | */
-        SRE_OBJECT_USE_SPECULARITY_MAP | SRE_OBJECT_CAST_SHADOWS);
+        SRE_OBJECT_USE_SPECULARITY_MAP | SRE_OBJECT_CAST_SHADOWS | physics_flag);
 #endif
 #endif
     earth_heightmap = new sreTexture(earth_heightmap_filename, TEXTURE_TYPE_WILL_MERGE_LATER);
@@ -1024,12 +1072,14 @@ void Demo4CreateScene() {
     Vector3D lightdir = Vector3D(- 0.6, - 0.8, - 0.5);
     lightdir.Normalize();
     directional_light = scene->AddDirectionalLight(SRE_LIGHT_DYNAMIC_DIRECTION,
-        lightdir, Color(0.7, 0.7, 0.7));
+        lightdir, Color(0.7f, 0.7f, 0.7f) * sun_light_factor);
 #endif
 #if defined(NIGHT) || defined(SPHERE)
-    spacecraft_spot_light = scene->AddSpotLight(SRE_LIGHT_DYNAMIC_POSITION | SRE_LIGHT_DYNAMIC_DIRECTION,
-        spacecraft_pos - Vector3D(0, 0, 2.4), - initial_ascend_vector, 3.0, 300.0, Color(0.5, 0.5, 0.2));
-    scene->AttachLight(spacecraft_object, spacecraft_spot_light, Vector3D(0, 0, - 2.4));
+    if (create_spacecraft) {
+        spacecraft_spot_light = scene->AddSpotLight(SRE_LIGHT_DYNAMIC_POSITION | SRE_LIGHT_DYNAMIC_DIRECTION,
+            spacecraft_pos - Vector3D(0, 0, 2.4), - initial_ascend_vector, 3.0, 300.0, Color(0.5, 0.5, 0.2));
+        scene->AttachLight(spacecraft_object, spacecraft_spot_light, Vector3D(0, 0, - 2.4));
+    }
 #endif
 
 #ifdef SPHERE
@@ -1040,14 +1090,16 @@ void Demo4CreateScene() {
 #else
     view->SetViewModeFollowObject(0, 40.0, Vector3D(0, 0, 10.0));
 #endif
-    control_object = 1;
     no_gravity = true;
+    if (create_spacecraft) {
+        control_object = 1;
 #ifdef SPHERE
-    hovering_height = Magnitude(ProjectOnto(scene->sceneobject[control_object]->position, initial_ascend_vector));
+        hovering_height = Magnitude(ProjectOnto(scene->sceneobject[control_object]->position, initial_ascend_vector));
 #else
-    hovering_height = scene->sceneobject[control_object]->position.z;
+        hovering_height = scene->sceneobject[control_object]->position.z;
 #endif
-    sreSetHDRKeyValue(0.2);
+    }
+    sreSetHDRKeyValue(0.2f);
 }
 
 void Demo4Render() {
@@ -1200,7 +1252,9 @@ void Demo4Render() {
         factor = far_plane_dist / 2000.0 + powf((far_plane_dist - 2000.0) / 2000.0, 0.2) * 4.0;
     else
         factor = 0.5;
-    sreSetShadowMapRegion(Point3D(- 400.0, - 400.0, - 600.0) * factor, Point3D(400.0, 400.0, 200.0) * factor);
+    sreSetShadowMapRegion(Point3D(- 1000.0f, - 1000.0f, - 1000.0f) * factor,
+        Point3D(1000.0f, 1000.0f, 200.0f) * factor);
+//    sreSetShadowMapRegion(Point3D(- 400.0, - 400.0, - 600.0) * factor, Point3D(400.0, 400.0, 200.0) * factor);
 #endif
 }
 
@@ -1234,7 +1288,12 @@ void Demo4TimeIteration(double time_previous, double time_current) {
     saved_hovering_height = hovering_height;
 }
 
-void Demo4SetParameters(float interval, bool _display_time) {
+void Demo4SetParameters(float interval, bool _display_time, bool _physics,
+bool _create_spacecraft, bool _show_spacecraft, float _sun_light_factor) {
    day_interval = interval;
    display_time = _display_time;
+   physics = _physics;
+   create_spacecraft = _create_spacecraft;
+   show_spacecraft = _show_spacecraft;
+   sun_light_factor = _sun_light_factor;
 }
