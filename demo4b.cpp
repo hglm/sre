@@ -136,8 +136,6 @@ public :
 #define NU_GREAT_CIRCLE_ROUTES 16
 
 static GreatCircleRouteSpec circle_route_spec[NU_GREAT_CIRCLE_ROUTES] = {
-    // Traverse the US from West to East.
-    { - 135.0, 37.0, -60.0, 45.0, 200.0f, - 100.0f, 30.0f, 30.0f },
     // Follow equator over Africa.
     { - 5.0, 0.0, 50.0, 0.0, 200.0f, 50.0f, 0.0f, 30.0f },
     // South to North over Africa.
@@ -157,12 +155,14 @@ static GreatCircleRouteSpec circle_route_spec[NU_GREAT_CIRCLE_ROUTES] = {
     { - 95.0, 0.0, - 40.0, 0.0, 200.0f, - 65.0f, - 15.0f, 30.0f },
     // Follow the Andes from Mexico and end at the South Pole.
     { - 75.0, 20.0, -40.0, -89.0, 200.0f, - 70.0f, - 30.0f, 50.0f },
+    // Rocky Mountains from Mexico to Alaska.
+    { - 110.0, 27.0, - 154.0, 68.0, 200.0f, - 140.0f, 40.0f, 30.0f },
     // To the North Pole from Southern US.
     { - 90.0, 20.0, - 90.0, 90.0, 200.0f, -80.0f, 45.0f, 35.0f },
-    // Rocky Mountains from Mexico to Alaska.
-    { - 110.0, 27.0, - 154.0, 68.0, 200.0f, - 160.0f, 40.0f, 30.0f },
+    // Traverse the US from West to East.
+    { - 135.0, 37.0, -60.0, 45.0, 200.0f, - 95.0f, 40.0f, 30.0f },
     // Traverse Indonesia/Australasia, crossing the equator slightly.
-    { 85.0, 5.0, 150.0, - 10.0, 200.0f, 120.0f, 0.0f, 30.0f },
+    { 85.0, 5.0, 160.0, - 10.0, 200.0f, 120.0f, 0.0f, 30.0f },
     // Traverse Oceania.
     { 100.0, - 15.0, 180.0, - 40.0, 200.0f, 135.0f, -30.0f, 35.0f },
 };
@@ -199,7 +199,7 @@ double& latitude, double& azimuth) {
 }
 
 void Demo4bCreateScene() {
-    Demo4SetParameters(DAY_INTERVAL, false, false, false, false, 1.3f);
+    Demo4SetParameters(DAY_INTERVAL, false, false, false, false, 1.5f);
     Demo4CreateScene();
     // Set the view and movement mode to a static one.
     Point3D viewpoint = Point3D(0, - EARTH_RADIUS - EARTH_RADIUS * EARTH_VIEW_DISTANCE, 0);
