@@ -30,7 +30,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <X11/keysym.h>
 
 #include "sre.h"
-#include "demo.h"
+#include "sreBackend.h"
 #include "x11-common.h"
 #include "gui-common.h"
 
@@ -89,7 +89,7 @@ void X11CreateWindow(int width, int height, XVisualInfo *vi, const char *title) 
 
     XSetWindowAttributes XWinAttr;
     XWinAttr.event_mask  =  ExposureMask | PointerMotionMask | KeyPressMask |
-        KeyReleaseMask | ButtonPressMask | StructureNotifyMask;
+        KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | StructureNotifyMask;
     printf( "Creating colormap\n" );
     XWinAttr.colormap = window_cmap = XCreateColormap(XDisplay,
         XRoot, vinfo.visual, AllocNone);
@@ -141,9 +141,9 @@ void X11ToggleFullScreenMode(int& width, int& height, bool pan_with_mouse) {
     height = ce->height;
 
     if (pan_with_mouse)
-        GUIWarpCursor(width / 2, height / 2);
+        X11WarpCursor(width / 2, height / 2);
 
-    sreResize(view, ce->width, ce->height);
+    sreResize(sre_internal_application->view, ce->width, ce->height);
 }
 
 
@@ -178,7 +178,7 @@ static const unsigned int X11_button_translation_table[] = {
     SRE_TRANSLATION_TABLE_END
 };
 
-static void X11GUIProcessEvents() {
+void X11GUIProcessEvents() {
     XEvent e;
     bool motion_occurred = false;
     int motion_x, motion_y;
@@ -212,21 +212,17 @@ static void X11GUIProcessEvents() {
             int button =  GUITranslateKeycode(be->button, X11_button_translation_table);
             GUIMouseButtonCallback(button, SRE_PRESS);
         }
+        else if (e.type == ButtonRelease) {
+            XButtonReleasedEvent *be = (XButtonReleasedEvent *)&e;
+            int button =  GUITranslateKeycode(be->button, X11_button_translation_table);
+            GUIMouseButtonCallback(button, SRE_RELEASE);
+        }
     }
     if (motion_occurred)
         GUIProcessMouseMotion(motion_x, motion_y);
 }
 
-void GUIProcessEvents(double dt) {
-    X11GUIProcessEvents();
-    GUIMovePlayer(dt);
-}
-
-void GUIToggleFullScreenMode(int& window_width, int& window_height, bool pan_with_mouse) {
-    X11ToggleFullScreenMode(window_width, window_height, pan_with_mouse);
-}
-
-void GUIHideCursor() {
+void X11HideCursor() {
     Cursor invisibleCursor;
     Pixmap bitmapNoData;
     XColor black;
@@ -241,11 +237,11 @@ void GUIHideCursor() {
                 XFreePixmap(XDisplay, bitmapNoData);
 }
 
-void GUIRestoreCursor() {
+void X11RestoreCursor() {
     XUndefineCursor(XDisplay, XWindow);
 }
 
-void GUIWarpCursor(int x, int y) {
+void X11WarpCursor(int x, int y) {
     XWarpPointer(
         XDisplay,
         XWindow,
@@ -256,7 +252,7 @@ void GUIWarpCursor(int x, int y) {
 
 // The following function more or less assumes Linux is used.
 
-double GUIGetCurrentTime() {
+double X11GetCurrentTime() {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;

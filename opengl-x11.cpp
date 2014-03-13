@@ -41,9 +41,29 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <GL/freeglut_ext.h>
 
 #include "sre.h"
-#include "demo.h"
+#include "sreBackend.h"
 #include "x11-common.h"
 #include "gui-common.h"
+
+class sreBackendGLX11 : public sreBackend {
+public :
+    virtual void Initialize(int *argc, char ***argv, int window_width, int window_height);
+    virtual void Finalize();
+    virtual void GLSwapBuffers();
+    virtual void GLSync();
+    virtual double GetCurrentTime();
+    virtual void ProcessGUIEvents();
+    virtual void ToggleFullScreenMode(int& width, int& height, bool pan_with_mouse);
+    virtual void HideCursor();
+    virtual void RestoreCursor();
+    virtual void WarpCursor(int x, int y);
+};
+
+sreBackend *sreCreateBackendGLX11() {
+    sreBackend *b = new sreBackendGLX11;
+    b->name = "OpenGL 3.0+ X11 (low-level)";
+    return b;
+}
 
 typedef struct
 {
@@ -84,7 +104,11 @@ static GLint visual_attributes[] = {
 void CloseGlutWindow() {
 }
 
-void GUIInitialize(int *argc, char ***argv) {
+static void GUIGLSwapBuffers() {
+    sre_internal_backend->GLSwapBuffers();
+}
+
+void sreBackendGLX11::Initialize(int *argc, char ***argv, int window_width, int window_height) {
     // To call GLX functions with glew, we need to call glewInit()
     // first, but it needs an active OpenGL context to be present. So we have to
     // create a temporary GL context.
@@ -194,26 +218,47 @@ void GUIInitialize(int *argc, char ***argv) {
     sreInitialize(window_width, window_height, GUIGLSwapBuffers);
 }
 
-void GUIFinalize() {
-   // Clear screen.
-   glClear(GL_COLOR_BUFFER_BIT);
-   GUIGLSync();
+void sreBackendGLX11::Finalize() {
+    // Clear screen.
+    glClear(GL_COLOR_BUFFER_BIT);
+    sre_internal_backend->GLSync();
 
-   glXMakeCurrent(state->XDisplay, 0, NULL);
-   glXDestroyContext(state->XDisplay, state->context);
-   X11DestroyWindow();
-   X11CloseDisplay();
+    glXMakeCurrent(state->XDisplay, 0, NULL);
+    glXDestroyContext(state->XDisplay, state->context);
+    X11DestroyWindow();
+    X11CloseDisplay();
 }
 
-void GUIGLSwapBuffers() {
+void sreBackendGLX11::GLSwapBuffers() {
     glXSwapBuffers(state->XDisplay, state->XWindow);
 }
 
-void GUIGLSync() {
+void sreBackendGLX11::GLSync() {
     glXSwapBuffers(state->XDisplay, state->XWindow);
     glXWaitGL();
 }
 
-const char *GUIGetBackendName() {
-   return "OpenGL X11 (low-level)";
+double sreBackendGLX11::GetCurrentTime() {
+    return X11GetCurrentTime();
 }
+
+void sreBackendGLX11::ProcessGUIEvents() {
+    X11GUIProcessEvents();
+}
+
+void sreBackendGLX11::ToggleFullScreenMode(int& width, int& height, bool pan_with_mouse) {
+    X11ToggleFullScreenMode(width, height, pan_with_mouse);
+}
+
+void sreBackendGLX11::HideCursor() {
+    X11HideCursor();
+}
+
+void sreBackendGLX11::RestoreCursor() {
+    X11RestoreCursor();
+}
+
+void sreBackendGLX11::WarpCursor(int x, int y) {
+    X11WarpCursor(x, y);
+}
+

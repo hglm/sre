@@ -1617,6 +1617,10 @@ enum {
 };
 SRE_API void sreSetGlobalTextureDetailFlags(int set_mask, int flags);
 SRE_API int sreGetGlobalTextureDetailFlags();
+enum {
+    SRE_OPENGL_PLATFORM_GLES2, SRE_OPENGL_PLATFORM_GL3
+};
+SRE_API int sreGetOpenGLPlatform();
 
 class sreFont;
 

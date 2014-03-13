@@ -37,7 +37,7 @@ static sreModel *particle_system_500_model = NULL;
 #define PARTICLE_SYSTEM_HEIGHT 25.0f
 #define PARTICLE_SIZE 0.5f
 
-static void AddParticleSystem500(const Point3D& position, Color color) {
+static void AddParticleSystem500(sreScene *scene, const Point3D& position, Color color) {
     if (particle_system_500_model == NULL)
         return;
     // Create a particle system in the shape of a dome (half of a sphere).
@@ -83,7 +83,7 @@ Color light_object_color_array[4] = {
     Color(1.0, 0.85, 0.7)
 };
 
-void Demo2CreateScene() {
+void Demo2CreateScene(sreScene *scene, sreView *view) {
     rng = sreGetDefaultRNG();
 
     // Add player sphere as scene object 0.
@@ -148,7 +148,7 @@ void Demo2CreateScene() {
 
     // Add particle system with small light halos.
     particle_system_500_model = sreCreateParticleSystemModel(scene, 500, true);
-    AddParticleSystem500(Point3D(- 50.0f, 10.0f, 0), Color(1.0f, 1.0f, 0));
+    AddParticleSystem500(scene, Point3D(- 50.0f, 10.0f, 0), Color(1.0f, 1.0f, 0));
     scene->SetEmissionColor(Color(0, 0, 0));
 
     // Add cylinders in concentric circles.
@@ -217,11 +217,5 @@ void Demo2CreateScene() {
         Color(0.3f, 0.3f, 0.3f));
 }
 
-void Demo2Render() {
-    scene->Render(view);
+void Demo2Step(sreScene *scene, double demo_time) {
 }
-
-void Demo2TimeIteration(double time_previous, double time_current) {
-}
-
-

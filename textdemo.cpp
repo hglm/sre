@@ -23,6 +23,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <math.h>
 
 #include "sre.h"
+#include "sreBackend.h"
 #include "sreRandom.h"
 
 #include "demo.h"
@@ -40,6 +41,7 @@ static sreRNG *rng;
 
 static int current_test = - 1;
 static double test_start_time, test_time;
+static double current_time;
 
 class TextTestInfo {
 public :
@@ -166,7 +168,7 @@ void TextDemoGridSwapDraw() {
     float y = 0.1;
     if (test_time >= TEST_DURATION * 0.5) {
         // Get the phase from 0 to 1.0.
-        double t = 2 * M_PI * fmod(demo_time, TEST_GRID_SWAP_CIRCLE_PERIOD) / TEST_GRID_SWAP_CIRCLE_PERIOD;
+        double t = 2 * M_PI * fmod(current_time, TEST_GRID_SWAP_CIRCLE_PERIOD) / TEST_GRID_SWAP_CIRCLE_PERIOD;
         // Move in a circle with a radius 0.1. To start in the original position (no abrupt
         // move), start with 0.25 * PI.
         t += M_PI * 0.25;
@@ -303,7 +305,7 @@ void TextDemoRandomPositionDraw() {
 }
 
 // Demo 3 uses scaling to a big size, smoothly modulating the scaling factor
-// based on demo_time.
+// based on current_time.
 
 #define TEST_SCALE_PERIOD (TEST_DURATION * 0.5)
 
@@ -311,9 +313,9 @@ void TextDemoScaleDraw() {
     char text[2];
     text[1] = '\0';
     // Get the phase from 0 to 1.0.
-    double t = fmod(demo_time, TEST_SCALE_PERIOD) / TEST_SCALE_PERIOD;
+    double t = fmod(current_time, TEST_SCALE_PERIOD) / TEST_SCALE_PERIOD;
     // Run the alphabet from A to Z during the test duration.
-    text[0] = 'A' + trunc(26.0 * fmod(demo_time, TEST_DURATION) / TEST_DURATION);
+    text[0] = 'A' + trunc(26.0 * fmod(current_time, TEST_DURATION) / TEST_DURATION);
     // Smoothly modulate the scaling factor with sinus function,
     // ranging from 0.5 to 1.1.
     double scale = 0.5 + 0.3 * sin(t * M_PI * 2.0);
@@ -388,7 +390,7 @@ static void DrawTextOverlay() {
     // Skip the very first frame.
     if (current_test < 0)
         return;
-    test_time = demo_time - test_start_time;
+    test_time = current_time - test_start_time;
 #if 0
     if (test_info[current_test].shader_type == 0) {
         SetStandardTextParameters();
@@ -418,10 +420,10 @@ static void DrawTextOverlay() {
         sreDrawTextCentered(s, 0,  0.95f, 1.0f);
 //    }
     // Add the default GUI (fps etc).
-    DemoTextOverlay();
+    sreBackendStandardTextOverlay();
 }
 
-void TextDemoCreateScene() {
+void TextDemoCreateScene(sreScene *scene, sreView *view) {
     // Scene doesn't matter.
 #if 0
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);
@@ -464,12 +466,11 @@ void TextDemoCreateScene() {
     // in the very first frame in the TextOverlay function.
 }
 
-void TextDemoRender() {
-    scene->Render(view);
-}
+double previous_time = 0;
 
-void TextDemoTimeIteration(double previous_time, double current_time) {
-   float dt = current_time - previous_time;
+void TextDemoStep(sreScene *scene, double demo_time) {
+   float dt = demo_time - previous_time;
+   previous_time = demo_time;
    int test_number = (int)truncf(demo_time / TEST_DURATION) % NU_TESTS;
    if (test_number != current_test) {
        current_test = test_number;
@@ -477,4 +478,5 @@ void TextDemoTimeIteration(double previous_time, double current_time) {
        test_start_time = demo_time;
    }
    test_info[current_test].set_text_func(dt);
+   current_time = demo_time;
 }

@@ -436,6 +436,14 @@ int sreGetGlobalTextureDetailFlags() {
     return sre_internal_texture_detail_flags;
 }
 
+int sreGetOpenGLPlatform() {
+#ifdef OPENGL_ES2
+    return SRE_OPENGL_PLATFORM_GLES2;
+#else
+    return SRE_OPENGL_PLATFORM_GL3;
+#endif
+}
+
 // Allocate UV transformation matrix that flips U or V.
 
 Matrix3D *sreNewMirroringUVTransform(bool flip_u, bool flip_v) {

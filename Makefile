@@ -2,7 +2,7 @@
 
 include Makefile.conf
 
-VERSION = 0.1
+VERSION = 0.2
 VERSION_MAJOR = 0
 
 DEMO_PROGRAM = sre-demo
@@ -52,48 +52,38 @@ endif
 CFLAGS = -Wall -pipe $(OPTCFLAGS)
 
 # Select GLFW platform
-ifeq ($(TARGET), GL_GLFW)
+ifeq ($(DEFAULT_BACKEND), GL_GLFW)
 GLFW_PLATFORM = PURE_GLFW
 endif
-ifeq ($(TARGET), GL_GLFW_X11)
+ifeq ($(DEFAULT_BACKEND), GL_GLFW_X11)
 GLFW_PLATFORM = X11
 WINDOW_SYSTEM = X11
 endif
 
-ifeq ($(TARGET), GL_X11)
+ifeq ($(DEFAULT_BACKEND), GL_X11)
 WINDOW_SYSTEM = X11
 endif
 
-ifeq ($(TARGET), GL_GLUT)
+ifeq ($(DEFAULT_BACKEND), GL_GLUT)
 GLUT_PLATFORM = GLUT
 endif
-ifeq ($(TARGET), GL_FREEGLUT)
+ifeq ($(DEFAULT_BACKEND), GL_FREEGLUT)
 GLUT_PLATFORM = FREEGLUT
 endif
 
 # Select OPENGL_ES2 platform if applicable
-ifeq ($(TARGET), GLES2_X11)
+ifeq ($(DEFAULT_BACKEND), GLES2_X11)
 OPENGL_ES2 = X11
 WINDOW_SYSTEM = X11
 endif
-ifeq ($(TARGET), GLES2_ALLWINNER_MALI_FB)
+ifeq ($(DEFAULT_BACKEND), GLES2_ALLWINNER_MALI_FB)
 OPENGL_ES2 = ALLWINNER_MALI_FB
 endif
-ifeq ($(TARGET) ,GLES2_RPI_FB)
+ifeq ($(DEFAULT_BACKEND) ,GLES2_RPI_FB)
 OPENGL_ES2 = RPI_FB
 endif
 
 FRAMEBUFFER_COMMON_MODULE_OBJECTS = CriticalSection.o MouseEventQueue.o linux-fb-ui.o
-
-# Raw X11 platform with OpenGL 3+
-ifeq ($(TARGET), GL_X11)
-DEFINES_LIB = -DOPENGL #-DNO_PRIMITIVE_RESTART -DNO_SHADOW_MAP -DNO_HDR -DNO_SRGB -DNO_DEPTH_CLAMP -DNO_MULTI_SAMPLE
-DEFINES_DEMO = -DOPENGL -DOPENGL_X11 #-DNO_LARGE_TEXTURES
-EXTRA_PKG_CONFIG_DEMO = gl glew
-EXTRA_PKG_CONFIG_LIB = gl glew
-LFLAGS_DEMO = -lglut
-PLATFORM_MODULE_OBJECTS = opengl-x11.o
-endif
 
 LFLAGS_LIBRARY =
 
@@ -129,34 +119,50 @@ ifneq ($(OPENGL_ES2), X11)
 PLATFORM_MODULE_OBJECTS += $(FRAMEBUFFER_COMMON_MODULE_OBJECTS)
 endif
 
-endif # defined(OPENGL_ES2)
+else # !defined(OPENGL_ES2)
 
-# GLFW platform configuration.
-ifdef GLFW_PLATFORM
-DEFINES_LIB = -DOPENGL #-DNO_SHADOW_MAP -DNO_HDR -DNO_SRGB -DNO_DEPTH_CLAMP -DNO_MULTI_SAMPLE
-DEFINES_DEMO = -DOPENGL -DOPENGL_GLFW #-DNO_LARGE_TEXTURES
 EXTRA_PKG_CONFIG_DEMO = gl glew
 EXTRA_PKG_CONFIG_LIB = gl glew
-LFLAGS_DEMO = -lglfw
-PLATFORM_MODULE_OBJECTS = glfw.o
+DEFINES_LIB = -DOPENGL #-DNO_SHADOW_MAP -DNO_HDR -DNO_SRGB -DNO_DEPTH_CLAMP -DNO_MULTI_SAMPLE
+DEFINES_DEMO = -DOPENGL #-DNO_LARGE_TEXTURES
+LFLAGS_DEMO =
+PLATFORM_MODULE_OBJECTS =
+LFLAGS_GLUT =
+
+# Raw X11 platform with OpenGL 3+
+ifneq (,$(findstring GL_X11,$(SUPPORTED_BACKENDS)))
+LFLAGS_GLUT = -lglut
+PLATFORM_MODULE_OBJECTS += opengl-x11.o
+WINDOW_SYSTEM = X11
+endif
+
+# GLFW platform configuration.
+ifneq (,$(findstring GL_GLFW,$(SUPPORTED_BACKENDS)))
+LFLAGS_DEMO += -lglfw
+PLATFORM_MODULE_OBJECTS += glfw.o
 endif
 
 # GLUT platform configuration.
-ifdef GLUT_PLATFORM
-DEFINES_LIB = -DOPENGL #-DNO_SHADOW_MAP -DNO_HDR -DNO_SRGB -DNO_DEPTH_CLAMP -DNO_MULTI_SAMPLE
-DEFINES_DEMO = -DOPENGL #-DNO_LARGE_TEXTURES
-ifeq ($(GLUT_PLATFORM), GLUT)
-DEFINES_DEMO += -DOPENGL_GLUT
-else
-DEFINES_DEMO += -DOPENGL_FREEGLUT
-endif
-EXTRA_PKG_CONFIG_DEMO = gl glew
-EXTRA_PKG_CONFIG_LIB = gl glew
-LFLAGS_DEMO = -lglut
-PLATFORM_MODULE_OBJECTS = glut.o
+ifneq (,$(findstring GL_GLUT,$(SUPPORTED_BACKENDS)))
+LFLAGS_GLUT = -lglut
+PLATFORM_MODULE_OBJECTS += glut.o
 endif
 
-# X11 is needed when using X11 (OPENGL_ES2_X11, GL_GLFW_X11, or GL_X11)
+# Freeglut platform configuration.
+ifneq (,$(findstring GL_FREEGLUT,$(SUPPORTED_BACKENDS)))
+LFLAGS_GLUT = -lglut
+PLATFORM_MODULE_OBJECTS += glut.o
+DEFINES_DEMO += -DOPENGL_FREEGLUT
+endif
+
+LFLAGS_DEMO += $(LFLAGS_GLUT)
+
+endif # !defined(OPENGL_ES2)
+
+DEFINES_BACKEND = -DDEFAULT_BACKEND=SRE_BACKEND_$(DEFAULT_BACKEND)
+DEFINES_BACKEND += $(patsubst %,-DINCLUDE_BACKEND_%,$(SUPPORTED_BACKENDS))
+
+# X11 is needed when using X11 (OPENGL_ES2_X11 or GL_X11)
 ifeq ($(WINDOW_SYSTEM), X11)
 LFLAGS_DEMO += -lX11
 PLATFORM_MODULE_OBJECTS += x11-common.o
@@ -242,12 +248,14 @@ CFLAGS_LIB =
 LFLAGS_DEMO += -lpng
 ifeq ($(LIBRARY_CONFIGURATION), DEBUG)
 LFLAGS_DEMO += libsre_dbg.a
+LFLAGS_DEMO += libsrebackend_dbg.a
 else
 LFLAGS_DEMO += libsre.a
+LFLAGS_DEMO += libsrebackend.a
 endif
 endif
 CFLAGS_LIB += $(CFLAGS) $(DEFINES_LIB) -I.
-CFLAGS_DEMO = $(CFLAGS) $(DEFINES_DEMO) -I.
+CFLAGS_DEMO = $(CFLAGS) $(DEFINES_DEMO) $(DEFINES_BACKEND) -I.
 
 # Set pkg-config definitions.
 PKG_CONFIG_CFLAGS_DEMO = `pkg-config --cflags bullet $(EXTRA_PKG_CONFIG_DEMO)`
@@ -258,20 +266,26 @@ shadow_bounds.o MatrixClasses.o intersection.o preprocess.o mipmap.o \
 frustum.o bounds.o octree.o fluid.o standard_objects.o text.o scene.o lights.o shadowmap.o \
 bounding_volume.o random.o shader_matrix.o shader_loading.o vertex_buffer.o shader_uniform.o \
 draw_object.o
-CORE_DEMO_MODULE_OBJECTS = gui-common.o main.o demo1.o demo2.o demo4.o demo4b.o \
-demo5.o demo7.o demo8.o demo9.o game.o texture_test.o demo10.o demo11.o textdemo.o
-ALL_PLATFORM_MODULE_OBJECTS = bullet.o glfw.o opengl-x11.o x11-common.o glut.o egl-x11.o egl-common.o \
-egl-allwinner-fb.o egl-rpi-fb.o $(FRAMEBUFFER_COMMON_MODULE_OBJECTS)
+DEMO_MODULE_OBJECTS = demo_main.o demo1.o demo2.o demo4.o demo4b.o \
+demo5.o demo7.o demo8.o demo9.o demo10.o demo11.o textdemo.o
+ALL_BACKEND_MODULE_OBJECTS = sre_backend.o gui-common.o bullet.o glfw.o opengl-x11.o \
+x11-common.o glut.o egl-x11.o egl-common.o egl-allwinner-fb.o egl-rpi-fb.o \
+$(FRAMEBUFFER_COMMON_MODULE_OBJECTS)
 ORIGINAL_LIBRARY_MODULE_OBJECTS = $(CORE_LIBRARY_MODULE_OBJECTS) $(EXTRA_LIBRARY_MODULE_OBJECTS)
 LIBRARY_MODULE_OBJECTS = $(ORIGINAL_LIBRARY_MODULE_OBJECTS) $(EXTRA_GENERATED_LIBRARY_MODULE_OBJECTS)
-DEMO_MODULE_OBJECTS = $(PLATFORM_MODULE_OBJECTS) $(CORE_DEMO_MODULE_OBJECTS)
+BACKEND_MODULE_OBJECTS = sre_backend.o gui-common.o $(PLATFORM_MODULE_OBJECTS)
 
-LIBRARY_HEADER_FILES = sre.h sreVectorMath.h sreBoundingVolume.h sreRandom.h
+LIBRARY_HEADER_FILES = sre.h sreVectorMath.h sreBoundingVolume.h sreRandom.h sreBackend.h
 
+ifeq ($(LIBRARY_CONFIGURATION), DEBUG)
+BACKEND_OBJECT = libsrebackend_dbg.a
+else
+BACKEND_OBJECT = libsrebackend.a
+endif
 ifeq ($(LIBRARY_CONFIGURATION), SHARED)
 LIBRARY_OBJECT = libsre.so.$(VERSION)
-INSTALL_TARGET = install_shared
-LIBRARY_DEPENDENCY = $(SHARED_LIB_DIR)/$(LIBRARY_OBJECT)
+INSTALL_TARGET = install_shared install_backend
+LIBRARY_DEPENDENCY = $(SHARED_LIB_DIR)/$(LIBRARY_OBJECT) $(BACKEND_OBJECT)
 else
 ifeq ($(LIBRARY_CONFIGURATION), DEBUG)
 LIBRARY_OBJECT = libsre_dbg.a
@@ -279,11 +293,11 @@ else
 LIBRARY_OBJECT = libsre.a
 endif
 # install_static also works for debugging library
-INSTALL_TARGET = install_static
-LIBRARY_DEPENDENCY = $(LIBRARY_OBJECT)
+INSTALL_TARGET = install_static install_backend
+LIBRARY_DEPENDENCY = $(LIBRARY_OBJECT) $(BACKEND_OBJECT)
 endif
 
-default : library
+default : library backend
 
 library : $(LIBRARY_OBJECT)
 
@@ -302,6 +316,18 @@ libsre_dbg.a : $(LIBRARY_MODULE_OBJECTS)
 	@echo 'Make demo to make the demo program without installing.'
 	@echo 'Both library and demo are compiled with debugging enabled.'
 
+backend : $(BACKEND_OBJECT)
+
+libsrebackend.a : $(BACKEND_MODULE_OBJECTS)
+	ar r libsrebackend.a $(BACKEND_MODULE_OBJECTS)
+	@echo 'Run (sudo) make install to install or make demo to make the'
+	@echo 'demo program without installing.'
+
+libsrebackend_dbg.a : $(BACKEND_MODULE_OBJECTS)
+	ar r libsrebackend_dbg.a $(BACKEND_MODULE_OBJECTS)
+	@echo 'Make demo to make the demo program without installing.'
+	@echo 'Both library and backend are compiled with debugging enabled.'
+
 install : $(INSTALL_TARGET) install_headers
 
 install_headers : $(LIBRARY_HEADER_FILES)
@@ -315,14 +341,17 @@ install_shared : $(LIBRARY_OBJECT)
 	ln -sf $(SHARED_LIB_DIR)/$(LIBRARY_OBJECT) $(SHARED_LIB_DIR)/libsre.so.$(VERSION_MAJOR)
 	@echo Run make demo to make the demo program.
 
-install_static : $(LIBRARY_OBJECT) sre.h
+install_static : $(LIBRARY_OBJECT)
 	install -m 0644 $(LIBRARY_OBJECT) $(STATIC_LIB_DIR)/$(LIBRARY_OBJECT)
+
+install_backend : $(BACKEND_OBJECT)
+	install -m 0644 $(BACKEND_OBJECT) $(STATIC_LIB_DIR)/$(BACKEND_OBJECT)
 	@echo Run make demo to make the demo program.
 
 demo : $(DEMO_PROGRAM)
 
-$(DEMO_PROGRAM) :  $(LIBRARY_DEPENDENCY) $(DEMO_MODULE_OBJECTS)
-	g++ $(DEMO_MODULE_OBJECTS) -o $(DEMO_PROGRAM) $(PKG_CONFIG_LIBS_DEMO) $(LFLAGS_DEMO)
+$(DEMO_PROGRAM) : $(LIBRARY_DEPENDENCY) $(BACKEND_OBJECT) $(DEMO_MODULE_OBJECTS)
+	g++ $(DEMO_MODULE_OBJECTS) -o $(DEMO_PROGRAM) $(LFLAGS_DEMO) $(PKG_CONFIG_LIBS_DEMO)
 
 shaders_builtin.cpp : $(SHADER_SOURCES)
 	echo // libsre v$(VERSION) shaders, `date --rfc-3339='date'` > shaders_builtin.cpp
@@ -340,10 +369,11 @@ shaders_builtin.cpp : $(SHADER_SOURCES)
 
 clean :
 	rm -f $(LIBRARY_MODULE_OBJECTS)
-	rm -f $(CORE_DEMO_MODULE_OBJECTS) $(ALL_PLATFORM_MODULE_OBJECTS)
+	rm -f $(DEMO_MODULE_OBJECTS) $(ALL_BACKEND_MODULE_OBJECTS)
 	rm -f libsre.so.$(VERSION)
 	rm -f libsre.a
 	rm -f libsre_dbg.a
+	rm -f libsrebackend.a
 	rm -f $(DEMO_PROGRAM)
 
 cleanall : clean
@@ -356,7 +386,8 @@ rules :
 
 .rules : Makefile.conf Makefile
 	rm -f .rules
-	# Create rules to compile library modules.
+	# Create rules to compile library modules.364
+
 	for x in $(LIBRARY_MODULE_OBJECTS); do \
 	echo $$x : >> .rules; \
 	SOURCEFILE=`echo $$x | sed s/\\\.o/\.cpp/`; \
@@ -364,7 +395,7 @@ rules :
 	-o $$x '$$(PKG_CONFIG_CFLAGS_LIB)' >> .rules; \
 	done
 	# Create rules to compile demo/back-end modules.
-	for x in $(CORE_DEMO_MODULE_OBJECTS) $(ALL_PLATFORM_MODULE_OBJECTS); do \
+	for x in $(DEMO_MODULE_OBJECTS) $(ALL_BACKEND_MODULE_OBJECTS); do \
 	echo $$x : >> .rules; \
 	SOURCEFILE=`echo $$x | sed s/\\\.o/\.cpp/`; \
 	echo \\tg++ -c '$$(CFLAGS_DEMO)' "$$SOURCEFILE" \
@@ -383,9 +414,9 @@ dep :
 	for x in $(ORIGINAL_LIBRARY_MODULE_OBJECTS); do \
 	echo $$x : Makefile.conf >> .depend; done
 	echo '# Module dependencies' >> .depend
-	g++ -MM $(patsubst %.o,%.cpp,$(DEMO_MODULE_OBJECTS)) >> .depend
+	g++ -MM $(patsubst %.o,%.cpp,$(DEMO_MODULE_OBJECTS) $(BACKEND_MODULE_OBJECTS)) >> .depend
         # Make sure Makefile.conf is a dependency for all modules.
-	for x in $(DEMO_MODULE_OBJECTS); do \
+	for x in $(DEMO_MODULE_OBJECTS) $(BACKEND_MODULE_OBJECTS); do \
 	echo $$x : Makefile.conf >> .depend; done
 	# Add dependencies for builtin shaders.
 	echo shaders_builtin.cpp : $(SHADER_SOURCES) >> .depend

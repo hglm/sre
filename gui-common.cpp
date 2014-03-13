@@ -22,7 +22,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <string.h>
 
 #include "sre.h"
-#include "demo.h"
+#include "sreBackend.h"
 #include "gui-common.h"
 
 int window_width = WINDOW_WIDTH;
@@ -33,6 +33,7 @@ static bool accelerate_pressed = false;
 static bool decelerate_pressed = false;
 static bool ascend_pressed = false;
 static bool descend_pressed = false;
+static bool jump_input_detected = false;
 static int menu_mode = 0;
 static char short_engine_settings_text[128];
 static int text_filtering_mode = SRE_TEXTURE_FILTER_LINEAR;
@@ -42,7 +43,7 @@ static int visualized_shadow_map = - 1;
 
 void GUIMouseButtonCallback(int button, int state) {
     if (state == SRE_PRESS) {
-        if (no_gravity) {
+        if (sre_internal_application->flags & SRE_APPLICATION_FLAG_NO_GRAVITY) {
             if (button == SRE_MOUSE_BUTTON_LEFT)
                 ascend_pressed = true;
             else
@@ -51,10 +52,10 @@ void GUIMouseButtonCallback(int button, int state) {
         }
         else
         if (button == SRE_MOUSE_BUTTON_LEFT)
-            jump_requested = true;
+            jump_input_detected = true;
     }
     else if (state == SRE_RELEASE) {
-        if (no_gravity) {
+        if (sre_internal_application->flags & SRE_APPLICATION_FLAG_NO_GRAVITY) {
             if (button == SRE_MOUSE_BUTTON_LEFT)
                 ascend_pressed = false;
             else
@@ -76,7 +77,7 @@ void GUIMouseButtonCallbackNoKeyboard(int button, int state) {
     if (state == SRE_RELEASE && button == SRE_MOUSE_BUTTON_RIGHT)
         decelerate_pressed = false;
     if (state == SRE_PRESS && button == SRE_MOUSE_BUTTON_MIDDLE)
-        jump_requested = true;
+        jump_input_detected = true;
 }
 
 static void SetShortEngineSettingsText() {
@@ -100,7 +101,7 @@ static char *strend(char *s) {
     return s + strlen(s);
 }
 
-static void SetSceneInfo(sreEngineSettingsInfo *settings_info) {
+static void SetSceneInfo(sreScene *scene, sreEngineSettingsInfo *settings_info) {
     sprintf(scene_info_text_line[13],
         "Number of objects: %d (capacity %d), models: %d (capacity %d)",
         scene->nu_objects, scene->max_scene_objects, scene->nu_models, scene->max_models);
@@ -157,7 +158,8 @@ static void SetSceneInfo(sreEngineSettingsInfo *settings_info) {
 }
 
 static void SetEngineSettingsInfo(sreEngineSettingsInfo *info) {
-    sprintf(scene_info_text_line[0], "SRE v0.1, %s, back-end: %s", opengl_str[info->opengl_version], GUIGetBackendName());
+    sprintf(scene_info_text_line[0], "SRE v0.1, %s, back-end: %s", opengl_str[info->opengl_version],
+        sre_internal_backend->name);
     sprintf(scene_info_text_line[1], "");
     sprintf(scene_info_text_line[2], "Resolution: %dx%d", info->window_width, info->window_height);
     sprintf(scene_info_text_line[3],
@@ -193,22 +195,22 @@ static void SetInfoScreen() {
 
     settings_info = sreGetEngineSettingsInfo();
     SetEngineSettingsInfo(settings_info);
-    SetSceneInfo(settings_info);
+    SetSceneInfo(sre_internal_application->scene, settings_info);
     delete settings_info;
 
     for (int i = 0; i < 22; i++)
-        text_message[i] = scene_info_text_line[i];
-    text_message[22] = "";
-    nu_text_message_lines = 23;
+        sre_internal_application->text_message[i] = scene_info_text_line[i];
+    sre_internal_application->text_message[22] = "";
+    sre_internal_application->nu_text_message_lines = 23;
 }
 
 void GUIProcessMouseMotion(int x, int y) {
     if (!pan_with_mouse)
         return;
-    if (lock_panning)
+    if (sre_internal_application->flags & SRE_APPLICATION_FLAG_LOCK_PANNING)
         return;
     Vector3D angles;
-    view->GetViewAngles(angles);
+    sre_internal_application->view->GetViewAngles(angles);
     angles.z -= (x - window_width / 2) * 360.0f * 0.5 / window_width;
     angles.x -= (y - window_height / 2) * 360.0f * 0.5 / window_width;
     // The horizontal field of view wraps around.
@@ -221,49 +223,49 @@ void GUIProcessMouseMotion(int x, int y) {
         angles.x = - 80;
     if (angles.x > 10)
         angles.x = 10;
-    view->SetViewAngles(angles);
-    GUIWarpCursor(window_width / 2, window_height / 2);
+    sre_internal_application->view->SetViewAngles(angles);
+    sre_internal_backend->WarpCursor(window_width / 2, window_height / 2);
 }
 
 void GUITextMessageTimeoutCallback() {
     // Avoid the callback from called unless another message is posted.
-    text_message_timeout = 1000000.0;
+    sre_internal_application->text_message_timeout = 1000000.0;
     if (menu_mode > 0) {
         // Keep the menu.
         return;
     }
     // No menu, remove the text message.
-    nu_text_message_lines = 2;
-    text_message[0] = "";
-    text_message[1] = "";
+    sre_internal_application->nu_text_message_lines = 2;
+    sre_internal_application->text_message[0] = "";
+    sre_internal_application->text_message[1] = "";
 }
 
 void GUIKeyPressCallback(unsigned int key) {
     switch (key) {
     case 'Q' :
-        GUIFinalize();
+        sre_internal_backend->Finalize();
         exit(0);
         break;
     case 'F' :
-        GUIGLSync();
-        GUIToggleFullScreenMode(window_width, window_height, pan_with_mouse);
+        sre_internal_backend->GLSync();
+        sre_internal_backend->ToggleFullScreenMode(window_width, window_height, pan_with_mouse);
         break;
     case 'M' :
         if (pan_with_mouse) {
-            GUIRestoreCursor();
+            sre_internal_backend->RestoreCursor();
             pan_with_mouse = false;
         }
         else {
-            GUIWarpCursor(window_width / 2, window_height / 2);
-            GUIHideCursor();
+            sre_internal_backend->WarpCursor(window_width / 2, window_height / 2);
+            sre_internal_backend->HideCursor();
             pan_with_mouse = true;
         }
         break;
     case '+' :
-        view->SetZoom(view->GetZoom() * 1.0f / 1.1f);
+        sre_internal_application->view->SetZoom(sre_internal_application->view->GetZoom() * 1.0f / 1.1f);
         break;
     case '-' :
-        view->SetZoom(view->GetZoom() * 1.1f);
+        sre_internal_application->view->SetZoom(sre_internal_application->view->GetZoom() * 1.1f);
         break;
     case 'A' :
         accelerate_pressed = true;
@@ -272,76 +274,78 @@ void GUIKeyPressCallback(unsigned int key) {
         decelerate_pressed = true;
         break;
     case '/' :
-        jump_requested = true;
+        jump_input_detected = true;
         break;
     case ' ' :
         // Used to toggle gravity and start hovering mode.
-        no_gravity = !no_gravity;
-        if (no_gravity) {
-            if (view->GetMovementMode() == SRE_MOVEMENT_MODE_USE_FORWARD_AND_ASCEND_VECTOR)
-                 hovering_height = Magnitude(ProjectOnto(scene->sceneobject[control_object]->position,
-                    view->GetAscendVector()));
+        sre_internal_application->SetFlags(sre_internal_application->GetFlags()
+            ^ SRE_APPLICATION_FLAG_NO_GRAVITY);
+        if (SRE_APPLICATION_FLAG_NO_GRAVITY) {
+            if (sre_internal_application->view->GetMovementMode() == SRE_MOVEMENT_MODE_USE_FORWARD_AND_ASCEND_VECTOR)
+                 sre_internal_application->hovering_height = Magnitude(ProjectOnto(
+                     sre_internal_application->scene->sceneobject[sre_internal_application->control_object]->position,
+                     sre_internal_application->view->GetAscendVector()));
             else
-                hovering_height = scene->sceneobject[0]->position.z;
+                sre_internal_application->hovering_height = sre_internal_application->scene->sceneobject[0]->position.z;
         }
         break;
     }
-    if (!lock_panning)
+    if (!(sre_internal_application->flags & SRE_APPLICATION_FLAG_LOCK_PANNING))
     switch (key) {
     case ',' :
         // Rotate view direction 5 degrees along the z axis.
-        view->RotateViewDirection(Vector3D(0, 0, 5.0f));
+        sre_internal_application->view->RotateViewDirection(Vector3D(0, 0, 5.0f));
         break;
     case '.' :
-        view->RotateViewDirection(Vector3D(0, 0, - 5.0f));
+        sre_internal_application->view->RotateViewDirection(Vector3D(0, 0, - 5.0f));
         break;
     case 'N' :
-        view->RotateViewDirection(Vector3D(5.0f, 0, 0));
+        sre_internal_application->view->RotateViewDirection(Vector3D(5.0f, 0, 0));
         break;
     case 'H' :
-        view->RotateViewDirection(Vector3D(-5.0f, 0, 0));
+        sre_internal_application->view->RotateViewDirection(Vector3D(-5.0f, 0, 0));
         break;
     }
     switch (key) {
     case SRE_KEY_F5 :
         sreSetShaderMask(0xFF);
-        text_message[0] = "All optimized shaders enabled";
-        text_message_time = GUIGetCurrentTime();
+        sre_internal_application->text_message[0] = "All optimized shaders enabled";
+        sre_internal_application->text_message_time = sre_internal_backend->GetCurrentTime();
         break;
     case SRE_KEY_F6 :
         sreSetShaderMask(0x01);
-        text_message[0] = "All optimized shaders disabled";
-        text_message_time = GUIGetCurrentTime();
+        sre_internal_application->text_message[0] = "All optimized shaders disabled";
+        sre_internal_application->text_message_time = sre_internal_backend->GetCurrentTime();
         break;
     case '[' :
         // Cycle viewpoint to previous object.
-        if (view->GetFollowedObject() > 0) {
+        if (sre_internal_application->view->GetFollowedObject() > 0) {
             float distance;
             Vector3D offset_vector;
-            view->GetFollowedObjectParameters(distance, offset_vector);
-            view->SetViewModeFollowObject(view->GetFollowedObject() - 1,
+            sre_internal_application->view->GetFollowedObjectParameters(distance, offset_vector);
+            sre_internal_application->view->SetViewModeFollowObject(sre_internal_application->view->GetFollowedObject() - 1,
                 distance, offset_vector);
         }
         break;
     case ']' :
         // Cycle viewpoint to next object.
-        if (view->GetFollowedObject() < scene->nu_objects - 1) {
+        if (sre_internal_application->view->GetFollowedObject() < sre_internal_application->scene->nu_objects - 1) {
             float distance;
             Vector3D offset_vector;
-            view->GetFollowedObjectParameters(distance, offset_vector);
-            view->SetViewModeFollowObject(view->GetFollowedObject() + 1,
+            sre_internal_application->view->GetFollowedObjectParameters(distance, offset_vector);
+            sre_internal_application->view->SetViewModeFollowObject(sre_internal_application->view->GetFollowedObject() + 1,
                 distance, offset_vector);
         }
         break;
     case '\\' :
         // Bird's eye view toward (0, 0, 0).
-        view->SetViewModeLookAt(Point3D(0, 0, 200.0), Point3D(0, 0, 0), Vector3D(0, 1.0, 0));           
+        sre_internal_application->view->SetViewModeLookAt(Point3D(0, 0, 200.0), Point3D(0, 0, 0), Vector3D(0, 1.0, 0));           
         break;
     case 'U' :
         // Cycle visualized shadow map.
         visualized_shadow_map++;
         // - 1 is disable.
-        if (visualized_shadow_map >= scene->nu_lights)
+        if (visualized_shadow_map >= sre_internal_application->scene->nu_lights)
             visualized_shadow_map = - 1;
         sreSetVisualizedShadowMap(visualized_shadow_map);
         break;
@@ -358,47 +362,47 @@ void GUIKeyPressCallback(unsigned int key) {
 
     if (menu_mode != 1 && key == SRE_KEY_F1) {
         menu_mode = 1;
-        text_message[0] = "Rendering engine settings:";
-        text_message[1] = "";
-        text_message[2] = "1 -- No shadows";
-        text_message[3] = "2 -- Shadow volumes";
-        text_message[4] = "3 -- Shadow mapping";
-        text_message[5] = "4 -- Standard reflection model";
-        text_message[6] = "5 -- Microfacet reflection model";
-        text_message[7] = "6 -- Single-pass rendering (only one light)";
-        text_message[8] = "7 -- Multi-pass rendering";
-        text_message[9] = "s -- Enable scissors optimization (light only)";
-        text_message[10] = "g -- Enable scissors optimization with geometry scissors";
-//        text_message[11] = "o -- Enable scissors optimization with matrix geometry scissors";
-        text_message[11] = "d -- Disable scissors optimization";
-        text_message[12] = "Enabled/disable shadow volume settings: F9/F10 - strip/fans, F11/F12 - Cache";
-        text_message[13] = "v/b x/c - visibility tests, =/Backspace -- Force depth-fail stencil rendering";
-        text_message[14] = "l/k -- Enable/disable light attenuation";
-        text_message[15] = "8/9 -- Enable/disable light object list rendering";
-        text_message[16] = "F2/F3 -- Disable/enable HDR rendering  F4 -- Cycle tone mapping shader";
-//        text_message[16] = "F5/F6 -- Enable/disable certain optimized shaders";
-        text_message[17] = "F7 -- Cycle texture anisotropy  F8 -- Cycle number of visible lights";
-        text_message[18] = "";
+        sre_internal_application->text_message[0] = "Rendering engine settings:";
+        sre_internal_application->text_message[1] = "";
+        sre_internal_application->text_message[2] = "1 -- No shadows";
+        sre_internal_application->text_message[3] = "2 -- Shadow volumes";
+        sre_internal_application->text_message[4] = "3 -- Shadow mapping";
+        sre_internal_application->text_message[5] = "4 -- Standard reflection model";
+        sre_internal_application->text_message[6] = "5 -- Microfacet reflection model";
+        sre_internal_application->text_message[7] = "6 -- Single-pass rendering (only one light)";
+        sre_internal_application->text_message[8] = "7 -- Multi-pass rendering";
+        sre_internal_application->text_message[9] = "s -- Enable scissors optimization (light only)";
+        sre_internal_application->text_message[10] = "g -- Enable scissors optimization with geometry scissors";
+//        sre_internal_application->text_message[11] = "o -- Enable scissors optimization with matrix geometry scissors";
+        sre_internal_application->text_message[11] = "d -- Disable scissors optimization";
+        sre_internal_application->text_message[12] = "Enabled/disable shadow volume settings: F9/F10 - strip/fans, F11/F12 - Cache";
+        sre_internal_application->text_message[13] = "v/b x/c - visibility tests, =/Backspace -- Force depth-fail stencil rendering";
+        sre_internal_application->text_message[14] = "l/k -- Enable/disable light attenuation";
+        sre_internal_application->text_message[15] = "8/9 -- Enable/disable light object list rendering";
+        sre_internal_application->text_message[16] = "F2/F3 -- Disable/enable HDR rendering  F4 -- Cycle tone mapping shader";
+//        sre_internal_application->text_message[16] = "F5/F6 -- Enable/disable certain optimized shaders";
+        sre_internal_application->text_message[17] = "F7 -- Cycle texture anisotropy  F8 -- Cycle number of visible lights";
+        sre_internal_application->text_message[18] = "";
         SetShortEngineSettingsText();
-        text_message[19] = short_engine_settings_text;
-        text_message[20] = "";
-        text_message[21] = "";
-        text_message[22] = "";
-        nu_text_message_lines = 23;
-        text_message_time = GUIGetCurrentTime() + 1000000.0;
+        sre_internal_application->text_message[19] = short_engine_settings_text;
+        sre_internal_application->text_message[20] = "";
+        sre_internal_application->text_message[21] = "";
+        sre_internal_application->text_message[22] = "";
+        sre_internal_application->nu_text_message_lines = 23;
+        sre_internal_application->text_message_time = sre_internal_backend->GetCurrentTime() + 1000000.0;
    }
    else if (menu_mode != 2 && key == 'I') {
         menu_mode = 2;
         // Show info screen with engine settings and scene info.
         SetInfoScreen();
-        text_message_time = GUIGetCurrentTime() + 1000000.0;
+        sre_internal_application->text_message_time = sre_internal_backend->GetCurrentTime() + 1000000.0;
    }
    else if ((menu_mode == 1 && key == SRE_KEY_F1) || (menu_mode == 2 && key == 'I')) {
        // Clear menu/info overlay.
        menu_mode = 0;
-       nu_text_message_lines = 2;
-       text_message[0] = "";
-       text_message[1] = "";
+       sre_internal_application->nu_text_message_lines = 2;
+       sre_internal_application->text_message[0] = "";
+       sre_internal_application->text_message[1] = "";
    }
 
    // Make messages appear below the menu when it is active.
@@ -411,109 +415,109 @@ void GUIKeyPressCallback(unsigned int key) {
         switch (key) {
         case '2' :
             sreSetShadowsMethod(SRE_SHADOWS_SHADOW_VOLUMES);
-            text_message[line_number] = "Shadow volumes enabled";
+            sre_internal_application->text_message[line_number] = "Shadow volumes enabled";
             break;
         case '1' :
             sreSetShadowsMethod(SRE_SHADOWS_NONE);
-            text_message[line_number] = "Shadows disabled";
+            sre_internal_application->text_message[line_number] = "Shadows disabled";
             break;
         case '7' :
             sreEnableMultiPassRendering();
-            text_message[line_number] = "Multi-pass rendering enabled";
+            sre_internal_application->text_message[line_number] = "Multi-pass rendering enabled";
             break;
         case '6' :
             sreDisableMultiPassRendering();
-            text_message[line_number] = "Multi-pass rendering disabled";
+            sre_internal_application->text_message[line_number] = "Multi-pass rendering disabled";
             break;
         case '4':
             sreSetReflectionModel(SRE_REFLECTION_MODEL_STANDARD);
-            text_message[line_number] = "Standard reflection model selected";
+            sre_internal_application->text_message[line_number] = "Standard reflection model selected";
             break;
         case '5' :
             sreSetReflectionModel(SRE_REFLECTION_MODEL_MICROFACET);
-            text_message[line_number] = "Microfacet reflection model selected";
+            sre_internal_application->text_message[line_number] = "Microfacet reflection model selected";
             break;
         case '3' :
             sreSetShadowsMethod(SRE_SHADOWS_SHADOW_MAPPING);
-            text_message[line_number] = "Shadow mapping enabled";
+            sre_internal_application->text_message[line_number] = "Shadow mapping enabled";
             break;
         case 'L' :
             sreSetLightAttenuation(true);
-            text_message[line_number] = "Light attenuation enabled";
+            sre_internal_application->text_message[line_number] = "Light attenuation enabled";
             break;
         case 'K' :
             sreSetLightAttenuation(false);
-            text_message[line_number] = "Light attenuation disabled";
+            sre_internal_application->text_message[line_number] = "Light attenuation disabled";
             break;
         case 'S' :
             sreSetLightScissors(SRE_SCISSORS_LIGHT);
-            text_message[line_number] = "Light scissors enabled";
+            sre_internal_application->text_message[line_number] = "Light scissors enabled";
             break;
         case 'G' :
             sreSetLightScissors(SRE_SCISSORS_GEOMETRY);
-            text_message[line_number] = "Geometry scissors enabled";
+            sre_internal_application->text_message[line_number] = "Geometry scissors enabled";
             break;
         case 'D' :
             sreSetLightScissors(SRE_SCISSORS_NONE);
-            text_message[line_number] = "Light/geometry scissors disabled";
+            sre_internal_application->text_message[line_number] = "Light/geometry scissors disabled";
             break;
          // Excentric scissors optimization that modifies the transformation
          // matrix, doesn't really work in practice on modern hardware due to
          // precision consistency so is disabled.
 //        case 'O' :
 //            sreSetLightScissors(SRE_SCISSORS_GEOMETRY_MATRIX);
-//            text_message[line_number] = "Geometry matrix scissors enabled";
+//            sre_internal_application->text_message[line_number] = "Geometry matrix scissors enabled";
 //            break;
         case 'V' :
             sreSetShadowVolumeVisibilityTest(true);
-            text_message[line_number] = "Shadow volume visibility test enabled";
+            sre_internal_application->text_message[line_number] = "Shadow volume visibility test enabled";
             break;
         case 'B' :
             sreSetShadowVolumeVisibilityTest(false);
-            text_message[line_number] = "Shadow volume visibility test disabled";
+            sre_internal_application->text_message[line_number] = "Shadow volume visibility test disabled";
             break;
         case 'X' :
             sreSetShadowVolumeDarkCapVisibilityTest(true);
-            text_message[line_number] = "Shadow volume darkcap visibility test enabled";
+            sre_internal_application->text_message[line_number] = "Shadow volume darkcap visibility test enabled";
             break;
         case 'C' :
             sreSetShadowVolumeDarkCapVisibilityTest(false);
-            text_message[line_number] = "Shadow volume darkcap visibility test disabled";
+            sre_internal_application->text_message[line_number] = "Shadow volume darkcap visibility test disabled";
             break;
         case '8' :
             sreSetLightObjectLists(true);
-            text_message[line_number] = "Light object list rendering enabled";
+            sre_internal_application->text_message[line_number] = "Light object list rendering enabled";
             break;
         case '9' :
             sreSetLightObjectLists(false);
-            text_message[line_number] = "Light object list rendering disabled";
+            sre_internal_application->text_message[line_number] = "Light object list rendering disabled";
             break;
         case SRE_KEY_F2 :
             sreSetHDRRendering(false);
-            text_message[line_number] = "HDR rendering disabled";
+            sre_internal_application->text_message[line_number] = "HDR rendering disabled";
             break;
         case SRE_KEY_F3 :
             sreSetHDRRendering(true);
-            text_message[line_number] = "HDR rendering enabled";
+            sre_internal_application->text_message[line_number] = "HDR rendering enabled";
             break;
         case SRE_KEY_F4 :
             sreSetHDRToneMappingShader((sreGetCurrentHDRToneMappingShader() + 1) % SRE_NUMBER_OF_TONE_MAPPING_SHADERS);
-	    text_message[line_number] = "HDR tone mapping shader changed:";
-            text_message[line_number + 1] = (char *)sreGetToneMappingShaderName(sreGetCurrentHDRToneMappingShader());
+	    sre_internal_application->text_message[line_number] = "HDR tone mapping shader changed:";
+            sre_internal_application->text_message[line_number + 1] = (char *)sreGetToneMappingShaderName(sreGetCurrentHDRToneMappingShader());
             break;
         case SRE_KEY_F7 : {
             float max_anisotropy = sreGetMaxAnisotropyLevel();
             if (max_anisotropy < 1.01)
-                text_message[line_number] = "Anisotropic filtering not supported";
+                sre_internal_application->text_message[line_number] = "Anisotropic filtering not supported";
             else {
                 anisotropy = roundf(anisotropy + 1.0);
                 if (anisotropy > max_anisotropy + 0.01)
                     anisotropy = 1.0;
                 sprintf(anisotropy_text, "Anisotropy level for texture filtering: %.1f %s", anisotropy,
                     anisotropy < 1.01 ? "(disabled)" : "");
-                text_message[line_number] = anisotropy_text;
-                text_message[line_number + 1] = "Applying to all suitable textures";
-                scene->ApplyGlobalTextureParameters(SRE_TEXTURE_FLAG_SET_ANISOTROPY, 0, anisotropy);
+                sre_internal_application->text_message[line_number] = anisotropy_text;
+                sre_internal_application->text_message[line_number + 1] = "Applying to all suitable textures";
+                sre_internal_application->scene->ApplyGlobalTextureParameters(SRE_TEXTURE_FLAG_SET_ANISOTROPY, 0, anisotropy);
             }
             break;
             }
@@ -526,7 +530,7 @@ void GUIKeyPressCallback(unsigned int key) {
                 n = 2;
             else {
                 n = info->max_visible_active_lights * 2;
-                if (n >= scene->nu_lights)
+                if (n >= sre_internal_application->scene->nu_lights)
                     n = SRE_MAX_ACTIVE_LIGHTS_UNLIMITED;
             }
             sreSetMultiPassMaxActiveLights(n);
@@ -536,33 +540,33 @@ void GUIKeyPressCallback(unsigned int key) {
         case SRE_KEY_F9 : {
             sreSetTriangleStripUseForShadowVolumes(true);
             sreSetTriangleFanUseForShadowVolumes(true);
-            text_message[line_number] = "Triangle strip/fan use for shadow volumes enabled";
+            sre_internal_application->text_message[line_number] = "Triangle strip/fan use for shadow volumes enabled";
             break;
             }
         case SRE_KEY_F10 : {
             sreSetTriangleStripUseForShadowVolumes(false);
             sreSetTriangleFanUseForShadowVolumes(false);
-            text_message[line_number] = "Triangle strip/fan use for shadow volumes disabled";
+            sre_internal_application->text_message[line_number] = "Triangle strip/fan use for shadow volumes disabled";
             break;
             }
         case SRE_KEY_F11 : {
             sreSetShadowVolumeCache(true);
-            text_message[line_number] = "Shadow volume cache enabled";
+            sre_internal_application->text_message[line_number] = "Shadow volume cache enabled";
             break;
             }
         case SRE_KEY_F12 : {
             sreSetShadowVolumeCache(false);
-            text_message[line_number] = "Shadow volume cache disabled";
+            sre_internal_application->text_message[line_number] = "Shadow volume cache disabled";
             break;
             }
         case '=' : {
             sreSetForceDepthFailRendering(true);
-            text_message[line_number] = "Force stencil shadow volume depth-fail rendering enabled";
+            sre_internal_application->text_message[line_number] = "Force stencil shadow volume depth-fail rendering enabled";
             break;
             }
         case SRE_KEY_BACKSPACE : {
             sreSetForceDepthFailRendering(false);
-            text_message[line_number] = "Force stencil shadow volume depth-fail rendering disabled";
+            sre_internal_application->text_message[line_number] = "Force stencil shadow volume depth-fail rendering disabled";
             break;
             }
         default :
@@ -571,8 +575,8 @@ void GUIKeyPressCallback(unsigned int key) {
         }
         if (menu_message) {
             // Set the timeout for the text message.
-            text_message_time = GUIGetCurrentTime();
-            text_message_timeout = 3.0;
+            sre_internal_application->text_message_time = sre_internal_backend->GetCurrentTime();
+            sre_internal_application->text_message_timeout = 3.0;
             if (menu_mode == 2) {
                 sreEngineSettingsInfo *info = sreGetEngineSettingsInfo();
                 SetEngineSettingsInfo(info);
@@ -580,7 +584,7 @@ void GUIKeyPressCallback(unsigned int key) {
             }
             else if (menu_mode == 1) {
                 SetShortEngineSettingsText();
-                text_message[19] = short_engine_settings_text;
+                sre_internal_application->text_message[19] = short_engine_settings_text;
             }
         }
 }
@@ -621,22 +625,21 @@ int GUITranslateKeycode(unsigned int platform_keycode, const unsigned int *table
     }
 }
 
+#define ONE_SIXTIETH (1.0f / 60.0f)
 
-static void Accelerate(double dt) {
-    input_acceleration += horizontal_acceleration * dt;
-}
+#define Accelerate(dt) \
+    input_acceleration += horizontal_acceleration * (dt)
 
-static void Decelerate(double dt) {
-    input_acceleration -= horizontal_acceleration * dt;
-}
+#define Decelerate(dt) \
+    input_acceleration -= horizontal_acceleration * (dt)
 
-void GUIMovePlayer(double dt) {
+void sreApplication::ApplyControlObjectInputs(double dt) {
     // The move player function is always called by the GUI back-end, even
     // there is no user control. Take the opportunity to update scene info
     // (visible object counts etc) if the info screen is enabled.
     if (menu_mode == 2) {
         settings_info = sreGetEngineSettingsInfo();
-        SetSceneInfo(settings_info);
+        SetSceneInfo(scene, settings_info);
         delete settings_info;
     }
 
@@ -648,20 +651,21 @@ void GUIMovePlayer(double dt) {
     if (accelerate_pressed) {
         if (!accelerate_pressed_previously)
             // If the accelerate key was pressed during the last frame, assume it was held down for 1 / 60th seconds.
-            Accelerate((double)1 / 60);
+            Accelerate(ONE_SIXTIETH);
         else
             // Accelerate key was held down continuously during last frame.
             Accelerate(dt);
     }
     if (decelerate_pressed) {
         if (!decelerate_pressed_previously)
-            Decelerate((double)1 / 60);
+            Decelerate(ONE_SIXTIETH);
         else
             Decelerate(dt);
     }
-    if (no_gravity)  {
-       if (ascend_pressed)
-           hovering_height += hovering_height_acceleration * dt;
+    if (flags & SRE_APPLICATION_FLAG_NO_GRAVITY)  {
+       if (ascend_pressed) {
+           sre_internal_application->hovering_height += sre_internal_application->hovering_height_acceleration * dt;
+       }
        else
        if (descend_pressed) {
            hovering_height -= hovering_height_acceleration * dt;
@@ -669,4 +673,10 @@ void GUIMovePlayer(double dt) {
                hovering_height = 0;
        }
     }
+    else if (jump_input_detected) {
+        jump_requested = true;
+        jump_input_detected = false;
+    }
 }
+
+

@@ -1,14 +1,17 @@
 sre/assimp.cpp
+sre/sre_backend.cpp
 sre/bounding_volume.cpp
 sre/bounds.cpp
 sre/bullet.cpp
 sre/CriticalSection.cpp
+sre/demo_main.cpp
 sre/demo10.cpp
 sre/demo11.cpp
 sre/demo1.cpp
 sre/demo2.cpp
 sre/demo3.cpp
 sre/demo4.cpp
+sre/demo4b.cpp
 sre/demo5.cpp
 sre/demo7.cpp
 sre/demo8.cpp
@@ -65,6 +68,7 @@ sre/sre_bounds.h
 sre/sre.h
 sre/sre_internal.h
 sre/shader.h
+sre/sreBackend.h
 sre/sreBoundingVolume.h
 sre/sreRandom.h
 sre/sreVectorMath.h

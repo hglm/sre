@@ -21,6 +21,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <math.h>
 
 #include "sre.h"
+#include "sreBackend.h"
 #include "demo.h"
 
 #define HALO
@@ -33,7 +34,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 static int lightsource_object_index[2];
 
-void Demo7CreateScene() {
+void Demo7CreateScene(sreScene *scene, sreView *view) {
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);
 
     // Add player sphere as scene object 0.
@@ -125,7 +126,7 @@ void Demo7CreateScene() {
 }
 
 
-void Demo7Render() {
+void Demo7Step(sreScene *scene, double demo_time) {
 #ifdef HALO_MOVING
     // Note: When using double precision cos and sin functions, intractable errors occurred when
     // simultaneously using the bullet library on the Raspberry Pi platform.
@@ -135,9 +136,5 @@ void Demo7Render() {
 // printf("%lf x = %f y = %f\n", demo7_time, x, y)
     scene->ChangePosition(lightsource_object_index[0], x, y, z);
 #endif
-    scene->Render(view);
-}
-
-void Demo7TimeIteration(double time_previous, double time_current) {
 }
 

@@ -75,16 +75,16 @@ void GUIWarpCursor(int x, int y);
 
 // GUI functions provided by the platform specific implementation that can be called by an
 // application using the back-end.
-void GUIProcessEvents(double dt);
-void GUIInitialize(int *argc, char ***argv);
-void GUIFinalize();
-double GUIGetCurrentTime();
-void GUIGLSwapBuffers();
-void GUIGLSync();
+// void GUIProcessEvents(double dt);
+// void GUIInitialize(int *argc, char ***argv);
+// void GUIFinalize();
+// double GUIGetCurrentTime();
+// void GUIGLSwapBuffers();
+// void GUIGLSync();
 
-const char *GUIGetBackendName();
+// const char *GUIGetBackendName();
 
-extern int window_width;
-extern int window_height;
+// extern int window_width;
+// extern int window_height;
 
 #endif

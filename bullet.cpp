@@ -26,7 +26,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <BulletCollision/CollisionShapes/btShapeHull.h>
 
 #include "sre.h"
-#include "demo.h"
+#include "sreBackend.h"
 
 btBroadphaseInterface* broadphase;
 btDefaultCollisionConfiguration* collisionConfiguration;
@@ -35,6 +35,7 @@ btSequentialImpulseConstraintSolver* solver;
 btDiscreteDynamicsWorld* dynamicsWorld;
 btRigidBody** object_rigid_body;
 btRigidBody* ground_rigid_body;
+sreScene *sre_bullet_internal_scene;
 
 class MyMotionState : public btMotionState {
 protected :
@@ -67,11 +68,11 @@ public :
         rot2.Set(row0.x(), row0.y(), row0.z(), row1.x(), row1.y(), row1.z(),
             row2.x(), row2.y(), row2.z());
         btVector3 pos = worldTrans.getOrigin();
-        sreObject *so = scene->sceneobject[mSoi];
+        sreObject *so = sre_bullet_internal_scene->sceneobject[mSoi];
         Point3D position;
         position.Set(pos.x(), pos.y(), pos.z());
         position -= rot2 * so->collision_shape_center_offset;
-        scene->ChangePositionAndRotationMatrix(mSoi, position.x, position.y, position.z, rot2);
+        sre_bullet_internal_scene->ChangePositionAndRotationMatrix(mSoi, position.x, position.y, position.z, rot2);
 //        printf("Changing position of sceneobject %d to (%lf, %lf, %lf).\n",
 //            mSoi, pos.x(), pos.y(), pos.z());
     }
@@ -93,8 +94,10 @@ static bool IsSameScale(sreObject *so1, sreObject *so2) {
     return true;
 }
 
-void BulletInitialize() {
+void sreBulletPhysicsApplication::InitializePhysics() {
     sreMessage(SRE_MESSAGE_INFO, "Creating bullet data structures.");
+
+    sre_bullet_internal_scene = scene;
 
     // Build the broadphase
     broadphase = new btDbvtBroadphase();
@@ -111,7 +114,7 @@ void BulletInitialize() {
     dynamicsWorld->setGravity(btVector3(0, 0, - 20.0));
 
     // Add the ground.
-    if (!no_ground_plane) {
+    if (!(flags & SRE_APPLICATION_FLAG_NO_GROUND_PLANE)) {
         btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0, 0, 1.0), 0);
         btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1),
             btVector3(0, 0, 0)));
@@ -429,9 +432,9 @@ static void BulletStep(double dt) {
     dynamicsWorld->stepSimulation(dt, substeps);
 }
 
-void sreScene::DoBulletPhysics(double previous_time, double current_time) const {
+void sreBulletPhysicsApplication::DoPhysics(double previous_time, double current_time) {
     Vector3D gravity;
-    if (dynamic_gravity) {
+    if (flags & SRE_APPLICATION_FLAG_DYNAMIC_GRAVITY) {
         btVector3 pos = object_rigid_body[control_object]->getCenterOfMassPosition();
         gravity = Vector3D(gravity_position.x - pos.x(), gravity_position.y - pos.y(), gravity_position.z - pos.z());
         gravity.Normalize();
@@ -444,9 +447,9 @@ void sreScene::DoBulletPhysics(double previous_time, double current_time) const 
         BulletStep(dt);
         return;
     }
-    if (jump_allowed && jump_requested) {
+    if ((flags & SRE_APPLICATION_FLAG_JUMP_ALLOWED) && jump_requested) {
         btVector3 delta(0, 0, 30.0);
-        if (dynamic_gravity) {
+        if (flags & SRE_APPLICATION_FLAG_DYNAMIC_GRAVITY) {
             delta = btVector3(- gravity.x * 1.5, - gravity.y * 1.5, - gravity.z * 1.5);
         }
         object_rigid_body[control_object]->activate(false);
@@ -501,7 +504,7 @@ void sreScene::DoBulletPhysics(double previous_time, double current_time) const 
         } 
         input_acceleration = 0;
     }
-    if (no_gravity) {
+    if (flags & SRE_APPLICATION_FLAG_NO_GRAVITY) {
         // Move control object vertically to hovering height.
         object_rigid_body[control_object]->activate(false); // Activate the control object.
         object_rigid_body[control_object]->setGravity(btVector3(0, 0, 0));
@@ -520,18 +523,18 @@ void sreScene::DoBulletPhysics(double previous_time, double current_time) const 
         scene->BulletGetLinearVelocity(control_object, &vel);
         Vector3D vertical_velocity = ProjectOnto(vel, ascend);
         Vector3D rem = vel - vertical_velocity;
-        if (height < hovering_height - 1.0)
-            delta = ascend * pow(hovering_height - height, 1.5) * dt * 20.0;
+        if (height < hovering_height - 1.0f)
+            delta = ascend * pow(hovering_height - height, 1.5f) * dt * 20.0f;
         else
-        if (height > hovering_height + 1.0)
-            delta = - ascend * pow(height - hovering_height, 1.5) * dt * 20.0;
+        if (height > hovering_height + 1.0f)
+            delta = - ascend * pow(height - hovering_height, 1.5f) * dt * 20.0f;
         object_rigid_body[control_object]->setLinearVelocity(btVector3(rem.x, rem.y, rem.z));
 //        rem += delta;
 //        scene->BulletChangePosition(control_object, pos + rem);
 //        scene->ChangePosition(control_object, pos + rem);
         object_rigid_body[control_object]->applyCentralImpulse(btVector3(delta.x, delta.y, delta.z));
     }
-    else if (dynamic_gravity) {
+    else if (flags & SRE_APPLICATION_FLAG_DYNAMIC_GRAVITY) {
         object_rigid_body[control_object]->setGravity(btVector3(gravity.x, gravity.y, gravity.z));
     }
     else {

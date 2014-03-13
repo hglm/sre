@@ -22,6 +22,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <math.h>
 
 #include "sre.h"
+#include "sreBackend.h"
 #include "sreRandom.h"
 
 #include "demo.h"
@@ -98,7 +99,7 @@ static float star_dec[NU_STARS];
 
 static sreRNG *rng;
 
-void Demo8CreateScene() {
+void Demo8CreateScene(sreScene *scene, sreView *view) {
     int l;
     rng = sreGetDefaultRNG();
 
@@ -358,12 +359,7 @@ void Demo8CreateScene() {
     }
 }
 
-
-void Demo8Render() {
-    scene->Render(view);
-}
-
-static void move_towards_target(int soi, const Vector3D &target, float dt) {
+static void move_towards_target(sreScene *scene, int soi, const Vector3D &target, float dt) {
         sreObject *so = scene->sceneobject[soi];
         Vector3D v;
         v = target - so->position;
@@ -394,8 +390,11 @@ static void move_towards_target(int soi, const Vector3D &target, float dt) {
         }
 }
 
-void Demo8TimeIteration(double time_previous, double time_current) {
-    float dt = time_current - time_previous;
+static double time_previous = 0;
+
+void Demo8Step(sreScene *scene, double demo_time) {
+    float dt = demo_time - time_previous;
+    time_previous = demo_time;
 #ifdef MOVE_ROBOTS
     for (int i = 0; i < nu_robots; i++) {
         float f = rng->RandomFloat(1.0f);
@@ -406,17 +405,17 @@ void Demo8TimeIteration(double time_previous, double time_current) {
             robot[i].target_pos.y = 15.0 + 170.0 * rng->RandomFloat(1.0f);
             robot[i].target_pos.z = 0;
         }
-        move_towards_target(robot[i].object_index, robot[i].target_pos, dt);
+        move_towards_target(scene, robot[i].object_index, robot[i].target_pos, dt);
         // The small light globes follow their robot.
-        move_towards_target(robot[i].light_object_index, scene->sceneobject[robot[i].object_index]->position, dt);
+        move_towards_target(scene, robot[i].light_object_index, scene->sceneobject[robot[i].object_index]->position, dt);
     }
 #endif
     for (int i = 0; i < 4; i++) {
         // On once per second, change the color of a corner light.
-        float f = fmod(time_current, 1.0);
+        float f = fmod(demo_time, 1.0);
         if (f < dt) {
             Color light_color, object_color;
-            int c = ((int)floor(fmod(time_current, 4.0)) + i) % 4;
+            int c = ((int)floor(fmod(demo_time, 4.0)) + i) % 4;
             switch (c) {
             case 0 :
                 light_color = Color(1.0, 1.0, 0.8);
@@ -444,7 +443,7 @@ void Demo8TimeIteration(double time_previous, double time_current) {
     Matrix4D M_rot;
     Vector4D V = Vector4D(0.2, 0, - 1.0, 0);
     V.Normalize();
-    M_rot.AssignRotationAlongZAxis(fmod(time_current * 0.5 , 1.0) * 2.0 * M_PI);
+    M_rot.AssignRotationAlongZAxis(fmod(demo_time * 0.5 , 1.0) * 2.0 * M_PI);
     Vector3D W = (M_rot * V).GetVector3D();
     scene->ChangeSpotLightDirection(beam_light, W);
     // Let the stars twinkle.
@@ -452,11 +451,11 @@ void Demo8TimeIteration(double time_previous, double time_current) {
     for (int i = 0; i < NU_STARS; i++) {
         float current_bsize;
         if (star_last_twinkle_time[i] != 0) {
-            if (time_current - star_last_twinkle_time[i] < 0.2) {
+            if (demo_time - star_last_twinkle_time[i] < 0.2) {
                 // The star is moving towards a billboard size target.
                 // Interpolate billboard size towards to the target size over time.
                 current_bsize = (star_billboard_size_target[i] - star_billboard_size_start[i]) *
-                    (time_current - star_last_twinkle_time[i]) / 0.2 + star_billboard_size_start[i];
+                    (demo_time - star_last_twinkle_time[i]) / 0.2 + star_billboard_size_start[i];
                 scene->ChangeBillboardSize(star_object_index[i],
                     current_bsize, current_bsize);
                 continue;
@@ -475,7 +474,7 @@ void Demo8TimeIteration(double time_previous, double time_current) {
             billboard_size = star_object_billboard_size[i] * (1 + 0.2 * f);
         else
             billboard_size = star_object_billboard_size[i] * (1 - 0.2 * f);
-        star_last_twinkle_time[i] = time_current;
+        star_last_twinkle_time[i] = demo_time;
         star_billboard_size_target[i] = billboard_size;
         star_billboard_size_start[i] = current_bsize;
     }

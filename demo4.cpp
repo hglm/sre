@@ -26,8 +26,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include "sre.h"
 #include "sre_bounds.h"
-#include "demo.h"
+#include "sreBackend.h"
 #include "gui-common.h"
+
+class Demo4Application : public sreBulletPhysicsApplication {
+    virtual void Step(sreScene *scene, double demo_time);
+    virtual void DoPhysics(sreScene *scene, double previous_time, double current_time);
+};
 
 // Number of seconds for a complete rotation of the earth.
 #define DEFAULT_DAY_INTERVAL 1000.0f
@@ -72,7 +77,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // When ELEVATION_MAP_16_BIT is set, a high-precision elevation map with a resolution of
 // 10800x5400 is used, so the maximum detail divisor value is eight.
 #define ELEVATION_MAP_16_BIT
-#define ELEVATION_MAP_DETAIL_FACTOR 1
+#define ELEVATION_MAP_DETAIL_FACTOR 8
 // The size of submeshes. Maximum MESH_WIDTH + 2 and MESH_HEIGHT + 2.
 #define SUB_MESH_WIDTH 200
 #define SUB_MESH_HEIGHT 200
@@ -163,8 +168,8 @@ static sreTexture *earth_heightmap;
 static sreTexture *earth_specularity;
 static sreTexture *earth_night_light_texture;
 
-static int player_object;
-static int spacecraft_object;
+static int player_object = -1;
+static int spacecraft_object = -1;
 static int sun_object;
 static int directional_light;
 static int spacecraft_spot_light;
@@ -182,7 +187,7 @@ static bool show_spacecraft = false;
 #endif
 static float sun_light_factor = 1.0f;
 
-void CreateMeshObjects(sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
+void CreateMeshObjects(sreScene *scene, sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
     printf("Creating mesh objects.\n");
     printf("Calculating vertices.\n");
     int v = 0;
@@ -953,16 +958,19 @@ static void CreateSpacecraftTexture() {
             Fill(spacecraft_emission_map, i * 4, 103 - j, 2, 2, yellow);
         }
     spacecraft_emission_map->type = TEXTURE_TYPE_LINEAR;
-    spacecraft_emission_map->UploadGL();
+    spacecraft_emission_map->UploadGL(false);
 }
 
-void Demo4CreateScene() {
+void Demo4CreateScene(sreScene *scene, sreView *view) {
     int physics_flag = 0;
     if (!physics)
         physics_flag = SRE_OBJECT_NO_PHYSICS;
     int hidden_flag = 0;
-    if (!show_spacecraft)
+    int shadows_flag = SRE_OBJECT_CAST_SHADOWS;
+    if (!show_spacecraft) {
         hidden_flag = SRE_OBJECT_HIDDEN;
+        shadows_flag = 0;
+    }
     Vector3D initial_ascend_vector = Vector3D(1.0, 0, 0);
 //    Vector3D initial_ascend_vector = Vector3D(0, 0, 1.0);
     initial_ascend_vector.Normalize();
@@ -974,7 +982,7 @@ void Demo4CreateScene() {
     sreModel *globe_model = sreCreateSphereModel(scene, 0);
     if (create_spacecraft) {
         // Add player sphere as scene object 0.
-        scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS |
+        scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | shadows_flag |
             SRE_OBJECT_USE_TEXTURE | physics_flag | hidden_flag);
         scene->SetTexture(sreCreateStripesTexture(TEXTURE_TYPE_LINEAR,
             256, 256, 32, Color(0, 0.5f, 0.8f), Color(0.9f, 0.9f, 1.0f)));
@@ -997,7 +1005,7 @@ void Demo4CreateScene() {
     CreateSpacecraftTexture();
     scene->SetEmissionColor(Color(1.0, 1.0, 1.0));  
     scene->SetEmissionMap(spacecraft_emission_map);
-    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS |
+    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | shadows_flag |
         SRE_OBJECT_USE_EMISSION_MAP | physics_flag | hidden_flag);
 #ifdef SPHERE
     spacecraft_pos = Point3D(0, 0, 0) + (0.5 * X_SCALE + 300.0) * initial_ascend_vector;
@@ -1044,7 +1052,7 @@ skip_spacecraft :
     for (int y = 0; y < SUB_MESHES_Y; y++)
         for (int x = 0; x < SUB_MESHES_X; x++)
              mesh_model[y][x] = new sreModel;
-    CreateMeshObjects(mesh_model);
+    CreateMeshObjects(scene, mesh_model);
     delete earth_heightmap;
     scene->SetSpecularExponent(120.0);
     earth_specularity = new sreTexture(earth_specularity_filename, TEXTURE_TYPE_SPECULARITY_MAP);
@@ -1083,39 +1091,77 @@ skip_spacecraft :
 #endif
 
 #ifdef SPHERE
-    dynamic_gravity = true;
-    gravity_position.Set(0, 0, 0);
-//    sreSetFarPlaneDistance(X_SCALE);
-    no_ground_plane = true;
+    sre_internal_application->SetFlags(sre_internal_application->GetFlags() |
+        SRE_APPLICATION_FLAG_DYNAMIC_GRAVITY | SRE_APPLICATION_FLAG_NO_GROUND_PLANE);
+    sre_internal_application->gravity_position.Set(0, 0, 0);
 #else
     view->SetViewModeFollowObject(0, 40.0, Vector3D(0, 0, 10.0));
 #endif
-    no_gravity = true;
+    sre_internal_application->SetFlags(sre_internal_application->GetFlags() |
+        SRE_APPLICATION_FLAG_NO_GRAVITY);
     if (create_spacecraft) {
-        control_object = 1;
+        sre_internal_application->control_object = spacecraft_object;
 #ifdef SPHERE
-        hovering_height = Magnitude(ProjectOnto(scene->sceneobject[control_object]->position, initial_ascend_vector));
+        sre_internal_application->hovering_height = Magnitude(ProjectOnto(scene->sceneobject[
+            sre_internal_application->control_object]->position,
+            initial_ascend_vector));
 #else
-        hovering_height = scene->sceneobject[control_object]->position.z;
+        hovering_height = scene->sceneobject[sre_internal_application->control_object]->position.z;
 #endif
     }
     sreSetHDRKeyValue(0.2f);
 }
 
-void Demo4Render() {
-    Vector3D ascend_vector = Vector3D(0, 0, 1.0);
+static char message[80];
+static Vector3D forward_vector;
+static Vector3D ascend_vector;
+static Vector3D right_vector;
+
+#define HOUR_OFFSET 11.0f
+
+void Demo4Step(sreScene *scene, double demo_time) {
+#if defined(SPHERE) && !defined(NIGHT)
+    float h = demo_time + HOUR_OFFSET * day_interval / 24.0;
+    float hour = fmodf(h, day_interval) * 24.0 / day_interval;
+    float day = (int)floor(fmod(h / 24.0, 365.0));
+    Matrix3D sr1;
+    sr1.AssignRotationAlongZAxis(- hour * 2.0 * M_PI / 24.0);
+    Matrix3D sr2;
+    sr2.AssignRotationAlongXAxis(23.4 * M_PI / 180.0);
+    Matrix3D sr3;
+    sr3.AssignRotationAlongZAxis(fmodf(demo_time, (day_interval * 365.0)) * 2.00 * M_PI /
+        (day_interval * 365.0));
+    Point3D sun_pos = Point3D(- X_SCALE * 1000.0f, 0, 0);
+    sun_pos = ((sr3 * sr2) * sr1) * sun_pos;
+    Vector3D light_dir = (- sun_pos).Normalize();
+    scene->ChangeDirectionalLightDirection(directional_light, light_dir);
+    scene->ChangePosition(sun_object, sun_pos.x, sun_pos.y, sun_pos.z);
+    if (display_time) {
+         sprintf(message, "%02d:%02dh Day %d", (int)floorf(hour),
+            (int)floorf((hour - (int)floorf(hour)) * 60.0 / 100.0),
+            day + 1);
+        sre_internal_application->text_message[0] = message; 
+        sre_internal_application->text_message_time = sre_internal_backend->GetCurrentTime();
+        sre_internal_application->nu_text_message_lines = 1;
+    }
+#endif
+    if (!create_spacecraft)
+        return;
+
+    saved_hovering_height = sre_internal_application->hovering_height;
+
+    ascend_vector = Vector3D(0, 0, 1.0);
     float view_distance;
-    if (control_object == spacecraft_object)
+    if (sre_internal_application->control_object == spacecraft_object)
         view_distance = 100.0;
     else
         view_distance = 40.0;
 #ifdef SPHERE
     // Set viewing direction.
-    Vector3D up_vector = scene->sceneobject[control_object]->position;
+    Vector3D up_vector = scene->sceneobject[sre_internal_application->control_object]->position;
     up_vector.Normalize();
-    view->SetAscendVector(up_vector);
+    sre_internal_application->view->SetAscendVector(up_vector);
     ascend_vector = up_vector;
-    Vector3D forward_vector;
 //            float xcoord = radius * cosf(latitude) * cosf(longitude);
 //            float ycoord = radius * cosf(latitude) * sinf(longitude);
 //            float zcoord = radius * sinf(latitude);
@@ -1124,7 +1170,7 @@ void Demo4Render() {
     float longitude = atan2(ascend_vector.y, ascend_vector.x);
 
     Vector3D angles;
-    view->GetViewAngles(angles);
+    sre_internal_application->view->GetViewAngles(angles);
 #if 0
     printf("Longitude = %f, latitude = %f\n", longitude * 180.0 / M_PI, latitude * 180 / M_PI);
     float latitude2 = latitude + 0.01 * cosf(latitude) * cosf(angles.z * M_PI / 180.0);
@@ -1164,7 +1210,7 @@ void Demo4Render() {
 //        if (latitude < 0)
 //            great_circle_normal = - great_circle_normal;
 
-    Vector3D right_vector = great_circle_normal;
+    right_vector = great_circle_normal;
     forward_vector = Cross(right_vector, up_vector);
     forward_vector.Normalize();
 #if 0
@@ -1174,30 +1220,33 @@ void Demo4Render() {
     Vector3D right_vector = Cross(forward_vector, up_vector);
     right_vector.Normalize();
 #endif
-    view->SetForwardVector(forward_vector);
+    sre_internal_application->view->SetForwardVector(forward_vector);
     Matrix3D r2; 
     r2.AssignRotationAlongAxis(right_vector, - angles.x * M_PI / 180.0);
     Vector3D view_direction = r2 * forward_vector;
-    Point3D viewpoint = scene->sceneobject[control_object]->position - view_distance * view_direction; // + up_vector *
+    Point3D viewpoint = scene->sceneobject[sre_internal_application->control_object]->position - view_distance * view_direction; // + up_vector *
 //        view_distance * 0.25;
-    Point3D lookat = scene->sceneobject[control_object]->position; // viewpoint + view_direction;
+    Point3D lookat = scene->sceneobject[sre_internal_application->control_object]->position; // viewpoint + view_direction;
     up_vector = r2 * up_vector;
-    view->SetViewModeLookAt(viewpoint, lookat, up_vector);
-    view->SetMovementMode(SRE_MOVEMENT_MODE_USE_FORWARD_AND_ASCEND_VECTOR);
+    sre_internal_application->view->SetViewModeLookAt(viewpoint, lookat, up_vector);
+    sre_internal_application->view->SetMovementMode(SRE_MOVEMENT_MODE_USE_FORWARD_AND_ASCEND_VECTOR);
     // Let spacecraft spot light point the right way.
     scene->ChangeSpotLightDirection(spacecraft_spot_light, - ascend_vector);
 #endif
 #ifndef SPHERE
-    view->SetViewModeFollowObject(control_object, view_distance, Vector3D(0, 0, 0) /* Vector3D(0, 0, view_distance * 0.25) */);
+    view->SetViewModeFollowObject(sre_internal_application->control_object, view_distance,
+        Vector3D(0, 0, 0) /* Vector3D(0, 0, view_distance * 0.25) */);
 #endif
-    scene->Render(view);
-    if (no_gravity) {
-        if (control_object == player_object)
-            hovering_height = saved_hovering_height;
-        control_object = spacecraft_object;
+}
+
+void Demo4StepBeforePhysics(sreScene *scene, double demo_time) {
+    if (sre_internal_application->flags & SRE_APPLICATION_FLAG_NO_GRAVITY) {
+        if (sre_internal_application->control_object == player_object)
+            sre_internal_application->hovering_height = saved_hovering_height;
+        sre_internal_application->control_object = spacecraft_object;
     }
     else {
-        if (control_object == spacecraft_object) {
+        if (sre_internal_application->control_object == spacecraft_object) {
             // Drop the player from the spacecraft.
             scene->BulletChangeVelocity(spacecraft_object, Vector3D(0, 0, 0));
             Point3D new_pos = scene->sceneobject[spacecraft_object]->position - ascend_vector * 15.0;
@@ -1205,13 +1254,13 @@ void Demo4Render() {
             scene->BulletChangeVelocity(player_object, Vector3D(0, 0, 0));
             scene->BulletChangePosition(player_object, new_pos);
         }
-        control_object = player_object;
+        sre_internal_application->control_object = player_object;
     }
     Matrix3D spin_matrix;
     spin_matrix.AssignRotationAlongZAxis(fmod(demo_time, 4.0) * 2.0 * M_PI / 4.0);
 #ifdef SPHERE
     // Try to keep the spacecraft upright, parallel to the surface.
-    if (control_object == spacecraft_object) {
+    if (sre_internal_application->control_object == spacecraft_object) {
         Matrix3D rot_matrix;
         rot_matrix.Set(ascend_vector, forward_vector, right_vector);
         Matrix3D r;
@@ -1220,7 +1269,7 @@ void Demo4Render() {
 //        rot_matrix.SetRow(1, forward_vector);
 //        rot_matrix.SetRow(2, ascend_vector);
         saved_spacecraft_rotation_matrix = (rot_matrix * r) * spin_matrix;         
-        scene->BulletChangeRotationMatrix(control_object, saved_spacecraft_rotation_matrix);
+        scene->BulletChangeRotationMatrix(sre_internal_application->control_object, saved_spacecraft_rotation_matrix);
     }
     else
         // The spacecraft is not being controlled, but should rotate.
@@ -1229,26 +1278,27 @@ void Demo4Render() {
      scene->BulletChangeRotationMatrix(spacecraft_object, spin_matrix);
 #endif
     // Set the maximum horizontal velocity (over the surface), for the spacecraft it increases as the height increases.
-    if (control_object == player_object)
-        max_horizontal_velocity = 100.0;
+    if (sre_internal_application->control_object == player_object)
+        sre_internal_application->max_horizontal_velocity = 100.0;
     else {
         float height = Magnitude(ProjectOnto(scene->sceneobject[spacecraft_object]->position, ascend_vector));
 #ifdef SPHERE
-        height -= 0.5 * X_SCALE;
+        height -= 0.5f * X_SCALE;
 #endif
-        max_horizontal_velocity = 100.0 + height * 0.5;
-        horizontal_acceleration = max_horizontal_velocity;
+        sre_internal_application->max_horizontal_velocity = 100.0f + height * 0.5f;
+        sre_internal_application->horizontal_acceleration =
+            sre_internal_application->max_horizontal_velocity;
         // The ascend/descend controls are also sensitive to the height above the surface.
-        hovering_height_acceleration = 100.0 + height * 0.5;
+        sre_internal_application->hovering_height_acceleration = 100.0f + height * 0.5f;
     }
 #ifdef SPHERE
     // Set viewing distance, clip distance increases as height increases.
-    float player_dist = Magnitude(scene->sceneobject[control_object]->position) - 0.5 * X_SCALE;
+    float player_dist = Magnitude(scene->sceneobject[sre_internal_application->control_object]->position) - 0.5 * X_SCALE;
     float far_plane_dist = maxf(2000.0, X_SCALE * 0.1 + player_dist * X_SCALE / 5000.0);
     sreSetFarPlaneDistance(far_plane_dist);
     // Also increase the shadow mapping region as height increases.
     float factor;
-    if (control_object == spacecraft_object)
+    if (sre_internal_application->control_object == spacecraft_object)
         factor = far_plane_dist / 2000.0 + powf((far_plane_dist - 2000.0) / 2000.0, 0.2) * 4.0;
     else
         factor = 0.5;
@@ -1256,36 +1306,6 @@ void Demo4Render() {
         Point3D(1000.0f, 1000.0f, 200.0f) * factor);
 //    sreSetShadowMapRegion(Point3D(- 400.0, - 400.0, - 600.0) * factor, Point3D(400.0, 400.0, 200.0) * factor);
 #endif
-}
-
-static char message[80];
-
-#define HOUR_OFFSET 11.0f
-
-void Demo4TimeIteration(double time_previous, double time_current) {
-#if defined(SPHERE) && !defined(NIGHT)
-    float hour = fmodf(demo_time + HOUR_OFFSET * day_interval / 24.0, day_interval) * 24.0 / day_interval;
-    Matrix3D r1;
-    r1.AssignRotationAlongZAxis(- hour * 2.0 * M_PI / 24.0);
-    Matrix3D r2;
-    r2.AssignRotationAlongXAxis(23.4 * M_PI / 180.0);
-    Matrix3D r3;
-    r3.AssignRotationAlongZAxis(fmodf(demo_time, YEAR_INTERVAL) * 2.00 * M_PI / YEAR_INTERVAL);
-    Point3D sun_pos = Point3D(- X_SCALE * 1000.0f, 0, 0);
-    sun_pos = ((r3 * r2) * r1) * sun_pos;
-    Vector3D light_dir = (- sun_pos).Normalize();
-    scene->ChangeDirectionalLightDirection(directional_light, light_dir);
-    scene->ChangePosition(sun_object, sun_pos.x, sun_pos.y, sun_pos.z);
-    if (display_time) {
-        sprintf(message, "%02d:%02dh Day %d", (int)floorf(hour),
-            (int)floorf((hour - (int)floorf(hour)) * 60.0 / 100.0),
-            (int)(floorf(fmodf(demo_time, YEAR_INTERVAL) * 365.0 / YEAR_INTERVAL) + 1));
-        text_message[0] = message; 
-        text_message_time = GUIGetCurrentTime();
-        nu_text_message_lines = 1;
-    }
-#endif
-    saved_hovering_height = hovering_height;
 }
 
 void Demo4SetParameters(float interval, bool _display_time, bool _physics,

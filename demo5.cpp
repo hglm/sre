@@ -22,6 +22,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <math.h>
 
 #include "sre.h"
+#include "sreBackend.h"
 #include "demo.h"
 
 static int lightsource_object_index[2];
@@ -31,7 +32,7 @@ static int lightsource_object_index[2];
 #endif
 #define HALO_LIGHT
 
-void Demo5CreateScene() {
+void Demo5CreateScene(sreScene *scene, sreView *view) {
     // Set diffuse fraction to 0.6 and two roughness values of 0.1 and 0.25 with weight 0.4 and 0.6,
     // isotropic.
     scene->SetMicrofacetParameters(0.6, 0.1, 0.4, 0.25, 0.6, false);
@@ -265,7 +266,7 @@ void Demo5CreateScene() {
 }
 
 
-void Demo5Render() {
+void Demo5Step(sreScene *scene, double demo_time) {
 #ifdef HALO_MOVING
     float x = 20 * cosf((float)demo_time * 2 * M_PI / 5);
     float y = 20 + 20 * sinf((float)demo_time * 2 * M_PI / 5);
@@ -276,14 +277,15 @@ void Demo5Render() {
     z = 20;
     scene->ChangePosition(lightsource_object_index[1], x, y, z);
 #endif
-    scene->Render(view);
 }
 
-void Demo5TimeIteration(double time_previous, double time_current) {
-}
-
-void Demo6TimeIteration(double time_previous, double time_current) {
-    view->SetViewModeStandard(Point3D(200 * cos(demo_time / 20.0f * 2.0f * M_PI + 0.5f * M_PI),
-        140.0f + 200.0f * sin(demo_time / 20 * 2 * M_PI + 1.5 * M_PI), 40.0f));
+void Demo6Step(sreScene *scene, double demo_time) {
+    Demo5Step(scene, demo_time);
+    Point3D viewpoint = Point3D(200 * cos(demo_time / 20.0f * 2.0f * M_PI
+        + 0.5f * M_PI),
+        140.0f + 200.0f * sin(demo_time / 20 * 2 * M_PI + 1.5 * M_PI), 40.0f);
+    Point3D lookat = Point3D(100.0f, 100.0f, 0);
+    Vector3D upvector = Vector3D(0, 0, 1.0f);
+    sre_internal_application->view->SetViewModeLookAt(viewpoint, lookat, upvector);
 }
 

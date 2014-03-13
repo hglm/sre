@@ -25,6 +25,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <math.h>
 
 #include "sre.h"
+#include "sreBackend.h"
 #include "demo.h"
 
 // Enabling shadows degrades performance significantly on OpenGL ES 2.0
@@ -33,7 +34,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define SHADOWS
 #endif
 
-void Demo9CreateScene() {
+void Demo9CreateScene(sreScene *scene, sreView *view) {
     // Add player sphere as scene object 0.
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);
 #ifndef SHADOWS
@@ -105,9 +106,5 @@ void Demo9CreateScene() {
 
 }
 
-void Demo9Render() {
-    scene->Render(view);
-}
-
-void Demo9TimeIteration(double time_previous, double time_current) {
+void Demo9Step(sreScene *scene, double demo_time) {
 }

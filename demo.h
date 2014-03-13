@@ -16,123 +16,63 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 */
 
-
-#if !defined(WINDOW_WIDTH) || !defined(WINDOW_HEIGHT)
-#define WINDOW_WIDTH 1024
-#define WINDOW_HEIGHT 576
-#endif
-
-// Defined in main.cpp
-extern sreScene *scene;
-extern sreView *view;
-extern bool lock_panning;
-extern void (*RenderFunc)();
-extern void (*TimeIterationFunc)(double time_previous, double time_current);
-// Physics engine inputs.
-extern int control_object;
-extern bool jump_requested;
-extern float input_acceleration;
-extern float horizontal_acceleration;
-extern float max_horizontal_velocity;
-extern bool dynamic_gravity;
-extern Point3D gravity_position;
-extern bool no_gravity;
-extern float hovering_height;
-extern float hovering_height_acceleration;
-extern bool no_ground_plane;
-// Misc.
-extern double demo_time;
-extern bool fullscreen_mode;
-extern bool jump_allowed;
-extern bool demo_stop_signalled;
-extern double text_message_time, text_message_timeout;
-extern int nu_text_message_lines;
-extern char *text_message[24];
-
-void RunDemo();
-// Text overlay function with FPS and settings menus
-void DemoTextOverlay();
-
 // Defined in demo1.cpp
-void Demo1CreateScene();
-void Demo1Render();
-void Demo1TimeIteration(double time_previous, double time_current);
+void Demo1CreateScene(sreScene *scene, sreView *view);
+void Demo1Step(sreScene *scene, double demo_time);
 
 // Defined in demo2.cpp
-void Demo2CreateScene();
-void Demo2Render();
-void Demo2TimeIteration(double time_previous, double time_current);
-
-// Defined in demo3.cpp
-extern double demo3_start_time;
-extern double demo3_days_per_second;
-extern double demo3_elapsed_time;
-extern double demo3_time;
-void Demo3CreateScene();
-void Demo3Render();
-void Demo3TimeIteration(double time_previous, double time_current);
+void Demo2CreateScene(sreScene *scene, sreView *view);
+void Demo2Step(sreScene *scene, double demo_time);
 
 // Defined in demo4.cpp
-void Demo4CreateScene();
-void Demo4Render();
-void Demo4TimeIteration(double time_previous, double time_current);
+void Demo4CreateScene(sreScene *scene, sreView *view);
+void Demo4Step(sreScene *scene, double demo_time);
+void Demo4StepBeforePhysics(sreScene *scene, double demo_time);
 void Demo4SetParameters(float day_interval, bool display_time, bool physics,
     bool create_spacecraft, bool show_spacecraft, float sun_light_factor);
 
-void Demo4bCreateScene();
-void Demo4bRender();
+void Demo4bCreateScene(sreScene *scene, sreView *view);
+void Demo4bStep(sreScene *scene, double demo_time);
 
 // Defined in demo5.cpp
-void Demo5CreateScene();
-void Demo5Render();
-void Demo5TimeIteration(double time_previous, double time_current);
-void Demo6TimeIteration(double time_previous, double time_current);
+void Demo5CreateScene(sreScene *scene, sreView *view);
+void Demo5Step(sreScene *scene, double demo_time);
+
+// Defined in demo5.cpp
+void Demo6Step(sreScene *scene, double demo_time);
 
 // Defined in demo7.cpp
-void Demo7CreateScene();
-void Demo7Render();
-void Demo7TimeIteration(double time_previous, double time_current);
+void Demo7CreateScene(sreScene *scene, sreView *view);
+void Demo7Step(sreScene *scene, double demo_time);
 
 // Defined in demo8.cpp
-void Demo8CreateScene();
-void Demo8Render();
-void Demo8TimeIteration(double time_previous, double time_current);
+void Demo8CreateScene(sreScene *scene, sreView *view);
+void Demo8Step(sreScene *scene, double demo_time);
 
 // Defined in demo9.cpp
-void Demo9CreateScene();
-void Demo9Render();
-void Demo9TimeIteration(double time_previous, double time_current);
-
-// Defined in game.cpp
-void RunGame();
-void GameRender();
-void GameTimeIteration(double time_previous, double time_current);
-
-// Defined in texture_test.cpp
-void TextureTestCreateScene(bool compressed);
-void TextureTestRender();
-void TextureTestTimeIteration(double previous_time, double current_time);
+void Demo9CreateScene(sreScene *scene, sreView *view);
+void Demo9Step(sreScene *scene, double demo_time);
 
 // Defined in demo10.cpp
-void Demo10CreateScene();
-void Demo10Render();
-void Demo10TimeIteration(double time_previous, double time_current);
+void Demo10CreateScene(sreScene *scene, sreView *view);
+void Demo10Step(sreScene *scene, double demo_time);
 
 // Defined in demo11.cpp
-void Demo11CreateScene();
-void Demo11Render();
-void Demo11TimeIteration(double time_previous, double time_current);
+void Demo11CreateScene(sreScene *scene, sreView *view);
+void Demo11Step(sreScene *scene, double demo_time);
 
 // Defined in texture_test.cpp
-void TextDemoCreateScene();
-void TextDemoRender();
-void TextDemoTimeIteration(double previous_time, double current_time);
-
+void TextureTestCreateScene(sreScene *scene, bool compressed);
+void TextureTestStep(sreScene *scene, double demo_time);
 void TextureMemoryTest(bool compressed);
 
-// Defined in bullet.cpp:
-#ifdef USE_BULLET
-void BulletInitialize();
-void BulletDestroy();
-#endif
+// Defined in demo10.cpp
+void Demo10CreateScene(sreScene *scene, sreView *view);
+void Demo10Render();
+void Demo10TimeIteration(double demo_time);
+
+// Defined in textdemo.cpp
+void TextDemoCreateScene(sreScene *scene, sreView *view);
+void TextDemoStep(sreScene *scene, double demo_time);
+
 

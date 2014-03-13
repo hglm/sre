@@ -24,9 +24,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <math.h>
 
 #include "sre.h"
+#include "sreBackend.h"
 #include "demo.h"
 
-void Demo11CreateScene() {
+void Demo11CreateScene(sreScene *scene, sreView *view) {
     // Add player sphere as scene object 0.
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);
 
@@ -119,10 +120,5 @@ void Demo11CreateScene() {
        Color(0.5, 0.5, 0.5));
 #endif
 }
-
-void Demo11Render() {
-    scene->Render(view);
-}
-
-void Demo11TimeIteration(double time_previous, double time_current) {
+void Demo11Step(sreScene *scene, double demo_time) {
 }

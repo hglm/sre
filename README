@@ -258,11 +258,6 @@ pipeline.
   proper scene graph would allow objects to be grouped together
   and transformations applied to them as a group.
 
-- The device back-ends are not very elegantly defined; ideally it should
-  be possible to compile in multiple back-ends; similarly, the demo main
-  loop with callbacks to "DemoRender" and "DemoTimeIteration" is not very
-  elegant, with global variables for the GUI control declared in demo.h.
-
 - Support for shadow mapping for OpenGL-ES 2.0 would be possible
   after the handling of shadow map buffers and shadow maps in shaders
   is augmented to be compatible with the features present in OpenGL-ES
@@ -390,11 +385,11 @@ pipeline.
   used for geometry scissors calculation instead of the much large
   cylinder.
 
--- Large-scale normal-mapping causes a noticeable slowdown on some
-   OpenGL-ES 2.0 platforms (demo5), probably normal mapping is relatively
-   unoptimized in the lighting shaders (it passes a matrix as
-   interpolated value, and is not a full tangent-space implementation;
-   multiple normalizations may play a role). This should be optimized.
+- Large-scale normal-mapping causes a noticeable slowdown on some
+  OpenGL-ES 2.0 platforms (demo5), probably normal mapping is relatively
+  unoptimized in the lighting shaders (it passes a matrix as
+  interpolated value, and is not a full tangent-space implementation;
+  multiple normalizations may play a role). This should be optimized.
 
 --- LICENSE --
 

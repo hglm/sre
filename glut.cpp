@@ -41,8 +41,33 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #endif
 
 #include "sre.h"
+#include "sreBackend.h"
 #include "demo.h"
 #include "gui-common.h"
+
+class sreBackendGLUT : public sreBackend {
+public :
+    virtual void Initialize(int *argc, char ***argv, int window_width, int window_height);
+    virtual void Finalize();
+    virtual void GLSwapBuffers();
+    virtual void GLSync();
+    virtual double GetCurrentTime();
+    virtual void ProcessGUIEvents();
+    virtual void ToggleFullScreenMode(int& width, int& height, bool pan_with_mouse);
+    virtual void HideCursor();
+    virtual void RestoreCursor();
+    virtual void WarpCursor(int x, int y);
+};
+
+sreBackend *sreCreateBackendGLUT() {
+    sreBackend *b = new sreBackendGLUT;
+#ifdef OPENGL_FREEGLUT
+    b->name = "OpenGL 3.0+ freeglut";
+#else
+    b->name = "OpenGL 3.0+ GLUT";
+#endif
+    return b;
+}
 
 static bool initialized = false;
 static int glut_window;
@@ -50,18 +75,14 @@ static int glut_window;
 static void WindowResizeCallback(int width, int height) {
     if (!initialized)
         return;
-    window_width = width;
-    window_height = height;
-    sreResize(view, window_width, window_height);
+    sreResize(sre_internal_application->view, width, height);
 }
 
-void GUIToggleFullScreenMode(int& window_width, int& window_height, bool pan_with_mouse) {
+void sreBackendGLUT::ToggleFullScreenMode(int& window_width, int& window_height, bool pan_with_mouse) {
     // May be tricky with standard glut. Only support with freeglut for now.
 #ifdef OPENGL_FREEGLUT
     glutFullScreenToggle();
 #endif
-   // Note: We do not set window_width and window_height, but the resize callback
-   // will set them.
 }
 
 static const unsigned int GLUT_translation_table[] = {
@@ -101,15 +122,15 @@ static void NonSpecialKeyReleaseCallback(unsigned char keycode, int x, int y) {
     KeyReleaseCallback(keycode, x, y);
 }
 
-void GUIWarpCursor(int x,int y) {
+void sreBackendGLUT::WarpCursor(int x,int y) {
     glutWarpPointer(x, y);
 }
 
-void GUIHideCursor() {
+void sreBackendGLUT::HideCursor() {
     glutSetCursor(GLUT_CURSOR_NONE);
 }
 
-void GUIRestoreCursor() {
+void sreBackendGLUT::RestoreCursor() {
     glutSetCursor(GLUT_CURSOR_INHERIT);
 }
 
@@ -143,29 +164,32 @@ static void MouseMotionCallback(int x, int y) {
     motion_y = y;
 }
 
-void ProcessGUIEvents(double dt) {
+void sreBackendGLUT::ProcessGUIEvents() {
     motion_occurred = false;
 #ifdef OPENGL_FREEGLUT
-     glutMainLoopEvent();
+    glutMainLoopEvent();
 #endif
     if (motion_occurred)
         GUIProcessMouseMotion(motion_x, motion_y);
-    GUIMovePlayer(dt);
 }
 
-void GUIGLSync() {
+void sreBackendGLUT::GLSwapBuffers() {
+    glutSwapBuffers();
+}
+
+void sreBackendGLUT::GLSync() {
     glutSwapBuffers();
     glFlush();
 }
 
-void DeinitializeGUI() {
+void sreBackendGLUT::Finalize() {
    // Clear screen.
    glClear(GL_COLOR_BUFFER_BIT);
    glutSwapBuffers();
    glutDestroyWindow(glut_window);
 }
 
-void InitializeGUI(int *argc, char ***argv) {
+void sreBackendGLUT::Initialize(int *argc, char ***argv, int window_width, int window_height) {
     glutInit(argc, *argv);
     glutInitWindowSize(window_width, window_height);
     int glut_display_mode = GLUT_RGBA | GLUT_DOUBLE | GLUT_ALPHA | GLUT_DEPTH | GLUT_STENCIL;
@@ -192,8 +216,8 @@ void InitializeGUI(int *argc, char ***argv) {
     glutMouseFunc(MouseButtonCallback);
     glutPassiveMotionFunc(MouseMotionCallback);
     glutSetKeyRepeat(GLUT_KEY_REPEAT_OFF);
-    if (fullscreen_mode)
-        glutWarpPointer(window_width / 2, window_height / 2);
+//    if (fullscreen_mode)
+//        glutWarpPointer(window_width / 2, window_height / 2);
 
     GLenum err = glewInit();
     if (GLEW_OK != err) {
@@ -207,15 +231,6 @@ void InitializeGUI(int *argc, char ***argv) {
     initialized = true;
 }
 
-double GetCurrentTime() {
+double sreBackendGLUT::GetCurrentTime() {
     return (double)glutGet(GLUT_ELAPSED_TIME) * 0.001;
 }
-
-const char *GUIGetBackendName() {
-#ifdef OPENGL_FREEGLUT
-    return "OpenGL freeglut";
-#else
-    return "OpenGL GLUT";
-#endif
-}
-

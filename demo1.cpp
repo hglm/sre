@@ -49,7 +49,7 @@ static float disturbance_displacement_func() {
 static sreObject *fluid_scene_object;
 static int light_object[13 * 28];
 
-void Demo1CreateScene() {
+void Demo1CreateScene(sreScene *scene, sreView *view) {
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);
     // Add player sphere as scene object 0.
     scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS |
@@ -254,15 +254,11 @@ void Demo1CreateScene() {
     scene->AddObject(block_model, -20.0, -20.0, 0, 0, 0, 0, 8.0);
 }
 
-static double demo1_previous_time;
+static double demo1_previous_time = 0;
 static double fluid_time = 0;
 
-void Demo1Render() {
-    scene->Render(view);
-}
-
-void Demo1TimeIteration(double time_previous, double time_current) {
-    double elapsed_time =  demo_time - demo1_previous_time;
+void Demo1Step(sreScene *scene, double demo_time) {
+    double elapsed_time = demo_time - demo1_previous_time;
     demo1_previous_time = demo_time;
 #ifndef OPENGL_ES2
     fluid_time += elapsed_time;
@@ -280,7 +276,7 @@ void Demo1TimeIteration(double time_previous, double time_current) {
     Vector4D V = Vector4D(0.1, 0, - 1.0, 0);
     V.Normalize();
     for (int i = 0; i < 13 * 28; i++) {
-        M_rot.AssignRotationAlongZAxis((fmod(time_current * 0.5, 1.0) + i * 0.13) * 2.0 * M_PI);
+        M_rot.AssignRotationAlongZAxis((fmod(demo_time * 0.5, 1.0) + i * 0.13) * 2.0 * M_PI);
         Vector3D W = (M_rot * V).GetVector3D();
         scene->ChangeSpotLightDirection(light_object[i], W);
     }

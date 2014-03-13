@@ -30,22 +30,36 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <GL/glfw.h>
 
 #include "sre.h"
+#include "sreBackend.h"
 #include "demo.h"
 #include "gui-common.h"
+
+class sreBackendGLFW : public sreBackend {
+public :
+    virtual void Initialize(int *argc, char ***argv, int window_width, int window_height);
+    virtual void Finalize();
+    virtual void GLSwapBuffers();
+    virtual void GLSync();
+    virtual double GetCurrentTime();
+    virtual void ProcessGUIEvents();
+    virtual void ToggleFullScreenMode(int& width, int& height, bool pan_with_mouse);
+    virtual void HideCursor();
+    virtual void RestoreCursor();
+    virtual void WarpCursor(int x, int y);
+};
+
+sreBackend *sreCreateBackendGLGLFW() {
+    sreBackend *b = new sreBackendGLFW;
+    b->name = "OpenGL 3.0+ GLFW";
+    return b;
+}
 
 static bool initialized = false;
 
 static void GLFWCALL WindowResizeCallback(int width, int height) {
     if (!initialized)
         return;
-    window_width = width;
-    window_height = height;
-    sreResize(view, window_width, window_height);
-}
-
-void GUIToggleFullScreenMode(int& window_width, int& window_height, bool pan_with_mouse) {
-    // Doesn't work really well with GLFW 2.x, it does not use the proper XAtom protocol
-    // method to toggle full-screen in X11. No-op.
+    sreResize(sre_internal_application->view, width, height);
 }
 
 static const unsigned int GLFW_translation_table[] = {
@@ -80,18 +94,6 @@ static void GLFWCALL KeyCallback(int id, int state) {
     }
 }
 
-void GUIWarpCursor(int x,int y) {
-    glfwSetMousePos(x, y);
-}
-
-void GUIHideCursor() {
-    glfwDisable(GLFW_MOUSE_CURSOR);
-}
-
-void GUIRestoreCursor() {
-    glfwEnable(GLFW_MOUSE_CURSOR);
-}
-
 static const unsigned int GLFW_mouse_button_translation_table[] = {
     GLFW_MOUSE_BUTTON_LEFT, SRE_MOUSE_BUTTON_LEFT,
     GLFW_MOUSE_BUTTON_RIGHT, SRE_MOUSE_BUTTON_RIGHT,
@@ -115,27 +117,16 @@ static void GLFWCALL MousePosCallback(int x, int y) {
     motion_y = y;
 }
 
-void ProcessGUIEvents(double dt) {
+void sreBackendGLFW::ProcessGUIEvents() {
     motion_occurred = false;
+    // Keypress events and mouse button events are handled directly.
     glfwPollEvents();
+    // Register mouse motion if it has occurred.
     if (motion_occurred)
         GUIProcessMouseMotion(motion_x, motion_y);
-    GUIMovePlayer(dt);
 }
 
-void GUIGLSync() {
-    glfwSwapBuffers();
-    glFlush();
-}
-
-void DeinitializeGUI() {
-   // Clear screen.
-   glClear(GL_COLOR_BUFFER_BIT);
-   glfwSwapBuffers();
-   glfwTerminate();
-}
-
-void InitializeGUI(int *argc, char ***argv) {
+void sreBackendGLFW::Initialize(int *argc, char ***argv, int window_width, int window_height) {
     glfwInit();
     // Require OpenGL >= 3.0.
 //    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
@@ -147,23 +138,13 @@ void InitializeGUI(int *argc, char ***argv) {
     glfwOpenWindowHint(GLFW_FSAA_SAMPLES, 4);
 #endif
     int r;
-    if (fullscreen_mode) {
-        // Hack for a 1920x1080 monitor. This doesn't work properly, the returned resolution is 1920x1024.
-        // There is tearing on the top part of the screen.
-        window_width = 1920;
-        window_height = 1080;
-        r = glfwOpenWindow(window_width, window_height, 8, 8, 8, 8, 24, 8, GLFW_FULLSCREEN);
-    }
-    else
-        r = glfwOpenWindow(window_width, window_height, 8, 8, 8, 8, 24, 8, GLFW_WINDOW);
+    r = glfwOpenWindow(window_width, window_height, 8, 8, 8, 8, 24, 8, GLFW_WINDOW);
     if (!r) {
         printf("Failed to open GLFW window.\n");
         glfwTerminate();
         exit(1);
     }
-    if (fullscreen_mode) {
-        glfwGetWindowSize(&window_width, &window_height);
-    }
+    glfwGetWindowSize(&window_width, &window_height);
     glfwSetWindowTitle("SRE demo -- OpenGL rendering demo using GLFW");
     int stencil_bits = glfwGetWindowParam(GLFW_STENCIL_BITS);
     int depth_bits = glfwGetWindowParam(GLFW_DEPTH_BITS);
@@ -177,8 +158,8 @@ void InitializeGUI(int *argc, char ***argv) {
     glfwDisable(GLFW_AUTO_POLL_EVENTS);
     // Generate multiple keypress events when a key is held down.
 //    glfwEnable(GLFW_KEY_REPEAT);
-    if (fullscreen_mode)
-        glfwSetMousePos(window_width / 2, window_height / 2);
+//    if (fullscreen_mode)
+//        glfwSetMousePos(window_width / 2, window_height / 2);
 
     GLenum err = glewInit();
     if (GLEW_OK != err) {
@@ -192,10 +173,40 @@ void InitializeGUI(int *argc, char ***argv) {
     initialized = true;
 }
 
-double GetCurrentTime() {
+void sreBackendGLFW::Finalize() {
+   // Clear screen.
+   glClear(GL_COLOR_BUFFER_BIT);
+   glfwSwapBuffers();
+   glfwTerminate();
+}
+
+void sreBackendGLFW::GLSwapBuffers() {
+    glfwSwapBuffers();
+}
+
+void sreBackendGLFW::GLSync() {
+    glfwSwapBuffers();
+    glFlush();
+}
+
+double sreBackendGLFW::GetCurrentTime() {
     return glfwGetTime();
 }
 
-const char *GUIGetBackendName() {
-   return "OpenGL GLFW";
+void sreBackendGLFW::ToggleFullScreenMode(int& width, int& height, bool pan_with_mouse) {
+    // Doesn't work really well with GLFW 2.x, it does not use the proper XAtom protocol
+    // method to toggle full-screen in X11. No-op.
 }
+
+void sreBackendGLFW::HideCursor() {
+    glfwDisable(GLFW_MOUSE_CURSOR);
+}
+
+void sreBackendGLFW::RestoreCursor() {
+    glfwEnable(GLFW_MOUSE_CURSOR);
+}
+
+void sreBackendGLFW::WarpCursor(int x, int y) {
+    glfwSetMousePos(x, y);
+}
+
