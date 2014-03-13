@@ -377,10 +377,11 @@ void sreTexture::UploadGL(bool keep_data) {
             if (previousUnpackAlignment != 1)
                 glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
             int format;
-            if (internal_format == GL_LUMINANCE)
-                format = GL_LUMINANCE;
-            else
-                format = GL_RED;
+#ifdef OPENGL_ES2
+            format = GL_LUMINANCE;
+#else
+            format = GL_RED;
+#endif
             glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0,
                 format, GL_UNSIGNED_BYTE, data);
             if (previousUnpackAlignment != 1)

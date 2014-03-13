@@ -149,7 +149,7 @@ void sreSetShadowsMethod(int method) {
 #endif
     if (method == SRE_SHADOWS_SHADOW_VOLUMES)
         sreValidateShadowVolumeShaders();
-#ifdef NO_SHADOW_MAP
+#ifndef NO_SHADOW_MAP
     else if (method == SRE_SHADOWS_SHADOW_MAPPING)
         sreValidateShadowMapShaders();
 #endif

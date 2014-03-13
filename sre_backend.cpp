@@ -31,6 +31,9 @@ sreBackend *sreCreateBackendGLX11();
 #ifdef INCLUDE_BACKEND_GL_GLFW
 sreBackend *sreCreateBackendGLGLFW();
 #endif
+#ifdef INCLUDE_BACKEND_GLES2_X11
+sreBackend *sreCreateBackendGLES2X11();
+#endif
 
 sreBackend *sre_internal_backend = NULL;
 sreApplication *sre_internal_application;
@@ -65,12 +68,22 @@ void sreSelectBackend(int backend) {
         sre_internal_backend = sreCreateBackendGLGLFW();
         break;
 #endif
+#ifdef INCLUDE_BACKEND_GLES2_X11
+    case SRE_BACKEND_GLES2_X11 :
+        sre_internal_backend = sreCreateBackendGLES2X11();
+        break;
+#endif
     default :
         sreFatalError("sreSelectBackend: Invalid back-end or back-end not supported.");
         break;
     }
+    sre_internal_backend->index = backend;
     sreMessage(SRE_MESSAGE_INFO, "GL Platform: %s, Back-end selected: %s",
         gl_platform_str, sre_internal_backend->name);
+}
+
+void sreBackendGLSwapBuffers() {
+    sre_internal_backend->GLSwapBuffers();
 }
 
 static void sreBackendSetOptionDefaults() {
@@ -244,6 +257,7 @@ sreApplication::sreApplication() {
     hovering_height_acceleration = 100.0f;
     jump_requested = false;
     stop_signalled = false;
+    control_object = 0;
 
     text_message_time = 0;
     text_message_timeout = 3.0;
@@ -357,9 +371,10 @@ void sreGenericPhysicsApplication::DoPhysics(double previous_time, double curren
         input_velocity.Set(0, 0, 0);
     }
     if (player_velocity != Vector3D(0, 0, 0)) {
-        scene->ChangePosition(0, scene->sceneobject[0]->position.x + player_velocity.x * dtime,
-            scene->sceneobject[0]->position.y + player_velocity.y * dtime,
-            scene->sceneobject[0]->position.z + player_velocity.z * dtime);
+        scene->ChangePosition(control_object, scene->sceneobject[control_object]->position.x
+            + player_velocity.x * dtime,
+            scene->sceneobject[control_object]->position.y + player_velocity.y * dtime,
+            scene->sceneobject[control_object]->position.z + player_velocity.z * dtime);
         // Slow down the horizontal velocity.
         Vector2D v;
         v.x = player_velocity.x;

@@ -25,6 +25,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // eventually allow multiple back-ends to be compiled in simultaneously.
 
 void *EGLGetNativeDisplay();
-void EGLInitializeSubsystemWindow(int& width, int &height, void *&window);
+void EGLInitializeSubsystemWindow(int requested_width, int requested_height,
+    int& width, int &height, void *&window);
 void EGLDeinitializeSubsystem();
 
+// Functions defined in egl-common.cpp.
+
+void EGLInitialize(int *argc, char ***argv, int window_width, int window_height);
+void EGLFinalize();
+void EGLSwapBuffers();
+void EGLSync();

@@ -111,7 +111,7 @@ void sreBulletPhysicsApplication::InitializePhysics() {
 
     // The world.
     dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
-    dynamicsWorld->setGravity(btVector3(0, 0, - 20.0));
+    dynamicsWorld->setGravity(btVector3(0, 0, - 20.0f));
 
     // Add the ground.
     if (!(flags & SRE_APPLICATION_FLAG_NO_GROUND_PLANE)) {
@@ -538,7 +538,7 @@ void sreBulletPhysicsApplication::DoPhysics(double previous_time, double current
         object_rigid_body[control_object]->setGravity(btVector3(gravity.x, gravity.y, gravity.z));
     }
     else {
-        object_rigid_body[control_object]->setGravity(btVector3(0, 0, - 20.0));
+        object_rigid_body[control_object]->setGravity(btVector3(0, 0, - 20.0f));
     }
 
     BulletStep(dt);

@@ -23,6 +23,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 class sreBackend {
 public :
+    int index;
     const char *name;
     virtual void Initialize(int *argc, char ***argv, int window_width, int window_height) = 0;
     virtual void Finalize() = 0;
@@ -114,5 +115,6 @@ SRE_API void sreSelectBackend(int backend);
 SRE_API void sreInitializeApplication(sreApplication *app, int *argc, char ***argv);
 // Run the demo using the selected back-end and the specified application.
 SRE_API void sreRunApplication(sreApplication *app);
+SRE_API void sreBackendGLSwapBuffers();
 SRE_API void sreBackendStandardTextOverlay();
 

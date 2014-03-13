@@ -42,7 +42,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <GLES2/gl2.h>
 
 #include "sre.h"
-#include "demo.h"
+#include "sreBackend.h"
 #include "egl-common.h"
 #include "gui-common.h"
 
@@ -96,7 +96,11 @@ static int egl_chosen_config;
 
 #define check() assert(glGetError() == 0)
 
-static void EGLInitialize(EGL_STATE_T *state, EGLNativeDisplayType native_display) {
+// Open a window with the requested size; the actual size may be different
+// (e.g. a full-screen framebuffer).
+
+static void EGLOpenWindow(EGL_STATE_T *state, EGLNativeDisplayType native_display,
+int requested_width, int requested_height) {
     EGLBoolean result;
     EGLint num_config;
 
@@ -106,12 +110,11 @@ static void EGLInitialize(EGL_STATE_T *state, EGLNativeDisplayType native_displa
     check();
 
     // Initialize the EGL display connection.
-#ifdef OPENGL_ES2_MALI
     EGLint egl_major, egl_minor;
-    result = eglInitialize(state->display, &egl_major, &egl_minor);
-#else
-    result = eglInitialize(state->display, NULL, NULL);
-#endif
+    if (sre_internal_backend->index == SRE_BACKEND_GLES2_RPI_FB)
+        result = eglInitialize(state->display, NULL, NULL);
+    else
+        result = eglInitialize(state->display, &egl_major, &egl_minor);
     assert(result != EGL_FALSE);
     check();
 
@@ -145,7 +148,7 @@ static void EGLInitialize(EGL_STATE_T *state, EGLNativeDisplayType native_displa
     int width, height;
     void *window;
     // width, height and window are reference arguments and will be set.
-    EGLInitializeSubsystemWindow(width, height, window);
+    EGLInitializeSubsystemWindow(requested_width, requested_height, width, height, window);
     state->screen_width = width;
     state->screen_height = height;
 
@@ -153,32 +156,20 @@ static void EGLInitialize(EGL_STATE_T *state, EGLNativeDisplayType native_displa
         (EGLNativeWindowType)window, window_attribute_list);
     assert(state->surface != EGL_NO_SURFACE);
     check();
-#if 0
-    // Original code for Mali:
-#ifdef OPENGL_ES2_MALI
-    state->surface = eglCreateWindowSurface(state->display, egl_config[egl_chosen_config], &native_window, window_attribute_list);
-//    result = eglSurfaceAttrib(state->display, state->surface, EGL_SWAP_BEHAVIOR, EGL_BUFFER_DESTROYED);
-//    assert(result != GL_FALSE);
-#endif
-    // Original code for RPI:
-#ifdef OPENGL_ES2_RPI
-    state->surface = eglCreateWindowSurface(state->display, egl_config[egl_chosen_config], &native_window, NULL);
-#endif
-#endif
 
-   // Connect the context to the surface.
-   result = eglMakeCurrent(state->display, state->surface, state->surface, state->context);
-   assert(result != EGL_FALSE);
-   check();
+    // Connect the context to the surface.
+    result = eglMakeCurrent(state->display, state->surface, state->surface, state->context);
+    assert(result != EGL_FALSE);
+    check();
 
-   // Set background color and clear buffers
-   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-   glClear(GL_COLOR_BUFFER_BIT);
+    // Set background color and clear buffers
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
 
-   check();
+    check();
 }
 
-void GUIInitialize(int *argc, char ***argv) {
+void EGLInitialize(int *argc, char ***argv, int window_width, int window_height) {
     EGLNativeDisplayType native_display = (EGLNativeDisplayType)EGLGetNativeDisplay();
 
     state = (EGL_STATE_T *)malloc(sizeof(EGL_STATE_T));
@@ -186,17 +177,16 @@ void GUIInitialize(int *argc, char ***argv) {
     memset(state, 0, sizeof(*state ));
 
     // Start GLES2.
-    EGLInitialize(state, native_display);
-    window_width = state->screen_width;
-    window_height = state->screen_height;
-    printf("Opened OpenGL-ES2 state, width = %d, height = %d\n", window_width, window_height);
+    EGLOpenWindow(state, native_display, window_width, window_height);
+    int width = state->screen_width;
+    int height = state->screen_height;
+    sreMessage(SRE_MESSAGE_INFO, "Opened OpenGL-ES2 state, width = %d, height = %d",
+        width, height);
 
-    sreInitialize(window_width, window_height, GUIGLSwapBuffers);
-//    sreSetLightScissors(SRE_SCISSORS_NONE);
-//    sreSetShadowVolumeVisibilityTest(false);
+    sreInitialize(width, height, sreBackendGLSwapBuffers);
 }
 
-void GUIFinalize() {
+void EGLFinalize() {
    // Clear screen.
    glClear( GL_COLOR_BUFFER_BIT );
    eglSwapBuffers(state->display, state->surface);
@@ -214,11 +204,7 @@ void EGLSwapBuffers() {
     eglSwapBuffers(state->display, state->surface); 
 }
 
-void GUIGLSwapBuffers() {
-    EGLSwapBuffers();
-}
-
-void GUIGLSync() {
+void EGLSync() {
     glClear(GL_COLOR_BUFFER_BIT);
     eglSwapBuffers(state->display, state->surface);
     eglWaitClient();

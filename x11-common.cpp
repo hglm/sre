@@ -178,7 +178,7 @@ static const unsigned int X11_button_translation_table[] = {
     SRE_TRANSLATION_TABLE_END
 };
 
-void X11GUIProcessEvents() {
+void X11ProcessGUIEvents() {
     XEvent e;
     bool motion_occurred = false;
     int motion_x, motion_y;

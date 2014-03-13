@@ -104,10 +104,6 @@ static GLint visual_attributes[] = {
 void CloseGlutWindow() {
 }
 
-static void GUIGLSwapBuffers() {
-    sre_internal_backend->GLSwapBuffers();
-}
-
 void sreBackendGLX11::Initialize(int *argc, char ***argv, int window_width, int window_height) {
     // To call GLX functions with glew, we need to call glewInit()
     // first, but it needs an active OpenGL context to be present. So we have to
@@ -215,7 +211,7 @@ void sreBackendGLX11::Initialize(int *argc, char ***argv, int window_width, int 
     glXMakeCurrent(state->XDisplay, X11GetWindow(), state->context);
     check();
 
-    sreInitialize(window_width, window_height, GUIGLSwapBuffers);
+    sreInitialize(window_width, window_height, sreBackendSwapBuffers);
 }
 
 void sreBackendGLX11::Finalize() {
@@ -243,7 +239,7 @@ double sreBackendGLX11::GetCurrentTime() {
 }
 
 void sreBackendGLX11::ProcessGUIEvents() {
-    X11GUIProcessEvents();
+    X11ProcessGUIEvents();
 }
 
 void sreBackendGLX11::ToggleFullScreenMode(int& width, int& height, bool pan_with_mouse) {

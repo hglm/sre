@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
 #ifdef OPENGL
          if (true)
 #else
-         if (strcmp(sre_internal_backend->name "GLES2_X11") == 0)
+         if (strcmp(sre_internal_backend->name, "GLES2_X11") == 0)
 #endif
              text4 =
                 "Keyboard < is pan left and > is pan right, H is pan up and N is pan down.\n"
@@ -181,6 +181,8 @@ int main(int argc, char **argv) {
     }
 
     demo_table[demo_index].CreateScene(app->scene, app->view);
+    // By convention object 0 is the default user-controlled object (usually a ball/sphere).
+    app->control_object = 0;
 
     sreRunApplication(app);
     exit(0);
