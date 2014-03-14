@@ -211,7 +211,7 @@ void sreBackendGLX11::Initialize(int *argc, char ***argv, int window_width, int 
     glXMakeCurrent(state->XDisplay, X11GetWindow(), state->context);
     check();
 
-    sreInitialize(window_width, window_height, sreBackendSwapBuffers);
+    sreInitialize(window_width, window_height, sreBackendGLSwapBuffers);
 }
 
 void sreBackendGLX11::Finalize() {
