@@ -17,6 +17,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
 // EGL support shared between different back-ends (including X11 and framebuffer).
+// The functions EGLGetNativeDisplay(), EGLInitializeSubsystemWindow() and
+// EGLDeinitializeSubsystem() are called and must be provided by the EGL back-end-specific
+// implementation. Different EGL back-ends cannot easily be mixed.
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -169,7 +172,8 @@ int requested_width, int requested_height) {
     check();
 }
 
-void EGLInitialize(int *argc, char ***argv, int window_width, int window_height) {
+void EGLInitialize(int *argc, char ***argv, int requested_width, int requested_height,
+int& actual_width, int& actual_height) {
     EGLNativeDisplayType native_display = (EGLNativeDisplayType)EGLGetNativeDisplay();
 
     state = (EGL_STATE_T *)malloc(sizeof(EGL_STATE_T));
@@ -177,13 +181,11 @@ void EGLInitialize(int *argc, char ***argv, int window_width, int window_height)
     memset(state, 0, sizeof(*state ));
 
     // Start GLES2.
-    EGLOpenWindow(state, native_display, window_width, window_height);
-    int width = state->screen_width;
-    int height = state->screen_height;
+    EGLOpenWindow(state, native_display, requested_width, requested_height);
+    actual_width = state->screen_width;
+    actual_height = state->screen_height;
     sreMessage(SRE_MESSAGE_INFO, "Opened OpenGL-ES2 state, width = %d, height = %d",
-        width, height);
-
-    sreInitialize(width, height, sreBackendGLSwapBuffers);
+        actual_width, actual_height);
 }
 
 void EGLFinalize() {

@@ -28,7 +28,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 int window_width = WINDOW_WIDTH;
 int window_height = WINDOW_HEIGHT;
 
-static bool pan_with_mouse = false;
 static bool accelerate_pressed = false;
 static bool decelerate_pressed = false;
 static bool ascend_pressed = false;
@@ -205,14 +204,18 @@ static void SetInfoScreen() {
 }
 
 void GUIProcessMouseMotion(int x, int y) {
-    if (!pan_with_mouse)
+    if (!(sre_internal_application->flags & SRE_APPLICATION_FLAG_PAN_WITH_MOUSE))
         return;
-    if (sre_internal_application->flags & SRE_APPLICATION_FLAG_LOCK_PANNING)
+    if (sre_internal_application->flags & SRE_APPLICATION_FLAG_LOCK_PANNING) {
+        sre_internal_backend->WarpCursor(sre_internal_application->window_width / 2, sre_internal_application->window_height / 2);
         return;
+    }
     Vector3D angles;
     sre_internal_application->view->GetViewAngles(angles);
-    angles.z -= (x - window_width / 2) * 360.0f * 0.5 / window_width;
-    angles.x -= (y - window_height / 2) * 360.0f * 0.5 / window_width;
+    float dx = (x - sre_internal_application->window_width / 2) * sre_internal_application->mouse_sensitivity.x;
+    float dy = (y - sre_internal_application->window_height / 2) * sre_internal_application->mouse_sensitivity.y;
+    angles.z -= dx * 360.0f * 0.5 / sre_internal_application->window_width;
+    angles.x -= dy * 360.0f * 0.5 / sre_internal_application->window_width;
     // The horizontal field of view wraps around.
     if (angles.z < - 180)
         angles.z += 360;
@@ -224,7 +227,7 @@ void GUIProcessMouseMotion(int x, int y) {
     if (angles.x > 10)
         angles.x = 10;
     sre_internal_application->view->SetViewAngles(angles);
-    sre_internal_backend->WarpCursor(window_width / 2, window_height / 2);
+    sre_internal_backend->WarpCursor(sre_internal_application->window_width / 2, sre_internal_application->window_height / 2);
 }
 
 void GUITextMessageTimeoutCallback() {
@@ -248,17 +251,18 @@ void GUIKeyPressCallback(unsigned int key) {
         break;
     case 'F' :
         sre_internal_backend->GLSync();
-        sre_internal_backend->ToggleFullScreenMode(window_width, window_height, pan_with_mouse);
+        sre_internal_backend->ToggleFullScreenMode(window_width, window_height,
+            (sre_internal_application->flags & SRE_APPLICATION_FLAG_PAN_WITH_MOUSE) != 0);
         break;
     case 'M' :
-        if (pan_with_mouse) {
+        if (sre_internal_application->flags & SRE_APPLICATION_FLAG_PAN_WITH_MOUSE) {
             sre_internal_backend->RestoreCursor();
-            pan_with_mouse = false;
+            sre_internal_application->SetFlags(sre_internal_application->GetFlags() & (~SRE_APPLICATION_FLAG_PAN_WITH_MOUSE));
         }
         else {
             sre_internal_backend->WarpCursor(window_width / 2, window_height / 2);
             sre_internal_backend->HideCursor();
-            pan_with_mouse = true;
+            sre_internal_application->SetFlags(sre_internal_application->GetFlags() | SRE_APPLICATION_FLAG_PAN_WITH_MOUSE);
         }
         break;
     case '+' :

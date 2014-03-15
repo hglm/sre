@@ -25,7 +25,8 @@ class sreBackend {
 public :
     int index;
     const char *name;
-    virtual void Initialize(int *argc, char ***argv, int window_width, int window_height) = 0;
+    virtual void Initialize(int *argc, char ***argv, int requested_width, int requested_height,
+        int& actual_width, int& actual_height) = 0;
     virtual void Finalize() = 0;
     virtual void GLSwapBuffers() = 0;
     virtual void GLSync() = 0;
@@ -54,12 +55,17 @@ enum {
     SRE_APPLICATION_FLAG_NO_GRAVITY = 0x4,
     SRE_APPLICATION_FLAG_DYNAMIC_GRAVITY = 0x8,
     SRE_APPLICATION_FLAG_JUMP_ALLOWED = 0x10,
+    // Whether mouse panning is locked.
     SRE_APPLICATION_FLAG_LOCK_PANNING = 0x20,
+    // Whether mouse panning is enabled (usually in a windowing environment).
+    SRE_APPLICATION_FLAG_PAN_WITH_MOUSE= 0x40
 };
 
 class sreApplication {
 public :
     unsigned int flags;
+    int window_width, window_height;
+    Vector2D mouse_sensitivity;
     sreScene *scene;
     sreView *view;
     Point3D gravity_position;

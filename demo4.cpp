@@ -1139,7 +1139,7 @@ void Demo4Step(sreScene *scene, double demo_time) {
     if (display_time) {
          sprintf(message, "%02d:%02dh Day %d", (int)floorf(hour),
             (int)floorf((hour - (int)floorf(hour)) * 60.0 / 100.0),
-            day + 1);
+            (int)(floor(day) + 1));
         sre_internal_application->text_message[0] = message; 
         sre_internal_application->text_message_time = sre_internal_backend->GetCurrentTime();
         sre_internal_application->nu_text_message_lines = 1;

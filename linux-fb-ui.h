@@ -22,6 +22,10 @@ void LinuxFBSetConsoleGraphics();
 void LinuxFBRestoreConsoleState();
 
 // Initialize mouse and/or keyboard.
-
-void LinuxFBInitializeUI();
+void LinuxFBInitializeUI(int width, int height);
 void LinuxFBDeinitializeUI();
+
+// User input and other functions.
+void LinuxFBProcessGUIEvents();
+void LinuxFBWarpCursor(int x, int y);
+double LinuxFBGetCurrentTime();

@@ -34,6 +34,9 @@ sreBackend *sreCreateBackendGLGLFW();
 #ifdef INCLUDE_BACKEND_GLES2_X11
 sreBackend *sreCreateBackendGLES2X11();
 #endif
+#ifdef INCLUDE_BACKEND_GLES2_ALLWINNER_MALI_FB
+sreBackend *sreCreateBackendGLES2AllwinnerMaliFB();
+#endif
 
 sreBackend *sre_internal_backend = NULL;
 sreApplication *sre_internal_application;
@@ -71,6 +74,11 @@ void sreSelectBackend(int backend) {
 #ifdef INCLUDE_BACKEND_GLES2_X11
     case SRE_BACKEND_GLES2_X11 :
         sre_internal_backend = sreCreateBackendGLES2X11();
+        break;
+#endif
+#ifdef INCLUDE_BACKEND_GLES2_ALLWINNER_MALI_FB
+    case SRE_BACKEND_GLES2_ALLWINNER_MALI_FB :
+        sre_internal_backend = sreCreateBackendGLES2AllwinnerMaliFB();
         break;
 #endif
     default :
@@ -215,7 +223,11 @@ static void sreBackendInitialize(sreApplication *app, int *argc, char ***argv) {
         sreSetDemandLoadShaders(true);
 
     // Initialize GUI and SRE library.
-    sre_internal_backend->Initialize(argc, argv, WINDOW_WIDTH, WINDOW_HEIGHT);
+    int actual_width, actual_height;
+    sre_internal_backend->Initialize(argc, argv, WINDOW_WIDTH, WINDOW_HEIGHT, actual_width, actual_height);
+    app->window_width = actual_width;
+    app->window_height = actual_height;
+    sreInitialize(actual_width, actual_height, sreBackendGLSwapBuffers);
 
     sreSetDrawTextOverlayFunc(sreBackendStandardTextOverlay);
     sreSetShadowsMethod(shadows);
@@ -226,6 +238,17 @@ static void sreBackendInitialize(sreApplication *app, int *argc, char ***argv) {
     sreSetLightScissors(SRE_SCISSORS_GEOMETRY);
     if (multipass_rendering && !multiple_lights)
         sreSetMultiPassMaxActiveLights(1);
+
+
+    // Enable mouse panning by default for framebuffer back-ends.
+    if (sre_internal_backend->index == SRE_BACKEND_GLES2_ALLWINNER_MALI_FB ||
+    sre_internal_backend->index == SRE_BACKEND_GLES2_RPI_FB) {
+        sre_internal_application->SetFlags(sre_internal_application->GetFlags() |
+        SRE_APPLICATION_FLAG_PAN_WITH_MOUSE);
+        // The Linux console mouse interface has relatively low sensitivity.
+        // Also reverse the y movement.
+        sre_internal_application->mouse_sensitivity = Vector2D(2.0f, - 2.0f);
+    }
 
     // Create a scene with initial default maximums of 1024 objects, 256 models and 128 lights.
     // Dynamic reallocation in libsre should ensure that actual numbers are practically
@@ -240,12 +263,12 @@ static void sreBackendInitialize(sreApplication *app, int *argc, char ***argv) {
 }
 
 void sreInitializeApplication(sreApplication *app, int *argc, char ***argv) {
+    sre_internal_application = app;
     if (sre_internal_backend == NULL)
         sreSelectBackend(SRE_BACKEND_DEFAULT);
     sreBackendSetOptionDefaults();
     sreBackendProcessOptions(argc, argv);
     sreBackendInitialize(app, argc, argv);
-    sre_internal_application = app;
 }
 
 sreApplication::sreApplication() {
@@ -258,6 +281,7 @@ sreApplication::sreApplication() {
     jump_requested = false;
     stop_signalled = false;
     control_object = 0;
+    mouse_sensitivity = Vector2D(1.0f, 1.0f);
 
     text_message_time = 0;
     text_message_timeout = 3.0;

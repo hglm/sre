@@ -30,7 +30,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 class sreBackendGLES2X11 : public sreBackend {
 public :
-    virtual void Initialize(int *argc, char ***argv, int window_width, int window_height);
+    virtual void Initialize(int *argc, char ***argv, int window_width, int window_height,
+        int& actual_width, int& actual_height);
     virtual void Finalize();
     virtual void GLSwapBuffers();
     virtual void GLSync();
@@ -60,7 +61,7 @@ int& width, int &height, void *&window) {
     // Use configured window size.
     width = requested_width;
     height = requested_height;
-    
+
     X11CreateWindow(width, height, NULL, "SRE OpenGL-ES2.0 X11 demo");
 
     window = (void *)X11GetWindow();
@@ -73,8 +74,9 @@ void EGLDeinitializeSubsystem() {
 
 // Back-end class implementation.
 
-void sreBackendGLES2X11::Initialize(int *argc, char ***argv, int window_width, int window_height) {
-    EGLInitialize(argc, argv, window_width, window_height);
+void sreBackendGLES2X11::Initialize(int *argc, char ***argv, int requested_width, int requested_height,
+int& actual_width, int& actual_height) {
+    EGLInitialize(argc, argv, requested_width, requested_height, actual_width, actual_height);
 }
 
 void sreBackendGLES2X11::Finalize() {

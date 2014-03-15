@@ -36,7 +36,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 class sreBackendGLFW : public sreBackend {
 public :
-    virtual void Initialize(int *argc, char ***argv, int window_width, int window_height);
+    virtual void Initialize(int *argc, char ***argv, int requested_width, int requested_height,
+         int& actual_width, int& actual_height);
     virtual void Finalize();
     virtual void GLSwapBuffers();
     virtual void GLSync();
@@ -126,7 +127,8 @@ void sreBackendGLFW::ProcessGUIEvents() {
         GUIProcessMouseMotion(motion_x, motion_y);
 }
 
-void sreBackendGLFW::Initialize(int *argc, char ***argv, int window_width, int window_height) {
+void sreBackendGLFW::Initialize(int *argc, char ***argv, int requested_width, int requested_height,
+int& actual_width, int& actual_height) {
     glfwInit();
     // Require OpenGL >= 3.0.
 //    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
@@ -138,18 +140,18 @@ void sreBackendGLFW::Initialize(int *argc, char ***argv, int window_width, int w
     glfwOpenWindowHint(GLFW_FSAA_SAMPLES, 4);
 #endif
     int r;
-    r = glfwOpenWindow(window_width, window_height, 8, 8, 8, 8, 24, 8, GLFW_WINDOW);
+    r = glfwOpenWindow(requested_width, requested_height, 8, 8, 8, 8, 24, 8, GLFW_WINDOW);
     if (!r) {
         printf("Failed to open GLFW window.\n");
         glfwTerminate();
         exit(1);
     }
-    glfwGetWindowSize(&window_width, &window_height);
+    glfwGetWindowSize(&actual_width, &actual_height);
     glfwSetWindowTitle("SRE demo -- OpenGL rendering demo using GLFW");
     int stencil_bits = glfwGetWindowParam(GLFW_STENCIL_BITS);
     int depth_bits = glfwGetWindowParam(GLFW_DEPTH_BITS);
-    printf("Opened GLFW context of size %d x %d with 32-bit pixels, %d-bit depthbuffer and %d-bit stencil.\n", window_width,
-        window_height, depth_bits, stencil_bits);
+    printf("Opened GLFW context of size %d x %d with 32-bit pixels, %d-bit depthbuffer and %d-bit stencil.\n",
+        actual_width, actual_height, depth_bits, stencil_bits);
     glfwSetWindowSizeCallback(WindowResizeCallback);
     glfwSetKeyCallback(KeyCallback);
     glfwSetMousePosCallback(MousePosCallback);
@@ -169,7 +171,6 @@ void sreBackendGLFW::Initialize(int *argc, char ***argv, int window_width, int w
     }
     fprintf(stdout, "Status: Using GLEW %s\n", glewGetString(GLEW_VERSION));
 
-    sreInitialize(window_width, window_height, glfwSwapBuffers);
     initialized = true;
 }
 

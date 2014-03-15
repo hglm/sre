@@ -31,7 +31,8 @@ void EGLDeinitializeSubsystem();
 
 // Functions defined in egl-common.cpp.
 
-void EGLInitialize(int *argc, char ***argv, int window_width, int window_height);
+void EGLInitialize(int *argc, char ***argv, int requested_width, int requested_height,
+    int& actual_width, int& actual_height);
 void EGLFinalize();
 void EGLSwapBuffers();
 void EGLSync();

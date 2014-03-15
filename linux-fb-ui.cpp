@@ -27,21 +27,52 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <linux/kd.h>
 #include <errno.h>
 #include <signal.h>
+#include <linux/vt.h>
 
+#include "sre.h"
+#include "sreBackend.h"
 #include "MouseEventQueue.h"
 #include "demo.h"
 #include "gui-common.h"
 
 static MouseEventQueue *mouse_event_queue;
-int saved_kd_mode;
+static int saved_kd_mode;
 
 void LinuxFBRestoreConsoleState() {
+    fflush(stdout);
+    fflush(stderr);
     int tty = open("/dev/tty0", O_RDWR); 
+    // First check whether the console is already in the mode to
+    // be restored (this function may be called multiple times due
+    // to signals and atexit).
+    int current_kd_mode;
+    ioctl(tty, KDGETMODE, &current_kd_mode);
+    if (current_kd_mode == saved_kd_mode) {
+        close(tty);
+        return;
+    }
     ioctl(tty, KDSETMODE, saved_kd_mode);
+    usleep(1000000);
+    // Switch to another VT and back to restore the text content.
+    struct vt_stat vtstat;
+    ioctl(tty, VT_GETSTATE, &vtstat);
+    int current_vt = vtstat.v_active;
+    int temp_vt;
+    if (current_vt == 1)
+        temp_vt = 2;
+    else
+        temp_vt = 1;
+    ioctl(tty, VT_ACTIVATE, temp_vt);
+    ioctl(tty, VT_WAITACTIVE, temp_vt);
+    ioctl(tty, VT_ACTIVATE, current_vt);
+    ioctl(tty, VT_WAITACTIVE, current_vt);
+//    fwrite("\033c\n", 1, 5, stdout);
+    fflush(stdout);
     close(tty);
 }
 
-struct sigaction signal_quit_oldact, signal_segv_oldact, signal_int_oldact;
+struct sigaction signal_quit_oldact, signal_segv_oldact, signal_int_oldact,
+    signal_abort_oldact;
 
 void signal_quit(int num, siginfo_t *info, void *p) {
     LinuxFBRestoreConsoleState();
@@ -67,7 +98,17 @@ void signal_int(int num, siginfo_t *info, void *p) {
         signal_int_oldact.sa_handler(num);
 }
 
+void signal_abort(int num, siginfo_t *info, void *p) {
+    LinuxFBRestoreConsoleState();
+    if (signal_abort_oldact.sa_flags & SA_SIGINFO)
+        signal_abort_oldact.sa_sigaction(num, info, p);
+    else
+        signal_abort_oldact.sa_handler(num);
+}
+
 void LinuxFBSetConsoleGraphics() {
+    fflush(stdout);
+    fflush(stderr);
     // Set console graphics mode and install some handlers to restore console textmode.
     int tty = open("/dev/tty0", O_RDWR);
     if (tty < 0)
@@ -88,6 +129,9 @@ void LinuxFBSetConsoleGraphics() {
     sigaction(SIGSEGV, &act, &signal_segv_oldact);
     act.sa_sigaction = signal_int;
     sigaction(SIGINT, &act, &signal_int_oldact);
+    // SIGABRT is raised by assert().
+    act.sa_sigaction = signal_abort;
+    sigaction(SIGABRT, &act, &signal_abort_oldact);
     return;
 
 error_setting_graphics_mode :
@@ -95,15 +139,19 @@ error_setting_graphics_mode :
     exit(1);
 }
 
-void LinuxFBInitializeUI() {
+void LinuxFBWarpCursor(int x, int y) {
+    mouse_event_queue->setPosition(x, y);
+}
+
+void LinuxFBInitializeUI(int width, int height) {
     mouse_event_queue = new MouseEventQueue;
     mouse_event_queue->initialize();
-    mouse_event_queue->setScreenSize(window_width, window_height);
+    mouse_event_queue->setScreenSize(width, height);
     // Eat up preexisting mouse events.
     while (mouse_event_queue->isEventAvailable()) {
         MouseEvent event = mouse_event_queue->getEvent();
     }
-    GUIWarpCursor(window_width / 2, window_height / 2);
+    LinuxFBWarpCursor(width / 2, height / 2);
 }
 
 void LinuxFBDeinitializeUI() {
@@ -113,16 +161,16 @@ void LinuxFBDeinitializeUI() {
 // Mouse interface for the Linux framebuffer console.
 
 static const unsigned int linux_mouse_button_table[] = {
-    MouseEvent::LeftButton, SRE_MOUSE_LEFT_BUTTON,
-    MouseEvent::MiddleButton, SRE_MOUSE_MIDDLE_BUTTON,
-    MouseEvent::RightButton, SRE_MOUSE_RIGHT_BUTTON,
+    MouseEvent::LeftButton, SRE_MOUSE_BUTTON_LEFT,
+    MouseEvent::MiddleButton, SRE_MOUSE_BUTTON_MIDDLE,
+    MouseEvent::RightButton, SRE_MOUSE_BUTTON_RIGHT,
     SRE_TRANSLATION_TABLE_END
 };
 
 static double left_pressed_date = 0;
 static double right_pressed_date = 0;
 
-void GUIProcessEvents(double dt) {
+void LinuxFBProcessGUIEvents() {
     bool motion_occurred = false;
     int motion_x, motion_y;
     while (mouse_event_queue->isEventAvailable()) {
@@ -133,13 +181,13 @@ void GUIProcessEvents(double dt) {
             motion_occurred = true;
         }
         else if (event.type == MouseEvent::Press) {
-            unsigned int key=  GUITranslateKeycode(event.button, linux_mouse_button_table);
-            if (key != 0)
+            unsigned int button = GUITranslateKeycode(event.button, linux_mouse_button_table);
+            if (button != 0)
                 GUIMouseButtonCallbackNoKeyboard(button, SRE_PRESS);
         }
         else if (event.type == MouseEvent::Release) {
-            unsigned int key =  GUITranslateKeycode(event.button, linux_mouse_button_table);
-            if (key != 0)
+            unsigned int button = GUITranslateKeycode(event.button, linux_mouse_button_table);
+            if (button != 0)
                 GUIMouseButtonCallbackNoKeyboard(button, SRE_RELEASE);
         }
     }
@@ -147,22 +195,7 @@ void GUIProcessEvents(double dt) {
         GUIProcessMouseMotion(motion_x, motion_y);
 }
 
-void GUIWarpCursor(int x, int y) {
-    mouse_event_queue->setPosition(x, y);
-}
-
-// No-ops for functions not supported.
-
-void GUIToggleFullScreenMode(int& window_width, int& window_height, bool pan_with_mouse) {
-}
-
-void GUIHideCursor() {
-}
-
-void GUIRestoreCursor() {
-}
-
-double GUIGetCurrentTime() {
+double LinuxFBGetCurrentTime() {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;

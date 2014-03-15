@@ -47,7 +47,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 class sreBackendGLUT : public sreBackend {
 public :
-    virtual void Initialize(int *argc, char ***argv, int window_width, int window_height);
+    virtual void Initialize(int *argc, char ***argv, int requested_width, int requested_height,
+         int& actual_width, int& actual_height);
     virtual void Finalize();
     virtual void GLSwapBuffers();
     virtual void GLSync();
@@ -189,9 +190,10 @@ void sreBackendGLUT::Finalize() {
    glutDestroyWindow(glut_window);
 }
 
-void sreBackendGLUT::Initialize(int *argc, char ***argv, int window_width, int window_height) {
+void sreBackendGLUT::Initialize(int *argc, char ***argv, int requested_width, int requested_height,
+int& actual_width, int& actual_height) {
     glutInit(argc, *argv);
-    glutInitWindowSize(window_width, window_height);
+    glutInitWindowSize(requested_width, requested_height);
     int glut_display_mode = GLUT_RGBA | GLUT_DOUBLE | GLUT_ALPHA | GLUT_DEPTH | GLUT_STENCIL;
 #ifndef NO_MULTI_SAMPLE
     glut_display_mode |= GLUT_MULTISAMPLE;
@@ -204,8 +206,10 @@ void sreBackendGLUT::Initialize(int *argc, char ***argv, int window_width, int w
     }
     int depth_bits = glutGet(GLUT_WINDOW_DEPTH_SIZE);
     int stencil_bits = glutGet(GLUT_WINDOW_STENCIL_SIZE);
-    printf("Opened GLUT context of size %d x %d with 32-bit pixels, %d-bit depthbuffer and %d-bit stencil.\n", window_width,
-        window_height, depth_bits, stencil_bits);
+    actual_width = glutGet(GLUT_WINDOW_WIDTH);
+    actual_height = glutGet(GLUT_WINDOW_HEIGHT);
+    printf("Opened GLUT context of size %d x %d with 32-bit pixels, %d-bit depthbuffer and %d-bit stencil.\n",
+        actual_width, actual_height, depth_bits, stencil_bits);
     printf("Multi-sample level: %d.\n", glutGet(GLUT_WINDOW_NUM_SAMPLES));
 
     glutReshapeFunc(WindowResizeCallback);
@@ -227,7 +231,6 @@ void sreBackendGLUT::Initialize(int *argc, char ***argv, int window_width, int w
     }
     fprintf(stdout, "Status: Using GLEW %s\n", glewGetString(GLEW_VERSION));
 
-    sreInitialize(window_width, window_height, glutSwapBuffers);
     initialized = true;
 }
 
