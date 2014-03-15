@@ -104,6 +104,15 @@ static int egl_chosen_config;
 
 static void EGLOpenWindow(EGL_STATE_T *state, EGLNativeDisplayType native_display,
 int requested_width, int requested_height) {
+    // First initialize the native window.
+    int width, height;
+    void *window;
+    // width, height and window are reference arguments and will be set.
+    EGLInitializeSubsystemWindow(requested_width, requested_height, width,
+        height, window);
+    state->screen_width = width;
+    state->screen_height = height;
+
     EGLBoolean result;
     EGLint num_config;
 
@@ -143,19 +152,14 @@ int requested_width, int requested_height) {
     check();
 
     // Create an EGL rendering context.
-    state->context = eglCreateContext(state->display, egl_config[egl_chosen_config], EGL_NO_CONTEXT,
+    state->context = eglCreateContext(state->display,
+        egl_config[egl_chosen_config], EGL_NO_CONTEXT,
         egl_context_attributes);
     assert(state->context != EGL_NO_CONTEXT);
     check();
 
-    int width, height;
-    void *window;
-    // width, height and window are reference arguments and will be set.
-    EGLInitializeSubsystemWindow(requested_width, requested_height, width, height, window);
-    state->screen_width = width;
-    state->screen_height = height;
-
-    state->surface = eglCreateWindowSurface(state->display, egl_config[egl_chosen_config],
+    state->surface = eglCreateWindowSurface(state->display,
+        egl_config[egl_chosen_config],
         (EGLNativeWindowType)window, window_attribute_list);
     assert(state->surface != EGL_NO_SURFACE);
     check();

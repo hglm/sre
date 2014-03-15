@@ -129,7 +129,8 @@ void *EGLGetNativeDisplay() {
     return (void *)EGL_DEFAULT_DISPLAY;
 }
 
-void EGLInitializeSubsystemWindow(int requested_width, int requested_height, int &width, int &height, void *&window) {
+void EGLInitializeSubsystemWindow(int requested_width, int requested_height,
+int &width, int &height, void *&window) {
     int tmp;
     int ret;
     unsigned int args[4];

@@ -37,6 +37,9 @@ sreBackend *sreCreateBackendGLES2X11();
 #ifdef INCLUDE_BACKEND_GLES2_ALLWINNER_MALI_FB
 sreBackend *sreCreateBackendGLES2AllwinnerMaliFB();
 #endif
+#ifdef INCLUDE_BACKEND_GLES2_RPI_FB
+sreBackend *sreCreateBackendGLES2RPIFB();
+#endif
 
 sreBackend *sre_internal_backend = NULL;
 sreApplication *sre_internal_application;
@@ -79,6 +82,11 @@ void sreSelectBackend(int backend) {
 #ifdef INCLUDE_BACKEND_GLES2_ALLWINNER_MALI_FB
     case SRE_BACKEND_GLES2_ALLWINNER_MALI_FB :
         sre_internal_backend = sreCreateBackendGLES2AllwinnerMaliFB();
+        break;
+#endif
+#ifdef INCLUDE_BACKEND_GLES2_RPI_FB
+    case SRE_BACKEND_GLES2_RPI_FB :
+        sre_internal_backend = sreCreateBackendGLES2RPIFB();
         break;
 #endif
     default :
@@ -244,7 +252,7 @@ static void sreBackendInitialize(sreApplication *app, int *argc, char ***argv) {
     if (sre_internal_backend->index == SRE_BACKEND_GLES2_ALLWINNER_MALI_FB ||
     sre_internal_backend->index == SRE_BACKEND_GLES2_RPI_FB) {
         sre_internal_application->SetFlags(sre_internal_application->GetFlags() |
-        SRE_APPLICATION_FLAG_PAN_WITH_MOUSE);
+            SRE_APPLICATION_FLAG_PAN_WITH_MOUSE);
         // The Linux console mouse interface has relatively low sensitivity.
         // Also reverse the y movement.
         sre_internal_application->mouse_sensitivity = Vector2D(2.0f, - 2.0f);

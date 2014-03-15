@@ -85,6 +85,9 @@ endif
 
 FRAMEBUFFER_COMMON_MODULE_OBJECTS = CriticalSection.o MouseEventQueue.o linux-fb-ui.o
 
+# Variable for things like extra device-specific include directories etc.
+EXTRA_CFLAGS_LIB =
+EXTRA_CFLAGS_BACKEND =
 LFLAGS_LIBRARY =
 
 ifdef OPENGL_ES2
@@ -110,7 +113,7 @@ endif
 DEFINES_LIB = -DOPENGL_ES2 -DNO_SHADOW_MAP -DNO_HDR -DNO_DEPTH_CLAMP -DNO_SRGB -DNO_DEPTH_BOUNDS \
 -DNO_PRIMITIVE_RESTART
 DEFINES_DEMO = $(DEFINES_OPENGL_ES2) -DOPENGL_ES2
-LFLAGS_DEMO = -lGLESv2 -lEGL
+LFLAGS_DEMO =
 PKG_CONFIG_CFLAGS_LIB =
 PKG_CONFIG_LIBS_LIB =
 
@@ -118,6 +121,19 @@ PKG_CONFIG_LIBS_LIB =
 ifneq ($(OPENGL_ES2), X11)
 PLATFORM_MODULE_OBJECTS += $(FRAMEBUFFER_COMMON_MODULE_OBJECTS)
 endif
+
+ifeq ($(OPENGL_ES2), RPI_FB)
+# RPi as of 2013 required specific include paths and libraries
+# (no pkgconfig configuration available).
+EXTRA_CFLAGS_LIB += -I/opt/vc/include/ \
+-I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/libs/ilclient \
+-I/opt/vc/libs/vgfont -I/opt/vc/include/interface/vmcs_host/linux
+EXTRA_CFLAGS_BACKEND = $(EXTRA_CFLAGS_LIB) 
+LFLAGS_DEMO += -L/opt/vc/lib/ -lopenmaxil -lbcm_host -lvcos -lvchiq_arm \
+-L/opt/vc/libs/ilclient -L/opt/vc/libs/vgfont
+endif
+
+LFLAGS_DEMO += -lGLESv2 -lEGL
 
 else # !defined(OPENGL_ES2)
 
@@ -254,8 +270,8 @@ LFLAGS_DEMO += libsre.a
 LFLAGS_DEMO += libsrebackend.a
 endif
 endif
-CFLAGS_LIB += $(CFLAGS) $(DEFINES_LIB) -I.
-CFLAGS_DEMO = $(CFLAGS) $(DEFINES_DEMO) $(DEFINES_BACKEND) -I.
+CFLAGS_LIB += $(EXTRA_CFLAGS_LIB) $(CFLAGS) $(DEFINES_LIB) -I.
+CFLAGS_DEMO = $(EXTRA_CFLAGS_BACKEND) $(CFLAGS) $(DEFINES_DEMO) $(DEFINES_BACKEND) -I.
 
 # Set pkg-config definitions.
 PKG_CONFIG_CFLAGS_DEMO = `pkg-config --cflags bullet $(EXTRA_PKG_CONFIG_DEMO)`
