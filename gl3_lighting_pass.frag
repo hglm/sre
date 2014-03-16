@@ -23,7 +23,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // It has been written to be compatible with both OpenGL 2.0+ and OpenGL ES 2.0.
 
 #ifdef GL_ES
-// On archtectures that support high precision floats in the fragment shader,
+// On architectures that support high precision floats in the fragment shader,
 // colors might be more accurate when the default float precision is high.
 // precision highp float;
 precision mediump float;
@@ -228,7 +228,7 @@ void main() {
 #endif
 #ifdef EMISSION_COLOR_IN
 #ifdef EMISSION_MAP_OPTION
-        vec4 emission_map_color;
+        LOWP vec4 emission_map_color;
 	if (use_emission_map_in) {
 		emission_map_color = texture2D(emission_map_in, texcoord_var);
 		c += emission_color_in * emission_map_color.rgb;
@@ -268,9 +268,9 @@ void main() {
 	// Non-ambient lighting pass, or single pass rendering.
 
 	// Calculate the inverse view direction
-        vec3 V = normalize(viewpoint_in - position_world_var);
+        MEDIUMP vec3 V = normalize(viewpoint_in - position_world_var);
 	// Calculate light direction of point source light or directional light
-	vec3 L;
+	MEDIUMP vec3 L;
 #ifdef DIRECTIONAL_LIGHT
         L = light_position_in.xyz;
 #else
@@ -279,13 +279,13 @@ void main() {
 	L = normalize(light_position_in.xyz - light_position_in.w * position_world_var);
 #endif
 	// Calculate the half vector.
-	vec3 H = normalize(V + L);
+	MEDIUMP vec3 H = normalize(V + L);
 
-	vec3 normal;
+	MEDIUMP vec3 normal;
 	// Save normalized light direction in case it is needed later, before light vectors
 	// are converted to tangent space when a normal map is used.
-        vec3 V_orig = V;
-	vec3 L_orig = L;
+        MEDIUMP vec3 V_orig = V;
+	MEDIUMP vec3 L_orig = L;
 #ifdef NORMAL_MAP_OPTION
 	if (use_normal_map_in) {
 #endif
@@ -315,7 +315,7 @@ void main() {
 #ifndef POINT_SOURCE_LIGHT
 	if (light_position_in.w > 0.5) {
 #endif
-        	float dist = distance(position_world_var, light_position_in.xyz);
+        	MEDIUMP float dist = distance(position_world_var, light_position_in.xyz);
 #ifdef LINEAR_ATTENUATION_RANGE
 		light_att = clamp((light_att_in.x - dist) / light_att_in.x, 0.0, 1.0);
 		if (light_att_in.y > 0.0) {
@@ -324,16 +324,16 @@ void main() {
 				// Beam light.
 				// Construct the plane going through the light position perpendicular to the light
 				// direction.
-				vec4 plane = vec4(spotlight_in.xyz, - dot(spotlight_in.xyz, light_position_in.xyz));
+				MEDIUMP vec4 plane = vec4(spotlight_in.xyz, - dot(spotlight_in.xyz, light_position_in.xyz));
 				// Calculate the distance of the world position to the plane.
-				float d = dot(plane, vec4(position_world_var, 1.0));
+				MEDIUMP float d = dot(plane, vec4(position_world_var, 1.0));
 				if (d < 0.0 || d >= light_att_in.z)
 					light_att = 0.0;
 				else {
 					// Calculate the distance of the world position to the axis.
-					float dot_proj = dot(position_world_var - light_position_in.xyz,
+					MEDIUMP float dot_proj = dot(position_world_var - light_position_in.xyz,
 						spotlight_in.xyz);
-					float d_axis = sqrt(dist * dist - dot_proj * dot_proj);
+					MEDIUMP float d_axis = sqrt(dist * dist - dot_proj * dot_proj);
                                         // Apply the radial linear attenuation range.
 					light_att *= clamp((light_att_in.w - d_axis) / light_att_in.w, 0.0, 1.0);
                                         // Apply the radial cut-off distance.

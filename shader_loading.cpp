@@ -1069,6 +1069,15 @@ static const MiscShaderInfo misc_shader_info[] = {
 #ifdef OPENGL_ES2
     "#define MAX_TEXT_LENGTH 128\n"
     "#define FONT_TEXTURE_COLUMNS 16\n#define FONT_TEXTURE_ROWS 16\n"
+#ifdef GLES2_GLSL_NO_ARRAY_INDEXING
+    "#define NO_ARRAY_INDEXING\n"
+#endif
+#ifdef GLES2_GLSL_LIMITED_UNIFORM_INT_PRECISION
+    "#define LIMITED_UNIFORM_INT_PRECISION\n"
+#endif
+#ifdef FLOATING_POINT_TEXT_STRING
+    "#define FLOATING_POINT_TEXT_STRING\n"
+#endif
 #else
     "#define MAX_TEXT_LENGTH 256\n"
     "#define FONT_TEXTURE_COLUMNS 16u\n#define FONT_TEXTURE_ROWS 16u\n"
@@ -1086,6 +1095,15 @@ static const MiscShaderInfo misc_shader_info[] = {
 #ifdef OPENGL_ES2
     "#define MAX_TEXT_LENGTH 128\n"
     "#define FONT_TEXTURE_COLUMNS 32\n#define FONT_TEXTURE_ROWS 8\n"
+#ifdef GLES2_GLSL_NO_ARRAY_INDEXING
+    "#define NO_ARRAY_INDEXING\n"
+#endif
+#ifdef GLES2_GLSL_LIMITED_UNIFORM_INT_PRECISION
+    "#define LIMITED_UNIFORM_INT_PRECISION\n"
+#endif
+#ifdef FLOATING_POINT_TEXT_STRING
+    "#define FLOATING_POINT_TEXT_STRING\n"
+#endif
 #else
     "#define MAX_TEXT_LENGTH 256\n"
     "#define FONT_TEXTURE_COLUMNS 32u\n#define FONT_TEXTURE_ROWS 8u\n"

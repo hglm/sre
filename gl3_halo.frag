@@ -26,8 +26,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // varying is not linked correctly.
 precision highp float;
 #define MEDIUMP mediump
+#define LOWP lowp
 #else
 #define MEDIUMP
+#define LOWP
 #endif
 uniform vec3 base_color_in;
 varying vec2 screen_position_var;
@@ -62,7 +64,7 @@ void main() {
         if (dist > 1.0)
             discard;
 #endif
-        MEDIUMP float att;
+        LOWP float att;
 
 #ifdef SOLID_CIRCLE
 #ifdef DISCARD

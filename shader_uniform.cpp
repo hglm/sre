@@ -1539,17 +1539,19 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
             break;
 #endif
         case SHADER19 : // Earth shader, directional light.
-            glUseProgram(lighting_pass_shader[19].program);
-            GL3InitializeShaderWithMVP(lighting_pass_shader[19].uniform_location[UNIFORM_MVP], so);
-            GL3InitializeShaderWithModelMatrix(lighting_pass_shader[19].uniform_location[UNIFORM_MODEL_MATRIX], so);
+            // SHADER19 is equal to 19 when shadow mapping is enabled,
+            // 12 otherwise.
+            glUseProgram(lighting_pass_shader[SHADER19].program);
+            GL3InitializeShaderWithMVP(lighting_pass_shader[SHADER19].uniform_location[UNIFORM_MVP], so);
+            GL3InitializeShaderWithModelMatrix(lighting_pass_shader[SHADER19].uniform_location[UNIFORM_MODEL_MATRIX], so);
             GL3InitializeShaderWithModelRotationMatrix(
-                lighting_pass_shader[19].uniform_location[UNIFORM_MODEL_ROTATION_MATRIX], so);
+                lighting_pass_shader[SHADER19].uniform_location[UNIFORM_MODEL_ROTATION_MATRIX], so);
             GL3InitializeShaderWithDiffuseReflectionColor(
-                lighting_pass_shader[19].uniform_location[UNIFORM_DIFFUSE_REFLECTION_COLOR], so);
+                lighting_pass_shader[SHADER19].uniform_location[UNIFORM_DIFFUSE_REFLECTION_COLOR], so);
             GL3InitializeShaderWithSpecularReflectionColor(
-                lighting_pass_shader[19].uniform_location[UNIFORM_SPECULAR_REFLECTION_COLOR], so);
+                lighting_pass_shader[SHADER19].uniform_location[UNIFORM_SPECULAR_REFLECTION_COLOR], so);
             GL3InitializeShaderWithSpecularExponent(
-                lighting_pass_shader[19].uniform_location[UNIFORM_SPECULAR_EXPONENT], so);
+                lighting_pass_shader[SHADER19].uniform_location[UNIFORM_SPECULAR_EXPONENT], so);
             GL3InitializeShaderWithObjectTexture(so);
             GL3InitializeShaderWithObjectSpecularMap(so);
             GL3InitializeShaderWithObjectEmissionMap(so);
@@ -1984,7 +1986,13 @@ void GL3InitializeImageShader(int update_mask, sreImageShaderInfo *info, Vector4
 void GL3InitializeTextShader(int update_mask, sreTextShaderInfo *info, Vector4D *rect,
 const char *string, int length) {
 #ifdef OPENGL_ES2
-    unsigned int string_data[SRE_TEXT_MAX_REQUEST_LENGTH];
+#ifdef FLOATING_POINT_TEXT_STRING
+    float string_data[SRE_TEXT_MAX_REQUEST_LENGTH];
+#elif defined(GLES2_GLSL_LIMITED_UNIFORM_INT_PRECISION)
+    int string_data[SRE_TEXT_MAX_REQUEST_LENGTH * 2];
+#else
+    int string_data[SRE_TEXT_MAX_REQUEST_LENGTH];
+#endif
 #else
 #if !defined(TEXT_ALLOW_UNALIGNED_INT_UNIFORM_ARRAY) || !defined(TEXT_ALLOW_BYTE_ACCESS_BEYOND_STRING)
     unsigned int string_data[SRE_TEXT_MAX_REQUEST_LENGTH / 4];
@@ -2011,12 +2019,32 @@ const char *string, int length) {
         // uniform integer precision can be limited to about 14 bits in practice,
         // we must convert the string and pack only one characer into a single int.
         // Size of the string in ints, with one characters per int.
+#if defined(GLES2_GLSL_LIMITED_UNIFORM_INT_PRECISION) && \
+!defined(FLOATING_POINT_TEXT_STRING)
+        size = n * 2;
+#else
         size = n;
+#endif
         for (int i = 0; i < n; i++) {
-            string_data[i] = *(const unsigned char *)&string[i];
+            int c = *(const unsigned char *)&string[i];
+#ifdef FLOATING_POINT_TEXT_STRING
+            string_data[i] = (float)c;
+#elif defined(GLES2_GLSL_LIMITED_UNIFORM_INT_PRECISION)
+            // For platforms where uniform unsigned ints are limited to only
+            // five bits (RPi), split each character into two ints.
+            string_data[i * 2] = (c & 0xF);
+            string_data[i * 2 + 1] = (c >> 4);
+#else
+            string_data[i] = c;
+#endif
         }
-        glUniform1iv(misc_shader[shader].uniform_location[UNIFORM_MISC_STRING], size,
-            (GLint *)string_data);
+#ifdef FLOATING_POINT_TEXT_STRING
+        glUniform1fv(misc_shader[shader].uniform_location[UNIFORM_MISC_STRING],
+            size, (GLfloat *)string_data);
+#else
+        glUniform1iv(misc_shader[shader].uniform_location[UNIFORM_MISC_STRING],
+            size, (GLint *)string_data);
+#endif
 #else
         // OpenGL.
         // Size of the string in ints padded to int boundary.

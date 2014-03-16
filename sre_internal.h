@@ -190,7 +190,12 @@ public :
 // OpenGL-ES 2.0 shader can be more limited in terms of the number of characters
 // per draw request, because each characters has to be stored in a full int uniform.
 // Large strings are split into seperate requests.
+#if defined(GLES2_GLSL_NO_ARRAY_INDEXING)
+// Without array indexing, the request length is severely limited.
+#define SRE_TEXT_MAX_REQUEST_LENGTH 8
+#else
 #define SRE_TEXT_MAX_REQUEST_LENGTH 128
+#endif
 #endif
 
 enum {
