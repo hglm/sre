@@ -117,7 +117,7 @@ int& actual_width, int& actual_height) {
         /* Problem: glewInit failed, something is seriously wrong. */
         sreFatalError("Error: %s", glewGetErrorString(err));
     }
-    sreMessage(SRE_MESSAGE_INFO, "Status: Using GLEW %s.\n", glewGetString(GLEW_VERSION));
+    sreMessage(SRE_MESSAGE_INFO, "Status: Using GLEW %s.", glewGetString(GLEW_VERSION));
 //    glutCloseFunc(CloseGlutWindow);
     glutHideWindow();
     glutDestroyWindow(glut_window);
@@ -138,10 +138,10 @@ int& actual_width, int& actual_height) {
     GLint glx_major, glx_minor;
     GLint result = glXQueryVersion(state->XDisplay, &glx_major, &glx_minor);
     if (glx_major < 1 || (glx_major == 1 && glx_minor < 3)) {
-        sreFatalError("Error: GLX version major reported is %d.%d, need at least 1.3n",
+        sreFatalError("Error: GLX version major reported is %d.%d, need at least 1.3",
             glx_major, glx_minor);
     }
-    sreMessage(SRE_MESSAGE_LOG, "GLX version: %d.%d\n", glx_major, glx_minor);
+    sreMessage(SRE_MESSAGE_LOG, "GLX version: %d.%d", glx_major, glx_minor);
 
     // Obtain appropriate GLX framebuffer configurations.
     GLint num_config;
@@ -151,7 +151,7 @@ int& actual_width, int& actual_height) {
     if (num_config == 0) {
         sreFatalError("GLX returned no suitable framebuffer configurations.");
     }
-    sreMessage(SRE_MESSSAGE_LOG, "OpenGL (GLX): %d framebuffer configurations returned.\n", num_config);
+    sreMessage(SRE_MESSAGE_LOG, "OpenGL (GLX): %d framebuffer configurations returned.\n", num_config);
     for (int i = 0; i < num_config; i++ ) {
         XVisualInfo *vi = glXGetVisualFromFBConfig(state->XDisplay, fb_config[i]);
         if (vi) {
@@ -159,7 +159,7 @@ int& actual_width, int& actual_height) {
             glXGetFBConfigAttrib(state->XDisplay, fb_config[i], GLX_SAMPLE_BUFFERS, &samp_buf);
             glXGetFBConfigAttrib(state->XDisplay, fb_config[i], GLX_SAMPLES, &samples);
             sreMessage(SRE_MESSAGE_LOG, "  Matching framebuffer config %d, visual ID 0x%2x: SAMPLE_BUFFERS = %d,"
-                " SAMPLES = %d\n", i, vi->visualid, samp_buf, samples);
+                " SAMPLES = %d", i, vi->visualid, samp_buf, samples);
             XFree(vi);
         }
     }
@@ -170,16 +170,16 @@ int& actual_width, int& actual_height) {
     sreMessage(SRE_MESSAGE_LOG, "Chosen visual ID = 0x%x\n", vi->visualid );
 
     // Create an X window with that visual.
-    X11CreateWindow(requested, requested_height, vi, "SRE OpenGL 3.0+ X11 demo");
+    X11CreateWindow(requested_width, requested_height, vi, "SRE OpenGL 3.0+ X11 demo");
     XFree(vi);
     state->XWindow = (GLXWindow)X11GetWindow();
     // Would be better to use the actual size of the returned window.
-    actual_width = width;
-    actual_height = height;
+    actual_width = requested_width;
+    actual_height = requested_height;
 
     if (!GLXEW_ARB_create_context) {
         // Create GLX rendering context.
-        sreMessage(SRE_MESSAGE_INFO, "Creating old-style (GLX 1.3) context.\n");
+        sreMessage(SRE_MESSAGE_INFO, "Creating old-style (GLX 1.3) context.");
         state->context = glXCreateNewContext(state->XDisplay, chosen_fb_config,
             GLX_RGBA_TYPE, 0, True);
      }
@@ -190,7 +190,7 @@ int& actual_width, int& actual_height) {
             //GLX_CONTEXT_FLAGS_ARB, GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB,
             None
         };
-        sreMessage(SRE_MESSAGE_INFO, "Creating OpenGL 3.0 context.\n" );
+        sreMessage(SRE_MESSAGE_INFO, "Creating OpenGL 3.0 context.");
         state->context = glXCreateContextAttribsARB(state->XDisplay,
             chosen_fb_config, 0, True, context_attribs);
     }
@@ -200,14 +200,14 @@ int& actual_width, int& actual_height) {
     int stencil_bits = 8;
     int depth_bits = 24;
 
-    sreMessage(SRE_MESSAGE_INFO, "Opened OpenGL context of size %d x %d with 32-bit pixels, %d-bit depthbuffer and %d-bit stencil.\n", actual_width,
+    sreMessage(SRE_MESSAGE_INFO, "Opened OpenGL context of size %d x %d with 32-bit pixels, %d-bit depthbuffer and %d-bit stencil.", actual_width,
         actual_height, depth_bits, stencil_bits);
     // Verifying that context is a direct context
     if (!glXIsDirect(state->XDisplay, state->context)) {
-        sreMessageInfo(SRE_MESSAGE_INFO, "Indirect GLX rendering context obtained.\n");
+        sreMessage(SRE_MESSAGE_INFO, "Indirect GLX rendering context obtained.");
     }
     else {
-        printf(SRE_MESSAGE_INFO, "Direct GLX rendering context obtained.\n");
+        sreMessage(SRE_MESSAGE_INFO, "Direct GLX rendering context obtained.");
     }
 
     glXMakeCurrent(state->XDisplay, X11GetWindow(), state->context);
