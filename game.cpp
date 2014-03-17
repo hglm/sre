@@ -21,10 +21,15 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <math.h>
 #include <float.h>
 
-#include "win32_compat.h"
 #include "sre.h"
-#include "demo.h"
+#include "sreBackend.h"
 
+class GameApplication : public sreBulletPhysicsApplication {
+    virtual void StepBeforeRender(double demo_time);
+    virtual void StepBeforePhysics(double demo_time);
+};
+
+static sreScene *scene;
 static int level = 1;
 static double timeout;
 static bool success;
@@ -49,6 +54,7 @@ static sreTexture *ground_texture;
 static sreTexture *water_texture;
 static sreTexture *stars_texture;
 static sreTexture *marble_texture;
+static sreTexture *stripes_texture;
 
 static void CreateObjectsAndTextures() {
     globe_model = sreCreateSphereModel(scene, 0);
@@ -73,22 +79,28 @@ static void CreateObjectsAndTextures() {
     stars_texture = new sreTexture("yale8", TEXTURE_TYPE_NORMAL);
 #endif
     marble_texture = new sreTexture("Marble9", TEXTURE_TYPE_NORMAL);
+    stripes_texture = sreCreateStripesTexture(TEXTURE_TYPE_LINEAR,
+        256, 256, 32, Color(0, 0.5f, 0.8f), Color(0.9f, 0.9f, 1.0f));
 }
 
 static void AddPlayer(float x, float y, float z) {
     // Add player sphere of size 3 as scene object 0.
-    scene->SetTexture(beachball_texture);
+    scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
+    scene->SetTexture(stripes_texture);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS);
     Color c;
     c.r = 0.00;
     c.g = 0.75;
     c.b = 1.0;
-    scene->SetColor(c);
+    scene->SetDiffuseReflectionColor(c);
+    scene->SetMass(2.0f);
     int i = scene->AddObject(globe_model, x, y, z, 0, 0, 0, 3.0);
+    scene->SetMass(1.0f);
 }
 
 static void AddGrassGround() {
     // Add the ground as scene object 1.
+    scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
     scene->SetTexture(ground_texture);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_NO_BACKFACE_CULLING | SRE_OBJECT_NO_PHYSICS);
     scene->AddObject(ground_model, - 500, - 500, 0, 0, 0, 0, 1);
@@ -96,6 +108,7 @@ static void AddGrassGround() {
 
 static void AddWaterGround() {
     // Add the ground as scene object 1.
+    scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
     scene->SetTexture(water_texture);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_NO_BACKFACE_CULLING | SRE_OBJECT_NO_PHYSICS);
     scene->AddObject(ground_model, - 500, - 500, 4, 0, 0, 0, 1);
@@ -104,22 +117,25 @@ static void AddWaterGround() {
 static void AddStars() {
 #if defined(OPENGL) && !defined(NO_LARGE_TEXTURES)
     // Starry background.
+    scene->SetEmissionColor(Color(1.0f, 1.0f, 1.0f));
     scene->SetEmissionMap(stars_texture);
-    scene->SetFlags(SRE_OBJECT_USE_EMISSION_MAP | SRE_OBJECT_EMISSION_ONLY | SRE_OBJECT_NO_BACKFACE_CULLING |
-        SRE_OBJECT_INFINITE_DISTANCE | SRE_OBJECT_NO_PHYSICS);
+    scene->SetFlags(SRE_OBJECT_USE_EMISSION_MAP | SRE_OBJECT_EMISSION_ONLY |
+        SRE_OBJECT_NO_BACKFACE_CULLING | SRE_OBJECT_INFINITE_DISTANCE | SRE_OBJECT_NO_PHYSICS);
     scene->AddObject(globe_model, 0, 0, 0, 0, 0, 0, SRE_DEFAULT_FAR_PLANE_DISTANCE * 90);
+    scene->SetEmissionColor(Color(0, 0, 0));
 #endif
 }
 
 static int AddTargetObject(float x, float y, float z) {
     // Add target sphere of size 5.
+    scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
     scene->SetTexture(beachball_texture);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS);
     Color c;
     c.r = 0.00;
     c.g = 0.75;
     c.b = 1.0;
-    scene->SetColor(c);
+    scene->SetDiffuseReflectionColor(c);
     int i = scene->AddObject(globe_model, x, y, z, 0, 0, 0, 5.0);
     nu_target_objects++;
     return i;
@@ -127,11 +143,12 @@ static int AddTargetObject(float x, float y, float z) {
 
 static int AddLightSourceTargetObject(float x, float y, float z) {
     // Add target sphere of size 5.
+    scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
     scene->SetEmissionMap(beachball_texture);
     scene->SetFlags(SRE_OBJECT_USE_EMISSION_MAP | SRE_OBJECT_EMISSION_ONLY | SRE_OBJECT_DYNAMIC_POSITION);
     int i = scene->AddObject(globe_model, x, y, z, 0, 0, 0, 5.0);
     int l = scene->AddPointSourceLight(SRE_LIGHT_DYNAMIC_POSITION, Point3D(x, y, z), 50.0, Color(1.0, 1.0, 1.0));
-    scene->AttachLight(i, l, Vector3D(0, 0, 0));
+    scene->AttachLight(i, l, Vector3D(0, 0, 0), Vector3D(0, 0, 0));
     nu_target_objects++;
     return i;
 }
@@ -150,7 +167,7 @@ void LevelOneCreateScene() {
     red.r = 1.0;
     red.g = 0.2;
     red.b = 0.2;
-    scene->SetColor(red);
+    scene->SetDiffuseReflectionColor(red);
     i = scene->AddObject(ramp_towards_back_30x100x30_model, - 50, 20, 0, 0, 0, 0, 1);
     // Add block after ramp.
     scene->SetTexture(marble_texture);
@@ -173,18 +190,17 @@ void LevelTwoCreateScene() {
     // Add ramp.
     int i;
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
-    Color red;
-    red.r = 1.0;
-    red.g = 0.2;
-    red.b = 0.2;
-    scene->SetColor(red);
+    Color red = Color(1.0f, 0.2f, 0.2f);
+    scene->SetDiffuseReflectionColor(red);
     i = scene->AddObject(ramp_towards_back_30x100x30_model, - 50, 20, 0, 0, 0, 0, 1);
     // Add block after ramp.
+    scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
     scene->SetTexture(marble_texture);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_CAST_SHADOWS);
     i = scene->AddObject(block_30x30x30_model, - 50, 120, 0, 0, 0, 0, 1);
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
     // Add further ramps.
+    scene->SetDiffuseReflectionColor(red);
     i = scene->AddObject(ramp_towards_front_30x100x30_model, - 50, 150, 0, 0, 0, 0, 1);
     i = scene->AddObject(ramp_towards_right_100x30x30_model, - 150, 120, 0, 0, 0, 0, 1);
     i = scene->AddObject(ramp_towards_left_100x30x30_model, - 20, 120, 0, 0, 0, 0, 1);
@@ -206,7 +222,7 @@ void LevelThreeCreateScene() {
     red.r = 1.0;
     red.g = 0.2;
     red.b = 0.2;
-    scene->SetColor(red);
+    scene->SetDiffuseReflectionColor(red);
     i = scene->AddObject(ramp_towards_back_30x100x30_model, - 50, 20, 0, 0, 0, 0, 1);
     // Add block after ramp.
     scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
@@ -218,14 +234,17 @@ void LevelThreeCreateScene() {
     scene->SetDiffuseReflectionColor(Color(1.0, 0.2, 0.2));
     i = scene->AddObject(ramp_towards_right_100x30x30_model, - 20, 120, 30, 0, 0, 0, 1);
     // Add block.
+    scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
     scene->SetTexture(marble_texture);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_CAST_SHADOWS);
     i = scene->AddObject(block_30x30x30_model, 80, 120, 30, 0, 0, 0, 1);
     i = scene->AddObject(block_30x30x30_model, 80, 120, 0, 0, 0, 0, 1);
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
     // Add long ramp.
+    scene->SetDiffuseReflectionColor(Color(1.0, 0.2, 0.2));
     i = scene->AddObject(ramp_towards_back_30x100x30_model, 80, 150, 60, 0, 0, 0, 1);
     // Add block.
+    scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
     scene->SetTexture(marble_texture);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_CAST_SHADOWS);
     i = scene->AddObject(block_30x30x30_model, 80, 250, 60, 0, 0, 0, 1);
@@ -233,8 +252,10 @@ void LevelThreeCreateScene() {
     i = scene->AddObject(block_30x30x30_model, 80, 250, 0, 0, 0, 0, 1);
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
     // Add bridge.
+    scene->SetDiffuseReflectionColor(Color(0.2, 0.2, 0.8));
     i = scene->AddObject(block_200x30x10_model, - 120, 250, 80, 0, 0, 0, 1);
     // Add block.
+    scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
     scene->SetTexture(marble_texture);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_CAST_SHADOWS);
     i = scene->AddObject(block_30x30x30_model, - 150, 250, 60, 0, 0, 0, 1);
@@ -242,8 +263,10 @@ void LevelThreeCreateScene() {
     i = scene->AddObject(block_30x30x30_model, - 150, 250, 0, 0, 0, 0, 1);
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
     // Add ramp.
+    scene->SetDiffuseReflectionColor(Color(1.0, 0.2, 0.2));
     i = scene->AddObject(ramp_towards_front_30x100x30_model, - 150, 150, 90, 0, 0, 0, 1);
     // Add final block.
+    scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
     scene->SetTexture(marble_texture);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_CAST_SHADOWS);
     i = scene->AddObject(block_30x30x30_model, - 150, 120, 90, 0, 0, 0, 1);
@@ -270,7 +293,7 @@ void LevelFourCreateScene() {
     red.r = 1.0;
     red.g = 0.2;
     red.b = 0.2;
-    scene->SetColor(red);
+    scene->SetDiffuseReflectionColor(red);
     i = scene->AddObject(ramp_towards_back_30x100x30_model, - 50, 20, 0, 0, 0, 0, 1);
     // Add block after ramp.
     scene->SetTexture(marble_texture);
@@ -297,17 +320,15 @@ void LevelFiveCreateScene() {
     AddStars();
     // Add platform
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
-    Color red;
-    red.r = 1.0;
-    red.g = 0.2;
-    red.b = 0.2;
-    scene->SetColor(red);
+    Color red = Color(1.0f, 0.2f, 0.2f);
+    scene->SetDiffuseReflectionColor(red);
     int i = scene->AddObject(block_30x100x10_model, 0, 0, 90, 0, 0, 0, 1);
-    // Create enclosue.
+    // Create enclosure.
     i = scene->AddObject(block_30x2x5_model, 0, 98, 100, 0, 0, 0, 1);
     i = scene->AddObject(block_2x96x5_model, 0, 2, 100, 0, 0, 0, 1);
     i = scene->AddObject(block_2x96x5_model, 28, 2, 100, 0, 0, 0, 1);
     // Pillar (blocks)
+    scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
     scene->SetTexture(marble_texture);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_CAST_SHADOWS);
     i = scene->AddObject(block_30x30x30_model, 0, 35, 0, 0, 0, 0, 1);
@@ -320,17 +341,16 @@ void EndLevelCreateScene() {
     AddPlayer(0, 0, 3.0);
     AddGrassGround();
     // Add target objects.
+    scene->SetMass(5.0f);
     for (int x = 0; x < 9; x++)
         AddTargetObject(- 45 + x * 11, 119, 35);
+    scene->SetMass(1.0f);
     AddStars();
     // Add ramp.
     int i;
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
-    Color red;
-    red.r = 1.0;
-    red.g = 0.2;
-    red.b = 0.2;
-    scene->SetColor(red);
+    Color red = Color(1.0f, 0.2f, 0.2f);
+    scene->SetDiffuseReflectionColor(red);
     i = scene->AddObject(ramp_towards_back_100x100x30_model, - 50, 20, 0, 0, 0, 0, 1);
     // Add block after ramp.
     i = scene->AddObject(block_100x30x30_model, - 50, 120, 0, 0, 0, 0, 1);
@@ -338,12 +358,7 @@ void EndLevelCreateScene() {
     scene->AddDirectionalLight(0, Vector3D(- 0.2, - 0.3, - 1.0), Color(0.8, 0.8, 0.8));
 }
 
-
-void GameRender() {
-    scene->Render(view);
-}
-
-void GameTimeIteration(double time_previous, double time_current) {
+void GameApplication::StepBeforeRender(double demo_time) {
     switch (level) {
     case 1 :
     case 2 :
@@ -351,7 +366,7 @@ void GameTimeIteration(double time_previous, double time_current) {
     case 4 :
     case 5 : 
         // All target objects need to hit the ground.
-        if (timeout == POSITIVE_INFINITY_DOUBLE) {
+        if (timeout == DBL_MAX) {
             int count = 0;
             for (int i = 2; i < 2 + nu_target_objects; i++)
                 if (scene->sceneobject[i]->position.z < 6.0)
@@ -364,7 +379,10 @@ void GameTimeIteration(double time_previous, double time_current) {
         break;
     }
     if (demo_time >= timeout)
-        demo_stop_signalled = true;
+        stop_signalled = true;
+}
+
+void GameApplication::StepBeforePhysics(double demo_time) {
 }
 
 void GameDrawTextOverlay() {
@@ -377,15 +395,15 @@ void GameDrawTextOverlay() {
     sreDrawText(s, 0, 0.96);
     if (success)
         sreDrawText("Success!", 0.42, 0.48);
-    DemoTextOverlay();
+    sreBackendStandardTextOverlay();
 }
 
-void RunGame() {
+static void RunGame(GameApplication *app) {
     CreateObjectsAndTextures();
-    RenderFunc = GameRender;
-    TimeIterationFunc = GameTimeIteration;
+    // Upload all models beforehand.
+    scene->MarkAllModelsReferenced();
+    scene->UploadModels();
     sreSetDrawTextOverlayFunc(GameDrawTextOverlay);
-    jump_allowed = false;
     for (;;) {
         nu_target_objects = 0;
         switch (level) {
@@ -413,13 +431,26 @@ void RunGame() {
             break;
         }
         success = false;
-        timeout = POSITIVE_INFINITY_DOUBLE;
-        view->SetViewAngles(Vector3D(0, 0, 0));
-        RunDemo();
+        timeout = DBL_MAX;
+        app->view->SetViewAngles(Vector3D(0, 0, 0));
+        sreMainLoop(app, SRE_PREPARE_UPLOAD_NO_MODELS);
         if (success)
             level++;
-        BulletDestroy();
+        app->DestroyPhysics();
         scene->Clear();
     }
 }
 
+int main(int argc, char **argv) {
+    GameApplication *app = new GameApplication;
+    sreInitializeApplication(app, &argc, &argv);
+    scene = app->scene;
+
+    app->SetFlags(app->GetFlags() & (~SRE_APPLICATION_FLAG_JUMP_ALLOWED));
+    app->view->SetViewModeFollowObject(0, 40.0, Vector3D(0, 0, 10.0));
+    app->view->SetMovementMode(SRE_MOVEMENT_MODE_STANDARD);
+    // Provide double the horizontal impulse (higher mass).
+    app->horizontal_acceleration = 200.0f;
+
+    RunGame(app);
+}

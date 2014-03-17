@@ -536,7 +536,7 @@ void sreScene::ChangeLightColor(int i, Color color) const {
     // Ideally, color should affect the light volume size.
 }
 
-void sreScene::ChangeSpotLightDirection(int i, Vector3D direction) const {
+void sreScene::ChangeSpotOrBeamLightDirection(int i, Vector3D direction) const {
     sreLight *l = global_light[i];
     l->spotlight = Vector4D(direction, l->spotlight.w);
     // Note that the bounding sphere will be affected too.

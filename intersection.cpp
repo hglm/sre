@@ -1356,12 +1356,12 @@ bool use_worst_case_bounds) {
     }
     else
         if (so.lod_flags & SRE_LOD_FIXED) {
-            starting_level = so.lod_level;
-            ending_level = so.lod_level;
+            starting_level = so.min_lod_level;
+            ending_level = so.min_lod_level;
         }
         else {
-            starting_level = so.lod_level;
-            ending_level = so.model->nu_lod_levels - 1;
+            starting_level = so.min_lod_level;
+            ending_level = so.max_lod_level;
         }
     // Iterate all LOD levels used by the object.
     int count_outside = 0;

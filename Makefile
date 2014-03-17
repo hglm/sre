@@ -6,6 +6,7 @@ VERSION = 0.2
 VERSION_MAJOR = 0
 
 DEMO_PROGRAM = sre-demo
+ALL_DEMO_PROGRAMS = $(DEMO_PROGRAM) game
 
 ifeq ($(SHADOWS), SHADOW_VOLUMES)
 DEMO_STARTUP_DEFINES = -DSHADOW_VOLUMES
@@ -261,17 +262,19 @@ LFLAGS_DEMO += -lpthread
 # Set final CFLAGS.
 ifeq ($(LIBRARY_CONFIGURATION), SHARED)
 CFLAGS_LIB = -fPIC -fvisibility=hidden
+LFLAGS_DEMO += -lpng
+LFLAGS_DEMO += libsrebackend.a
 LFLAGS_DEMO += -lsre
 else
 CFLAGS_LIB =
 # libpng dependency is not automatically recognized with static library.
 LFLAGS_DEMO += -lpng
 ifeq ($(LIBRARY_CONFIGURATION), DEBUG)
-LFLAGS_DEMO += libsre_dbg.a
 LFLAGS_DEMO += libsrebackend_dbg.a
+LFLAGS_DEMO += libsre_dbg.a
 else
-LFLAGS_DEMO += libsre.a
 LFLAGS_DEMO += libsrebackend.a
+LFLAGS_DEMO += libsre.a
 endif
 endif
 CFLAGS_LIB += $(EXTRA_CFLAGS_LIB) $(CFLAGS) $(DEFINES_LIB) -I.
@@ -281,13 +284,14 @@ CFLAGS_DEMO = $(EXTRA_CFLAGS_BACKEND) $(CFLAGS) $(DEFINES_DEMO) $(DEFINES_BACKEN
 PKG_CONFIG_CFLAGS_DEMO = `pkg-config --cflags bullet $(EXTRA_PKG_CONFIG_DEMO)`
 PKG_CONFIG_LIBS_DEMO = `pkg-config --libs bullet $(EXTRA_PKG_CONFIG_DEMO)`
 
-CORE_LIBRARY_MODULE_OBJECTS = sre.o draw.o geometry.o read_model_file.o texture.o shadow.o \
-shadow_bounds.o MatrixClasses.o intersection.o preprocess.o mipmap.o \
+CORE_LIBRARY_MODULE_OBJECTS = sre.o draw.o geometry.o read_model_file.o binary_model_file.o \
+texture.o shadow.o shadow_bounds.o MatrixClasses.o intersection.o preprocess.o mipmap.o \
 frustum.o bounds.o octree.o fluid.o standard_objects.o text.o scene.o lights.o shadowmap.o \
 bounding_volume.o random.o shader_matrix.o shader_loading.o vertex_buffer.o shader_uniform.o \
 draw_object.o
 DEMO_MODULE_OBJECTS = demo_main.o demo1.o demo2.o demo4.o demo4b.o \
 demo5.o demo7.o demo8.o demo9.o demo10.o demo11.o textdemo.o
+ALL_DEMO_MODULE_OBJECTS = $(DEMO_MODULE_OBJECTS) game.o
 ALL_BACKEND_MODULE_OBJECTS = sre_backend.o gui-common.o bullet.o glfw.o opengl-x11.o \
 x11-common.o glut.o egl-x11.o egl-common.o egl-allwinner-fb.o egl-rpi-fb.o \
 $(FRAMEBUFFER_COMMON_MODULE_OBJECTS)
@@ -368,10 +372,13 @@ install_backend : $(BACKEND_OBJECT)
 	install -m 0644 $(BACKEND_OBJECT) $(STATIC_LIB_DIR)/$(BACKEND_OBJECT)
 	@echo Run make demo to make the demo program.
 
-demo : $(DEMO_PROGRAM)
+demo : $(ALL_DEMO_PROGRAMS)
 
 $(DEMO_PROGRAM) : $(LIBRARY_DEPENDENCY) $(BACKEND_OBJECT) $(DEMO_MODULE_OBJECTS)
 	g++ $(DEMO_MODULE_OBJECTS) -o $(DEMO_PROGRAM) $(LFLAGS_DEMO) $(PKG_CONFIG_LIBS_DEMO)
+
+game : $(LIBRARY_DEPENDENCY) $(BACKEND_OBJECT) game.o
+	g++ game.o -o game $(LFLAGS_DEMO) $(PKG_CONFIG_LIBS_DEMO)
 
 shaders_builtin.cpp : $(SHADER_SOURCES)
 	echo // libsre v$(VERSION) shaders, `date --rfc-3339='date'` > shaders_builtin.cpp
@@ -415,7 +422,7 @@ rules :
 	-o $$x '$$(PKG_CONFIG_CFLAGS_LIB)' >> .rules; \
 	done
 	# Create rules to compile demo/back-end modules.
-	for x in $(DEMO_MODULE_OBJECTS) $(ALL_BACKEND_MODULE_OBJECTS); do \
+	for x in $(ALL_DEMO_MODULE_OBJECTS) $(ALL_BACKEND_MODULE_OBJECTS); do \
 	echo $$x : >> .rules; \
 	SOURCEFILE=`echo $$x | sed s/\\\.o/\.cpp/`; \
 	echo \\tg++ -c '$$(CFLAGS_DEMO)' "$$SOURCEFILE" \
@@ -434,9 +441,9 @@ dep :
 	for x in $(ORIGINAL_LIBRARY_MODULE_OBJECTS); do \
 	echo $$x : Makefile.conf >> .depend; done
 	echo '# Module dependencies' >> .depend
-	g++ -MM $(patsubst %.o,%.cpp,$(DEMO_MODULE_OBJECTS) $(BACKEND_MODULE_OBJECTS)) >> .depend
+	g++ -MM $(patsubst %.o,%.cpp,$(ALL_DEMO_MODULE_OBJECTS) $(BACKEND_MODULE_OBJECTS)) >> .depend
         # Make sure Makefile.conf is a dependency for all modules.
-	for x in $(DEMO_MODULE_OBJECTS) $(BACKEND_MODULE_OBJECTS); do \
+	for x in $(ALL_DEMO_MODULE_OBJECTS) $(BACKEND_MODULE_OBJECTS); do \
 	echo $$x : Makefile.conf >> .depend; done
 	# Add dependencies for builtin shaders.
 	echo shaders_builtin.cpp : $(SHADER_SOURCES) >> .depend

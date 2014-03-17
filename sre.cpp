@@ -126,16 +126,14 @@ int sre_internal_shader_loading_mask = SRE_SHADER_MASK_ALL;
 const char *sre_internal_shader_path = SHADER_PATH;
 bool sre_internal_demand_load_shaders = false;
 int sre_internal_interleaved_vertex_buffers_mode = SRE_INTERLEAVED_BUFFERS_DISABLED;
-// Disabling shadow volumes permanently saves effort/GPU memory space
-// when uploading model data.
-bool sre_internal_shadow_volumes_disabled = false;
 int sre_internal_object_flags_mask = SRE_OBJECT_FLAGS_MASK_FULL;
 int sre_internal_visualized_shadow_map = - 1;
 int sre_internal_max_texture_size;
 int sre_internal_texture_detail_flags;
 
 void sreSetShadowsMethod(int method) {
-    if (method == SRE_SHADOWS_SHADOW_VOLUMES && sre_internal_shadow_volumes_disabled) {
+    if (method == SRE_SHADOWS_SHADOW_VOLUMES &&
+    !(sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_VOLUME_SUPPORT)) {
        sreMessage(SRE_MESSAGE_WARNING,
            "Invalid shadow rendering method requested (shadow volumes are disabled).\n");
        return;
@@ -225,6 +223,18 @@ void sreSetShadowVolumeDarkCapVisibilityTest(bool enabled) {
    // The test can affect the cache for depth-fail shadow volumes, allowing the darkcap to be
    // skipped.
    sreClearShadowCache();
+}
+
+// Enable/disable support for shadow volumes. Disabling saves duplicated extruded position
+// vertices and allows models with 32769 to 65536 vertices to use short (16-bit) indices,
+// further saving space and increasing performance somewhat.
+
+void sreSetShadowVolumeSupport(bool enabled) {
+   if (enabled)
+       sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_VOLUME_SUPPORT;
+   else {
+       sre_internal_rendering_flags &= ~SRE_RENDERING_FLAG_SHADOW_VOLUME_SUPPORT;
+   }
 }
 
 void sreSetShadowMapRegion(Point3D dim_min, Point3D dim_max) {
@@ -836,6 +846,8 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_VOLUME_VISIBILITY_TEST;
     // Do not enable the darkcap visibility test for now because of bugs.
 //    sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_VOLUME_DARKCAP_VISIBILITY_TEST;
+    // Provide shadow volume support by default.
+    sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_VOLUME_SUPPORT;
 
     const char *texture_detail_str;
 #ifdef OPENGL_ES2

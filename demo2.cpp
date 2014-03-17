@@ -167,9 +167,9 @@ void Demo2CreateScene(sreScene *scene, sreView *view) {
             scene->SetEmissionColor(Color(0, 0, 0));
             scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
             // Because the cylinder is thin, we don't need the highest level of detail.
-            scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, 2.0f);
+            scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 2.0f, 0);
             scene->AddObject(cylinder_model, x, y, 0, 0, 0, 0, 2.0f);
-            scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, 1.0f);
+            scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 1.0f, 0);
             if ((float)rand() / RAND_MAX < 0.05) {
                 int k = rand() & 3;
                 Color light_color = light_color_array[k];

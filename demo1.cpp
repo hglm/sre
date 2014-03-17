@@ -213,12 +213,14 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     scene->AddObject(block_model, - 12.0, -22.0, 20.0, 0, 0, 0, 4.0);
 //    scene->AddObject(block_model, - 12.0, -22.0, 0, 0, 0, 0, 4.0);
 
+    Vector3D spot_dir = Vector3D(- 1.0, 0.8, - 1.2).Normalize();
     int l = scene->AddSpotLight(0,
-        Point3D(20.0, 0, 40.0), Vector3D(- 1.0, 0.8, - 1.2), 20.0f, 80.0, Color(3.0, 1.5, 1.5));
+        Point3D(20.0, 0, 40.0), spot_dir, 20.0f, 80.0, Color(3.0, 1.5, 1.5));
     scene->SetEmissionColor(Color(1.0, 0.7, 0.7));
     scene->SetDiffuseReflectionColor(Color(1.0, 0.5, 0.5));
     j = scene->AddObject(sphere_model, 20.0, 0, 40.0, 0, 0, 0, 3.0);
-    scene->AttachLight(j, l, Vector3D(0, 0, 0));
+    // This overrides the original direction of the light.
+    scene->AttachLight(j, l, Vector3D(0, 0, 0), spot_dir);
     scene->SetEmissionColor(Color(0, 0, 0));
     scene->AddObject(block_model, 20.0, 0.0, 0, 0, 0, 0, 5.0);
 
@@ -278,7 +280,7 @@ void Demo1Step(sreScene *scene, double demo_time) {
     for (int i = 0; i < 13 * 28; i++) {
         M_rot.AssignRotationAlongZAxis((fmod(demo_time * 0.5, 1.0) + i * 0.13) * 2.0 * M_PI);
         Vector3D W = (M_rot * V).GetVector3D();
-        scene->ChangeSpotLightDirection(light_object[i], W);
+        scene->ChangeSpotOrBeamLightDirection(light_object[i], W);
     }
 #endif
 }

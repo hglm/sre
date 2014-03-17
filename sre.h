@@ -156,7 +156,14 @@ public:
     int type;
 
     sreTexture() { }
-    sreTexture(const char *basefilename, int type);
+    // Create a texture (and upload it to the GPU, normally) from a
+    // texture file (.png, .ktx, .dds). basepathname should exclude any
+    // extension; the desired extensions will be automatically looked for,
+    // in order of preference.
+    sreTexture(const char *basepathname, int type);
+    // Create a standard RGBA8 texture of size w x h, memory is allocated
+    // in system memory (sreTexture::data) but it is not uploaded to the
+    // GPU.
     sreTexture(int w, int h);
     ~sreTexture();
     void UploadGL(bool keep_data);
@@ -164,9 +171,9 @@ public:
     void SetPixel(int x, int y, unsigned int value);
     void MergeTransparencyMap(sreTexture *t);
     void ConvertFrom24BitsTo32Bits();
-    void LoadPNG(const char *filename, int flags);
-    bool LoadKTX(const char *filename);
-    void LoadDDS(const char *filename);
+    void LoadPNG(const char *pathname, int flags);
+    bool LoadKTX(const char *pathname);
+    void LoadDDS(const char *pathname);
     void ChangeParameters(int flags, int filter, float anisotropy);
 private :
     void CalculateTargetSize(int& target_width, int& target_height,
@@ -296,6 +303,7 @@ public :
 
     sreBaseModel();
     sreBaseModel(int nu_vertices, int nu_triangles, int flags);
+    ~sreBaseModel();
     void CalculateNormals();
     void CalculateNormals(int start_vertex_index, int nu_vertices, bool verbose);
     void CalculateNormalsNotSmooth();
@@ -568,6 +576,8 @@ public:
     sreBoundingVolume *special_collision_shape; // Parameters for special collision shapes.
     // Level of detail management.
     int nu_lod_levels;
+    // Theshold scaling inherent to the LOD model. This will be compounded with any
+    // treshold scaling defined for the referring sreObject.
     float lod_threshold_scaling;
     sreLODModel *lod_model[SRE_MAX_LOD_LEVELS];
     // Fluid.
@@ -662,7 +672,7 @@ public:
     // Light volume object array for static position lights. The objects that are partially inside
     // inside the light volume come first, followed by the objects that are completely inside
     // the light volume.
-    int nu_light_volume_objects;  
+    int nu_light_volume_objects;
     int nu_light_volume_objects_partially_inside;
     int *light_volume_object;
     int *shadow_caster_object;
@@ -781,7 +791,12 @@ public :
 
 // Level-Of-Detail flags for an object (sreObject::lod_flags).
 
-enum { SRE_LOD_DYNAMIC = 1, SRE_LOD_FIXED = 2 };
+enum {
+    SRE_LOD_DYNAMIC = 1,
+    SRE_LOD_FIXED = 2,
+    SRE_LOD_MAX_LIMITED = 4,
+    SRE_LOD_PHYSICS_HIGHEST = 8
+};
 
 // Object position/orientation change flags (used in sreObject::rapid_change_flags).
 
@@ -869,12 +884,20 @@ public:
     sreObjectAttributeInfo attribute_info_ambient_pass; // Ambient pass attribute information.
     sreObjectAttributeInfo attribute_info_shadow_map; // Attribute info for shadow map shaders.
     // Level-of-detail settings.
-    int lod_flags; // Determines whether the LOD level is fixed or dynamically determined.
-    int lod_level; // The lowest LOD level used.
-    float lod_threshold_scaling; // The scaling factor for thresholds when LOD is dynamic.
+    // lod_flags determines whether the LOD level is fixed to one level or dynamically
+    // determined.
+    unsigned char lod_flags;
+    unsigned char min_lod_level; // The lowest LOD level used.
+    unsigned char max_lod_level; // The highest LOD level used.
+    unsigned char physics_lod_level; // The LOD level used for physics geometry.
+    // A value higher than 1.0 means the LOD threshold are scaled up
+    // (less detailed LOD levels will be triggered for smaller on-screen
+    // size). Only applies to dynamic LOD.
+    float lod_threshold_scaling;
     // Whether the object has a light attached to it.
     int attached_light;
     Vector3D attached_light_model_position;
+    Vector3D attached_light_model_direction;
     // Texture and lighting attributes.
     Color diffuse_reflection_color;
     Color specular_reflection_color;
@@ -1216,6 +1239,14 @@ public :
     }
 };
 
+// Flags for sreScene::PrepareForRendering(flags).
+
+enum {
+    SRE_PREPARE_PREPROCESS = 1,
+    SRE_PREPARE_UPLOAD_ALL_MODELS = 2,
+    SRE_PREPARE_UPLOAD_NO_MODELS = 4
+};
+
 // The top-level scene class, contain arrays of the objects and lights in the scene,
 // octree information, a model registry, data structures used during rendering, and
 // state variables used during scene construction.
@@ -1282,8 +1313,10 @@ public:
     Vector2D current_roughness_weights;
     bool current_anisotropic;
     int current_lod_flags;
-    int current_lod_level;
+    int current_min_lod_level;
+    int current_max_lod_level;
     float current_lod_threshold_scaling;
+    int current_physics_lod_level;
 
     sreScene(int max_scene_objects, int max_models, int max_lights);
     void Clear();
@@ -1308,7 +1341,18 @@ public:
     void SetMass(float mass);
     void SetMicrofacetParameters(float diffuse_fraction, float roughness_value1, float weigth1,
         float roughness_value2, float weight2, bool anisotropic);
-    void SetLevelOfDetail(int flags, int level, float threshold_scaling);
+    // Set level of detail for object, referring to the levels of detail in the model.
+    // The minimum (most detailed) level is min_level; if the SRE_LOD_FIXED flag is set
+    // only min_level is used. If SRE_LOD_DYNAMIC is set, higher, less detailed levels
+    // (up to the maximum defined in the model) will be used as the on-screen size of the
+    // object decreases; a threshold scaling value higher than 1.0 will accelerate the
+    // selection of less detailed LOD levels. If the SRE_LOD_MAX_LIMITED flag is set with
+    // SRE_LOD_DYNAMIC, max_level specifies the highest (least detailed) level to be used
+    // which may not be the highest level. Finally, physics_level is the LOD level used
+    // for static scenery physics collision detection (for objects that have a geometrical
+    // collision shape, this is ignored).
+    void SetLevelOfDetail(int flags, int min_level, int max_level, float threshold_scaling,
+        int physics_level);
     // AddObject returns the model id which can be used to subsequently change object
     // parameters.
     // The following function is deprecated; used the following one.
@@ -1328,7 +1372,7 @@ public:
     void ChangeDirectionalLightDirection(int i, Vector3D direction) const;
     void ChangeLightPosition(int i, Point3D position) const;
     void ChangeLightColor(int i, Color color) const;
-    void ChangeSpotLightDirection(int i, Vector3D direction) const;
+    void ChangeSpotOrBeamLightDirection(int i, Vector3D direction) const;
     void ChangePointSourceLightAttenuation(int i, float range) const;
     void ChangeSpotLightAttenuationAndExponent(int i, float range, float exponent) const;
     void ChangeBeamLightAttenuation(int i, float beam_radius, float radial_linear_range,
@@ -1394,7 +1438,11 @@ public:
         bool anisotropic) const;
     void ChangeBillboardSize(int object_index, float bb_width, float bb_height) const;
     void ChangeHaloSize(int object_index, float size) const;
-    void AttachLight(int object_index, int light_index, Vector3D model_position) const;
+    // Attach a light to an object the specified position in model space. For spot or
+    // beam lights the model space-relative light direction is also specified, which
+    // overrides the light's original direction.
+    void AttachLight(int object_index, int light_index, Vector3D model_position,
+        Vector3D model_light_direction) const;
     void InvalidateShaders(int object_index) const;
     void InvalidateLightingShaders(int object_index) const;
     // sreModel processing functions used for preprocessing and when uploading models to the GPU.
@@ -1406,8 +1454,9 @@ public:
     void Triangulate();
     void Preprocess();
     void RemoveUnreferencedModels();
+    void MarkAllModelsReferenced() const;
     void UploadModels() const;
-    void PrepareForRendering(bool preprocess_static_scenery);
+    void PrepareForRendering(unsigned int prepare_flags);
     // Octree creation and static light volume objects calculation.
     void CreateOctrees();
     void DetermineStaticLightVolumeIntersectingObjects(const sreFastOctree& fast_oct, int array_index,
@@ -1473,6 +1522,9 @@ enum { SRE_OPENGL_VERSION_CORE = 0, SRE_OPENGL_VERSION_ES2 };
 
 // Rendering settings flags.
 enum {
+    // Whether there is support for shadow volumes. Disabling increase performance
+    // somewhat.
+    SRE_RENDERING_FLAG_SHADOW_VOLUME_SUPPORT = 0x1,
     // Use shadow volume cache for models and objects in GPU memory.
     SRE_RENDERING_FLAG_SHADOW_CACHE_ENABLED = 0x100,
     // Use triangle strips for point/spot shadow volume sides.
@@ -1589,6 +1641,7 @@ SRE_API void sreSetTriangleStripUseForShadowVolumes(bool enabled);
 SRE_API void sreSetTriangleFanUseForShadowVolumes(bool enabled);
 SRE_API void sreSetShadowVolumeCache(bool enabled);
 SRE_API void sreSetForceDepthFailRendering(bool enabled);
+SRE_API void sreSetShadowVolumeSupport(bool enabled);
 // Global texture detail settings.
 enum {
     // Use original texture size.
@@ -1634,7 +1687,7 @@ SRE_API sreTexture *sreCreateCheckerboardTexture(int type, int w, int h, int bw,
     Color color0, Color color1);
 SRE_API sreTexture *sreCreateStripesTexture(int type, int w, int h, int bh,
     Color color0, Color color1);
-SRE_API sreTexture *sreCreateTexture(const char *filename, int type);
+SRE_API sreTexture *sreCreateTexture(const char *pathname, int type);
 SRE_API float sreGetMaxAnisotropyLevel();
 SRE_API sreTexture *sreCreateTextTexture(const char *str, sreFont *font);
 
@@ -1689,7 +1742,7 @@ SRE_API void sreInitializeTextEngine();
 SRE_API void sreSetTextParameters(int set_mask, const Vector4D *colors, const Vector2D *font_size);
 SRE_API sreFont *sreSetFont(sreFont *font);
 SRE_API sreFont *sreGetStandardFont();
-SRE_API sreFont *sreCreateSystemMemoryFont(const char *filename, int chars_x, int chars_y);
+SRE_API sreFont *sreCreateSystemMemoryFont(const char *pathname, int chars_x, int chars_y);
 SRE_API void sreDrawText(const char *string, float x, float y);
 SRE_API void sreDrawTextN(const char *string, int n, float x, float y);
 SRE_API void sreDrawTextCentered(const char *text, float x, float y, float w);
@@ -1714,7 +1767,8 @@ SRE_API sreLODModel *sreNewLODModel();
 SRE_API sreLODModel *sreNewLODModelNoShadowVolume();
 
 enum {
-    SRE_MODEL_FILE_TYPE_OBJ = 1
+    SRE_MODEL_FILE_TYPE_OBJ = 1,
+    SRE_MODEL_FILE_TYPE_SRE_BINARY
 };
 enum {
     // Force use the native SRE model loading function even when assimp is available.
@@ -1724,17 +1778,29 @@ enum {
     SRE_MODEL_LOAD_FLAG_NO_COLORS = 8,
     SRE_MODEL_LOAD_FLAG_NO_TANGENTS = 16,
 };
-SRE_API sreModel *sreReadModelFromFile(sreScene *scene, const char *filename, int model_type, int load_flags);
-SRE_API sreModel *sreReadMultiDirectoryModelFromFile(sreScene *scene, const char *filename,
+SRE_API sreModel *sreReadModelFromFile(sreScene *scene, const char *pathname, int model_type, int load_flags);
+SRE_API sreModel *sreReadMultiDirectoryModelFromFile(sreScene *scene, const char *pathname,
 const char *base_path, int model_type, int load_flags);
 // This function is used by sreReadMultiDirectoryModelFromFile when assimp is available and the
 // SRE_MODEL_LOAD_FLAG_USE_SRE flag is not set.
-SRE_API sreModel *sreReadModelFromAssimpFile(sreScene *scene, const char *filename, const char *base_path,
+SRE_API sreModel *sreReadModelFromAssimpFile(sreScene *scene, const char *pathname, const char *base_path,
     int load_flags);
-// Note: Loading a LOD model directly currently does not assimp and relies on native support.
-SRE_API sreLODModel *sreReadLODModelFromFile(const char *filename, int model_type, int load_flags);
-SRE_API sreLODModel *sreReadMultiDirectoryLODModelFromFile(const char *filename, const char *base_path,
+// Note: Loading a LOD model directly currently does not use assimp and relies on native support.
+SRE_API sreLODModel *sreReadLODModelFromFile(const char *pathname, int model_type, int load_flags);
+SRE_API sreLODModel *sreReadMultiDirectoryLODModelFromFile(const char *pathname, const char *base_path,
     int model_type, int load_flags);
+// Read a LOD model from SRE's internal binary file format (.srebinarylodmodel).
+SRE_API sreLODModel *sreReadLODModelFromSREBinaryLODModelFile(const char *pathname,
+    int load_flags);
+// Read a model from SRE's internal binary file format (.srebinarymodel).
+SRE_API sreModel *sreReadModelFromSREBinaryModelFile(sreScene *scene, const char *pathname,
+    int load_flags);
+// Save a LOD model or model to the internal binary format. The parameter save_flags
+// corresponds to load_flags and can be used to omit certain attributes.
+SRE_API void sreSaveLODModelToSREBinaryLODModelFile(sreLODModel *lm, const char *pathname,
+    int save_flags);
+void sreSaveModelToSREBinaryModelFile(sreModel *m, const char *pathname,
+    int save_flags);
 
 SRE_API sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d,
     float t, float c, float mu);

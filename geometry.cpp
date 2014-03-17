@@ -35,6 +35,7 @@ sreModel::sreModel() {
     // Reset the number of LOD levels.
     nu_lod_levels = 0;
     lod_model[0] = NULL;
+    lod_threshold_scaling = 1.0f;
     nu_polygons = 0;
     is_static = false;
     referenced = false;
@@ -120,10 +121,10 @@ sreLODModel *sreLODModel::CreateCopy() const {
 // Library functions for sreLODModel creation. 
 
 sreLODModel *sreNewLODModel() {
-    if (sre_internal_shadow_volumes_disabled)
-        return new sreLODModel;
-    else
+    if (sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_VOLUME_SUPPORT)
         return new sreLODModelShadowVolume;
+    else
+        return new sreLODModel;
 }
 
 sreLODModel *sreNewLODModelNoShadowVolume() {
@@ -139,7 +140,7 @@ sreBaseModel::sreBaseModel() {
     flags = 0;
 }
 
-// Base model geometry component constructors.
+// Base model geometry component constructor.
 
 sreBaseModel::sreBaseModel(int nu_vertices, int nu_triangles, int flags) {
     sreBaseModel();
@@ -153,6 +154,23 @@ sreBaseModel::sreBaseModel(int nu_vertices, int nu_triangles, int flags) {
         vertex_tangent = new Vector4D[nu_vertices];
     if (flags & SRE_COLOR_MASK)
         colors = new Color[nu_vertices];
+}
+
+// Base model destructor.
+
+sreBaseModel::~sreBaseModel() {
+    if (flags & SRE_POSITION_MASK)
+        delete [] vertex;
+    if (flags & SRE_TEXCOORDS_MASK)
+        delete [] texcoords;
+    if (flags & SRE_COLOR_MASK)
+        delete [] colors;
+    if (flags & SRE_NORMAL_MASK)
+        delete [] vertex_normal;
+    if (flags & SRE_TANGENT_MASK)
+        delete [] vertex_tangent;
+    if (nu_triangles > 0)
+        delete [] triangle;
 }
 
 // Set/clear specific flags of all LOD models in a sreModel.
@@ -1054,8 +1072,7 @@ void sreLODModelShadowVolume::CalculateEdges() {
 #ifdef REDUCE_TRIANGLES_WHEN_CALCULATING_EDGES
     delete [] saved_indices2;
 #endif
-    delete [] clone->vertex;
-    delete [] clone->triangle;
+    // The deconstructor should automatically free vertex positions and triangles.
     delete clone;
     if (sre_internal_debug_message_level >= 2)
         printf("CalculateEdges (geometry only): found %d edges.\n", nu_edges);
@@ -1637,7 +1654,18 @@ void sreScene::RemoveUnreferencedModels() {
          nu_lod_models, gpu_triangle_count);
 }
 
-// RemoveUnreferencedModels() must be called before uploading models.
+void sreScene::MarkAllModelsReferenced() const {
+    for (int i = 0; i < nu_models; i++) {
+        if (model[i] == NULL)
+            continue;
+        model[i]->referenced = true;
+        for (int j = 0; j < model[i]->nu_lod_levels; j++)
+            model[i]->lod_model[j]->referenced = true;
+    }
+}
+
+// RemoveUnreferencedModels() or MarkAllModelsReferences() must be called before
+// uploading models.
 
 void sreScene::UploadModels() const {
     // Iterate all models.

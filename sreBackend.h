@@ -58,7 +58,7 @@ enum {
     // Whether mouse panning is locked.
     SRE_APPLICATION_FLAG_LOCK_PANNING = 0x20,
     // Whether mouse panning is enabled (usually in a windowing environment).
-    SRE_APPLICATION_FLAG_PAN_WITH_MOUSE= 0x40
+    SRE_APPLICATION_FLAG_PAN_WITH_MOUSE = 0x40
 };
 
 class sreApplication {
@@ -92,6 +92,7 @@ public :
     virtual void StepBeforePhysics(double demo_time) = 0;
     virtual void InitializePhysics() = 0;
     virtual void DoPhysics(double previous_time, double current_time) = 0;
+    virtual void DestroyPhysics() = 0;
 };
 
 class sreNoPhysicsApplication : public sreApplication {
@@ -111,6 +112,7 @@ class sreBulletPhysicsApplication : public sreApplication {
 public :
     virtual void InitializePhysics();
     virtual void DoPhysics(double previous_time, double current_time);
+    virtual void DestroyPhysics();
 };
 
 extern sreBackend *sre_internal_backend;
@@ -119,8 +121,10 @@ extern sreApplication *sre_internal_application;
 SRE_API void sreSelectBackend(int backend);
 // Initialize the back-end and create an empty app->scene and default app->view.
 SRE_API void sreInitializeApplication(sreApplication *app, int *argc, char ***argv);
-// Run the demo using the selected back-end and the specified application.
+// Run the application using the selected back-end.
 SRE_API void sreRunApplication(sreApplication *app);
+// Run the main loop without destroying the device-specific window.
+SRE_API void sreMainLoop(sreApplication *app, unsigned int prepare_flags);
 SRE_API void sreBackendGLSwapBuffers();
 SRE_API void sreBackendStandardTextOverlay();
 

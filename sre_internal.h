@@ -93,7 +93,6 @@ enum {
     SRE_INTERLEAVED_BUFFERS_ENABLED
 };
 extern int sre_internal_interleaved_vertex_buffers_mode;
-extern bool sre_internal_shadow_volumes_disabled;
 extern int sre_internal_visualized_shadow_map;
 extern int sre_internal_shadow_volume_count;
 extern int sre_internal_silhouette_count;
@@ -104,52 +103,52 @@ extern int sre_internal_texture_detail_flags;
 extern Matrix3D *sre_internal_standard_UV_transformation_matrix;
 
 // Defined in shader_matrix.cpp:
-void GL3Perspective(float fov, float aspect, float nearp, float farp);
-void GL3PerspectiveTweaked(float fov, float aspect, float nearp, float farp);
-void GL3SkyPerspective(float fov, float aspect, float nearp, float farp);
-void GL3LookAt(float viewpx, float viewpy, float viewpz, float lookx, float looky, float lookz, float upx, float upy,
+SRE_LOCAL void GL3Perspective(float fov, float aspect, float nearp, float farp);
+SRE_LOCAL void GL3PerspectiveTweaked(float fov, float aspect, float nearp, float farp);
+SRE_LOCAL void GL3SkyPerspective(float fov, float aspect, float nearp, float farp);
+SRE_LOCAL void GL3LookAt(float viewpx, float viewpy, float viewpz, float lookx, float looky, float lookz, float upx, float upy,
     float upz);
-void GL3CalculateShadowMapMatrix(Vector3D viewpoint, Vector3D light_direction, Vector3D normal_x, Vector3D normal_y,
-Vector3D dim_min, Vector3D dim_max);
-void GL3CalculateProjectionShadowMapMatrix(Vector3D viewp, Vector3D light_direction, Vector3D x_direction,
-Vector3D y_direction, float zmax);
-void GL3CalculateShadowMapMatrixAlwaysLight();
-void GL3CalculateCubeShadowMapMatrix(Vector3D light_position, Vector3D zdir, Vector3D up_vector, float zmax);
-void GL3CalculateGeometryScissorsMatrixAndSetViewport(const sreScissors& scissors);
+SRE_LOCAL void GL3CalculateShadowMapMatrix(Vector3D viewpoint, Vector3D light_direction, Vector3D normal_x, Vector3D normal_y,
+    Vector3D dim_min, Vector3D dim_max);
+SRE_LOCAL void GL3CalculateProjectionShadowMapMatrix(Vector3D viewp, Vector3D light_direction, Vector3D x_direction,
+    Vector3D y_direction, float zmax);
+SRE_LOCAL void GL3CalculateShadowMapMatrixAlwaysLight();
+SRE_LOCAL void GL3CalculateCubeShadowMapMatrix(Vector3D light_position, Vector3D zdir, Vector3D up_vector, float zmax);
+SRE_LOCAL void GL3CalculateGeometryScissorsMatrixAndSetViewport(const sreScissors& scissors);
 
 // vertex_buffers.cpp
 
-void GL3SetBillboard(sreObject *so);
-void GL3SetBillboardBounds(sreObject *so);
-void GL3SetParticleSystem(sreObject *so);
-void GL3SetParticleSystemBounds(sreObject *so);
+SRE_LOCAL void GL3SetBillboard(sreObject *so);
+SRE_LOCAL void GL3SetBillboardBounds(sreObject *so);
+SRE_LOCAL void GL3SetParticleSystem(sreObject *so);
+SRE_LOCAL void GL3SetParticleSystemBounds(sreObject *so);
 
 // draw_object.cpp
 
-sreLODModel *sreCalculateLODModel(const sreObject& so);
-void sreDrawObjectSinglePass(sreObject *so);
-void sreDrawObjectFinalPass(sreObject *so);
-void sreDrawObjectAmbientPass(sreObject *so);
-void sreDrawObjectMultiPassLightingPass(sreObject *so, bool shadow_map_required);
+SRE_LOCAL sreLODModel *sreCalculateLODModel(const sreObject& so);
+SRE_LOCAL void sreDrawObjectSinglePass(sreObject *so);
+SRE_LOCAL void sreDrawObjectFinalPass(sreObject *so);
+SRE_LOCAL void sreDrawObjectAmbientPass(sreObject *so);
+SRE_LOCAL void sreDrawObjectMultiPassLightingPass(sreObject *so, bool shadow_map_required);
 
 // shader_uniform.cpp
 
-void GL3InitializeShadersBeforeFrame();
-void GL3InitializeShadersBeforeLight();
-void GL3InitializeShadowMapShadersBeforeLight();
-void GL3InitializeShadowVolumeShader(const sreObject& so, const Vector4D& light_position_object);
-void GL3InitializeShadowMapShader(const sreObject& so);
-void GL3InitializeCubeShadowMapShader(const sreObject& so);
-void GL3UpdateCubeShadowMapSegmentDistanceScaling(float *segment_distance_scaling);
-void GL3InitializeShadowMapShadersWithSegmentDistanceScaling(float scaling);
-void GL3InitializeHDRLogLuminanceShader();
-void GL3InitializeHDRAverageLuminanceShader();
-void GL3InitializeHDRAverageLuminanceShaderWithLogLuminanceTexture();
-void GL3InitializeHDRAverageLuminanceShaderWithAverageLuminanceTexture(int i);
-void GL3InitializeHDRLuminanceHistoryStorageShader();
-void GL3InitializeHDRLuminanceHistoryComparisonShader(int slot);
-void GL3InitializeHDRToneMapShader();
-void GL3InitializeOldTextShader(Color *colorp);
+SRE_LOCAL void GL3InitializeShadersBeforeFrame();
+SRE_LOCAL void GL3InitializeShadersBeforeLight();
+SRE_LOCAL void GL3InitializeShadowMapShadersBeforeLight();
+SRE_LOCAL void GL3InitializeShadowVolumeShader(const sreObject& so, const Vector4D& light_position_object);
+SRE_LOCAL void GL3InitializeShadowMapShader(const sreObject& so);
+SRE_LOCAL void GL3InitializeCubeShadowMapShader(const sreObject& so);
+SRE_LOCAL void GL3UpdateCubeShadowMapSegmentDistanceScaling(float *segment_distance_scaling);
+SRE_LOCAL void GL3InitializeShadowMapShadersWithSegmentDistanceScaling(float scaling);
+SRE_LOCAL void GL3InitializeHDRLogLuminanceShader();
+SRE_LOCAL void GL3InitializeHDRAverageLuminanceShader();
+SRE_LOCAL void GL3InitializeHDRAverageLuminanceShaderWithLogLuminanceTexture();
+SRE_LOCAL void GL3InitializeHDRAverageLuminanceShaderWithAverageLuminanceTexture(int i);
+SRE_LOCAL void GL3InitializeHDRLuminanceHistoryStorageShader();
+SRE_LOCAL void GL3InitializeHDRLuminanceHistoryComparisonShader(int slot);
+SRE_LOCAL void GL3InitializeHDRToneMapShader();
+SRE_LOCAL void GL3InitializeOldTextShader(Color *colorp);
 
 enum {
     SRE_IMAGE_SOURCE_FLAG_TEXTURE_ARRAY = 1,
@@ -211,26 +210,25 @@ public :
 
 // Defined in sre_uniform.cpp:
 // Length specifies the length of the string in characters.
-void GL3InitializeTextShader(int update_mask, sreTextShaderInfo *info, Vector4D *rect,
+SRE_LOCAL void GL3InitializeTextShader(int update_mask, sreTextShaderInfo *info, Vector4D *rect,
     const char *string, int length);
-void GL3InitializeImageShader(int set_flags, sreImageShaderInfo *info, Vector4D *rect);
+SRE_LOCAL void GL3InitializeImageShader(int set_flags, sreImageShaderInfo *info, Vector4D *rect);
 
 // Defined in shadow.cpp:
-void sreRenderShadowVolumes(sreScene *scene, sreLight *light, sreFrustum& frustum);
-void sreReportShadowCacheStats();
-void sreResetShadowCacheStats();
-void sreSetShadowCacheStatsInfo(sreShadowRenderingInfo *info);
-void sreClearShadowCache();
+SRE_LOCAL void sreRenderShadowVolumes(sreScene *scene, sreLight *light, sreFrustum& frustum);
+SRE_LOCAL void sreReportShadowCacheStats();
+SRE_LOCAL void sreResetShadowCacheStats();
+SRE_LOCAL void sreSetShadowCacheStatsInfo(sreShadowRenderingInfo *info);
+SRE_LOCAL void sreClearShadowCache();
 
 // Defined in shadowmap.cpp:
-bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &frustum);
-void sreVisualizeDirectionalLightShadowMap(int light_index);
-void sreVisualizeCubeMap(int light_index);
-void sreVisualizeBeamOrSpotLightShadowMap(int light_index);
+SRE_LOCAL bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &frustum);
+SRE_LOCAL void sreVisualizeDirectionalLightShadowMap(int light_index);
+SRE_LOCAL void sreVisualizeCubeMap(int light_index);
+SRE_LOCAL void sreVisualizeBeamOrSpotLightShadowMap(int light_index);
 
 // Defined is lights.cpp:
-void sreInitializeInternalShadowVolume();
-
+SRE_LOCAL void sreInitializeInternalShadowVolume();
 
 // Image data structure for mipmaps.
 
@@ -250,9 +248,9 @@ public :
 };
 
 // Defined in mipmap.cpp:
-void generate_mipmap_level_from_original(sreMipmapImage *source_image, int level, sreMipmapImage *dest_image);
-void generate_mipmap_level_from_previous_level(sreMipmapImage *source_image, sreMipmapImage *dest_image);
-int count_mipmap_levels(sreMipmapImage *image);
+SRE_LOCAL void generate_mipmap_level_from_original(sreMipmapImage *source_image, int level, sreMipmapImage *dest_image);
+SRE_LOCAL void generate_mipmap_level_from_previous_level(sreMipmapImage *source_image, sreMipmapImage *dest_image);
+SRE_LOCAL int count_mipmap_levels(sreMipmapImage *image);
 
 
 // Error checking macro that is only defined if the DEBUG_OPENGL build flag was set.
@@ -265,6 +263,11 @@ int count_mipmap_levels(sreMipmapImage *image);
 // This function check for the existence of OpenGL errors, and prints
 // the given formatted string if an error has occurred. It flushes
 // all previous errors. No newline is printed after the string.
-void sreCheckGLError(const char *format, ...);
+SRE_LOCAL void sreCheckGLError(const char *format, ...);
 // Abort when a GL error is detected.
-void sreAbortOnGLError(const char *format, ...);
+SRE_LOCAL void sreAbortOnGLError(const char *format, ...);
+
+// File read/write functions that check for errors and exit gracefully if one occurs.
+// Abitrarily defined in binary_model_file.cpp.
+SRE_LOCAL void fread_with_check(void *ptr, size_t size, size_t nmemb, FILE *stream);
+SRE_LOCAL void fwrite_with_check(void *ptr, size_t size, size_t nmemb, FILE *stream);

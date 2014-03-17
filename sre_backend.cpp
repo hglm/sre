@@ -322,8 +322,8 @@ static void PrintConfigurationInfo() {
         printf("Benchmark mode enabled.\n");
 }
 
-void sreMainLoop(sreApplication *app) {
-    app->scene->PrepareForRendering(preprocess);
+void sreMainLoop(sreApplication *app, unsigned int prepare_flags) {
+    app->scene->PrepareForRendering(prepare_flags);
     app->InitializePhysics();
     PrintConfigurationInfo();
     printf("Starting rendering.\n");
@@ -373,7 +373,10 @@ void sreMainLoop(sreApplication *app) {
 }
 
 void sreRunApplication(sreApplication *app) {
-    sreMainLoop(app);
+    unsigned int prepare_flags = 0;
+    if (preprocess)
+        prepare_flags = SRE_PREPARE_PREPROCESS;
+    sreMainLoop(app, prepare_flags);
     if (benchmark_mode) {
        double fps = (double)sreGetCurrentFrame() /
            (sre_internal_backend->GetCurrentTime() - app->start_time);

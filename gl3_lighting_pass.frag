@@ -33,8 +33,11 @@ precision mediump float;
 #define MEDIUMP
 #define LOWP
 #endif
+// Set GLSL version to 3.30 for OpenGL, 4.0 when cube maps are enabled.
 #ifdef SHADOW_CUBE_MAP
 #version 400
+#else
+#version 330
 #endif
 #ifdef TEXTURE_OPTION
 uniform bool use_texture_in;
@@ -246,20 +249,32 @@ void main() {
         float atmospheric_illumination;
 	// Calculate atmospheric illumination between 0 and 1.0
         if (dot_sun_angle > 0.3)
+		// Atmospheric illumimnation sqrt(dot_sun_angle) when the Sun is higher
+		// in the sky (down to dot_sun_angle = 0.3).
 	        atmospheric_illumination = sqrt(dot_sun_angle);
-	else
-	if (dot_sun_angle >= 0.0)
+	else if (dot_sun_angle >= 0.0)
+		// Atmospheric illumination from 0.2 (sunset) to sqrt(0.3) at
+		// dot_sun_angle = 0.3.
 		atmospheric_illumination = 0.2 + dot_sun_angle * (sqrt(0.3) - 0.2) / 0.3;
-	else
-	if (dot_sun_angle >= - 0.2)
+	else if (dot_sun_angle >= - 0.2)
 		// Illumination between 0 and 0.2 when the sun is below the horizon.
-		atmospheric_illumination = pow(dot_sun_angle + 0.2, 2.0) * 0.2 / 0.04;
+		atmospheric_illumination = dot_sun_angle + 0.2;
 	else
 		atmospheric_illumination = 0.0;
-	// Scale to 0 and 0.4 (real lighting factor).
+	// Scale to between 0 and 0.4 (real atmospheric illumination lighting factor).
+	// The adjusted one (with sqrt curve) is actually applied; the unadjusted one
+	// is used for other checks.
+	float adjusted_atmospheric_illumination = sqrt(atmospheric_illumination) * 0.4;
 	atmospheric_illumination *= 0.4;
-	if (atmospheric_illumination < 0.08)
-		c = texture2D(emission_map_in, texcoord_var).rgb;
+	// Lights go on just before sunset (atmospheric_illumination = 0.08).
+	if (atmospheric_illumination < 0.10) {
+		// Add the night light emission map. When there is still some light
+		// (as determined by the sun angle, ideally it would depend on the
+		// terrain and true light intensity), reduce the night light intensity.
+		float night_light_factor = 0.4 + (0.10 - atmospheric_illumination) *
+			0.6 / 0.10;
+		c = texture2D(emission_map_in, texcoord_var).rgb * night_light_factor;
+	}
         else
 		c = vec3(0, 0, 0);
 #endif
@@ -533,31 +548,51 @@ void main() {
 #endif
 
 	LOWP vec3 light_color = light_color_in;
+	// For the sun, light_position_in.w is zero (directional light).
+        float light_is_sun = 1.0 - light_position_in.w;
 #ifdef EARTH_SHADER
 	// Make the light color yellow/red when the sun sets.
 	// Assumes the components of the base sun light color are equal (white).
-	if (atmospheric_illumination >= 0.06) {
+	if (light_position_in.w == 0.0 && atmospheric_illumination >= 0.06) {
+		// Sun is just below the horizon or higher.
 		if (atmospheric_illumination < 0.10) {
-			// Yellow to red.
-			float component = (abs(0.08 - atmospheric_illumination) / 0.02) * 0.8 + 0.2;
-			light_color = vec3(light_color.r, light_color.g * component, light_color.b * 0.2);
+			// Red (1to white (below the horizon, moving towards faint white light
+			// of dusk).
+			float component = 0.4 + ((0.08 - atmospheric_illumination) / 0.02) * 0.6;
+			light_color = vec3(light_color.r, light_color.g * component,
+				light_color.b * component);
 		}
-		else
-		if (atmospheric_illumination < 0.15) {
+		else if (atmospheric_illumination < 0.10) {
+			// Yellow to red (setting Sun).
+			float component = ((atmospheric_illumination - 0.08) / 0.02) * 0.6 + 0.4;
+			light_color = vec3(light_color.r, light_color.g * component, light_color.b * 0.4);
+		}
+		else if (atmospheric_illumination < 0.15) {
 			// White to yellow.
 			float component = 1.0 - ((0.15 - atmospheric_illumination) / 0.05) * 0.8;
 			light_color = vec3(light_color.r, light_color.g, light_color.b * component);
 		}
 	}
-	c += light_color_in * diffuse_base_color * atmospheric_illumination;
+	// Apply the atmospheric illumination (basically ambient light), for the sun only.
+	// The adjusted atmospheric illumination is used (sqrt-like curve).
+	c += light_is_sun * light_color_in * diffuse_base_color *
+		adjusted_atmospheric_illumination;
 #endif
 	LOWP float NdotL = dot(normal, L);
 #ifdef EARTH_SHADER
 	// If the sun is below the horizon, avoid diffuse and specular reflection.
-	if (atmospheric_illumination >= 0.08 && NdotL > 0.0) {
-		// Atmospheric illumination is a value between 0.08 and 0.4.
-		// When the sun is lower above the horizon, diffuse and specular reflection decrease.
-		light_att *= (atmospheric_illumination - 0.08) / 0.32;
+	// Do allow other lights to contribute even on the night side.
+	if (atmospheric_illumination >= 0.08 * light_is_sun && NdotL > 0.0) {
+		// Atmospheric illumination is a value between 0.08 and 0.4, and roughly
+		// corresponds with the height of the Sun above the horizon.
+		// When the sun is lower above the horizon, diffuse and specular reflection
+		///decrease due to extinction of the direct sunlight.
+		// However, do not apply this extinction factor for other
+		// lights (light_position_in.w == 1.0).
+		float sun_light_factor = (atmospheric_illumination - 0.08) / 0.32;
+		// Apply a square root-based correction.
+		sun_light_factor = sqrt(sun_light_factor);
+		light_att *= max(sun_light_factor, light_position_in.w);
 #else
 	if (NdotL > 0.0) {
 #endif

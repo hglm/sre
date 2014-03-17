@@ -119,7 +119,7 @@ void Demo8CreateScene(sreScene *scene, sreView *view) {
     l = scene->AddPointSourceLight(SRE_LIGHT_DYNAMIC_POSITION,
             Point3D(100, 50, 3.0), 20.0, // Linear range of 20.
             Color(1.0, 1.0, 1.0));
-/    scene->AttachLight(0, l, Vector3D(0, 0, 0));
+//    scene->AttachLight(0, l, Vector3D(0, 0, 0), Vector3D(0, 0, 0));
     scene->SetEmissionColor(Color(0, 0, 0));
 #endif
 
@@ -251,7 +251,7 @@ void Demo8CreateScene(sreScene *scene, sreView *view) {
         int l = scene->AddPointSourceLight(SRE_LIGHT_DYNAMIC_POSITION,
             Point3D(robot[i].initial_pos.x, robot[i].initial_pos.y, robot[i].initial_pos.z + 7.0),
             ROBOT_LIGHT_RANGE, Color(1.0, 1.0, 1.0));
-        scene->AttachLight(object_index, l, Vector3D(0, 0, 0));
+        scene->AttachLight(object_index, l, Vector3D(0, 0, 0), Vector3D(0, 0, 0));
 #endif
     }
     scene->SetMass(0);
@@ -299,7 +299,8 @@ void Demo8CreateScene(sreScene *scene, sreView *view) {
     scene->SetEmissionColor(Color(0, 0, 0));
 //    sreTexture *cylinder_texture = new sreTexture("StonesAndBricks5", TEXTURE_TYPE_NORMAL);
     scene->SetTexture(marble_texture);
-    scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, 2.0f);
+    // Reduce the LOD a little. 
+    scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 2.0f, 1);
     for (int x = 20; x < 31; x++)
         for (int y = 20; y < 31; y++) {
             if (x == 25 && y == 25)
@@ -308,7 +309,7 @@ void Demo8CreateScene(sreScene *scene, sreView *view) {
             scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
             scene->AddObject(cylinder_model, (x - 25) * 400.0 + 120.0, (y - 25) * 400.0 + 120.0, 10.0, M_PI / 2, 0, 0, 10.0);
     }
-    scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, 1.0f);
+    scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 1.0f, 0);
 
     // Add star halos in the distance.
     scene->SetFlags(SRE_OBJECT_EMISSION_ONLY |
@@ -445,7 +446,7 @@ void Demo8Step(sreScene *scene, double demo_time) {
     V.Normalize();
     M_rot.AssignRotationAlongZAxis(fmod(demo_time * 0.5 , 1.0) * 2.0 * M_PI);
     Vector3D W = (M_rot * V).GetVector3D();
-    scene->ChangeSpotLightDirection(beam_light, W);
+    scene->ChangeSpotOrBeamLightDirection(beam_light, W);
     // Let the stars twinkle.
 #ifdef TWINKLING_STARS
     for (int i = 0; i < NU_STARS; i++) {

@@ -39,11 +39,11 @@ void Demo10CreateScene(sreScene *scene, sreView *view) {
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);
 #ifndef SHADOWS
     // Reduce the level detail.
-    scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 1, 1.0);
+    scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 1, - 1, 1.0, 0);
 #else
     // Reduce the number of triangles in the models also when shadows
     // are enabled.
-    scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, 2.0);
+    scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 2.0, 0);
 #endif
     scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS |
         SRE_OBJECT_USE_TEXTURE);

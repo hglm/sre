@@ -148,7 +148,7 @@ void sreBulletPhysicsApplication::InitializePhysics() {
         if (so->flags & SRE_OBJECT_NO_PHYSICS)
             continue;
         // Pick LOD level 0. Chosing a lower detail LOD level may help performance.
-        sreLODModel *m = so->model->lod_model[0];
+        sreLODModel *m = so->model->lod_model[so->physics_lod_level];
         int collision_shape_type;
         if (so->flags & SRE_OBJECT_DYNAMIC_POSITION)
             collision_shape_type = so->model->collision_shape_dynamic;
@@ -408,7 +408,7 @@ void sreBulletPhysicsApplication::InitializePhysics() {
     }
 }
 
-void BulletDestroy() {
+void sreBulletPhysicsApplication::DestroyPhysics() {
     delete dynamicsWorld;
     delete solver;
     delete dispatcher;

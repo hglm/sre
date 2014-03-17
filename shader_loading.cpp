@@ -795,7 +795,7 @@ static char* filetobuf(const char *file) {
     length = ftell(fptr);
     buf = (char *)new char[length + 1];
     fseek(fptr, 0, SEEK_SET); /* Go back to the beginning of the file */
-    fread(buf, length, 1, fptr); /* Read the contents of the file in to the buffer */
+    fread_with_check(buf, length, 1, fptr); /* Read the contents of the file in to the buffer */
     fclose(fptr);
     buf[length] = 0; /* Null terminator */
     return buf;

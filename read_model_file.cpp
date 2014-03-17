@@ -23,6 +23,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <math.h>
 #include <string.h>
 #include <limits.h>
@@ -88,8 +89,11 @@ static char *GetWords(FILE *fp) {
     if (sre_internal_word_str == NULL)
         sre_internal_word_str = (char *)malloc(MAX_LINE_LENGTH * sizeof(char));
     char *result = fgets(sre_internal_word_str, MAX_LINE_LENGTH, fp);
-    if (result == NULL)
-        return NULL;
+    if (result == NULL) {
+        if (feof(fp))
+            return NULL;
+        sreFatalError("File read error wwhile loading model file.");
+    }
     GetWordsFromString(sre_internal_word_str);
     return sre_internal_word_str;
 }
@@ -250,8 +254,7 @@ static void EndFace() {
 }
 
 static void ModelFileReadError(const char *s) {
-    printf("Error reading model file: %s.\n", s);
-    exit(1);
+    sreFatalError("Error reading model file: %s.", s);
 }
 
 static void ResetSourceModelData() {
@@ -311,7 +314,7 @@ static void InitializeModelFromFaceData(sreLODModel *m) {
 // Add a triangle to an sreLODModel, with data from face i and the specified vertices of
 // that face.
 
-static void AddsreModelTriangle(sreLODModel *m, int i, int vertex0, int vertex1, int vertex2) {
+static void AddModelTriangle(sreLODModel *m, int i, int vertex0, int vertex1, int vertex2) {
     // Add new vertices.
     int vindex[3];
     vindex[0] = vertex0;
@@ -348,11 +351,11 @@ static void AddFacesToModel(sreLODModel *m) {
     for (int i = 0; i < nu_faces; i++)
         if (face[i].nu_vertices == 3)
             // Add triangle from face i, creating new vertices.
-            AddsreModelTriangle(m, i, 0, 1, 2);
+            AddModelTriangle(m, i, 0, 1, 2);
         else if (face[i].nu_vertices == 4) {
             // Add two triangles from face i (which has four vertices).
-            AddsreModelTriangle(m, i, 0, 1, 2);
-            AddsreModelTriangle(m, i, 0, 2, 3);
+            AddModelTriangle(m, i, 0, 1, 2);
+            AddModelTriangle(m, i, 0, 2, 3);
         }
         else
             ModelFileReadError("More than four vertices in a face not supported");
@@ -369,7 +372,6 @@ static const int OBJ_attributes[4] = {
     SRE_ATTRIBUTE_NORMAL,
     - 1
 };
-
 
 // Decode a single word with indices delimited by slashes (OBJ face specification).
 // Up to four indices are stored; the value INT_MAX indicates the index is not
@@ -400,6 +402,8 @@ static void DecodeOBJFaceIndices(char *word_str, int *indices) {
 
 static void ReadOBJ(const char *filename) {
     FILE *fp = fopen(filename, "r");
+     if (fp == NULL)
+         sreFatalError("Could not open file %s.", filename);
     for (;;) {
         char *str = GetWords(fp);
         if (str == NULL)
@@ -471,7 +475,6 @@ int model_type, int load_flags) {
         break;
     default :
         ModelFileReadError("Model file format not supported");
-        exit(1);
         break;
     }
 
@@ -507,6 +510,9 @@ sreLODModel *sreReadLODModelFromFile(const char *filename, int model_type, int l
 
 sreModel *sreReadMultiDirectoryModelFromFile(sreScene *scene, const char *filename, const char *base_path,
 int model_type, int load_flags) {
+    if (model_type == SRE_MODEL_FILE_TYPE_SRE_BINARY)
+        return sreReadModelFromSREBinaryModelFile(scene, filename, load_flags);
+
 #ifdef ASSIMP_SUPPORT
     // When assimp is available, use it for any file type (including .OBJ), except when a
     // flag indicates using the native SRE model loading function.

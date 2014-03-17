@@ -59,8 +59,10 @@ sreScene::sreScene(int _max_scene_objects, int _max_models, int _max_scene_light
     current_diffuse_fraction = 0.6;
     current_anisotropic = false;
     current_lod_flags = SRE_LOD_DYNAMIC;
-    current_lod_level = 0;
+    current_min_lod_level = 0;
+    current_max_lod_level = 0;
     current_lod_threshold_scaling = 1.0;
+    current_physics_lod_level = 0;
     current_UV_transformation_matrix = sre_internal_standard_UV_transformation_matrix;
     deleted_ids = new sreObjectList;
     // No rendering object arrays allocated yet.
@@ -90,11 +92,16 @@ void sreScene::Clear() {
     deleted_ids->MakeEmpty();
 }
 
-void sreScene::PrepareForRendering(bool preprocess_static_scenery) {
+void sreScene::PrepareForRendering(unsigned int flags) {
     CreateOctrees();
-    if (preprocess_static_scenery)
+    if (flags & SRE_PREPARE_PREPROCESS)
         Preprocess();
-    RemoveUnreferencedModels();
+    if (!(flags & SRE_PREPARE_UPLOAD_NO_MODELS)) {
+        if (flags & SRE_PREPARE_UPLOAD_ALL_MODELS)
+            MarkAllModelsReferenced();
+        else
+            RemoveUnreferencedModels();
+    }
 
     // Temporarily allocate visual object and shadow caster object arrays
     // with full capacity for shadow volume calculation.
@@ -204,10 +211,13 @@ float roughness_value2, float weight2, bool anisotropic) {
     current_anisotropic = anisotropic;
 }
 
-void sreScene::SetLevelOfDetail(int flags, int level, float scaling) {
+void sreScene::SetLevelOfDetail(int flags, int min_level, int max_level, float scaling,
+int physics_level) {
     current_lod_flags = flags;
-    current_lod_level = level;
+    current_min_lod_level = min_level;
+    current_max_lod_level = max_level;
     current_lod_threshold_scaling = scaling;
+    current_physics_lod_level = physics_level;
 }
 
 void sreScene::SetAmbientColor(Color color) {
@@ -222,6 +232,11 @@ void sreScene::FinishObjectInstantiation(sreObject& so, bool rotated) const {
     if (so.attached_light != - 1) {
         ChangeLightPosition(so.attached_light,
             (so.model_matrix * Vector4D(so.attached_light_model_position, 1.0)).GetPoint3D());
+        // Change the direction of spot and beam lights also.
+        if (global_light[so.attached_light]->type & (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM)) {
+            Vector3D new_dir = so.rotation_matrix * so.attached_light_model_direction;
+            ChangeSpotOrBeamLightDirection(so.attached_light, new_dir);
+        }
     }
     // Update bounds.
     if (so.flags & SRE_OBJECT_PARTICLE_SYSTEM) {
@@ -407,8 +422,10 @@ float rot_x, float rot_y, float rot_z, float scaling) {
     so->roughness_weights = current_roughness_weights;
     so->anisotropic = current_anisotropic;
     so->lod_flags = current_lod_flags;
-    so->lod_level = current_lod_level;
+    so->min_lod_level = current_min_lod_level;
+    so->max_lod_level = current_max_lod_level;
     so->lod_threshold_scaling = current_lod_threshold_scaling;
+    so->physics_lod_level = current_physics_lod_level;
 
     so->id = i;
     so->attached_light = - 1;
@@ -431,16 +448,26 @@ float rot_x, float rot_y, float rot_z, float scaling) {
         so->flags |= SRE_OBJECT_USE_OBJECT_SHADOW_CACHE;
     // Mark the model as referenced.
     model->referenced = true;
-    // Determine which LOD model objects can be used by this object, and set the referenced flag for them.
+    // Determine which LOD model objects can be used by this object, and set the referenced
+    // flag for them. Also set max_lod_level to the last defined LOD level if
+    // SRE_LOD_MAX_LIMITED is not set.
+    so->max_lod_level = model->nu_lod_levels - 1;
     if (model->nu_lod_levels == 1)
         model->lod_model[0]->referenced = true;
     else {
         if (so->lod_flags & SRE_LOD_FIXED)
-            model->lod_model[so->lod_level]->referenced = true;
-        else
-            for (int i = so->lod_level; i < model->nu_lod_levels; i++)
+            model->lod_model[so->min_lod_level]->referenced = true;
+        else {
+            int max_level = model->nu_lod_levels - 1;
+            if (so->lod_flags & SRE_LOD_MAX_LIMITED)
+                max_level = mini(max_level, so->max_lod_level);
+            for (int i = so->min_lod_level; i <= max_level; i++)
                 model->lod_model[i]->referenced = true;
+            so->max_lod_level = max_level;
+        }
     }
+    if (so->lod_flags & SRE_LOD_PHYSICS_HIGHEST)
+        so->physics_lod_level = model->nu_lod_levels - 1;
     InstantiateObject(i);
     // When adding a billboard object, make sure the bounding sphere is properly set.
     if (so->flags & (SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_BILLBOARD)) {
@@ -611,9 +638,15 @@ bool anisotropic) const {
     InvalidateLightingShaders(object_index);
 }
 
-void sreScene::AttachLight(int soi, int light_index, Vector3D model_position) const {
+void sreScene::AttachLight(int soi, int light_index, Vector3D model_position,
+Vector3D model_light_direction) const {
     sceneobject[soi]->attached_light = light_index;
     sceneobject[soi]->attached_light_model_position = model_position;
+    if (global_light[light_index]->type & (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM)) {
+        sceneobject[soi]->attached_light_model_direction = model_light_direction;
+        ChangeSpotOrBeamLightDirection(light_index, sceneobject[soi]->rotation_matrix *
+            model_light_direction);
+    }
 }
 
 void sreScene::InvalidateShaders(int soi) const {
@@ -724,8 +757,9 @@ sreObject::~sreObject() {
         // This should trigger the destructor of sreShadowVolume,
         // freeing additional allocated structures.
         delete shadow_volume[i];
-    // Free the array of shadow volume pointers.
-    delete [] shadow_volume;
+    if (nu_shadow_volumes > 0)
+        // Free the array of shadow volume pointers.
+        delete [] shadow_volume;
 }
 
 void sreObject::AddShadowVolume(sreShadowVolume *sv) {

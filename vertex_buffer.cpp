@@ -231,8 +231,9 @@ void sreLODModel::InitVertexBuffers(int attribute_mask, int dynamic_flags) {
     if (!attribute_list_table_initialized)
         sreGenerateAttributeListTable();
 
-    bool shadow = !(sre_internal_shadow_volumes_disabled ||
-        (flags & SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT))
+    bool shadow =
+        (sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_VOLUME_SUPPORT)
+        && !(flags & SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT)
         && (flags & SRE_LOD_MODEL_IS_SHADOW_VOLUME_MODEL);
 
     if (flags & SRE_LOD_MODEL_BILLBOARD) {

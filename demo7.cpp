@@ -120,7 +120,7 @@ void Demo7CreateScene(sreScene *scene, sreView *view) {
         0,
 #endif
         Point3D(20, 20, 30), 100.0, Color(1.0, 1.0, 1.0));
-    scene->AttachLight(lightsource_object_index[0], l, Vector3D(0, 0, 0));
+    scene->AttachLight(lightsource_object_index[0], l, Vector3D(0, 0, 0), Vector3D(0, 0, 0));
 #endif
 #endif
 }

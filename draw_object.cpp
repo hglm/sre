@@ -43,20 +43,25 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 sreLODModel *sreCalculateLODModel(const sreObject& so) {
     sreModel *m = so.model;
     if (so.lod_flags & SRE_LOD_FIXED) {
-        return m->lod_model[so.lod_level];
+        return m->lod_model[so.min_lod_level];
     }
-    if (m->nu_lod_levels > 1) {
+    if (so.max_lod_level > 0) {
         float w = Dot(sre_internal_view_projection_matrix.GetRow(3), so.sphere.center);
         if (w == 0)
-            return (sreLODModel *)m;
-        float size = fabsf(so.sphere.radius * 2.0 / w);
-        sreLODModel *new_m = m->lod_model[so.lod_level];
-        if (m->nu_lod_levels > 1 + so.lod_level && size < SRE_LOD_LEVEL_1_THRESHOLD * so.lod_threshold_scaling) {
-            new_m = m->lod_model[1 + so.lod_level];
-            if (m->nu_lod_levels > 2 + so.lod_level && size < SRE_LOD_LEVEL_2_THRESHOLD * so.lod_threshold_scaling) {
-                new_m = m->lod_model[2 + so.lod_level];
-                if (m->nu_lod_levels > 3 + so.lod_level && size < SRE_LOD_LEVEL_3_THRESHOLD * so.lod_threshold_scaling) {
-                    new_m = m->lod_model[3];
+            return m->lod_model[so.min_lod_level];
+        float size = fabsf(so.sphere.radius * 2.0f / w);
+        sreLODModel *new_m = m->lod_model[so.min_lod_level];
+        // Compound the object's threshold scaling with that of the model.
+        float threshold_scaling = so.lod_threshold_scaling * m->lod_threshold_scaling;
+        if (so.min_lod_level + 1 <= so.max_lod_level
+        && size < SRE_LOD_LEVEL_1_THRESHOLD * threshold_scaling) {
+            new_m = m->lod_model[1 + so.min_lod_level];
+            if (so.min_lod_level + 2 <= so.max_lod_level
+            && size < SRE_LOD_LEVEL_2_THRESHOLD * threshold_scaling) {
+                new_m = m->lod_model[2 + so.min_lod_level];
+                if (so.min_lod_level + 3 <= so.max_lod_level
+                && size < SRE_LOD_LEVEL_3_THRESHOLD * threshold_scaling) {
+                    new_m = m->lod_model[3 + so.min_lod_level];
                 }
             }
         }

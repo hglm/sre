@@ -77,8 +77,9 @@ void Demo5CreateScene(sreScene *scene, sreView *view) {
     scene->SetFlags(SRE_OBJECT_USE_NORMAL_MAP /* | SRE_OBJECT_DYNAMIC_POSITION */ | SRE_OBJECT_CAST_SHADOWS);
     // Set diffuse fraction to 0.6 and roughness values of 0.1 and 0.15, anisotropic.
     scene->SetMicrofacetParameters(0.6, 0.1, 1.0, 0.15, 1.0, true);
-    // The torus model is detailed and has plenty of vertices, scale the LOD thresholds for better performance.
-    scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, 2.0);
+    // The torus model is detailed and has plenty of vertices, scale the LOD thresholds for
+    // better performance, and use level 1 for physics.
+    scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 2.0, 1);
     Color c;
     for (int x = 0; x < 10; x++)
         for (int y = 0; y < 10; y++) {
@@ -99,7 +100,7 @@ void Demo5CreateScene(sreScene *scene, sreView *view) {
 //                scene->sceneobject[i]->use_so_shadow_cache = true;
             }
         }
-    scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, 1.0);
+    scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 1.0, 0);
     // Add two "copper" torusses, one anisotropic, the other isotropic.
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
     scene->SetDiffuseReflectionColor(Color(0.8, 0.6, 0.1));
@@ -240,8 +241,8 @@ void Demo5CreateScene(sreScene *scene, sreView *view) {
 #endif
     int l1 = scene->AddPointSourceLight(flags, Point3D(0, 20, 30), 50, Color(1.0, 1.0, 1.0));
     int l2 = scene->AddPointSourceLight(flags, Point3D(40, 80, 20), 50, Color(1.0, 0.4, 0.4));
-    scene->AttachLight(lightsource_object_index[0], l1, Vector3D(0, 0, 0));
-    scene->AttachLight(lightsource_object_index[1], l2, Vector3D(0, 0, 0));
+    scene->AttachLight(lightsource_object_index[0], l1, Vector3D(0, 0, 0), Vector3D(0, 0, 0));
+    scene->AttachLight(lightsource_object_index[1], l2, Vector3D(0, 0, 0), Vector3D(0, 0, 0));
 #endif
 #if defined(OPENGL)
     // Create a line of small yellow lights at the back of the scene. Performance test

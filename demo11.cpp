@@ -63,6 +63,9 @@ void Demo11CreateScene(sreScene *scene, sreView *view) {
     scene->SetMass(0);
 #endif
 
+    // It would help to use lower LOD levels, but the model currently only has a single
+    // level. 
+//    scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 1.0f, 1);
     // Read model file (high-poly model).
     sreModel *venus_model = sreReadModelFromFile(scene, "venusm.obj", SRE_MODEL_FILE_TYPE_OBJ, 0);
     // We don't want to use all those triangles for collisions, reduce to convex hull.
