@@ -404,6 +404,7 @@ static void RunGame(GameApplication *app) {
     scene->MarkAllModelsReferenced();
     scene->UploadModels();
     sreSetDrawTextOverlayFunc(GameDrawTextOverlay);
+    scene->SetAmbientColor(Color(0.2f, 0.2f, 0.2f));
     for (;;) {
         nu_target_objects = 0;
         switch (level) {
