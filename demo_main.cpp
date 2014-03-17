@@ -53,6 +53,7 @@ static const Demo demo_table[] = {
     { "demo9", Demo9CreateScene, Demo9Step },
     { "demo10", Demo10CreateScene, Demo10Step },
     { "demo11", Demo11CreateScene, Demo11Step },
+    { "demo4c", Demo4cCreateScene, Demo4cStep },
 };
 
 #define NU_DEMOS (sizeof(demo_table) / sizeof(demo_table[0]))
@@ -173,12 +174,16 @@ int main(int argc, char **argv) {
         app->view->SetViewModeLookAt(Point3D(0, - 60.0, 40.0), Point3D(0, 140.0, 0),
             Vector3D(0, 0, 1.0));
         app->view->SetMovementMode(SRE_MOVEMENT_MODE_NONE);
+        app->SetFlags(app->GetFlags() | SRE_APPLICATION_FLAG_NO_PHYSICS);
     }
     else {
         // Set the view used by most demos.
         app->view->SetViewModeFollowObject(0, 40.0, Vector3D(0, 0, 10.0));
         app->view->SetMovementMode(SRE_MOVEMENT_MODE_STANDARD);
     }
+    // Normally, app->SetFlags() should be called in the demo-specific CreateScene()
+    // function when necessary to set set flags (presence of physics, type of gravity
+    // etc). 
 
     demo_table[demo_index].CreateScene(app->scene, app->view);
     // By convention object 0 is the default user-controlled object (usually a ball/sphere).

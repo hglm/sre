@@ -190,6 +190,7 @@ static bool show_spacecraft = true;
 static bool show_spacecraft = false;
 #endif
 static float sun_light_factor = 1.0f;
+static float extra_lod_threshold_scaling = 5.0f;
 
 void CreateMeshObjects(sreScene *scene, sreModel *mesh_model[SUB_MESHES_Y][SUB_MESHES_X]) {
     printf("Creating mesh objects.\n");
@@ -1214,7 +1215,7 @@ skip_spacecraft :
             int physics_lod_level = mesh_model[y][x]->nu_lod_levels - 2;
             physics_lod_level = maxi(0, physics_lod_level);
             scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1,
-                6.0f, physics_lod_level);
+                extra_lod_threshold_scaling, physics_lod_level);
             scene->AddObject(mesh_model[y][x], 0, 0, 0, 0, 0, 0, 1.0f);
         }
 #if 0
@@ -1224,7 +1225,7 @@ skip_spacecraft :
             scene->AddObject(mesh_model[y][x], 0, 0, 10.0, 0, 0, 0, 0.01);
         }
 #endif
-    scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 1.0f, 0);
+    scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 1.0, 0);
 
     // Lights.
 #ifndef NIGHT
@@ -1252,8 +1253,6 @@ skip_spacecraft :
 #else
     view->SetViewModeFollowObject(0, 40.0, Vector3D(0, 0, 10.0));
 #endif
-    sre_internal_application->SetFlags(sre_internal_application->GetFlags() |
-        SRE_APPLICATION_FLAG_NO_GRAVITY);
     if (create_spacecraft) {
         sre_internal_application->control_object = spacecraft_object;
 #ifdef SPHERE
@@ -1265,6 +1264,9 @@ skip_spacecraft :
 #endif
     }
     sreSetHDRKeyValue(0.2f);
+
+    sre_internal_application->SetFlags(sre_internal_application->GetFlags() |
+        SRE_APPLICATION_FLAG_NO_GRAVITY);
 }
 
 static char message[80], message2[80];
@@ -1493,11 +1495,13 @@ void Demo4StepBeforePhysics(sreScene *scene, double demo_time) {
 }
 
 void Demo4SetParameters(float interval, bool _display_time, bool _physics,
-bool _create_spacecraft, bool _show_spacecraft, float _sun_light_factor) {
+bool _create_spacecraft, bool _show_spacecraft, float _sun_light_factor,
+float _extra_lod_threshold_scaling) {
    day_interval = interval;
    display_time = _display_time;
    physics = _physics;
    create_spacecraft = _create_spacecraft;
    show_spacecraft = _show_spacecraft;
    sun_light_factor = _sun_light_factor;
+   extra_lod_threshold_scaling = _extra_lod_threshold_scaling;
 }

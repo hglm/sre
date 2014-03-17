@@ -29,10 +29,13 @@ void Demo4CreateScene(sreScene *scene, sreView *view);
 void Demo4Step(sreScene *scene, double demo_time);
 void Demo4StepBeforePhysics(sreScene *scene, double demo_time);
 void Demo4SetParameters(float day_interval, bool display_time, bool physics,
-    bool create_spacecraft, bool show_spacecraft, float sun_light_factor);
+    bool create_spacecraft, bool show_spacecraft, float sun_light_factor,
+    float extra_lod_threshold_scaling);
 
 void Demo4bCreateScene(sreScene *scene, sreView *view);
+void Demo4cCreateScene(sreScene *scene, sreView *view);
 void Demo4bStep(sreScene *scene, double demo_time);
+void Demo4cStep(sreScene *scene, double demo_time);
 
 // Defined in demo5.cpp
 void Demo5CreateScene(sreScene *scene, sreView *view);

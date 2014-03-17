@@ -402,6 +402,7 @@ clean :
 	rm -f libsre_dbg.a
 	rm -f libsrebackend.a
 	rm -f $(DEMO_PROGRAM)
+	rm -f game
 
 cleanall : clean
 	rm -f .rules

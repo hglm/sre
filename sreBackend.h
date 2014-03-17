@@ -58,7 +58,8 @@ enum {
     // Whether mouse panning is locked.
     SRE_APPLICATION_FLAG_LOCK_PANNING = 0x20,
     // Whether mouse panning is enabled (usually in a windowing environment).
-    SRE_APPLICATION_FLAG_PAN_WITH_MOUSE = 0x40
+    SRE_APPLICATION_FLAG_PAN_WITH_MOUSE = 0x40,
+    SRE_APPLICATION_FLAG_NO_PHYSICS = 0x80
 };
 
 class sreApplication {

@@ -434,14 +434,15 @@ static void BulletStep(double dt) {
 
 void sreBulletPhysicsApplication::DoPhysics(double previous_time, double current_time) {
     Vector3D gravity;
-    if (flags & SRE_APPLICATION_FLAG_DYNAMIC_GRAVITY) {
+    sreMovementMode movement_mode = view->GetMovementMode();
+    if ((flags & SRE_APPLICATION_FLAG_DYNAMIC_GRAVITY) &&
+    movement_mode != SRE_MOVEMENT_MODE_NONE) {
         btVector3 pos = object_rigid_body[control_object]->getCenterOfMassPosition();
         gravity = Vector3D(gravity_position.x - pos.x(), gravity_position.y - pos.y(), gravity_position.z - pos.z());
         gravity.Normalize();
         gravity *= 20.0;
     }
     double dt = current_time - previous_time;
-    sreMovementMode movement_mode = view->GetMovementMode();
     // When user movement is disabled, don't alter any object manually.
     if (movement_mode == SRE_MOVEMENT_MODE_NONE || control_object < 0) {
         BulletStep(dt);

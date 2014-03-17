@@ -44,12 +44,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // Speed-up factor (for testing).
 #define SPEEDUP 1.0
-// Starting segment. Segments 0 - 13 are rotating earth, 14 - 20 are flyovers.
-// #define STARTING_SEGMENT (7 * 2)
-#define STARTING_SEGMENT 0
+// Starting segment. 14 segments for rotating earth, 7 or 16 for flyovers.
+#define ROTATION_STARTING_SEGMENT 0
+#define FLYOVER_STARTING_SEGMENT 0
 #define ROTATION_SEGMENT_ZOOM_LEVELS 2
-
-// #define SKIP_FLYOVERS
 
 // #define DEBUG
 
@@ -255,16 +253,15 @@ float orientation, char *str, sreFont *font, Color c, float text_size) {
     scene->ChangeRotationMatrix(object_id, m4 * (m1 * m3));
 }
 
-void Demo4bCreateScene(sreScene *scene, sreView *view) {
-    Demo4SetParameters(DAY_INTERVAL, false, false, false, false, 1.5f);
+enum { ROTATING_EARTH, EARTH_FLYOVERS };
+
+static void Demo4bcCreateScene(sreScene *scene, sreView *view, int mode) {
     Demo4CreateScene(scene, view);
 
     // Set the view and movement mode to a static one.
     Point3D viewpoint = Point3D(0, - EARTH_RADIUS - EARTH_RADIUS * EARTH_VIEW_DISTANCE, 0);
     view->SetViewModeLookAt(viewpoint, Point3D(0, 0, 0), Point3D(0, 0, 1.0f));
     view->SetMovementMode(SRE_MOVEMENT_MODE_NONE);
-    // Set the view distance to precisely the edge of the globe.
-    sreSetFarPlaneDistance(Magnitude(Point3D(- EARTH_RADIUS, 0, 0) - viewpoint));
     view_angle = latitude[0];
     view_angle_target = 99999.9f;
     view_distance = EARTH_RADIUS * EARTH_VIEW_DISTANCE;
@@ -274,8 +271,27 @@ void Demo4bCreateScene(sreScene *scene, sreView *view) {
         *(GreatCircleRouteSpec *)&circle_route[i] = circle_route_spec[i];
         circle_route[i].CalculateGreatCircle();
     }
+
+    // Disable physics and clear the dynamic gravity flag set by Demo4CreateScene().
+    sre_internal_application->SetFlags(
+        (sre_internal_application->GetFlags() | SRE_APPLICATION_FLAG_NO_PHYSICS)
+        & (~SRE_APPLICATION_FLAG_DYNAMIC_GRAVITY));
 }
 
+void Demo4bCreateScene(sreScene *scene, sreView *view) {
+    // Set the LOD threshold scaling so that the highest detail setting is always
+    // used (which is slow, but reduces sea specular artifacts).
+    Demo4SetParameters(DAY_INTERVAL, false, false, false, false, 1.5f, 0.0001f);
+    Demo4bcCreateScene(scene, view, ROTATING_EARTH);
+}
+
+void Demo4cCreateScene(sreScene *scene, sreView *view) {
+    // Set the LOD threshold scaling so that enough is visible at
+    // larger distances.
+    Demo4SetParameters(DAY_INTERVAL, false, false, false, false, 1.5f, 5.0f);
+    Demo4bcCreateScene(scene, view, EARTH_FLYOVERS);
+    sreSetFarPlaneDistance(FLYOVER_FAR_PLANE_DISTANCE);
+}
 
 static void SetViewAngle(float target_angle, double start_time,
 double target_time) {
@@ -294,37 +310,96 @@ static void SetViewDistanceTarget(float target) {
     }
 }
 
+
+// Rotating Earth step function.
+
 void Demo4bStep(sreScene *scene, double demo_time) {
     sreView *view = sre_internal_application->view;
     double time = demo_time * SPEEDUP;
-    int i = floor(time / ROTATION_SEGMENT_TIME) + STARTING_SEGMENT;
-#ifdef SKIP_FLYOVERS
-    if (time >= 7 * ROTATION_SEGMENT_ZOOM_LEVELS * ROTATION_SEGMENT_TIME) {
-#else
-    if (time >= 7 * ROTATION_SEGMENT_ZOOM_LEVELS * ROTATION_SEGMENT_TIME + NU_FLYOVERS * FLYOVER_TIME) {
-#endif
+    int i = floor(time / ROTATION_SEGMENT_TIME) + ROTATION_STARTING_SEGMENT;
+    if (time >= (7 * ROTATION_SEGMENT_ZOOM_LEVELS - ROTATION_STARTING_SEGMENT)
+    * ROTATION_SEGMENT_TIME) {
         sre_internal_application->stop_signalled = true;
         return;
     }
-    if (i >= 7 * ROTATION_SEGMENT_ZOOM_LEVELS) {
+
+    Demo4Step(scene, demo_time);
+    int j = i / ROTATION_SEGMENT_ZOOM_LEVELS;
+    double start_time = j * ROTATION_SEGMENT_TIME * ROTATION_SEGMENT_ZOOM_LEVELS;
+    SetViewAngle(latitude[j] * M_PI / 180.0f, start_time, start_time +
+        ROTATION_SEGMENT_TIME / 6.0);
+    if (time >= view_angle_target_time)
+        view_angle = view_angle_target;
+    else {
+        double t = (time - view_angle_start_time) /
+            (view_angle_target_time - view_angle_start_time);
+        view_angle = view_angle_start +
+            t * (view_angle_target - view_angle_start);
+    }
+    // Matrix m1 defines the position relative to the sun of the viewpoint.
+    Matrix3D m1;
+    m1.AssignRotationAlongZAxis(SUN_VIEWPOINT_ANGLE * M_PI / 180.0f);
+    Vector3D sun_pos = scene->sceneobject[sun_object_id]->position;
+    // Project sun position to the equatorial plane.
+    sun_pos -= ProjectOnto(sun_pos, Vector3D(0, 0, 1.0f));
+    sun_pos.Normalize();
+    // Matrix m2 is the latitude focused on.
+    Vector3D axis = Cross(sun_pos, Vector3D(0, 0, 1.0f));
+    Matrix3D m2;
+    m2.AssignRotationAlongAxis(axis, view_angle);
+    j = i % ROTATION_SEGMENT_ZOOM_LEVELS;
+    start_time = floor(time / ROTATION_SEGMENT_TIME) * ROTATION_SEGMENT_TIME;
+    if (j == 0) {
+        SetViewDistanceTarget(EARTH_RADIUS * EARTH_VIEW_DISTANCE);
+        view_distance_start_time = time;
+        view_distance_target_time = time;
+    }
+    else if (j == 1) {
+        // Close up (1.0).
+        SetViewDistanceTarget(EARTH_RADIUS * 1.0f);
+        view_distance_start_time = start_time;
+        view_distance_target_time = start_time + ROTATION_SEGMENT_TIME / 6.0;
+    }
+    else {
+        // Close up (0.3).
+        SetViewDistanceTarget(EARTH_RADIUS * 0.3f);
+        view_distance_start_time = start_time;
+        view_distance_target_time = start_time + ROTATION_SEGMENT_TIME / 6.0;
+    }
+    if (time >= view_distance_target_time)
+        view_distance = view_distance_target;
+    else {
+        float t = (time - view_distance_start_time) /
+            (view_distance_target_time - view_distance_start_time);
+        view_distance = view_distance_start +
+            t * (view_distance_target - view_distance_start);
+    }
+    Point3D view_origin = m2 * (m1 * sun_pos);
+    float view_dist = EARTH_RADIUS + view_distance;
+    Point3D viewpoint = view_origin * view_dist;
+    Vector3D up_vector = m1 * (m2 * Vector3D(0, 0, 1.0f));
+    view->SetViewModeLookAt(viewpoint, Point3D(0, 0, 0), up_vector);
+    sreSetShadowMapRegion(Point3D(- EARTH_RADIUS, view_dist - EARTH_RADIUS * 0.1f,
+        - EARTH_RADIUS), Point3D(EARTH_RADIUS, view_dist + EARTH_RADIUS, EARTH_RADIUS));
+    // Set the view distance to precisely the edge of the globe.
+    sreSetFarPlaneDistance(Magnitude(Point3D(- EARTH_RADIUS, 0, 0) -
+        Vector3D(0, - (EARTH_RADIUS + view_distance), 0)));
+}
+
+void Demo4cStep(sreScene *scene, double demo_time) {
+    sreView *view = sre_internal_application->view;
+    double time = demo_time * SPEEDUP;
+
         // Follow lines of latitude from a table, or great circles.
-        sreSetFarPlaneDistance(FLYOVER_FAR_PLANE_DISTANCE);
         // Select the route index.
         int j;
 #ifdef USE_CIRCLE_ROUTES
         if (true) {
             double flyover_segment_time;
-            if (STARTING_SEGMENT <= 7 * ROTATION_SEGMENT_ZOOM_LEVELS)
-                flyover_segment_time = time - (7 * ROTATION_SEGMENT_ZOOM_LEVELS -  
-                    STARTING_SEGMENT) * ROTATION_SEGMENT_TIME;
-            else
-                flyover_segment_time = time;
+            flyover_segment_time = time;
             // Determine the segment.
             float cumulative_time = 0;
-            if (STARTING_SEGMENT > 7 * ROTATION_SEGMENT_ZOOM_LEVELS)
-                j = STARTING_SEGMENT - 7 * ROTATION_SEGMENT_ZOOM_LEVELS;
-            else
-                j = 0;
+            j = FLYOVER_STARTING_SEGMENT;
             for (; j < NU_GREAT_CIRCLE_ROUTES; j++) {
                 cumulative_time += BREAK_TIME;
                 cumulative_time += circle_route[j].duration;
@@ -338,7 +413,6 @@ void Demo4bStep(sreScene *scene, double demo_time) {
                     // During the break (initial seconds of the segment), show a black screen.
                     view->SetViewModeLookAt(Point3D(0, 0, EARTH_RADIUS * 2.0f),
                         Point3D(0, 0, EARTH_RADIUS * 3.0f), Vector3D(0, 1.0f, 0));
-                    scene->Render(view);
                     return;
                 }
             }
@@ -348,19 +422,11 @@ void Demo4bStep(sreScene *scene, double demo_time) {
             }
         }
 #else
-        if (STARTING_SEGMENT <= 7 * ROTATION_SEGMENT_ZOOM_LEVELS) {
-            j = floor(flyover_segment_time / FLYOVER_TIME);
-            time = flyover_segment_time - j * FLYOVER_TIME;
-            if (j >= NU_FLYOVERS) {
-                sre_internal_application->stop_signalled = true;
-                return;
-            }
-        }
-        else {
-            j = STARTING_SEGMENT - 7 * ROTATION_SEGMENT_ZOOM_LEVELS +
-                floor(time / FLYOVER_TIME);
-            time -= (j - (STARTING_SEGMENT - 7 * ROTATION_SEGMENT_ZOOM_LEVELS)) *
-                FLYOVER_TIME;
+        j = STARTING_SEGMENT + floor(time / FLYOVER_TIME);
+        time -=  (j - STARTING_SEGMENT) * FLYOVER_TIME;
+        if (j >= NU_FLYOVERS) {
+            sre_internal_application->stop_signalled = true;
+            return;
         }
 #endif
 #ifdef USE_CIRCLE_ROUTES
@@ -476,67 +542,5 @@ void Demo4bStep(sreScene *scene, double demo_time) {
         float factor = 1.0f;
         sreSetShadowMapRegion(Point3D(- 1000.0f, - 1000.0f, - 1000.0f) * factor,
             Point3D(1000.0f, 1000.0f, 200.0f) * factor);
-        scene->Render(view);
         return;
-    }
-
-    Demo4Step(scene, demo_time);
-    int j = i / ROTATION_SEGMENT_ZOOM_LEVELS;
-    double start_time = j * ROTATION_SEGMENT_TIME * ROTATION_SEGMENT_ZOOM_LEVELS;
-    SetViewAngle(latitude[j] * M_PI / 180.0f, start_time, start_time +
-        ROTATION_SEGMENT_TIME / 6.0);
-    if (time >= view_angle_target_time)
-        view_angle = view_angle_target;
-    else {
-        double t = (time - view_angle_start_time) /
-            (view_angle_target_time - view_angle_start_time);
-        view_angle = view_angle_start +
-            t * (view_angle_target - view_angle_start);
-    }
-    // Matrix m1 defines the position relative to the sun of the viewpoint.
-    Matrix3D m1;
-    m1.AssignRotationAlongZAxis(SUN_VIEWPOINT_ANGLE * M_PI / 180.0f);
-    Vector3D sun_pos = scene->sceneobject[sun_object_id]->position;
-    // Project sun position to the equatorial plane.
-    sun_pos -= ProjectOnto(sun_pos, Vector3D(0, 0, 1.0f));
-    sun_pos.Normalize();
-    // Matrix m2 is the latitude focused on.
-    Vector3D axis = Cross(sun_pos, Vector3D(0, 0, 1.0f));
-    Matrix3D m2;
-    m2.AssignRotationAlongAxis(axis, view_angle);
-    j = i % ROTATION_SEGMENT_ZOOM_LEVELS;
-    start_time = floor(time / ROTATION_SEGMENT_TIME) * ROTATION_SEGMENT_TIME;
-    if (j == 0) {
-        SetViewDistanceTarget(EARTH_RADIUS * EARTH_VIEW_DISTANCE);
-        view_distance_start_time = time;
-        view_distance_target_time = time;
-    }
-    else if (j == 1) {
-        // Close up (1.0).
-        SetViewDistanceTarget(EARTH_RADIUS * 1.0f);
-        view_distance_start_time = start_time;
-        view_distance_target_time = start_time + ROTATION_SEGMENT_TIME / 6.0;
-    }
-    else {
-        // Close up (0.3).
-        SetViewDistanceTarget(EARTH_RADIUS * 0.3f);
-        view_distance_start_time = start_time;
-        view_distance_target_time = start_time + ROTATION_SEGMENT_TIME / 6.0;
-    }
-    if (time >= view_distance_target_time)
-        view_distance = view_distance_target;
-    else {
-        float t = (time - view_distance_start_time) /
-            (view_distance_target_time - view_distance_start_time);
-        view_distance = view_distance_start +
-            t * (view_distance_target - view_distance_start);
-    }
-    Point3D view_origin = m2 * (m1 * sun_pos);
-    float view_dist = EARTH_RADIUS + view_distance;
-    Point3D viewpoint = view_origin * view_dist;
-    Vector3D up_vector = m1 * (m2 * Vector3D(0, 0, 1.0f));
-    view->SetViewModeLookAt(viewpoint, Point3D(0, 0, 0), up_vector);
-    sreSetShadowMapRegion(Point3D(- EARTH_RADIUS, view_dist - EARTH_RADIUS * 0.1f,
-        - EARTH_RADIUS), Point3D(EARTH_RADIUS, view_dist + EARTH_RADIUS, EARTH_RADIUS));
 }
-

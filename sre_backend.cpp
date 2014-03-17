@@ -324,7 +324,8 @@ static void PrintConfigurationInfo() {
 
 void sreMainLoop(sreApplication *app, unsigned int prepare_flags) {
     app->scene->PrepareForRendering(prepare_flags);
-    app->InitializePhysics();
+    if (!(app->flags & SRE_APPLICATION_FLAG_NO_PHYSICS))
+        app->InitializePhysics();
     PrintConfigurationInfo();
     printf("Starting rendering.\n");
     double time_physics_previous = sre_internal_backend->GetCurrentTime();
@@ -343,7 +344,8 @@ void sreMainLoop(sreApplication *app, unsigned int prepare_flags) {
 
         app->StepBeforePhysics(end_time - app->start_time);
         time_physics_current = sre_internal_backend->GetCurrentTime();
-        app->DoPhysics(time_physics_previous, time_physics_current);
+        if (!(app->flags & SRE_APPLICATION_FLAG_NO_PHYSICS))
+           app->DoPhysics(time_physics_previous, time_physics_current);
         time_physics_previous = time_physics_current;
         nu_frames++;
         previous_time = end_time;
@@ -370,6 +372,8 @@ void sreMainLoop(sreApplication *app, unsigned int prepare_flags) {
         if (benchmark_mode && end_time - app->start_time > 20.0)
             break;
     }
+    if (!(app->flags & SRE_APPLICATION_FLAG_NO_PHYSICS))
+        app->DestroyPhysics();
 }
 
 void sreRunApplication(sreApplication *app) {

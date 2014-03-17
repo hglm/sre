@@ -1,5 +1,6 @@
 sre/assimp.cpp
 sre/sre_backend.cpp
+sre/binary_model_file.cpp
 sre/bounding_volume.cpp
 sre/bounds.cpp
 sre/bullet.cpp
@@ -33,7 +34,6 @@ sre/gui-common.cpp
 sre/intersection.cpp
 sre/lights.cpp
 sre/linux-fb-ui.cpp
-sre/main.cpp
 sre/mipmap.cpp
 sre/MatrixClasses.cpp
 sre/MouseEventQueue.cpp
