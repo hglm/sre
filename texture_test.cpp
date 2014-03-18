@@ -90,8 +90,8 @@ void TextureTestRender() {
 static int count = 0;
 
 void TextureTestTimeIteration(double previous_time, double current_time) {
-    scene->ChangePosition(player_object_id, scene->sceneobject[player_object_id]->position.x,
+    scene->ChangePosition(player_object_id, scene->object[player_object_id]->position.x,
         (double)(count % 256) * 0.2,
-        scene->sceneobject[player_object_id]->position.z);
+        scene->object[player_object_id]->position.z);
     count++;
 }

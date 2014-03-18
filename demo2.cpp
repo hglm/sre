@@ -118,7 +118,7 @@ void Demo2CreateScene(sreScene *scene, sreView *view) {
     scene->SetMaterial(1.0, 1.0);
     // Place the object on the ground at a reasonable scale. 
     model= scene->AddObject(assimp_model, 0, 40, 6.7, 0, 0, 0, 20 / assimp_model->sphere_radius);
-    scene->sceneobject[model]->render_shadows = true;
+    scene->object[model]->render_shadows = true;
 #endif
 
     sreModel *elephant_model = sreReadModelFromFile(scene, "elephant.obj", SRE_MODEL_FILE_TYPE_OBJ, 0);

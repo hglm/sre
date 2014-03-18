@@ -1576,7 +1576,7 @@ sreScene *scene, sreLight *light, sreFrustum &frustum, int intersection_flags) {
         fast_oct.GetEntity(array_index + i, type, index);
         if (type != SRE_ENTITY_OBJECT)
             continue;
-        sreObject *so = scene->sceneobject[index];
+        sreObject *so = scene->object[index];
         if (!so->exists)
             continue;
         // Exclude objects that do not cast shadows.
@@ -1648,7 +1648,7 @@ sreScene *scene, sreLight *light, sreFrustum &frustum, int intersection_flags) {
         fast_oct.GetEntity(3 + i, type, index);
         if (type != SRE_ENTITY_OBJECT)
             continue;
-        sreObject *so = scene->sceneobject[index];
+        sreObject *so = scene->object[index];
         if (!so->exists)
             continue;
         // Exclude objects that do not cast shadows.
@@ -1732,7 +1732,7 @@ sreScene *scene, sreLight *light, sreFrustum &frustum, int intersection_flags) {
         fast_oct.GetEntity(array_index + i, type, index);
         if (type != SRE_ENTITY_OBJECT)
             continue;
-        sreObject *so = scene->sceneobject[index];
+        sreObject *so = scene->object[index];
         if (!so->exists)
             continue;
         // Exclude objects that do not cast shadows.
@@ -1778,7 +1778,7 @@ static void DetermineShadowCastersFromLightStaticCasterArray(const sreFastOctree
 sreScene *scene, sreLight *light, sreFrustum &frustum) {
     for (int i = 0; i < light->nu_shadow_caster_objects; i++) {
         int j = light->shadow_caster_object[i];
-        sreObject *so = scene->sceneobject[j];
+        sreObject *so = scene->object[j];
         if (!so->exists)
             continue;
         octree_count3++;
@@ -1808,12 +1808,12 @@ sreLight *light, sreFrustum &frustum) {
         use_geometry_scissors = false;
     if (use_geometry_scissors)
        for (int i = 0; i < scene->nu_shadow_caster_objects; i++) {
-            sreObject *so = scene->sceneobject[scene->shadow_caster_object[i]];
+            sreObject *so = scene->object[scene->shadow_caster_object[i]];
             RenderShadowVolumeGeometryScissors(so, light, frustum);
        }
     else
        for (int i = 0; i < scene->nu_shadow_caster_objects; i++) {
-            sreObject *so = scene->sceneobject[scene->shadow_caster_object[i]];
+            sreObject *so = scene->object[scene->shadow_caster_object[i]];
             RenderShadowVolume(so, light, frustum);
        }
 }
@@ -1822,7 +1822,7 @@ sreLight *light, sreFrustum &frustum) {
 
 void sreRenderShadowVolumes(sreScene *scene, sreLight *light, sreFrustum &frustum) {
     // Calculate the shadow caster volume that encloses the light source and the view volume.
-    frustum.CalculateShadowCasterVolume(scene->global_light[sre_internal_current_light_index]->vector, 5);
+    frustum.CalculateShadowCasterVolume(scene->light[sre_internal_current_light_index]->vector, 5);
 
     // Compile a list of all shadow casters, and store them in the scene's shadow caster array.
     scene->nu_shadow_caster_objects = 0;
@@ -1886,7 +1886,7 @@ void sreRenderShadowVolumes(sreScene *scene, sreLight *light, sreFrustum &frustu
     glClear(GL_STENCIL_BUFFER_BIT);
 
     // Calculate near clip volume from the light source to the viewport.
-    frustum.CalculateNearClipVolume(scene->global_light[sre_internal_current_light_index]->vector);
+    frustum.CalculateNearClipVolume(scene->light[sre_internal_current_light_index]->vector);
 
     // Draw the shadow volumes for this light.
     // Render into the stencil buffer.

@@ -103,7 +103,7 @@ static char *strend(char *s) {
 static void SetSceneInfo(sreScene *scene, sreEngineSettingsInfo *settings_info) {
     sprintf(scene_info_text_line[13],
         "Number of objects: %d (capacity %d), models: %d (capacity %d)",
-        scene->nu_objects, scene->max_scene_objects, scene->nu_models, scene->max_models);
+        scene->nu_objects, scene->max_objects, scene->nu_models, scene->max_models);
     sprintf(scene_info_text_line[14],
         "Visible number of objects:  %d (capacity %d), final pass: %d (%d)",
         scene->nu_visible_objects, scene->max_visible_objects,
@@ -288,10 +288,10 @@ void GUIKeyPressCallback(unsigned int key) {
         if (SRE_APPLICATION_FLAG_NO_GRAVITY) {
             if (sre_internal_application->view->GetMovementMode() == SRE_MOVEMENT_MODE_USE_FORWARD_AND_ASCEND_VECTOR)
                  sre_internal_application->hovering_height = Magnitude(ProjectOnto(
-                     sre_internal_application->scene->sceneobject[sre_internal_application->control_object]->position,
+                     sre_internal_application->scene->object[sre_internal_application->control_object]->position,
                      sre_internal_application->view->GetAscendVector()));
             else
-                sre_internal_application->hovering_height = sre_internal_application->scene->sceneobject[0]->position.z;
+                sre_internal_application->hovering_height = sre_internal_application->scene->object[0]->position.z;
         }
         break;
     }

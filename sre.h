@@ -1274,10 +1274,10 @@ public:
     int nu_objects;
     int nu_models;
     // The objects in the scene.
-    sreObject **sceneobject;
+    sreObject **object;
     // A registry of all higher-level models.
     sreModel **model;
-    int max_scene_objects;
+    int max_objects;
     int max_models;
     int nu_lod_models;
     sreFastOctree fast_octree_static;
@@ -1301,7 +1301,7 @@ public:
     Color ambient_color;
     int nu_lights;
     int max_scene_lights;
-    sreLight **global_light;
+    sreLight **light;
     // Active lights for shaders that are limited by the number of lights.
     int nu_active_lights;
     int active_light[SRE_MAX_ACTIVE_LIGHTS];
@@ -1336,7 +1336,7 @@ public:
     float current_lod_threshold_scaling;
     int current_physics_lod_level;
 
-    sreScene(int max_scene_objects, int max_models, int max_lights);
+    sreScene(int max_objects, int max_models, int max_lights);
     ~sreScene();
     // Make scene empty. Models are not affected.
     void ClearObjectsAndLights();
@@ -1470,7 +1470,7 @@ public:
     // sreModel processing functions used for preprocessing and when uploading models to the GPU.
     bool EliminateTJunctionsForModels(sreModel& o1, const sreModel& o2) const;
     void DetermineStaticIntersectingObjects(const sreFastOctree& fast_oct, int array_index, int model_index,
-        const sreBoundingVolumeAABB& AABB, int *static_object_belonging_to_sceneobject, int &nu_intersecting_objects,
+        const sreBoundingVolumeAABB& AABB, int *static_object_belonging_to_object, int &nu_intersecting_objects,
         int *intersecting_objects) const;
     void EliminateTJunctions();
     void Triangulate();
@@ -1495,7 +1495,7 @@ public:
         view->ProjectionHasChangedSinceLastFrame(current_frame))
             return true;
         if (view->GetViewMode() == SRE_VIEW_MODE_FOLLOW_OBJECT)
-            if (sceneobject[view->GetFollowedObject()]->PositionHasChangedSinceLastFrame(current_frame))
+            if (object[view->GetFollowedObject()]->PositionHasChangedSinceLastFrame(current_frame))
                 return true;
         return false;
     }

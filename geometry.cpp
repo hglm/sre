@@ -1615,7 +1615,7 @@ void sreScene::RemoveUnreferencedModels() {
     // between different models) to - 1.
     int scene_triangle_count = 0;
     for (int i = 0; i < nu_objects; i++) {
-        sreObject *so = sceneobject[i];
+        sreObject *so = object[i];
         sreModel *m = so->model;
         if (m == NULL)
             continue;

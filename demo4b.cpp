@@ -339,7 +339,7 @@ void Demo4bStep(sreScene *scene, double demo_time) {
     // Matrix m1 defines the position relative to the sun of the viewpoint.
     Matrix3D m1;
     m1.AssignRotationAlongZAxis(SUN_VIEWPOINT_ANGLE * M_PI / 180.0f);
-    Vector3D sun_pos = scene->sceneobject[sun_object_id]->position;
+    Vector3D sun_pos = scene->object[sun_object_id]->position;
     // Project sun position to the equatorial plane.
     sun_pos -= ProjectOnto(sun_pos, Vector3D(0, 0, 1.0f));
     sun_pos.Normalize();

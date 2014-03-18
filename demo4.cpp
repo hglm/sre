@@ -1256,11 +1256,11 @@ skip_spacecraft :
     if (create_spacecraft) {
         sre_internal_application->control_object = spacecraft_object;
 #ifdef SPHERE
-        sre_internal_application->hovering_height = Magnitude(ProjectOnto(scene->sceneobject[
+        sre_internal_application->hovering_height = Magnitude(ProjectOnto(scene->object[
             sre_internal_application->control_object]->position,
             initial_ascend_vector));
 #else
-        hovering_height = scene->sceneobject[sre_internal_application->control_object]->position.z;
+        hovering_height = scene->object[sre_internal_application->control_object]->position.z;
 #endif
     }
     sreSetHDRKeyValue(0.2f);
@@ -1314,26 +1314,26 @@ void Demo4Step(sreScene *scene, double demo_time) {
         else
             view_distance = 0.1f;
         // Hide the player (ball) object.
-        scene->sceneobject[player_object]->flags |= SRE_OBJECT_HIDDEN;
-        scene->sceneobject[player_object]->flags &= ~SRE_OBJECT_CAST_SHADOWS;
+        scene->object[player_object]->flags |= SRE_OBJECT_HIDDEN;
+        scene->object[player_object]->flags &= ~SRE_OBJECT_CAST_SHADOWS;
         // Hide the spacecraft object when required.
         if (!show_spacecraft) {
-            scene->sceneobject[spacecraft_object]->flags |= SRE_OBJECT_HIDDEN;
-            scene->sceneobject[spacecraft_object]->flags &= ~SRE_OBJECT_CAST_SHADOWS;
+            scene->object[spacecraft_object]->flags |= SRE_OBJECT_HIDDEN;
+            scene->object[spacecraft_object]->flags &= ~SRE_OBJECT_CAST_SHADOWS;
         }
     }
     else {
         view_distance = 40.0;
         // Show the player (ball) object.
-        scene->sceneobject[player_object]->flags &= ~SRE_OBJECT_HIDDEN;
-        scene->sceneobject[player_object]->flags |= SRE_OBJECT_CAST_SHADOWS;
+        scene->object[player_object]->flags &= ~SRE_OBJECT_HIDDEN;
+        scene->object[player_object]->flags |= SRE_OBJECT_CAST_SHADOWS;
         // Also show the spacecraft up in the air.
-        scene->sceneobject[spacecraft_object]->flags &= ~SRE_OBJECT_HIDDEN;
-        scene->sceneobject[spacecraft_object]->flags |= SRE_OBJECT_CAST_SHADOWS;
+        scene->object[spacecraft_object]->flags &= ~SRE_OBJECT_HIDDEN;
+        scene->object[spacecraft_object]->flags |= SRE_OBJECT_CAST_SHADOWS;
     }
 #ifdef SPHERE
     // Set viewing direction.
-    Vector3D up_vector = scene->sceneobject[sre_internal_application->control_object]->position;
+    Vector3D up_vector = scene->object[sre_internal_application->control_object]->position;
     up_vector.Normalize();
     sre_internal_application->view->SetAscendVector(up_vector);
     ascend_vector = up_vector;
@@ -1401,9 +1401,9 @@ void Demo4Step(sreScene *scene, double demo_time) {
     Matrix3D r2; 
     r2.AssignRotationAlongAxis(right_vector, - angles.x * M_PI / 180.0);
     Vector3D view_direction = r2 * forward_vector;
-    Point3D viewpoint = scene->sceneobject[sre_internal_application->control_object]->position - view_distance * view_direction;
+    Point3D viewpoint = scene->object[sre_internal_application->control_object]->position - view_distance * view_direction;
     // + up_vector * view_distance * 0.25;
-    Point3D lookat = scene->sceneobject[sre_internal_application->control_object]->position; // viewpoint + view_direction;
+    Point3D lookat = scene->object[sre_internal_application->control_object]->position; // viewpoint + view_direction;
     up_vector = r2 * up_vector;
     sre_internal_application->view->SetViewModeLookAt(viewpoint, lookat, up_vector);
     sre_internal_application->view->SetMovementMode(SRE_MOVEMENT_MODE_USE_FORWARD_AND_ASCEND_VECTOR);
@@ -1430,7 +1430,7 @@ void Demo4StepBeforePhysics(sreScene *scene, double demo_time) {
         if (sre_internal_application->control_object == spacecraft_object) {
             // Drop the player from the spacecraft.
             scene->BulletChangeVelocity(spacecraft_object, Vector3D(0, 0, 0));
-            Point3D new_pos = scene->sceneobject[spacecraft_object]->position -
+            Point3D new_pos = scene->object[spacecraft_object]->position -
                 ascend_vector * 15.0f;
 //            scene->ChangePosition(player_object, new_pos);
             scene->BulletChangeVelocity(player_object, Vector3D(0, 0, 0));
@@ -1467,7 +1467,7 @@ void Demo4StepBeforePhysics(sreScene *scene, double demo_time) {
     if (sre_internal_application->control_object == player_object)
         sre_internal_application->max_horizontal_velocity = 100.0;
     else {
-        float height = Magnitude(ProjectOnto(scene->sceneobject[spacecraft_object]->position, ascend_vector));
+        float height = Magnitude(ProjectOnto(scene->object[spacecraft_object]->position, ascend_vector));
 #ifdef SPHERE
         height -= 0.5f * X_SCALE;
 #endif
@@ -1479,7 +1479,7 @@ void Demo4StepBeforePhysics(sreScene *scene, double demo_time) {
     }
 #ifdef SPHERE
     // Set viewing distance, clip distance increases as height increases.
-    float player_dist = Magnitude(scene->sceneobject[sre_internal_application->control_object]->position) - 0.5 * X_SCALE;
+    float player_dist = Magnitude(scene->object[sre_internal_application->control_object]->position) - 0.5 * X_SCALE;
     float far_plane_dist = maxf(2000.0, X_SCALE * 0.1 + player_dist * X_SCALE / 5000.0);
     sreSetFarPlaneDistance(far_plane_dist);
     // Also increase the shadow mapping region as height increases.

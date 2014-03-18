@@ -68,12 +68,12 @@ public :
         rot2.Set(row0.x(), row0.y(), row0.z(), row1.x(), row1.y(), row1.z(),
             row2.x(), row2.y(), row2.z());
         btVector3 pos = worldTrans.getOrigin();
-        sreObject *so = sre_bullet_internal_scene->sceneobject[mSoi];
+        sreObject *so = sre_bullet_internal_scene->object[mSoi];
         Point3D position;
         position.Set(pos.x(), pos.y(), pos.z());
         position -= rot2 * so->collision_shape_center_offset;
         sre_bullet_internal_scene->ChangePositionAndRotationMatrix(mSoi, position.x, position.y, position.z, rot2);
-//        printf("Changing position of sceneobject %d to (%lf, %lf, %lf).\n",
+//        printf("Changing position of object %d to (%lf, %lf, %lf).\n",
 //            mSoi, pos.x(), pos.y(), pos.z());
     }
 
@@ -144,7 +144,7 @@ void sreBulletPhysicsApplication::InitializePhysics() {
     bool *collision_shape_is_static = (bool *)alloca(sizeof(bool) * scene->nu_objects);
     bool *collision_shape_is_absolute = (bool *)alloca(sizeof(bool) * scene->nu_objects);
     for (int i = 0; i < scene->nu_objects; i++) {
-        sreObject *so = scene->sceneobject[i];
+        sreObject *so = scene->object[i];
         if (so->flags & SRE_OBJECT_NO_PHYSICS)
             continue;
         // Pick LOD level 0. Chosing a lower detail LOD level may help performance.
@@ -320,7 +320,7 @@ void sreBulletPhysicsApplication::InitializePhysics() {
 
     // Add the objects to the collision world.
     for (int i = 0; i < scene->nu_objects; i++) {
-        sreObject *so = scene->sceneobject[i];
+        sreObject *so = scene->object[i];
         if (so->flags & SRE_OBJECT_NO_PHYSICS)
             continue;
         // Static object instantiation. Generally physics objects with the
@@ -514,7 +514,7 @@ void sreBulletPhysicsApplication::DoPhysics(double previous_time, double current
         Point3D pos = Point3D(posb.x(), posb.y(), posb.z());
         float height;
         if (movement_mode == SRE_MOVEMENT_MODE_USE_FORWARD_AND_ASCEND_VECTOR) {
-            height = Magnitude(ProjectOnto(scene->sceneobject[control_object]->position,
+            height = Magnitude(ProjectOnto(scene->object[control_object]->position,
                 view->GetAscendVector()));
         }
         else {
@@ -562,7 +562,7 @@ void sreScene::BulletGetLinearVelocity(int soi, Vector3D *v_out) const {
 }
 
 void sreScene::BulletChangePosition(int soi, Point3D position) const {
-    if (sceneobject[soi]->flags & SRE_OBJECT_KINEMATIC_BODY) {
+    if (object[soi]->flags & SRE_OBJECT_KINEMATIC_BODY) {
         MyMotionState *motion_state = (MyMotionState *)object_rigid_body[soi]->getMotionState();
         btTransform world_transform;
         motion_state->getWorldTransform(world_transform);
@@ -585,7 +585,7 @@ void sreScene::BulletChangeVelocity(int soi, Vector3D velocity) const {
 void sreScene::BulletChangeRotationMatrix(int soi, const Matrix3D& rot_matrix) const {
     btTransform world_transform;
     MyMotionState *motion_state;
-    if (sceneobject[soi]->flags & SRE_OBJECT_KINEMATIC_BODY) {
+    if (object[soi]->flags & SRE_OBJECT_KINEMATIC_BODY) {
         motion_state = (MyMotionState *)object_rigid_body[soi]->getMotionState();
         motion_state->getWorldTransform(world_transform);
     }
@@ -594,7 +594,7 @@ void sreScene::BulletChangeRotationMatrix(int soi, const Matrix3D& rot_matrix) c
     btMatrix3x3 basis = btMatrix3x3(rot_matrix[0][0], rot_matrix[1][0], rot_matrix[2][0], rot_matrix[0][1], rot_matrix[1][1],
         rot_matrix[2][1], rot_matrix[0][2], rot_matrix[1][2], rot_matrix[2][2]);
     world_transform.setBasis(basis);
-    if (sceneobject[soi]->flags & SRE_OBJECT_KINEMATIC_BODY)
+    if (object[soi]->flags & SRE_OBJECT_KINEMATIC_BODY)
         motion_state->setKinematicPosition(world_transform);
     else {
         object_rigid_body[soi]->activate(true);

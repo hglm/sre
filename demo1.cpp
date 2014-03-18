@@ -69,7 +69,7 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
         Color(0.5, 0.1, 0.1), Color(0.1, 0.1, 0.5));
     scene->SetFlags(SRE_OBJECT_MULTI_COLOR | SRE_OBJECT_NO_BACKFACE_CULLING | SRE_OBJECT_NO_PHYSICS);
     i = scene->AddObject(checkerboard_model, - 16 * 10, - 16 * 10, 0, 0, 0, 0, 1);
-    scene->sceneobject[i]->target_collision_reaction = COLLISION_REACTION_BUMP_REFLECTIVE;
+    scene->object[i]->target_collision_reaction = COLLISION_REACTION_BUMP_REFLECTIVE;
 #else
     sreModel *ground_model = sreCreateRepeatingRectangleModel(scene, 320, 10);
     sreTexture *ground_texture = new sreTexture("StonesAndBricks5", TEXTURE_TYPE_WRAP_REPEAT);
@@ -202,7 +202,7 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     scene->SetSpecularExponent(4.0);
 #endif
     int j = scene->AddObject(fluid_object, - 45, 15, 3, 0, 0, 0, 1);
-    fluid_scene_object = scene->sceneobject[j];
+    fluid_scene_object = scene->object[j];
 #endif
     // Add dim directional light source.
     scene->AddDirectionalLight(0, Vector3D(0.8, 0.6, - 0.3), Color(0.5, 0.5, 0.5));

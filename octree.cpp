@@ -1068,16 +1068,16 @@ void sreScene::CreateOctrees() {
     AABB.dim_min = Vector3D(POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT);
     AABB.dim_max = Vector3D(NEGATIVE_INFINITY_FLOAT, NEGATIVE_INFINITY_FLOAT, NEGATIVE_INFINITY_FLOAT);
     for (int i = 0; i < nu_objects; i++)
-        if (!((sceneobject[i]->flags & SRE_OBJECT_DYNAMIC_POSITION) ||
-        (sceneobject[i]->flags & SRE_OBJECT_INFINITE_DISTANCE))) {
-            sceneobject[i]->CalculateAABB();
-            UpdateAABB(AABB, sceneobject[i]->AABB);
+        if (!((object[i]->flags & SRE_OBJECT_DYNAMIC_POSITION) ||
+        (object[i]->flags & SRE_OBJECT_INFINITE_DISTANCE))) {
+            object[i]->CalculateAABB();
+            UpdateAABB(AABB, object[i]->AABB);
         }
     for (int i = 0; i < nu_lights; i++)
-        if (!(global_light[i]->type & SRE_LIGHT_DIRECTIONAL) &&
-        (!(global_light[i]->type & SRE_LIGHT_DYNAMIC_LIGHT_VOLUME) ||
-        (global_light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE)))
-            UpdateAABB(AABB, global_light[i]->AABB);
+        if (!(light[i]->type & SRE_LIGHT_DIRECTIONAL) &&
+        (!(light[i]->type & SRE_LIGHT_DYNAMIC_LIGHT_VOLUME) ||
+        (light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE)))
+            UpdateAABB(AABB, light[i]->AABB);
     // Calculate the minimum and maximum extents of all three dimensions combined.
     float minxyz = min3f(AABB.dim_min.x, AABB.dim_min.y, AABB.dim_min.z);
     float maxxyz = max3f(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_max.z);
@@ -1145,19 +1145,19 @@ void sreScene::CreateOctrees() {
     sreSceneEntity *entity_array = new sreSceneEntity[nu_objects + nu_lights]; // Upper limit of the size.
     int size = 0;
     for (int i = 0; i < nu_objects; i++)
-        if (!((sceneobject[i]->flags & SRE_OBJECT_DYNAMIC_POSITION) ||
-        (sceneobject[i]->flags & SRE_OBJECT_INFINITE_DISTANCE))) {
+        if (!((object[i]->flags & SRE_OBJECT_DYNAMIC_POSITION) ||
+        (object[i]->flags & SRE_OBJECT_INFINITE_DISTANCE))) {
             entity_array[size].type = SRE_ENTITY_OBJECT;
-            entity_array[size].so = sceneobject[i];
+            entity_array[size].so = object[i];
             size++;
         }
     // Add static local lights (any light that has a bounded light volume).
     for (int i = 0; i < nu_lights; i++)
-        if (!(global_light[i]->type & SRE_LIGHT_DIRECTIONAL) &&
-        (!(global_light[i]->type & SRE_LIGHT_DYNAMIC_LIGHT_VOLUME) ||
-        (global_light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE))) {
+        if (!(light[i]->type & SRE_LIGHT_DIRECTIONAL) &&
+        (!(light[i]->type & SRE_LIGHT_DYNAMIC_LIGHT_VOLUME) ||
+        (light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE))) {
             entity_array[size].type = SRE_ENTITY_LIGHT;
-            entity_array[size].light = global_light[i];
+            entity_array[size].light = light[i];
             size++;
         }
 
@@ -1172,19 +1172,19 @@ void sreScene::CreateOctrees() {
     // Add dynamic objects to an entity array.
     size = 0;
     for (int i = 0 ; i < nu_objects; i++)
-        if (sceneobject[i]->flags & SRE_OBJECT_DYNAMIC_POSITION) {
+        if (object[i]->flags & SRE_OBJECT_DYNAMIC_POSITION) {
             entity_array[size].type = SRE_ENTITY_OBJECT;
-            entity_array[size].so = sceneobject[i];
+            entity_array[size].so = object[i];
             size++;
         }
     // Add dynamic lights (any light with a dynamic light volume that do
     // not have worst caase bounds.
     for (int i = 0; i < nu_lights; i++)
-        if (!(global_light[i]->type & SRE_LIGHT_DIRECTIONAL) &&
-        ((global_light[i]->type & SRE_LIGHT_DYNAMIC_LIGHT_VOLUME) &&
-        !(global_light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE))) {
+        if (!(light[i]->type & SRE_LIGHT_DIRECTIONAL) &&
+        ((light[i]->type & SRE_LIGHT_DYNAMIC_LIGHT_VOLUME) &&
+        !(light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE))) {
             entity_array[size].type = SRE_ENTITY_LIGHT;
-            entity_array[size].light = global_light[i];
+            entity_array[size].light = light[i];
             size++;
         }
 
@@ -1201,17 +1201,17 @@ void sreScene::CreateOctrees() {
     // to the static infinite distance octree.
     size = 0;
     for (int i = 0; i < nu_objects; i++)
-        if ((sceneobject[i]->flags & SRE_OBJECT_INFINITE_DISTANCE) &&
-        !(sceneobject[i]->flags & SRE_OBJECT_DYNAMIC_POSITION)) {
+        if ((object[i]->flags & SRE_OBJECT_INFINITE_DISTANCE) &&
+        !(object[i]->flags & SRE_OBJECT_DYNAMIC_POSITION)) {
             entity_array[size].type = SRE_ENTITY_OBJECT;
-            entity_array[size].so = sceneobject[i];
+            entity_array[size].so = object[i];
             size++;
         }
     for (int i = 0; i < nu_lights; i++)
-        if ((global_light[i]->type & SRE_LIGHT_DIRECTIONAL) &&
-        !(global_light[i]->type & SRE_LIGHT_DYNAMIC_DIRECTION)) {
+        if ((light[i]->type & SRE_LIGHT_DIRECTIONAL) &&
+        !(light[i]->type & SRE_LIGHT_DYNAMIC_DIRECTION)) {
             entity_array[size].type = SRE_ENTITY_LIGHT;
-            entity_array[size].light = global_light[i];
+            entity_array[size].light = light[i];
             size++;
         }
     // Add the entities.
@@ -1226,17 +1226,17 @@ void sreScene::CreateOctrees() {
     // to the dynamic infinite distance octree.
     size = 0;
     for (int i = 0; i < nu_objects; i++)
-        if ((sceneobject[i]->flags & SRE_OBJECT_INFINITE_DISTANCE) &&
-        !(sceneobject[i]->flags & SRE_OBJECT_DYNAMIC_POSITION)) {
+        if ((object[i]->flags & SRE_OBJECT_INFINITE_DISTANCE) &&
+        !(object[i]->flags & SRE_OBJECT_DYNAMIC_POSITION)) {
             entity_array[size].type = SRE_ENTITY_OBJECT;
-            entity_array[size].so = sceneobject[i];
+            entity_array[size].so = object[i];
             size++;
         }
     for (int i = 0; i < nu_lights; i++)
-        if ((global_light[i]->type & SRE_LIGHT_DIRECTIONAL) &&
-        (global_light[i]->type & SRE_LIGHT_DYNAMIC_DIRECTION)) {
+        if ((light[i]->type & SRE_LIGHT_DIRECTIONAL) &&
+        (light[i]->type & SRE_LIGHT_DYNAMIC_DIRECTION)) {
             entity_array[size].type = SRE_ENTITY_LIGHT;
-            entity_array[size].light = global_light[i];
+            entity_array[size].light = light[i];
             size++;
         }
     // Add the entities.
@@ -1256,28 +1256,28 @@ void sreScene::CreateOctrees() {
     // Old implementation.
     // Add the static objects to the octree.
     for (int i = 0; i < nu_objects; i++)
-        if (!((sceneobject[i]->flags & SRE_OBJECT_DYNAMIC_POSITION) ||
-        (sceneobject[i]->flags & SRE_OBJECT_INFINITE_DISTANCE)))
-            octree.AddsreObject(*sceneobject[i]);
+        if (!((object[i]->flags & SRE_OBJECT_DYNAMIC_POSITION) ||
+        (object[i]->flags & SRE_OBJECT_INFINITE_DISTANCE)))
+            octree.AddsreObject(*object[i]);
     // Add the dynamic objects to the octree at root level.
     for (int i = 0; i < nu_objects; i++)
-        if (sceneobject[i]->flags & SRE_OBJECT_DYNAMIC_POSITION)
-            octree.AddsreObjectAtRootLevel(*sceneobject[i]);
+        if (object[i]->flags & SRE_OBJECT_DYNAMIC_POSITION)
+            octree.AddsreObjectAtRootLevel(*object[i]);
     for (int i = 0; i < nu_objects; i++)
-        if (sceneobject[i]->flags & SRE_OBJECT_INFINITE_DISTANCE)
-            octree_infinite_distance.AddsreObjectAtRootLevel(*sceneobject[i]);
+        if (object[i]->flags & SRE_OBJECT_INFINITE_DISTANCE)
+            octree_infinite_distance.AddsreObjectAtRootLevel(*object[i]);
     // Add lights.
     for (int i = 0; i < nu_lights; i++)
-        if (!(global_light[i]->type & SRE_LIGHT_DIRECTIONAL) &&
-        !(global_light[i]->type & SRE_LIGHT_DYNAMIC_POSITION))
-            octree.AddLight(*global_light[i]);
+        if (!(light[i]->type & SRE_LIGHT_DIRECTIONAL) &&
+        !(light[i]->type & SRE_LIGHT_DYNAMIC_POSITION))
+            octree.AddLight(*light[i]);
     for (int i = 0; i < nu_lights; i++)
-        if (!(global_light[i]->type & SRE_LIGHT_DIRECTIONAL) &&
-        (global_light[i]->type & SRE_LIGHT_DYNAMIC_POSITION))
-            octree.AddLightAtRootLevel(*global_light[i]);
+        if (!(light[i]->type & SRE_LIGHT_DIRECTIONAL) &&
+        (light[i]->type & SRE_LIGHT_DYNAMIC_POSITION))
+            octree.AddLightAtRootLevel(*light[i]);
     for (int i = 0; i < nu_lights; i++)
-        if (global_light[i]->type & SRE_LIGHT_DIRECTIONAL)
-            octree_infinite_distance.AddLightAtRootLevel(*global_light[i]);
+        if (light[i]->type & SRE_LIGHT_DIRECTIONAL)
+            octree_infinite_distance.AddLightAtRootLevel(*light[i]);
     int counted_nodes, counted_leafs, counted_entities;
     counted_nodes = 0;
     counted_leafs = 0;

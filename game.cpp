@@ -369,7 +369,7 @@ void GameApplication::StepBeforeRender(double demo_time) {
         if (timeout == DBL_MAX) {
             int count = 0;
             for (int i = 2; i < 2 + nu_target_objects; i++)
-                if (scene->sceneobject[i]->position.z < 6.0)
+                if (scene->object[i]->position.z < 6.0)
                     count++;
             if (count == nu_target_objects) {
                 timeout = demo_time + 3;

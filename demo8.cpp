@@ -361,7 +361,7 @@ void Demo8CreateScene(sreScene *scene, sreView *view) {
 }
 
 static void move_towards_target(sreScene *scene, int soi, const Vector3D &target, float dt) {
-        sreObject *so = scene->sceneobject[soi];
+        sreObject *so = scene->object[soi];
         Vector3D v;
         v = target - so->position;
         float m = Magnitude(v);
@@ -408,7 +408,7 @@ void Demo8Step(sreScene *scene, double demo_time) {
         }
         move_towards_target(scene, robot[i].object_index, robot[i].target_pos, dt);
         // The small light globes follow their robot.
-        move_towards_target(scene, robot[i].light_object_index, scene->sceneobject[robot[i].object_index]->position, dt);
+        move_towards_target(scene, robot[i].light_object_index, scene->object[robot[i].object_index]->position, dt);
     }
 #endif
     for (int i = 0; i < 4; i++) {

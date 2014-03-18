@@ -236,13 +236,13 @@ static void GL3InitializeSinglePassShaderWithLightPosition(int loc) {
     float *lightpos = (float *)alloca(sizeof(float) *
         sre_internal_scene->nu_active_lights * 4);
     for (int i = 0; i < sre_internal_scene->nu_active_lights; i++) {
-        lightpos[i * 4] = sre_internal_scene->global_light[
+        lightpos[i * 4] = sre_internal_scene->light[
             sre_internal_scene->active_light[i]]->vector.x;
-        lightpos[i * 4 + 1] = sre_internal_scene->global_light[
+        lightpos[i * 4 + 1] = sre_internal_scene->light[
             sre_internal_scene->active_light[i]]->vector.y;
-        lightpos[i * 4 + 2] = sre_internal_scene->global_light[
+        lightpos[i * 4 + 2] = sre_internal_scene->light[
              sre_internal_scene->active_light[i]]->vector.z;
-        lightpos[i * 4 + 3] = sre_internal_scene->global_light[
+        lightpos[i * 4 + 3] = sre_internal_scene->light[
              sre_internal_scene->active_light[i]]->vector.w;
     }
     glUniform4fv(loc, sre_internal_scene->nu_active_lights, lightpos);
@@ -252,29 +252,29 @@ static void GL3InitializeSinglePassShaderWithLightPosition(int loc) {
 static void GL3InitializeSinglePassShaderWithLightAttenuation(int loc) {
     float *lightatt = (float *)alloca(sizeof(float) * sre_internal_scene->nu_active_lights * 4);
     for (int i = 0; i < sre_internal_scene->nu_active_lights; i++) {
-        lightatt[i * 3] = sre_internal_scene->global_light[sre_internal_scene->active_light[i]]->attenuation.x;
+        lightatt[i * 3] = sre_internal_scene->light[sre_internal_scene->active_light[i]]->attenuation.x;
         if (!sre_internal_light_attenuation_enabled) {
-            if (sre_internal_scene->global_light[sre_internal_scene->active_light[i]]->type &
+            if (sre_internal_scene->light[sre_internal_scene->active_light[i]]->type &
             SRE_LIGHT_LINEAR_ATTENUATION_RANGE)
                 lightatt[i * 3] = 1000000.0;
             lightatt[i * 3 + 1] = 0;
             lightatt[i * 3 + 2] = 0;
         }
         else {
-            lightatt[i * 3 + 1] = sre_internal_scene->global_light[sre_internal_scene->active_light[i]]->attenuation.y;
-            lightatt[i * 3 + 2] = sre_internal_scene->global_light[sre_internal_scene->active_light[i]]->attenuation.z;
+            lightatt[i * 3 + 1] = sre_internal_scene->light[sre_internal_scene->active_light[i]]->attenuation.y;
+            lightatt[i * 3 + 2] = sre_internal_scene->light[sre_internal_scene->active_light[i]]->attenuation.z;
         }
-        if (sre_internal_scene->global_light[sre_internal_scene->active_light[i]]->type & (SRE_LIGHT_SPOT |
+        if (sre_internal_scene->light[sre_internal_scene->active_light[i]]->type & (SRE_LIGHT_SPOT |
         SRE_LIGHT_BEAM)) {
-            if (sre_internal_scene->global_light[sre_internal_scene->active_light[i]]->type & SRE_LIGHT_BEAM) {
+            if (sre_internal_scene->light[sre_internal_scene->active_light[i]]->type & SRE_LIGHT_BEAM) {
                 // Set the light type (spot light or beam light).
                 lightatt[i * 3 + 1] = 2.0;
                 // Set the axial cut-off distance.
                 lightatt[i * 3 + 2] =
-                    sre_internal_scene->global_light[sre_internal_scene->active_light[i]]->attenuation.y;
+                    sre_internal_scene->light[sre_internal_scene->active_light[i]]->attenuation.y;
                 // Set the radial linear attenuation range.
                 lightatt[i * 3 + 3] =
-                    sre_internal_scene->global_light[sre_internal_scene->active_light[i]]->attenuation.z;
+                    sre_internal_scene->light[sre_internal_scene->active_light[i]]->attenuation.z;
             }
             else
                 lightatt[i * 3 + 1] = 1.0;  // Light type (spot light or beam light).
@@ -286,9 +286,9 @@ static void GL3InitializeSinglePassShaderWithLightAttenuation(int loc) {
 static void GL3InitializeSinglePassShaderWithLightColor(int loc) {
     float *lightcol = (float *)alloca(sizeof(float) * sre_internal_scene->nu_active_lights * 3);
     for (int i = 0; i < sre_internal_scene->nu_active_lights; i++) {
-        lightcol[i * 3] = sre_internal_scene->global_light[sre_internal_scene->active_light[i]]->color.r;
-        lightcol[i * 3 + 1] = sre_internal_scene->global_light[sre_internal_scene->active_light[i]]->color.g;
-        lightcol[i * 3 + 2] = sre_internal_scene->global_light[sre_internal_scene->active_light[i]]->color.b;
+        lightcol[i * 3] = sre_internal_scene->light[sre_internal_scene->active_light[i]]->color.r;
+        lightcol[i * 3 + 1] = sre_internal_scene->light[sre_internal_scene->active_light[i]]->color.g;
+        lightcol[i * 3 + 2] = sre_internal_scene->light[sre_internal_scene->active_light[i]]->color.b;
     }
     glUniform3fv(loc, sre_internal_scene->nu_active_lights, lightcol);
 }

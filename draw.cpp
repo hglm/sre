@@ -39,7 +39,7 @@ static void SetFrustum(sreScene *scene, sreFrustum *frustum, sreView *view) {
     // Update view lookat parameters based on current view mode.
     Point3D object_position;
     if (view->GetViewMode() == SRE_VIEW_MODE_FOLLOW_OBJECT)
-        object_position = scene->sceneobject[view->GetFollowedObject()]->position;
+        object_position = scene->object[view->GetFollowedObject()]->position;
     view->UpdateParameters(object_position);
     Point3D viewpoint = view->GetViewPoint();
     Vector3D lookat = view->GetLookatPosition();
@@ -127,7 +127,7 @@ void sreScene::Render(sreView *view) {
         // Set the current light.
         if (nu_active_lights > 0) {
             sre_internal_current_light_index = active_light[0];
-            sre_internal_current_light = global_light[active_light[0]];
+            sre_internal_current_light = light[active_light[0]];
         }
         else
             sre_internal_current_light = NULL;
@@ -475,36 +475,36 @@ const sreFrustum& frustum, BoundsCheckResult bounds_check_result, int array_inde
         int index;
         fast_oct.GetEntity(array_index + i, type, index);
         if (type == SRE_ENTITY_OBJECT) {
-            sreObject *so = sceneobject[index];
+            sreObject *so = object[index];
             if (!(so->flags & SRE_OBJECT_HIDDEN))
                 DetermineObjectIsVisible(*so, frustum, bounds_check_result);
         }
         else if (type == SRE_ENTITY_LIGHT) {
-            sreLight *light = global_light[index];
-//            printf("Checking visibility of light %d\n", light->id);
-            if (!(light->type & SRE_LIGHT_DIRECTIONAL)) {
-                if (light->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE) {
+            sreLight *l = light[index];
+//            printf("Checking visibility of light %d\n", l->id);
+            if (!(l->type & SRE_LIGHT_DIRECTIONAL)) {
+                if (l->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE) {
                     // If there are worst-case bounds, use them, because when the frustum doesn't
                     // change for a while in subsequent frames, the variable light volume might
                     // come into view.
-                    if (!Intersects(light->worst_case_sphere, frustum.frustum_world))
+                    if (!Intersects(l->worst_case_sphere, frustum.frustum_world))
                         // If outside, skip the light.
                         continue;
                 }
-                else if (!Intersects(*light, frustum.frustum_world))
+                else if (!Intersects(*l, frustum.frustum_world))
                     // If outside, skip the light.
                     continue;
             }
             // Check whether the project size of the light volume is too small.
-            if (!(light->type & SRE_LIGHT_DIRECTIONAL)) {
-                light->projected_size = ProjectedSize(light->vector.GetPoint3D(),
-                    light->sphere.radius);
-                if (light->projected_size < SRE_LIGHT_VOLUME_SIZE_CUTOFF)
+            if (!(l->type & SRE_LIGHT_DIRECTIONAL)) {
+                l->projected_size = ProjectedSize(l->vector.GetPoint3D(),
+                    l->sphere.radius);
+                if (l->projected_size < SRE_LIGHT_VOLUME_SIZE_CUTOFF)
                     continue;
             }
-//            printf("Light %d is visible, type = %d.\n", light->id, light->type);
+//            printf("Light %d is visible, type = %d.\n", l->id, l->type);
             CheckVisibleLightCapacity();
-            visible_light[nu_visible_lights] = light->id;
+            visible_light[nu_visible_lights] = l->id;
             nu_visible_lights++;
         }
     }
@@ -976,7 +976,7 @@ static void RenderVisibleObjectSinglePass(sreObject& so) {
 void sreScene::RenderVisibleObjectsSinglePass(const sreFrustum& frustum) const {
     object_count = 0;
     for (int i = 0; i < nu_visible_objects; i++)
-        RenderVisibleObjectSinglePass(*sceneobject[visible_object[i]]);
+        RenderVisibleObjectSinglePass(*object[visible_object[i]]);
 }
 
 // The final pass of single-pass rendering. At the moment, reserved for the following objects:
@@ -1003,8 +1003,8 @@ static void RenderFinalPassObject(sreObject &so) {
 // Compare function for sorting final pass objects.
 
 static int DistanceCompare(const void *e1, const void *e2) {
-    sreObject *so1 = sre_internal_scene->sceneobject[*(int *)e1];
-    sreObject *so2 = sre_internal_scene->sceneobject[*(int *)e2];
+    sreObject *so1 = sre_internal_scene->object[*(int *)e1];
+    sreObject *so2 = sre_internal_scene->object[*(int *)e2];
     // If the SRE_OBJECT_INFINITE_DISTANCE_FLAG is set, meaning that the object
     // cannot occlude any other final pass object, or if the
     // SRE_OBJECT_NOT_OCCLUDING flag is set, meaning that the object
@@ -1098,7 +1098,7 @@ void sreScene::RenderFinalPassObjectsSinglePass(const sreFrustum& frustum) const
          else
              // All objects have been rendered.
              break;
-         RenderFinalPassObject(*sceneobject[final_pass_object[i]]);
+         RenderFinalPassObject(*object[final_pass_object[i]]);
     }
 }
 
@@ -1116,7 +1116,7 @@ static void RenderVisibleObjectAmbientPass(sreObject& so) {
 void sreScene::RenderVisibleObjectsAmbientPass(const sreFrustum& frustum) const {
     object_count = 0;
     for (int i = 0; i < nu_visible_objects; i++)
-        RenderVisibleObjectAmbientPass(*sceneobject[visible_object[i]]);
+        RenderVisibleObjectAmbientPass(*object[visible_object[i]]);
 }
 
 // Lighting pass of multi-pass rendering.
@@ -1461,7 +1461,7 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
         // For directional lights, every object is completely inside the light volume.
         // Scissors will have been disabled by the calling function.
         for (int i = 0; i < nu_visible_objects; i++)
-            RenderVisibleObjectLightingPassCompletelyInside(*sceneobject[visible_object[i]]);
+            RenderVisibleObjectLightingPassCompletelyInside(*object[visible_object[i]]);
     }
     else
     if ((light.type & SRE_LIGHT_STATIC_OBJECTS_LIST) && sre_internal_light_object_lists_enabled) {
@@ -1484,7 +1484,7 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
             // determined in the current frame, they all need to rendered.
             for (int i = nu_static_visible_objects; i < nu_visible_objects; i++)
                  RenderVisibleObjectLightingPassGeometryScissors(
-                    *sceneobject[visible_object[i]], light, frustum);
+                    *object[visible_object[i]], light, frustum);
             // Render the precalculated list of static objects within the light volume from
             // the light's data structure, only rendering visible objects.
             // First the render objects that are partially inside the light volume; the
@@ -1498,7 +1498,7 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
 //                sreMessage(SRE_MESSAGE_INFO, "Frame %d: reusing geometry scissors",
 //                    sre_internal_current_frame);
                 for (int i = 0; i < light.nu_light_volume_objects_partially_inside; i++) {
-                    sreObject *so = sceneobject[light.light_volume_object[i]];
+                    sreObject *so = object[light.light_volume_object[i]];
                     // Many objects in the light's light volume object list might not be visible.
                     // Comparing the frame time-stamps for the object's visibility
                     // and the last frustum change should ensure that the object is
@@ -1570,7 +1570,7 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
                 // store scissors until the frustums stops changing.
                 if (frustum.IsChangingEveryFrame(sre_internal_current_frame))
                     for (int i = 0; i < light.nu_light_volume_objects_partially_inside; i++) {
-                        sreObject *so = sceneobject[light.light_volume_object[i]];
+                        sreObject *so = object[light.light_volume_object[i]];
                         // Comparing the frame time-stamps for the object's visibility
                         // and the last frustum change should ensure that the object is
                         // currently visible (since static object visibility was determined
@@ -1584,7 +1584,7 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
 //                sreMessage(SRE_MESSAGE_INFO, "Frame %d: storing (caching) geometry scissors",
 //                    sre_internal_current_frame);
                 for (int i = 0; i < light.nu_light_volume_objects_partially_inside; i++) {
-                    sreObject *so = sceneobject[light.light_volume_object[i]];
+                    sreObject *so = object[light.light_volume_object[i]];
                     // Comparing the frame time-stamps for the object's visibility
                     // and the last frustum change should ensure that the object is
                     // currently visible (since static object visibility was determined
@@ -1630,7 +1630,7 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
                 DisableScissors();
                 for (int i = light.nu_light_volume_objects_partially_inside;
                 i < light.nu_light_volume_objects; i++) {
-                    sreObject *so = sceneobject[light.light_volume_object[i]];
+                    sreObject *so = object[light.light_volume_object[i]];
                     // Only render visible objects.
                     if (so->most_recent_frame_visible >= frustum.most_recent_frame_changed)
                         RenderVisibleObjectLightingPassCompletelyInside(*so);
@@ -1643,14 +1643,14 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
             // objects are at the end of the array.
             for (int i = nu_static_visible_objects; i < nu_visible_objects; i++)
                 RenderVisibleObjectLightingPass(
-                    *sceneobject[visible_object[i]], light, frustum);
+                    *object[visible_object[i]], light, frustum);
             // Render the precalculated list of static objects within the light volume.
             // Restoring the complete light scissor region if scissors are enabled
             // should not be necessary. The light-specific scissors should still be active
             // if enabled.
             // First the objects that are partially inside the light volume.
             for (int i = 0; i < light.nu_light_volume_objects_partially_inside; i++) {
-                sreObject *so = sceneobject[light.light_volume_object[i]];
+                sreObject *so = object[light.light_volume_object[i]];
                 // Comparing the frame time-stamps for the object's visibility
                 // and the last frustum change should ensure that the object is
                 // currently visible (since static object visibility was determined
@@ -1672,7 +1672,7 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
                 // scissors completely (it doesn't help to use the light-specific scissors).
                 DisableScissors();
                 for (int i = light.nu_light_volume_objects_partially_inside; i < light.nu_light_volume_objects; i++) {
-                    sreObject *so = sceneobject[light.light_volume_object[i]];
+                    sreObject *so = object[light.light_volume_object[i]];
                     if (so->most_recent_frame_visible >= frustum.most_recent_frame_changed)
                         RenderVisibleObjectLightingPassCompletelyInside(*so);
                 }
@@ -1701,10 +1701,10 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
         if (sre_internal_geometry_scissors_active)
             for (int i = 0; i < nu_visible_objects; i++)
                 RenderVisibleObjectLightingPassGeometryScissors(
-                    *sceneobject[visible_object[i]], light, frustum);
+                    *object[visible_object[i]], light, frustum);
         else
             for (int i = 0; i < nu_visible_objects; i++)
-                RenderVisibleObjectLightingPass(*sceneobject[visible_object[i]], light, frustum);
+                RenderVisibleObjectLightingPass(*object[visible_object[i]], light, frustum);
 #if 0
         int object_count_total = object_count;
         // Render the objects that start at the root subnode the light is in all the way down in the path where
@@ -1729,7 +1729,7 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
             no_objects_completely_inside = false;
         }
         for (int i = light.starting_object; i <= ending_object ; i++)
-            RenderVisibleObjectLightingPass(*sceneobject[visible_object[i]], light, frustum, false);
+            RenderVisibleObjectLightingPass(*object[visible_object[i]], light, frustum, false);
         object_count_total += object_count;
         int object_count_completely_inside = 0;
         if (!no_objects_completely_inside) { 
@@ -1741,7 +1741,7 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
                 // Draw the last batch of objects that are not completely inside the light volume.
                 ending_object_completely_inside = light.ending_object_completely_inside;
                 for (int i = ending_object_completely_inside + 1; i <= light.ending_object; i++)
-                    RenderVisibleObjectLightingPass(*sceneobject[visible_object[i]], light, frustum, false);
+                    RenderVisibleObjectLightingPass(*object[visible_object[i]], light, frustum, false);
                 object_count_total += object_count;
             }
             if (sre_internal_geometry_scissors_active)
@@ -1749,8 +1749,8 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
             object_count = 0;
             // Draw the objects that are completely inside the light volume.
             for (int i = light.starting_object_completely_inside; i <= ending_object_completely_inside; i++)
-                RenderVisibleObjectLightingPassCompletelyInside(*sceneobject[visible_object[i]]);
-//                 RenderVisibleObjectLightingPass(*sceneobject[visible_object[i]], light, frustum);
+                RenderVisibleObjectLightingPassCompletelyInside(*object[visible_object[i]]);
+//                 RenderVisibleObjectLightingPass(*object[visible_object[i]], light, frustum);
             object_count_completely_inside = object_count;
             object_count_total += object_count;
         }
@@ -1792,7 +1792,7 @@ const sreLight& light) const {
     sreMessage(SRE_MESSAGE_INFO, "Initializing object scissors cache data for light %d.", light.id);
 #endif
     for (int i = 0; i < light.nu_light_volume_objects_partially_inside; i++) {
-        sreObject *so = sceneobject[light.light_volume_object[i]];
+        sreObject *so = object[light.light_volume_object[i]];
         if (so->most_recent_frame_visible < frustum.most_recent_frame_changed)
             // Object is not visible; skip it.
             continue;
@@ -1841,7 +1841,7 @@ void sreScene::RenderLightingPasses(sreFrustum *frustum, sreView *view) {
             sre_internal_current_light_index = visible_light[i];
         else
             sre_internal_current_light_index = active_light[i];
-        sre_internal_current_light = global_light[sre_internal_current_light_index];
+        sre_internal_current_light = light[sre_internal_current_light_index];
 // printf("Light %d, type = %d\n", sre_internal_current_light_index, sre_internal_current_light->type);
         // Clear flag indicating whether geometry scissors are actually enabled for the current light.
         sre_internal_geometry_scissors_active = false;
@@ -1996,7 +1996,7 @@ void sreScene::RenderLightingPassesNoShadow(sreFrustum *frustum, sreView *view) 
             sre_internal_current_light_index = visible_light[i];
         else
             sre_internal_current_light_index = active_light[i];
-        sre_internal_current_light = global_light[sre_internal_current_light_index];
+        sre_internal_current_light = light[sre_internal_current_light_index];
         sre_internal_geometry_scissors_active = false;
 
         // Visible objects for each light have been predetermined before this function was called.

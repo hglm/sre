@@ -33,7 +33,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // rendering artifacts (especially for shadow volumes), creating a new seperate model for them.
 // Preprocessing can only handle the objects with just one LOD level.
 
-// Convert an instantation of a sceneobject to static scenery polygons with absolute coordinates.
+// Convert an instantation of a object to static scenery polygons with absolute coordinates.
 
 sreModel *sreObject::ConvertToStaticScenery() const {
     sreModel *m = model;
@@ -449,7 +449,7 @@ bool sreScene::EliminateTJunctionsForModels(sreModel& m1, const sreModel& m2) co
 }
 
 void sreScene::DetermineStaticIntersectingObjects(const sreFastOctree& fast_oct, int array_index,
-int model_index, const sreBoundingVolumeAABB& AABB, int *static_object_belonging_to_sceneobject,
+int model_index, const sreBoundingVolumeAABB& AABB, int *static_object_belonging_to_object,
 int &nu_intersecting_objects, int *intersecting_object) const {
     int node_index = fast_oct.array[array_index];
     if (!Intersects(AABB, fast_oct.node_bounds[node_index].AABB))
@@ -461,11 +461,11 @@ int &nu_intersecting_objects, int *intersecting_object) const {
         sreSceneEntityType type;
         int index;
         fast_oct.GetEntity(array_index + i, type, index);
-        if (type == SRE_ENTITY_OBJECT && static_object_belonging_to_sceneobject[index] != - 1) {
+        if (type == SRE_ENTITY_OBJECT && static_object_belonging_to_object[index] != - 1) {
             if (ModelBoundsIntersectWithMargin(*model[model_index],
-            *model[static_object_belonging_to_sceneobject[index]])) {
+            *model[static_object_belonging_to_object[index]])) {
                 intersecting_object[nu_intersecting_objects] =
-                   static_object_belonging_to_sceneobject[index];
+                   static_object_belonging_to_object[index];
                 nu_intersecting_objects++;
             }
         }
@@ -473,7 +473,7 @@ int &nu_intersecting_objects, int *intersecting_object) const {
     array_index += nu_entities;
     for (int i = 0; i < nu_octants; i++)
         DetermineStaticIntersectingObjects(fast_oct, fast_oct.array[array_index + i], model_index,
-            AABB, static_object_belonging_to_sceneobject, nu_intersecting_objects, intersecting_object);
+            AABB, static_object_belonging_to_object, nu_intersecting_objects, intersecting_object);
 }
 
 static int CompareVertexInsertions(const void *e1, const void *e2) {
@@ -500,25 +500,25 @@ static int CompareVertexInsertions(const void *e1, const void *e2) {
 void sreScene::EliminateTJunctions() {
     // Convert static objects to absolute coordinates.
     int count = 0;
-    int *sceneobject_belonging_to_object = new int[nu_objects + nu_models];
-    int *static_object_belonging_to_sceneobject = new int[nu_objects];
+    int *object_belonging_to_object = new int[nu_objects + nu_models];
+    int *static_object_belonging_to_object = new int[nu_objects];
     for (int i = 0; i < nu_objects; i++) {
-        if (sceneobject[i]->model->is_static)
+        if (object[i]->model->is_static)
             printf("Unexpected scene object found with model already marked static"
                 "before conversion to absolute coordinates (model id = %d).\n",
-                 sceneobject[i]->model->id);
-        if (!(sceneobject[i]->flags & (SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_INFINITE_DISTANCE |
+                 object[i]->model->id);
+        if (!(object[i]->flags & (SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_INFINITE_DISTANCE |
         SRE_OBJECT_BILLBOARD | SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_PARTICLE_SYSTEM |
         SRE_OBJECT_ANIMATED))) {
-            sreModel *m = sceneobject[i]->ConvertToStaticScenery();
+            sreModel *m = object[i]->ConvertToStaticScenery();
             RegisterModel(m);
-            sceneobject_belonging_to_object[m->id] = i;
-            static_object_belonging_to_sceneobject[i] = m->id;
+            object_belonging_to_object[m->id] = i;
+            static_object_belonging_to_object[i] = m->id;
             count++;
 //            printf("New static model with id %d created for scene object %d.\n", m->id, i);
         }
         else
-            static_object_belonging_to_sceneobject[i] = - 1;
+            static_object_belonging_to_object[i] = - 1;
     }
     printf("%d objects considered for being weldable static scenery objects.\n", count);
     // For every close pair of objects, weld them and remove T-Junctions.
@@ -538,7 +538,7 @@ void sreScene::EliminateTJunctions() {
             int nu_intersecting_objects = 0;
             // All static objects are conveniently grouped in the static entities octree.
             DetermineStaticIntersectingObjects(fast_octree_static, 0, i, AABB,
-                static_object_belonging_to_sceneobject, nu_intersecting_objects, intersecting_object);
+                static_object_belonging_to_object, nu_intersecting_objects, intersecting_object);
             for (int k = 0; k < nu_intersecting_objects; k++) {
                 int j = intersecting_object[k];
                 if (j != i && model[j]->is_static) {
@@ -631,16 +631,16 @@ next_t :
                  // Mark the LOD model as referenced.
                  model[i]->lod_model[0]->referenced = true;
                  // Update fields in scene object to reflect the fact that coordinates are absolute.
-                 int j = sceneobject_belonging_to_object[i];
-                 sceneobject[j]->model = model[i];
-                 sceneobject[j]->model_matrix.SetIdentity();
+                 int j = object_belonging_to_object[i];
+                 object[j]->model = model[i];
+                 object[j]->model_matrix.SetIdentity();
                  // Save the original rotation matrix.
-                 sceneobject[j]->original_rotation_matrix = new Matrix3D;
-                 *sceneobject[j]->original_rotation_matrix = sceneobject[j]->rotation_matrix;
-                 sceneobject[j]->rotation_matrix.SetIdentity();
-                 sceneobject[j]->inverted_model_matrix.SetIdentity();
-                 sceneobject[j]->position = Point3D(0, 0, 0);
-                 sceneobject[j]->scaling = 1.0;
+                 object[j]->original_rotation_matrix = new Matrix3D;
+                 *object[j]->original_rotation_matrix = object[j]->rotation_matrix;
+                 object[j]->rotation_matrix.SetIdentity();
+                 object[j]->inverted_model_matrix.SetIdentity();
+                 object[j]->position = Point3D(0, 0, 0);
+                 object[j]->scaling = 1.0;
                  changed_count++;
              }
              else {
@@ -670,8 +670,8 @@ next_t :
          }
     }
     delete [] model_changed;
-    delete [] sceneobject_belonging_to_object;
-    delete [] static_object_belonging_to_sceneobject;
+    delete [] object_belonging_to_object;
+    delete [] static_object_belonging_to_object;
     printf("%d close object pairs checked for weldable vertices.\n", pair_count);
     printf("%d objects welded or adjusted and duplicated.\n", changed_count);
     if (changed_count > 0)

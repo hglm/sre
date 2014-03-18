@@ -427,10 +427,10 @@ void sreGenericPhysicsApplication::DoPhysics(double previous_time, double curren
         input_velocity.Set(0, 0, 0);
     }
     if (player_velocity != Vector3D(0, 0, 0)) {
-        scene->ChangePosition(control_object, scene->sceneobject[control_object]->position.x
+        scene->ChangePosition(control_object, scene->object[control_object]->position.x
             + player_velocity.x * dtime,
-            scene->sceneobject[control_object]->position.y + player_velocity.y * dtime,
-            scene->sceneobject[control_object]->position.z + player_velocity.z * dtime);
+            scene->object[control_object]->position.y + player_velocity.y * dtime,
+            scene->object[control_object]->position.z + player_velocity.z * dtime);
         // Slow down the horizontal velocity.
         Vector2D v;
         v.x = player_velocity.x;

@@ -100,7 +100,7 @@ void Demo5CreateScene(sreScene *scene, sreView *view) {
 		scene->SetNormalMap(donut_normalmap[rand() & 0]);
                 i = scene->AddObject(torus_model, wx, wy, wz + z * TORUS_RADIUS2 * 2, 0, 0, 0, 1);
                 // Because the object are movable and can change orientation, use the so shadow cache.
-//                scene->sceneobject[i]->use_so_shadow_cache = true;
+//                scene->object[i]->use_so_shadow_cache = true;
             }
         }
     scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 1.0, 0);
@@ -139,9 +139,9 @@ void Demo5CreateScene(sreScene *scene, sreView *view) {
         color->b = rng->RandomFloat(1.0f);
         scene->SetColor(color);
         int j = scene->AddObject(torus_model, x, y, z, 0, 0, 0, size);
-        scene->sceneobject[j]->destructable = false;
-        scene->sceneobject[j]->render_shadows = true;
-        scene->sceneobject[j]->use_so_shadow_cache = true;
+        scene->object[j]->destructable = false;
+        scene->object[j]->render_shadows = true;
+        scene->object[j]->use_so_shadow_cache = true;
         z += TORUS_RADIUS2 * (size + size * 0.8);
         size *= 0.8;
     }
@@ -165,19 +165,19 @@ void Demo5CreateScene(sreScene *scene, sreView *view) {
     scene->SetNormalMap(wall_normals);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP);
     i = scene->AddObject(unit_block_model, - 80, 10, 0, 0, 0, 0, 20);
-    scene->sceneobject[i]->target_collision_reaction = COLLISION_REACTION_SLIDE;
-    scene->sceneobject[i]->render_shadows = true;
+    scene->object[i]->target_collision_reaction = COLLISION_REACTION_SLIDE;
+    scene->object[i]->render_shadows = true;
     scene->SetTexture(wall_texture);
     scene->SetNormalMap(wall_normals);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP);
     i = scene->AddObject(unit_block_model, - 80, 120, 0, 0, 0, 0, 30);
-    scene->sceneobject[i]->target_collision_reaction = COLLISION_REACTION_BUMP_REFLECTIVE;
-    scene->sceneobject[i]->render_shadows = true;
+    scene->object[i]->target_collision_reaction = COLLISION_REACTION_BUMP_REFLECTIVE;
+    scene->object[i]->render_shadows = true;
 #endif
 #if 0
     i = scene->AddObject(block_model, - 20, 150, 0, 0, 0, 0, 30);
-    scene->sceneobject[i]->target_collision_reaction = COLLISION_REACTION_BUMP_REFLECTIVE; /*COLLISION_REACTION_SLIDE; */
-    scene->sceneobject[i]->render_shadows = true;
+    scene->object[i]->target_collision_reaction = COLLISION_REACTION_BUMP_REFLECTIVE; /*COLLISION_REACTION_SLIDE; */
+    scene->object[i]->render_shadows = true;
 #endif
 
     // Add ramps.

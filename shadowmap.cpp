@@ -122,7 +122,7 @@ static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
 
 static void RenderShadowMapFromCasterArray(sreScene *scene, const sreLight& light) {
     for (int i = 0; i < scene->nu_shadow_caster_objects; i++)
-        RenderShadowMapObject(scene->sceneobject[scene->shadow_caster_object[i]], light);
+        RenderShadowMapObject(scene->object[scene->shadow_caster_object[i]], light);
 }
 
 //Vector3D AABB_shadow_receiver_max, AABB_shadow_receiver_max;
@@ -205,7 +205,7 @@ const sreFrustum& frustum, BoundsCheckResult octree_bounds_check_result) {
         fast_oct.GetEntity(array_index + i, type, index);
         if (type != SRE_ENTITY_OBJECT)
             continue;
-        sreObject *so = scene->sceneobject[index];
+        sreObject *so = scene->object[index];
         if (so->exists) {
             // Note: for a root node-only octree where no bounds are defined,
             // the intersection test of the object with the shadow caster volume
@@ -253,7 +253,7 @@ const sreFrustum& frustum, const sreLight& light, BoundsCheckResult octree_bound
         fast_oct.GetEntity(array_index + i, type, index);
         if (type != SRE_ENTITY_OBJECT)
             continue;
-        sreObject *so = scene->sceneobject[index];
+        sreObject *so = scene->object[index];
         // Skip objects attached to the current light and infinite distance objects.
         if (so->exists && so->attached_light != light.id) {
             // Both shadow casters and shadow receivers must intersect the light volume.
@@ -869,7 +869,7 @@ void sreScene::sreVisualizeShadowMap(int light_index, sreFrustum *frustum) {
     if (light_index >= nu_lights)
         return;
     // At least one shadow map shader uniform setting function uses sre_internal_current_light.
-    sre_internal_current_light = global_light[light_index];
+    sre_internal_current_light = light[light_index];
     // Before a regular lighting pass, the appropriate shadow map texture is bound,
     // so we have to do it explicitly.
     sreBindShadowMapTexture(sre_internal_current_light);
@@ -877,7 +877,7 @@ void sreScene::sreVisualizeShadowMap(int light_index, sreFrustum *frustum) {
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
-    bool r = GL3RenderShadowMapWithOctree(this, *global_light[light_index], *frustum);
+    bool r = GL3RenderShadowMapWithOctree(this, *light[light_index], *frustum);
     glDepthMask(GL_FALSE);
     // The shadow map generation binds the multi-sample framebuffer when finished, switch
     // back to the final framebuffer.
@@ -900,17 +900,17 @@ void sreScene::sreVisualizeShadowMap(int light_index, sreFrustum *frustum) {
         return;
     }
 
-    if (!global_light[light_index]->shadow_map_required) {
+    if (!light[light_index]->shadow_map_required) {
         sreDrawTextCentered("Light has no shadow casters or no shadow receivers",
             0.2f, 0.485f, 0.6f);
         return;
     }
 
-    if (global_light[light_index]->type & SRE_LIGHT_POINT_SOURCE)
+    if (light[light_index]->type & SRE_LIGHT_POINT_SOURCE)
         sreVisualizeCubeMap(light_index);
-    else if (global_light[light_index]->type & SRE_LIGHT_DIRECTIONAL)
+    else if (light[light_index]->type & SRE_LIGHT_DIRECTIONAL)
         sreVisualizeDirectionalLightShadowMap(light_index);
-    else if (global_light[light_index]->type & (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM))
+    else if (light[light_index]->type & (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM))
         sreVisualizeBeamOrSpotLightShadowMap(light_index);
 }
 

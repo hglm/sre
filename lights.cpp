@@ -176,16 +176,16 @@ void sreScene::CheckLightCapacity() {
         if (sre_internal_debug_message_level >= 1)
             printf("Maximum number of  lights reached -- doubling capacity to %d.\n",
                 max_scene_lights * 2);
-        sreLight **new_global_light = new sreLight *[max_scene_lights * 2];
-        memcpy(new_global_light, global_light, sizeof(sreLight *) * max_scene_lights);
-        delete [] global_light;
-        global_light = new_global_light;
+        sreLight **new_light = new sreLight *[max_scene_lights * 2];
+        memcpy(new_light, light, sizeof(sreLight *) * max_scene_lights);
+        delete [] light;
+        light = new_light;
         max_scene_lights *= 2;
     }
 }
 
 void sreScene::RegisterLight(sreLight *l) {
-    global_light[nu_lights] = l;
+    light[nu_lights] = l;
     l->id = nu_lights;
     nu_lights++;
 }
@@ -414,7 +414,7 @@ void sreLight::CalculateWorstCaseLightVolumeAABB(sreBoundingVolumeAABB& AABB_out
 }
 
 void sreScene::SetLightWorstCaseBounds(int i, const sreBoundingVolumeSphere& sphere) {
-    sreLight *l = global_light[i];
+    sreLight *l = light[i];
     l->worst_case_sphere = sphere;
     l->type |= SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE;
 }
@@ -425,7 +425,7 @@ void sreScene::SetLightWorstCaseBounds(int i, const sreBoundingVolumeSphere& sph
 
 void sreScene::SetPointLightWorstCaseBounds(int i, float max_range,
 const sreBoundingVolumeSphere& position_sphere) {
-    sreLight *l = global_light[i];
+    sreLight *l = light[i];
     l->worst_case_sphere = l->sphere;
     l->worst_case_sphere.radius += max_range;
     l->type |= SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE;
@@ -441,7 +441,7 @@ const sreBoundingVolumeSphere& position_sphere) {
 
 void sreScene::SetSpotLightWorstCaseBounds(int i, float max_direction_angle, float min_exponent,
 float max_range, const sreBoundingVolumeSphere& position_sphere) {
-    sreLight *l = global_light[i];
+    sreLight *l = light[i];
     // Calculate the worst case spherical sector.
     float exponent_cos_max_half_angle = expf(logf(0.01f) / min_exponent);
     float max_half_angle = clampf(max_direction_angle + acosf(exponent_cos_max_half_angle), 0,
@@ -469,7 +469,7 @@ float max_range, const sreBoundingVolumeSphere& position_sphere) {
 
 void sreScene::SetBeamLightWorstCaseBounds(int i, float max_direction_angle, float max_range,
 float max_beam_radius, const sreBoundingVolumeSphere& position_sphere) {
-    sreLight *l = global_light[i];
+    sreLight *l = light[i];
     // Varying the axis of the bounding cylinder will create a spherical cap on the exterior end;
     // However bounding volume will not be a true spherical sector.
     // We can however combine all the possible cylinder bounding spheres.
@@ -502,7 +502,7 @@ float max_beam_radius, const sreBoundingVolumeSphere& position_sphere) {
 }
 
 void sreScene::ChangeDirectionalLightDirection(int i, Vector3D direction) const {
-    sreLight *l = global_light[i];
+    sreLight *l = light[i];
     l->vector = Vector4D(- direction, 0);
     if (l->most_recent_shadow_volume_change == sre_internal_current_frame - 1)
         l->changing_every_frame = true;
@@ -514,7 +514,7 @@ void sreScene::ChangeDirectionalLightDirection(int i, Vector3D direction) const 
 }
 
 void sreScene::ChangeLightPosition(int i, Point3D position) const {
-    sreLight *l = global_light[i];
+    sreLight *l = light[i];
     if (l->vector.GetPoint3D() == position)
         // Position didn't actually change.
         return;
@@ -539,12 +539,12 @@ void sreScene::ChangeLightPosition(int i, Point3D position) const {
 }
 
 void sreScene::ChangeLightColor(int i, Color color) const {
-    global_light[i]->color = color;
+    light[i]->color = color;
     // Ideally, color should affect the light volume size.
 }
 
 void sreScene::ChangeSpotOrBeamLightDirection(int i, Vector3D direction) const {
-    sreLight *l = global_light[i];
+    sreLight *l = light[i];
     l->spotlight = Vector4D(direction, l->spotlight.w);
     // Note that the bounding sphere will be affected too.
     if (l->type & SRE_LIGHT_SPOT) {
@@ -575,7 +575,7 @@ void sreScene::ChangeSpotOrBeamLightDirection(int i, Vector3D direction) const {
 
 void sreScene::ChangePointSourceLightAttenuation(int i, float range) const {
     // It is assumed that SRE_LIGHT_DYNAMIC_ATTENUATION is set.
-    sreLight *l = global_light[i];
+    sreLight *l = light[i];
     l->attenuation.Set(range, 0, 0);
     l->sphere.radius = range;
 }
@@ -583,7 +583,7 @@ void sreScene::ChangePointSourceLightAttenuation(int i, float range) const {
 void sreScene::ChangeSpotLightAttenuationAndExponent(int i, float range, float exponent) const {
     // It is assumed that SRE_LIGHT_DYNAMIC_ATTENUATION or SRE_LIGHT_DYNAMIC_SPOT_EXPONENT
     // is set when appropriate.
-    sreLight *l = global_light[i];
+    sreLight *l = light[i];
     l->attenuation.Set(range, 0, 0);
     l->spotlight.w = exponent;
     // Spherical sector has to be recalculated.
@@ -600,7 +600,7 @@ void sreScene::ChangeSpotLightAttenuationAndExponent(int i, float range, float e
 void sreScene::ChangeBeamLightAttenuation(int i, float beam_radius, float
 radial_linear_range, float cutoff_distance, float linear_range) const {
     // It is assumed that SRE_LIGHT_DYNAMIC_ATTENUATION is set.
-    sreLight *l = global_light[i];
+    sreLight *l = light[i];
     l->attenuation.Set(linear_range, cutoff_distance, radial_linear_range);
     l->spotlight.w = beam_radius;
     // Update bounding volumes. It is normally assumed that beam_radius is
@@ -620,17 +620,17 @@ static sreView *internal_view;
 static int CompareLights(const void *e1, const void *e2) {
     int i1 = *(int *)e1;
     int i2 = *(int *)e2;
-    if (sre_internal_scene->global_light[i1]->type & SRE_LIGHT_DIRECTIONAL)
-        if (sre_internal_scene->global_light[i2]->type & SRE_LIGHT_DIRECTIONAL) {
+    if (sre_internal_scene->light[i1]->type & SRE_LIGHT_DIRECTIONAL)
+        if (sre_internal_scene->light[i2]->type & SRE_LIGHT_DIRECTIONAL) {
             // Both lights are directional; impose an order based on intensity.
             float intensity1, intensity2;
             if (sre_internal_HDR_enabled) {
-                intensity1 = sre_internal_scene->global_light[i1]->color.LinearIntensity();
-                intensity2 = sre_internal_scene->global_light[i2]->color.LinearIntensity();
+                intensity1 = sre_internal_scene->light[i1]->color.LinearIntensity();
+                intensity2 = sre_internal_scene->light[i2]->color.LinearIntensity();
             }
             else {
-                intensity1 = sre_internal_scene->global_light[i1]->color.SRGBIntensity();
-                intensity2 = sre_internal_scene->global_light[i2]->color.SRGBIntensity();
+                intensity1 = sre_internal_scene->light[i1]->color.SRGBIntensity();
+                intensity2 = sre_internal_scene->light[i2]->color.SRGBIntensity();
             }
             if (intensity1 > intensity2)
                 return - 1;
@@ -642,7 +642,7 @@ static int CompareLights(const void *e1, const void *e2) {
             // Light i1 is directional, i2 is not; give precedence to the directional light.
             return - 1;
     else
-        if (sre_internal_scene->global_light[i2]->type & SRE_LIGHT_DIRECTIONAL)
+        if (sre_internal_scene->light[i2]->type & SRE_LIGHT_DIRECTIONAL)
             // Light i2 is directional, i1 is not.
             return 1;
     // Both are non-directional lights.
@@ -650,26 +650,26 @@ static int CompareLights(const void *e1, const void *e2) {
     // following view mode is used, prefer to use the distance to the followed object.
     Point3D point_of_interest;
     if (internal_view->GetViewMode() == SRE_VIEW_MODE_FOLLOW_OBJECT)
-        point_of_interest = sre_internal_scene->sceneobject[
+        point_of_interest = sre_internal_scene->object[
             internal_view->GetFollowedObject()]->position;
     else
         point_of_interest =  sre_internal_viewpoint;
-    float distsq1 = SquaredMag((sre_internal_scene->global_light[i1]->vector).GetPoint3D()
+    float distsq1 = SquaredMag((sre_internal_scene->light[i1]->vector).GetPoint3D()
         - point_of_interest);
-    float distsq2 = SquaredMag((sre_internal_scene->global_light[i2]->vector).GetPoint3D()
+    float distsq2 = SquaredMag((sre_internal_scene->light[i2]->vector).GetPoint3D()
         - point_of_interest);
-    if ((sre_internal_scene->global_light[i1]->type & (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE))
+    if ((sre_internal_scene->light[i1]->type & (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE))
     == (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE)) {
-        if ((sre_internal_scene->global_light[i2]->type & (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE))
+        if ((sre_internal_scene->light[i2]->type & (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE))
         == (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE)) {
             // Both are point source lights with linear attenuation; calculate the intensity at the point
             // of interest.
-            float att1 = clampf((sre_internal_scene->global_light[i1]->attenuation.x - sqrtf(distsq1))
-                / sre_internal_scene->global_light[i1]->attenuation.x, 0, 1.0f);
-            float att2 = clampf((sre_internal_scene->global_light[i2]->attenuation.x - sqrtf(distsq2))
-                / sre_internal_scene->global_light[i1]->attenuation.x, 0, 1.0f);
-            Color c1 = att1 * sre_internal_scene->global_light[i1]->color;
-            Color c2 = att2 * sre_internal_scene->global_light[i2]->color;
+            float att1 = clampf((sre_internal_scene->light[i1]->attenuation.x - sqrtf(distsq1))
+                / sre_internal_scene->light[i1]->attenuation.x, 0, 1.0f);
+            float att2 = clampf((sre_internal_scene->light[i2]->attenuation.x - sqrtf(distsq2))
+                / sre_internal_scene->light[i1]->attenuation.x, 0, 1.0f);
+            Color c1 = att1 * sre_internal_scene->light[i1]->color;
+            Color c2 = att2 * sre_internal_scene->light[i2]->color;
             float intensity1, intensity2;
             if (sre_internal_HDR_enabled) {
                 intensity1 = c1.LinearIntensity();
@@ -691,7 +691,7 @@ static int CompareLights(const void *e1, const void *e2) {
             return - 1;
         }
     }
-    else if ((sre_internal_scene->global_light[i2]->type & (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE))
+    else if ((sre_internal_scene->light[i2]->type & (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE))
     == (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE))
         // Give precedence to i2 (point source light).
         return 1;
@@ -1095,7 +1095,7 @@ int *intersecting_object) const {
         int index;
         fast_oct.GetEntity(array_index + i, type, index);
         if (type == SRE_ENTITY_OBJECT) {
-            if ((sceneobject[index]->flags & (SRE_OBJECT_EMISSION_ONLY | SRE_OBJECT_CAST_SHADOWS))
+            if ((object[index]->flags & (SRE_OBJECT_EMISSION_ONLY | SRE_OBJECT_CAST_SHADOWS))
             == SRE_OBJECT_EMISSION_ONLY)
                 // Skip emission-only objects that do not cast shadows.
                 continue;
@@ -1105,20 +1105,20 @@ int *intersecting_object) const {
                  // If a worst-case light volume is defined for an otherwise variable light,
                  // use the (worst-case) sphere bounds.
                  if (light.type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE) {
-                     if (!Intersects(*sceneobject[index], light.worst_case_sphere))
+                     if (!Intersects(*object[index], light.worst_case_sphere))
                          // The object is outside the worst-case light volume;
                          continue;
                  }
-                 else if (!Intersects(*sceneobject[index], light))
+                 else if (!Intersects(*object[index], light))
                      // The object is outside the light volume;
                      continue;
 #ifdef STATIC_OBJECT_DETERMINATION_LOG
-                printf("Adding object %d (intersection test).\n", sceneobject[index]->id);
+                printf("Adding object %d (intersection test).\n", object[index]->id);
 #endif
             }
 #ifdef STATIC_OBJECT_DETERMINATION_LOG
             else
-                printf("Adding object %d (whole octree is inside).\n", sceneobject[index]->id);
+                printf("Adding object %d (whole octree is inside).\n", object[index]->id);
 #endif
             intersecting_object[nu_intersecting_objects] = index;
             nu_intersecting_objects++;
@@ -1154,11 +1154,11 @@ void sreScene::CalculateStaticLightObjectLists() {
         // more accurate tests may be tried later.
         // We are only interested in local lights (for dynamic position lights,
         // the object lists will be initialized to a size of zero).
-        if ((!(global_light[i]->type & SRE_LIGHT_DYNAMIC_SHADOW_VOLUME) ||
-        (global_light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE)) ||
-        (!(global_light[i]->type & (SRE_LIGHT_DYNAMIC_LIGHT_VOLUME | SRE_LIGHT_DIRECTIONAL)) ||
-        (global_light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE)))
-            DetermineStaticLightVolumeIntersectingObjects(fast_octree_static, 0, *global_light[i],
+        if ((!(light[i]->type & SRE_LIGHT_DYNAMIC_SHADOW_VOLUME) ||
+        (light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE)) ||
+        (!(light[i]->type & (SRE_LIGHT_DYNAMIC_LIGHT_VOLUME | SRE_LIGHT_DIRECTIONAL)) ||
+        (light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE)))
+            DetermineStaticLightVolumeIntersectingObjects(fast_octree_static, 0, *light[i],
                 nu_intersecting_objects, intersecting_object);
 //        printf("%d light volume intersecting objects.\n", nu_intersecting_objects); //DEBUG
         // Create a list of potential shadow casters within the light volume (non-directional lights).
@@ -1169,12 +1169,12 @@ void sreScene::CalculateStaticLightObjectLists() {
         // lights that affect significant numbers of objects are potentially more expensive.
         // We also generate a static objects list and shadow caster list for local lights that are
         // variable but have a worst-case bounding sphere.
-        if (!(global_light[i]->type & SRE_LIGHT_DYNAMIC_SHADOW_VOLUME) ||
-        (global_light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE)) {
+        if (!(light[i]->type & SRE_LIGHT_DYNAMIC_SHADOW_VOLUME) ||
+        (light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE)) {
             nu_shadow_caster_objects = 0;
             for (int k = 0; k < nu_intersecting_objects; k++) {
                 int j = intersecting_object[k];
-                sreObject *so = sceneobject[j];
+                sreObject *so = object[j];
                 // Dynamic objects shouldn't be encountered, but check anyway.
                 if (so->flags & SRE_OBJECT_DYNAMIC_POSITION)
                     continue;
@@ -1186,7 +1186,7 @@ void sreScene::CalculateStaticLightObjectLists() {
                     continue;
                 // For all lights except directional lights, add the object to the list
                 // of shadow casters.
-                if (!(global_light[i]->type & SRE_LIGHT_DIRECTIONAL)) {
+                if (!(light[i]->type & SRE_LIGHT_DIRECTIONAL)) {
                     // Add the object to the list of shadow casters for the light.
                     // For lights with SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE set, these are only
                     // potential shadow casters.
@@ -1198,15 +1198,15 @@ void sreScene::CalculateStaticLightObjectLists() {
                 // SRE_LIGHT_DYNAMIC_SHADOW_VOLUME is expected to have been set appropriately
                 // when the light was added to the scene, depending on light type, and on whether
                 // the position, direction, range etc was marked as dynamic or not.
-                if (global_light[i]->type & SRE_LIGHT_DYNAMIC_SHADOW_VOLUME)
+                if (light[i]->type & SRE_LIGHT_DYNAMIC_SHADOW_VOLUME)
                     continue;
-                if (global_light[i]->type & (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_SPOT)) {
+                if (light[i]->type & (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_SPOT)) {
 #if 0
                     // Point and spot light create pyramid-shaped shadow volumes.
                     Point3D Q[12];
                     int n_convex_hull;
                     // Calculate the shadow volume pyramid for the object.
-                    sreBoundingVolumeType t = so->CalculateShadowVolumePyramid(*global_light[i],
+                    sreBoundingVolumeType t = so->CalculateShadowVolumePyramid(*light[i],
                         Q, n_convex_hull);
                     sreShadowVolume *sv = new sreShadowVolume;
                     if (t == SRE_BOUNDING_VOLUME_EMPTY)
@@ -1224,7 +1224,7 @@ void sreScene::CalculateStaticLightObjectLists() {
                     float radius;
                     float cos_half_angular_size;
                     // Calculate the shadow volume pyramid cone for the object.
-                    sreBoundingVolumeType t = so->CalculatePointSourceOrSpotShadowVolume(*global_light[i],
+                    sreBoundingVolumeType t = so->CalculatePointSourceOrSpotShadowVolume(*light[i],
                         Q, n_convex_hull, axis, radius, cos_half_angular_size);
                     sreShadowVolume *sv = new sreShadowVolume;
                     if (t == SRE_BOUNDING_VOLUME_EMPTY)
@@ -1239,20 +1239,20 @@ void sreScene::CalculateStaticLightObjectLists() {
                     sv->light = i;
                     so->AddShadowVolume(sv);
                 }
-                else if (global_light[i]->type & SRE_LIGHT_DIRECTIONAL) {
+                else if (light[i]->type & SRE_LIGHT_DIRECTIONAL) {
                     // Directional lights create half cylinder (cylinder with no top)
                     // -shaped shadow volumes (based on the object's bounding sphere).
                     float cylinder_radius;
                     Vector3D cylinder_axis;
                     Point3D E;
                     so->CalculateShadowVolumeHalfCylinderForDirectionalLight(
-                        *global_light[i], E, cylinder_radius, cylinder_axis);
+                        *light[i], E, cylinder_radius, cylinder_axis);
                     sreShadowVolume *sv = new sreShadowVolume;
                     sv->SetHalfCylinder(E, cylinder_radius, cylinder_axis);
                     sv->light = i;
                     so->AddShadowVolume(sv);
                 }
-                else if (global_light[i]->type & SRE_LIGHT_BEAM) {
+                else if (light[i]->type & SRE_LIGHT_BEAM) {
                     // Beam lights. The shadow volume will be a regular cylinder
                     // (based on the object's bounding sphere).
                     Point3D center;
@@ -1260,19 +1260,19 @@ void sreScene::CalculateStaticLightObjectLists() {
                     Vector3D cylinder_axis;
                     float cylinder_radius;
                     so->CalculateShadowVolumeCylinderForBeamLight(
-                        *global_light[i], center, length, cylinder_axis, cylinder_radius);
+                        *light[i], center, length, cylinder_axis, cylinder_radius);
                     sreShadowVolume *sv = new sreShadowVolume;
                     sv->SetCylinder(center, length, cylinder_axis, cylinder_radius);
                     sv->light = i;
                     so->AddShadowVolume(sv);
                 }
             }
-            global_light[i]->nu_shadow_caster_objects = nu_shadow_caster_objects;
-            if (!(global_light[i]->type & SRE_LIGHT_DIRECTIONAL)) {
+            light[i]->nu_shadow_caster_objects = nu_shadow_caster_objects;
+            if (!(light[i]->type & SRE_LIGHT_DIRECTIONAL)) {
                 // Copy the shadow caster list into the light's structure.
                 if (nu_shadow_caster_objects > 0) {
-                    global_light[i]->shadow_caster_object = new int[nu_shadow_caster_objects];
-                    memcpy(global_light[i]->shadow_caster_object, shadow_caster_object,
+                    light[i]->shadow_caster_object = new int[nu_shadow_caster_objects];
+                    memcpy(light[i]->shadow_caster_object, shadow_caster_object,
                         nu_shadow_caster_objects * sizeof(int));
                 }
                 if (sre_internal_debug_message_level >= 2)
@@ -1280,11 +1280,11 @@ void sreScene::CalculateStaticLightObjectLists() {
                         nu_shadow_caster_objects);
                 // Set the flag indicating there is a list containing all static shadow casters
                 // for the light.
-                global_light[i]->type |= SRE_LIGHT_STATIC_SHADOW_CASTER_LIST;
+                light[i]->type |= SRE_LIGHT_STATIC_SHADOW_CASTER_LIST;
            }
         }
         else
-            global_light[i]->nu_shadow_caster_objects = 0;
+            light[i]->nu_shadow_caster_objects = 0;
         // Calculate static object list for the light. Only applied to static lights
         // (not directional) that have a fixed light volume. However, for stationary lights
         // or lights that can only move in a fixed range that have an established worst case
@@ -1292,8 +1292,8 @@ void sreScene::CalculateStaticLightObjectLists() {
         // spot light that can only change direction, or a point light that can
         // change attenuation (range) up to a known limit), and a limited position movement
         // range, we can also calculate a list.
-        if (!(global_light[i]->type & (SRE_LIGHT_DYNAMIC_LIGHT_VOLUME | SRE_LIGHT_DIRECTIONAL)) ||
-        (global_light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE)) {
+        if (!(light[i]->type & (SRE_LIGHT_DYNAMIC_LIGHT_VOLUME | SRE_LIGHT_DIRECTIONAL)) ||
+        (light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE)) {
             nu_visible_objects = 0;
             // First the objects that are partially inside the light volume.
             // Note: More accurate intersection tests, can be used, since this
@@ -1301,7 +1301,7 @@ void sreScene::CalculateStaticLightObjectLists() {
             // be checked (after bounding volume tests suggest intersection).
             for (int k = 0; k < nu_intersecting_objects; k++) {
                 int j = intersecting_object[k];
-                sreObject *so = sceneobject[j];
+                sreObject *so = object[j];
                 if (so->flags & SRE_OBJECT_DYNAMIC_POSITION)
                     continue;
                 // Emission-only objects are not affected by the light.
@@ -1316,22 +1316,22 @@ void sreScene::CalculateStaticLightObjectLists() {
                      so->model->nu_lod_levels, so->model->lod_model[0]->nu_vertices);
 #endif
                 BoundsCheckResult r;
-                if (global_light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE) {
+                if (light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE) {
                     // Use the light's worst-case light volume.
-                    r = QueryIntersectionFull(*so, *global_light[i], true);
+                    r = QueryIntersectionFull(*so, *light[i], true);
                     // If we only have worst case bounds, treat all objects that intersect with
                     // them as partially inside.
                     if (r == SRE_COMPLETELY_INSIDE)
                         r = SRE_PARTIALLY_INSIDE;
                 }
                 else
-                    r = QueryIntersectionFull(*so, *global_light[i]);
+                    r = QueryIntersectionFull(*so, *light[i]);
                 // Store the intersection test result for later use below (note: indexed
                 // with index into intersecting object array, not global object index/id).
                 intersection_test_result[k] = r;
                 if (sre_internal_debug_message_level >= 2)
                     if (r == SRE_PARTIALLY_INSIDE &&
-                    QueryIntersection(*so, *global_light[i]) == SRE_COMPLETELY_INSIDE)
+                    QueryIntersection(*so, *light[i]) == SRE_COMPLETELY_INSIDE)
                         printf("Object bounding volumes completely inside light volume, "
                             "but at least one LOD model vertex is actually outside the light volume.\n");
                 // Only store objects partially inside the light volume for now.
@@ -1343,16 +1343,16 @@ void sreScene::CalculateStaticLightObjectLists() {
                 // volume.
                 object_partially_inside_light_volume_count[j]++;
             }
-            global_light[i]->nu_light_volume_objects_partially_inside = nu_visible_objects;
+            light[i]->nu_light_volume_objects_partially_inside = nu_visible_objects;
             // Secondly the objects that are completely inside the light volume.
             for (int k = 0; k < nu_intersecting_objects; k++) {
                 int j = intersecting_object[k];
-                sreObject *so = sceneobject[j];
+                sreObject *so = object[j];
                 if (so->flags & SRE_OBJECT_DYNAMIC_POSITION)
                     continue;
                 if (so->flags & SRE_OBJECT_EMISSION_ONLY)
                     continue;
-                if (global_light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE)
+                if (light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE)
                     // If we only have worst case bounds, no object is completely inside (all
                     // objects were already stored as partially inside).
                     continue;
@@ -1362,7 +1362,7 @@ void sreScene::CalculateStaticLightObjectLists() {
                 // Only store objects completely inside the light volume.
                 if (sre_internal_debug_message_level >= 2)
                     if (r == SRE_COMPLETELY_INSIDE &&
-                    QueryIntersection(*so, *global_light[i]) == SRE_PARTIALLY_INSIDE)
+                    QueryIntersection(*so, *light[i]) == SRE_PARTIALLY_INSIDE)
                         printf("Object bounding volumes partially inside light volume, "
                             "but every LOD model vertex is actually inside the light volume.\n");
                 if (r != SRE_COMPLETELY_INSIDE)
@@ -1370,18 +1370,18 @@ void sreScene::CalculateStaticLightObjectLists() {
                 visible_object[nu_visible_objects] = j;
                 nu_visible_objects++;
             }
-            global_light[i]->type |= SRE_LIGHT_STATIC_OBJECTS_LIST;
-            global_light[i]->nu_light_volume_objects = nu_visible_objects;
+            light[i]->type |= SRE_LIGHT_STATIC_OBJECTS_LIST;
+            light[i]->nu_light_volume_objects = nu_visible_objects;
             if (nu_visible_objects > 0) {
-                global_light[i]->light_volume_object = new int[nu_visible_objects];
-                memcpy(global_light[i]->light_volume_object, visible_object, nu_visible_objects * sizeof(int));
+                light[i]->light_volume_object = new int[nu_visible_objects];
+                memcpy(light[i]->light_volume_object, visible_object, nu_visible_objects * sizeof(int));
             }
             if (sre_internal_debug_message_level >= 2)
                 printf("Light %d: %d objects within light volume, %d partially inside.\n", i,
-                    nu_visible_objects, global_light[i]->nu_light_volume_objects_partially_inside);
+                    nu_visible_objects, light[i]->nu_light_volume_objects_partially_inside);
         }
         else
-            global_light[i]->nu_light_volume_objects = 0;
+            light[i]->nu_light_volume_objects = 0;
     }
     delete [] intersecting_object;
     delete [] intersection_test_result;
@@ -1390,7 +1390,7 @@ void sreScene::CalculateStaticLightObjectLists() {
     // scissors cache will never be used.
     for (int i = 0; i < nu_objects; i++)
         if (object_partially_inside_light_volume_count[i] > 0)
-            sceneobject[i]->geometry_scissors_cache =
+            object[i]->geometry_scissors_cache =
                 new sreScissorsCacheEntry[object_partially_inside_light_volume_count[i]];
     delete [] object_partially_inside_light_volume_count;
 }

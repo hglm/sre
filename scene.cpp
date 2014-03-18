@@ -30,16 +30,16 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // Constructor function for Scene.
 
-sreScene::sreScene(int _max_scene_objects, int _max_models, int _max_scene_lights) {
+sreScene::sreScene(int _max_objects, int _max_models, int _max_scene_lights) {
     nu_objects = 0;
     nu_models = 0;
-    max_scene_objects = _max_scene_objects;
-    sceneobject = new sreObject *[max_scene_objects];
+    max_objects = _max_objects;
+    object = new sreObject *[max_objects];
     max_models = _max_models;
     model = new sreModel *[max_models];
     nu_lights = 0;
     max_scene_lights = _max_scene_lights;
-    global_light = new sreLight *[max_scene_lights];
+    light = new sreLight *[max_scene_lights];
     ambient_color = Color(0.1, 0.1, 0.1);
     // Scene building helpers.
     SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
@@ -85,11 +85,11 @@ void sreScene::ClearOctrees() {
 
 void sreScene::ClearObjectsAndLights() {
     for (int i = 0; i < nu_objects; i++) {
-        delete sceneobject[i];
+        delete object[i];
     }
     nu_objects = 0;
     for (int i = 0; i < nu_lights; i++)
-        delete global_light[i];
+        delete light[i];
     nu_lights = 0;
     deleted_ids->MakeEmpty();
 }
@@ -98,8 +98,8 @@ sreScene::~sreScene() {
     ClearModels();
     delete [] model;
     ClearObjectsAndLights();
-    delete [] sceneobject;
-    delete [] global_light;
+    delete [] object;
+    delete [] light;
 
     delete [] visible_object;
     delete [] shadow_caster_object;
@@ -122,9 +122,9 @@ void sreScene::PrepareForRendering(unsigned int flags) {
     // Temporarily allocate visual object and shadow caster object arrays
     // with full capacity for shadow volume calculation.
     nu_visible_objects = 0;
-    visible_object = new int[max_scene_objects];
+    visible_object = new int[max_objects];
     nu_shadow_caster_objects = 0;
-    shadow_caster_object = new int[max_scene_objects];
+    shadow_caster_object = new int[max_objects];
     // Use visible_object and shadow_caster_object arrays as scratch memory.
     CalculateStaticLightObjectLists();
     delete [] visible_object;
@@ -250,7 +250,7 @@ void sreScene::FinishObjectInstantiation(sreObject& so, bool rotated) const {
         ChangeLightPosition(so.attached_light,
             (so.model_matrix * Vector4D(so.attached_light_model_position, 1.0)).GetPoint3D());
         // Change the direction of spot and beam lights also.
-        if (global_light[so.attached_light]->type & (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM)) {
+        if (light[so.attached_light]->type & (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM)) {
             Vector3D new_dir = so.rotation_matrix * so.attached_light_model_direction;
             ChangeSpotOrBeamLightDirection(so.attached_light, new_dir);
         }
@@ -318,7 +318,7 @@ void sreScene::FinishObjectInstantiation(sreObject& so, bool rotated) const {
 }
 
 void sreScene::InstantiateObject(int oi) const {
-    sreObject *so = sceneobject[oi];
+    sreObject *so = object[oi];
     float rot_x = so->rotation.x;
     float rot_y = so->rotation.y;
     float rot_z = so->rotation.z;
@@ -365,7 +365,7 @@ void sreScene::InstantiateObject(int oi) const {
 }
 
 void sreScene::InstantiateObjectRotationMatrixAlreadySet(int oi) const {
-    sreObject *so = sceneobject[oi];
+    sreObject *so = object[oi];
     float scaling = so->scaling;
 
     MatrixTransform rotation_matrix;
@@ -391,28 +391,28 @@ void sreScene::InstantiateObjectRotationMatrixAlreadySet(int oi) const {
 
 int sreScene::AddObject(sreModel *model, float dx, float dy, float dz,
 float rot_x, float rot_y, float rot_z, float scaling) {
-    if (nu_objects == max_scene_objects && deleted_ids->head == NULL) {
+    if (nu_objects == max_objects && deleted_ids->head == NULL) {
         if (sre_internal_debug_message_level >= 1)
             printf("Maximum number of scene objects reached -- doubling capacity to %d\n",
-                max_scene_objects * 2);
-        sreObject **new_so_objects = new sreObject *[max_scene_objects * 2];
-        memcpy(new_so_objects, sceneobject, sizeof(sreObject *) * max_scene_objects);
-        delete [] sceneobject;
-        sceneobject = new_so_objects;
-        max_scene_objects *= 2;
+                max_objects * 2);
+        sreObject **new_so_objects = new sreObject *[max_objects * 2];
+        memcpy(new_so_objects, object, sizeof(sreObject *) * max_objects);
+        delete [] object;
+        object = new_so_objects;
+        max_objects *= 2;
     }
     int i;
     if (deleted_ids->head == NULL) {
         i = nu_objects;
         nu_objects++;
         // Create the sreObject
-        sceneobject[i] = new sreObject;
+        object[i] = new sreObject;
     }
     else {
         i = deleted_ids->Pop();
         // The deleted sreObject allocation will be reused.
     }
-    sreObject *so = sceneobject[i];
+    sreObject *so = object[i];
     so->model = model;
     so->exists = true;
     so->position.Set(dx, dy, dz);
@@ -500,18 +500,18 @@ int sreScene::AddObject(sreModel *model, Point3D pos, Vector3D rot, float scalin
     return AddObject(model, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, scaling);
 }
 
-int sreScene::AddParticleSystem(sreModel *object, int _nu_particles, Point3D center,
+int sreScene::AddParticleSystem(sreModel *model, int _nu_particles, Point3D center,
 float worst_case_bounding_sphere_radius, Vector3D *particles) {
-    int i = AddObject(object, center.x, center.y, center.z, 0, 0, 0, 1.0f);
+    int i = AddObject(model, center.x, center.y, center.z, 0, 0, 0, 1.0f);
     // Override the bounding sphere radius (which was set for a single billboard/particle.
-    sceneobject[i]->sphere.radius = worst_case_bounding_sphere_radius;
-    sceneobject[i]->nu_particles = _nu_particles;
-    sceneobject[i]->particles = particles;
+    object[i]->sphere.radius = worst_case_bounding_sphere_radius;
+    object[i]->nu_particles = _nu_particles;
+    object[i]->particles = particles;
     return i;
 }
 
 void sreScene::DeleteObject(int soi) {
-    sreObject *so = sceneobject[soi];
+    sreObject *so = object[soi];
     if (so->flags & SRE_OBJECT_PARTICLE_SYSTEM)
         delete so->particles;
     deleted_ids->AddElement(so->id);
@@ -546,12 +546,12 @@ static void UpdateChangeTracking(sreObject& so, int mask) {
 }
 
 void sreScene::ChangePosition(int soi, Point3D pos) const {
-    if (pos == sceneobject[soi]->position)
+    if (pos == object[soi]->position)
         // Position didn't actually change.
         return;
-    sceneobject[soi]->position= pos;
+    object[soi]->position= pos;
     InstantiateObject(soi);
-    UpdateChangeTracking(*sceneobject[soi], SRE_OBJECT_POSITION_CHANGE);
+    UpdateChangeTracking(*object[soi], SRE_OBJECT_POSITION_CHANGE);
 }
 
 void sreScene::ChangePosition(int soi, float x, float y, float z) const {
@@ -563,22 +563,22 @@ void sreScene::ChangeRotation(int soi, float rotx, float roty, float rotz) const
     // Since the rotation angles aren't updated when the rotation matrix is
     // changed, just skip the check. In practice (physics) the rotation martix
     // update method will be used.
-    if (Vector3D(rotx, roty, rotz) == sceneobject[soi]->rotation)
+    if (Vector3D(rotx, roty, rotz) == object[soi]->rotation)
         // Rotation didn't actually change.
         return;
 #endif
-    sceneobject[soi]->rotation.Set(rotx, roty, rotz);
+    object[soi]->rotation.Set(rotx, roty, rotz);
     InstantiateObject(soi);
-    UpdateChangeTracking(*sceneobject[soi], SRE_OBJECT_TRANSFORMATION_CHANGE);
+    UpdateChangeTracking(*object[soi], SRE_OBJECT_TRANSFORMATION_CHANGE);
 }
 
 void sreScene::ChangeRotationMatrix(int soi, const Matrix3D& rot) const {
-    if (rot == sceneobject[soi]->rotation_matrix)
+    if (rot == object[soi]->rotation_matrix)
         // Position and rotation didn't actually change.
         return;
-    sceneobject[soi]->rotation_matrix = rot;
+    object[soi]->rotation_matrix = rot;
     InstantiateObjectRotationMatrixAlreadySet(soi);
-    UpdateChangeTracking(*sceneobject[soi], SRE_OBJECT_TRANSFORMATION_CHANGE);
+    UpdateChangeTracking(*object[soi], SRE_OBJECT_TRANSFORMATION_CHANGE);
 }
 
 void sreScene::ChangePositionAndRotation(int soi, float x, float y, float z,
@@ -587,104 +587,104 @@ float rotx, float roty, float rotz) const {
     // changed, just assume the rotation has changed. In practice (physics)
     // the rotation martix update method will be used.
     int flags = SRE_OBJECT_TRANSFORMATION_CHANGE;
-    if (Vector3D(x, y, z) != sceneobject[soi]->position)
+    if (Vector3D(x, y, z) != object[soi]->position)
         flags |= SRE_OBJECT_POSITION_CHANGE;
-    sceneobject[soi]->position.Set(x, y, z);
-    sceneobject[soi]->rotation.Set(rotx, roty, rotz);
+    object[soi]->position.Set(x, y, z);
+    object[soi]->rotation.Set(rotx, roty, rotz);
     InstantiateObject(soi);
-    UpdateChangeTracking(*sceneobject[soi], flags);
+    UpdateChangeTracking(*object[soi], flags);
 }
 
 void sreScene::ChangePositionAndRotationMatrix(int soi, float x, float y, float z,
 const Matrix3D& m_rot) const {
     int flags = 0;
-    if (Vector3D(x, y, z) != sceneobject[soi]->position)
+    if (Vector3D(x, y, z) != object[soi]->position)
         flags |= SRE_OBJECT_POSITION_CHANGE;
-    if (m_rot != sceneobject[soi]->rotation_matrix)
+    if (m_rot != object[soi]->rotation_matrix)
         flags |= SRE_OBJECT_TRANSFORMATION_CHANGE;
     if (flags == 0)
         // Position and rotation didn't actually change.
         return;
-    sceneobject[soi]->position.Set(x, y, z);
-    sceneobject[soi]->rotation_matrix = m_rot;
+    object[soi]->position.Set(x, y, z);
+    object[soi]->rotation_matrix = m_rot;
     InstantiateObjectRotationMatrixAlreadySet(soi);
-    UpdateChangeTracking(*sceneobject[soi], flags);
+    UpdateChangeTracking(*object[soi], flags);
 }
 
 void sreScene::ChangeBillboardSize(int object_index, float bb_width, float bb_height) const {
-    sceneobject[object_index]->billboard_width = bb_width;
-    sceneobject[object_index]->billboard_height = bb_height;
-    Vector3D X = 0.5 * sceneobject[object_index]->billboard_width * Vector3D(1.0, 0, 0);
-    Vector3D Y = 0.5 * sceneobject[object_index]->billboard_height * Vector3D(0, 0, 1.0);
+    object[object_index]->billboard_width = bb_width;
+    object[object_index]->billboard_height = bb_height;
+    Vector3D X = 0.5 * object[object_index]->billboard_width * Vector3D(1.0, 0, 0);
+    Vector3D Y = 0.5 * object[object_index]->billboard_height * Vector3D(0, 0, 1.0);
     // Set bounding sphere.
-    if (!sceneobject[object_index]->model->is_static)
+    if (!object[object_index]->model->is_static)
         // Be careful because for static objects, the position may be set to (0, 0, 0)
         // if preprocessing is enabled.
-        sceneobject[object_index]->sphere.center = sceneobject[object_index]->position;
-    sceneobject[object_index]->sphere.radius = Magnitude(X + Y);
+        object[object_index]->sphere.center = object[object_index]->position;
+    object[object_index]->sphere.radius = Magnitude(X + Y);
 }
 
 void sreScene::ChangeHaloSize(int object_index, float size) const {
-    sceneobject[object_index]->halo_size = size;
+    object[object_index]->halo_size = size;
 }
 
 void sreScene::ChangeDiffuseReflectionColor(int object_index, Color color) const {
-    sceneobject[object_index]->diffuse_reflection_color = color;
+    object[object_index]->diffuse_reflection_color = color;
 }
 
 void sreScene::ChangeSpecularReflectionColor(int object_index, Color color) const {
-    sceneobject[object_index]->specular_reflection_color = color;
+    object[object_index]->specular_reflection_color = color;
 }
 
 void sreScene::ChangeEmissionColor(int object_index, Color color) const {
-    sceneobject[object_index]->emission_color = color;
+    object[object_index]->emission_color = color;
 }
 
 void sreScene::ChangeSpecularExponent(int object_index, float exponent) const {
-    sceneobject[object_index]->specular_exponent = exponent;
+    object[object_index]->specular_exponent = exponent;
 }
 
 void sreScene::ChangeMicrofacetParameters(int object_index, float diffuse_fraction,
 float roughness_value1, float weight1, float roughness_value2, float weight2,
 bool anisotropic) const {
-    sceneobject[object_index]->diffuse_fraction = diffuse_fraction;
-    sceneobject[object_index]->roughness_values = Vector2D(roughness_value1, roughness_value2);
-    sceneobject[object_index]->roughness_weights = Vector2D(weight1, weight2);
-    sceneobject[object_index]->anisotropic = anisotropic;
+    object[object_index]->diffuse_fraction = diffuse_fraction;
+    object[object_index]->roughness_values = Vector2D(roughness_value1, roughness_value2);
+    object[object_index]->roughness_weights = Vector2D(weight1, weight2);
+    object[object_index]->anisotropic = anisotropic;
     // The anisotropic setting can affect shader vertex attributes.
     InvalidateLightingShaders(object_index);
 }
 
 void sreScene::AttachLight(int soi, int light_index, Vector3D model_position,
 Vector3D model_light_direction) const {
-    sceneobject[soi]->attached_light = light_index;
-    sceneobject[soi]->attached_light_model_position = model_position;
-    if (global_light[light_index]->type & (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM)) {
-        sceneobject[soi]->attached_light_model_direction = model_light_direction;
-        ChangeSpotOrBeamLightDirection(light_index, sceneobject[soi]->rotation_matrix *
+    object[soi]->attached_light = light_index;
+    object[soi]->attached_light_model_position = model_position;
+    if (light[light_index]->type & (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM)) {
+        object[soi]->attached_light_model_direction = model_light_direction;
+        ChangeSpotOrBeamLightDirection(light_index, object[soi]->rotation_matrix *
             model_light_direction);
     }
 }
 
 void sreScene::InvalidateShaders(int soi) const {
     for (int i = 0; i < SRE_NU_SHADER_LIGHT_TYPES; i++)
-        sceneobject[soi]->current_shader[i] = - 1;
+        object[soi]->current_shader[i] = - 1;
     if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING)
         for (int i = 0; i < SRE_NU_SHADER_LIGHT_TYPES; i++)
-            sceneobject[soi]->current_shader_shadow_map[i] = - 1;
+            object[soi]->current_shader_shadow_map[i] = - 1;
 }
 
 // Invalidate all shaders except ambient.
 
 void sreScene::InvalidateLightingShaders(int soi) const {
     for (int i = 0; i <= SRE_SHADER_LIGHT_TYPE_SPOT_OR_BEAM; i++)
-        sceneobject[soi]->current_shader[i] = - 1;
+        object[soi]->current_shader[i] = - 1;
     // Aat the moment when shadow mapping is enabled, all shaders,
     // are invalidated anyway, so we only need to reset the cached
     // shaders when shadow mapping is already enabled.
     if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING)
         for (int i = 0; i <= SRE_SHADER_LIGHT_TYPE_SPOT_OR_BEAM; i++)
-            sceneobject[soi]->current_shader_shadow_map[i] = - 1;
+            object[soi]->current_shader_shadow_map[i] = - 1;
 }
 
 // Implementation of sreObjectList (actually a general linked list
@@ -733,7 +733,7 @@ void sreObjectList::DeleteElement(int so) {
         }
         e = e->next;
     }
-    printf("Error in DeleteElement -- could not find sceneobject id in list.\n");
+    printf("Error in DeleteElement -- could not find object id in list.\n");
     exit(1);
 }
 
