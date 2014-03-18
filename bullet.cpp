@@ -409,6 +409,7 @@ void sreBulletPhysicsApplication::InitializePhysics() {
 }
 
 void sreBulletPhysicsApplication::DestroyPhysics() {
+    sreMessage(SRE_MESSAGE_INFO, "Deleting physics data structures.");
     delete dynamicsWorld;
     delete solver;
     delete dispatcher;

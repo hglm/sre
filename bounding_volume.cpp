@@ -283,32 +283,55 @@ void sreBoundingVolume::CompleteParameters() {
     // For convex hull derived types (including configurable convex hulls),
     // calculate the radius of each plane with respect to the center, and store minimum
     // and maximum values found.
-    convex_hull->min_radius = POSITIVE_INFINITY_FLOAT;
-    convex_hull->max_radius = 0;
-    for (int i = 0; i < convex_hull->nu_planes; i++) {
-        convex_hull->plane_radius[i] = fabsf(Dot(convex_hull->plane[i], convex_hull->center));
-        convex_hull->min_radius = minf(convex_hull->min_radius, convex_hull->plane_radius[i]);
-        convex_hull->max_radius = maxf(convex_hull->max_radius, convex_hull->plane_radius[i]);
+    convex_hull_full->min_radius = POSITIVE_INFINITY_FLOAT;
+    convex_hull_full->max_radius = 0;
+    for (int i = 0; i < convex_hull_full->nu_planes; i++) {
+        convex_hull_full->plane_radius[i] = fabsf(Dot(convex_hull_full->plane[i], convex_hull_full->center));
+        convex_hull_full->min_radius = minf(convex_hull_full->min_radius, convex_hull_full->plane_radius[i]);
+        convex_hull_full->max_radius = maxf(convex_hull_full->max_radius, convex_hull_full->plane_radius[i]);
     }
     is_complete = true;
     return;
 }
 
-// Destructor for sreBoundingVolume.
-
-sreBoundingVolume::~sreBoundingVolume() {
-    // Free any auxiallary dynamically allocated structures.
-    // Currently, only the shadow volumes in the static shadow volumes list
-    // for each object are dynamically allocated, and they can only be of two
-    // types (pyramid for point/spot lights, half cylinder for directional lights;
-    // cylinder should be added for beam light).
-    if (type == SRE_BOUNDING_VOLUME_PYRAMID) {
+void sreBoundingVolume::Clear() {
+    // Free dynamically allocated structures.
+    if (type == SRE_BOUNDING_VOLUME_UNDEFINED)
+        return;
+    if (type == SRE_BOUNDING_VOLUME_SPHERE)
+        delete sphere;
+    else if (type == SRE_BOUNDING_VOLUME_ELLIPSOID)
+        delete ellipsoid;
+    else if (type == SRE_BOUNDING_VOLUME_BOX)
+        delete box;
+    else if (type == SRE_BOUNDING_VOLUME_CYLINDER)
+        delete cylinder;
+    else if (type == SRE_BOUNDING_VOLUME_CONVEX_HULL) {
+        delete [] convex_hull_configurable->plane_definitions;
+        delete [] convex_hull_configurable->plane_radius;
+        delete [] convex_hull_configurable->plane;
+        delete convex_hull_configurable;
+    }
+    else if (type == SRE_BOUNDING_VOLUME_PYRAMID) {
 //        delete [] pyramid->plane;
         delete [] pyramid->vertex;
         delete pyramid;
     }
+    else if (type == SRE_BOUNDING_VOLUME_PYRAMID_CONE)
+        delete pyramid_cone;
+    else if (type == SRE_BOUNDING_VOLUME_SPHERICAL_SECTOR)
+        delete spherical_sector;
     else if (type == SRE_BOUNDING_VOLUME_HALF_CYLINDER)
         delete half_cylinder;
+    else if (type == SRE_BOUNDING_VOLUME_CAPSULE)
+        delete capsule;
+    type = SRE_BOUNDING_VOLUME_UNDEFINED;
+}
+
+// Destructor for sreBoundingVolume.
+
+sreBoundingVolume::~sreBoundingVolume() {
+    Clear();
 }
 
 // Calculating a bounding volume of another bounding volume.

@@ -319,7 +319,7 @@ void Demo4bStep(sreScene *scene, double demo_time) {
     int i = floor(time / ROTATION_SEGMENT_TIME) + ROTATION_STARTING_SEGMENT;
     if (time >= (7 * ROTATION_SEGMENT_ZOOM_LEVELS - ROTATION_STARTING_SEGMENT)
     * ROTATION_SEGMENT_TIME) {
-        sre_internal_application->stop_signalled = true;
+        sre_internal_application->stop_signal = SRE_APPLICATION_STOP_SIGNAL_QUIT;
         return;
     }
 
@@ -417,7 +417,7 @@ void Demo4cStep(sreScene *scene, double demo_time) {
                 }
             }
             else {
-                sre_internal_application->stop_signalled = true;
+                sre_internal_application->stop_signal = SRE_APPLICATION_STOP_SIGNAL_QUIT;
                 return;
             }
         }

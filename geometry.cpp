@@ -40,6 +40,25 @@ sreModel::sreModel() {
     is_static = false;
     referenced = false;
     model_flags = 0;
+    bv_special.type = SRE_BOUNDING_VOLUME_UNDEFINED;
+}
+
+sreModel::~sreModel() {
+    for (int j = 0; j < nu_lod_levels; j++) {
+        sreLODModel *lm = lod_model[j];
+        if (lm->flags & SRE_LOD_MODEL_UPLOADED)
+            lm->DeleteFromGPU();
+        lm->flags &= ~SRE_LOD_MODEL_UPLOADED;
+        if (lm->flags & SRE_LOD_MODEL_IS_FLUID_MODEL)
+            delete (sreLODModelFluid *)lm;
+        else if (lm->flags & SRE_LOD_MODEL_IS_SHADOW_VOLUME_MODEL)
+            delete (sreLODModelShadowVolume *)lm;
+        else
+            delete lm;
+    }
+    // Note: The deconstructor for bv_special will be called automatically.
+    if (bounds_flags & SRE_BOUNDS_SPECIAL_SRE_COLLISION_SHAPE)
+        delete special_collision_shape;
 }
 
 // Model instancing. A new sreModel structure is created, but the
@@ -53,6 +72,9 @@ sreModel *sreModel::CreateNewInstance() const {
     for (int i = 0; i < nu_lod_levels; i++) {
         m->lod_model[i] = lod_model[i]->CreateCopy();
         m->lod_model[i]->referenced = false;
+        // Set instance flags to indicate that all attributes are
+        // shared from parent LOD model.
+        m->lod_model[i]->instance_flags = 0;
     }
     return m;
 }
@@ -98,6 +120,10 @@ sreLODModelShadowVolume::sreLODModelShadowVolume() {
     // Note: when a new sreLODModelShadowVolume is created,
     // normally the sreBaseModel, sreLODModel and this constructor
     // are called in succession.
+}
+
+sreLODModelShadowVolume::~sreLODModelShadowVolume() {
+    DestroyEdges();
 }
 
 // Constructor helper functions.
@@ -159,15 +185,15 @@ sreBaseModel::sreBaseModel(int nu_vertices, int nu_triangles, int flags) {
 // Base model destructor.
 
 sreBaseModel::~sreBaseModel() {
-    if (flags & SRE_POSITION_MASK)
+    if (flags & instance_flags & SRE_POSITION_MASK)
         delete [] vertex;
-    if (flags & SRE_TEXCOORDS_MASK)
+    if (flags & instance_flags & SRE_TEXCOORDS_MASK)
         delete [] texcoords;
-    if (flags & SRE_COLOR_MASK)
+    if (flags & instance_flags & SRE_COLOR_MASK)
         delete [] colors;
-    if (flags & SRE_NORMAL_MASK)
+    if (flags & instance_flags & SRE_NORMAL_MASK)
         delete [] vertex_normal;
-    if (flags & SRE_TANGENT_MASK)
+    if (flags & instance_flags & SRE_TANGENT_MASK)
         delete [] vertex_tangent;
     if (nu_triangles > 0)
         delete [] triangle;
@@ -1079,7 +1105,8 @@ void sreLODModelShadowVolume::CalculateEdges() {
 }
 
 void sreLODModelShadowVolume::DestroyEdges() {
-    delete [] edge;
+    if (nu_edges > 0)
+        delete [] edge;
     nu_edges = 0;
     flags &= ~SRE_LOD_MODEL_HAS_EDGE_INFORMATION;
 }
@@ -1688,7 +1715,7 @@ void sreScene::UploadModels() const {
                 }
                 // Upload every used LOD model that we have not already uploaded.
                 if (!(m->flags & SRE_LOD_MODEL_UPLOADED)) {
-                    m->InitVertexBuffers(m->instance_flags, dynamic_flags);
+                    m->UploadToGPU(m->instance_flags, dynamic_flags);
                     m->flags |= SRE_LOD_MODEL_UPLOADED;
                 }
                 // Check whether all the LOD models for the model support
@@ -1704,4 +1731,16 @@ void sreScene::UploadModels() const {
         if (shadow_volumes_configured)
             model[i]->model_flags |= SRE_MODEL_SHADOW_VOLUMES_CONFIGURED;
     }
+}
+
+void sreScene::ClearModels() {
+    for (int i = 0; i < nu_models; i++) {
+        if (model[i] == NULL)
+            continue;
+        // Delete sreModel.
+        // The deconstructor will trigger deletion of the LOD levels too,
+        // and corresponding bufferson the GPU are also deleted.
+        delete model[i];
+    }
+    nu_models = 0;
 }

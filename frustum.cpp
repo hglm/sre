@@ -349,7 +349,7 @@ void sreScissors::UpdateWithWorldSpaceBoundingHull(Point3D *P, int n) {
             else {
                 sreMessage(SRE_MESSAGE_WARNING,
                     "Unexpected vertex in front of the near plane in UpdateWorldSpaceBoundingHull "
-                    "z = %f, n = %d\n", z, n);
+                    "z = %f, n = %d", z, n);
                 // In front of the near plane.
                 near = 0;
                 far = 1.0f;
@@ -455,7 +455,8 @@ bool sreScissors::UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const sreFr
         }
     }
 #if 0
-    sreMessage(SRE_MESSAGE_INFO, "Bounding box of %d vertices clipped to %d vertices.\n", n, n_clipped);
+    sreMessage(SRE_MESSAGE_INFO, "Bounding box of %d vertices clipped to %d vertices.",
+        n, n_clipped);
     for (int i = 0 ; i < n_clipped; i++)
         printf("Q[%d] = (%f, %f, %f)\n", i, Q[i].x, Q[i].y, Q[i].z);
 #endif
@@ -491,7 +492,7 @@ bool sreScissors::UpdateWithWorldSpaceBoundingPolyhedron(Point3D *P, int n, cons
         else 
             return true;
     }
-    printf("UpdateWithWorldSpaceBoundingPolyhedron not implemented.\n");
+    sreMessage(SRE_MESSAGE_INFO, "UpdateWithWorldSpaceBoundingPolyhedron not implemented.");
     return false;
 }
 
@@ -512,7 +513,7 @@ bool sreScissors::UpdateWithWorldSpaceBoundingPolyhedron(Point3D *P, int n, cons
 sreScissorsRegionType sreScissors::UpdateWithWorldSpaceBoundingPyramid(Point3D *P, int n,
 const sreFrustum& frustum) {
     if (n != 5 && n != 7 && n != 8) {
-        sreMessage(SRE_MESSAGE_WARNING, "Expected 5, 7 or 8 vertices in bounding pyramid (n = %d).\n", n);
+        sreMessage(SRE_MESSAGE_WARNING, "Expected 5, 7 or 8 vertices in bounding pyramid (n = %d).", n);
         return SRE_SCISSORS_REGION_UNDEFINED;
     }
 #if 0
@@ -671,7 +672,7 @@ void sreFrustum::CalculateLightScissors(sreLight *light) {
 #if 0
         printf("Light %d (spot): ");
         sreMessage(SRE_MESSAGE_INFO,
-            "Scissors = (%f, %f, %f, %f)\n", scissors.left, scissors.right, scissors.bottom, scissors.top);
+            "Scissors = (%f, %f, %f, %f)", scissors.left, scissors.right, scissors.bottom, scissors.top);
 #endif
         return;
     }
@@ -972,7 +973,7 @@ bool sreFrustum::ShadowVolumeIsOutsideFrustum(sreShadowVolume& sv) const {
         bool r = !Intersects(*sv.half_cylinder, frustum_world);
 #ifdef SHADOW_VOLUME_INTERSECTION_LOG
         if (r) {
-            printf("Half-cylinder shadow volume is outside frustum: "
+            sreMessage(SRE_MESSAGE_LOG, "Half-cylinder shadow volume is outside frustum: "
                 "endpoint = (%f, %f, %f), radius = %f, axis = (%f, %f, %f)\n",
                 sv.half_cylinder->endpoint.x,  sv.half_cylinder->endpoint.y, sv.half_cylinder->endpoint.z,
                 sv.half_cylinder->radius,  sv.half_cylinder->axis.x,  sv.half_cylinder->axis.y,
@@ -995,7 +996,7 @@ bool sreFrustum::ShadowVolumeIsOutsideFrustum(sreShadowVolume& sv) const {
         bool r = !Intersects(*sv.pyramid, frustum_world);
 #ifdef SHADOW_VOLUME_INTERSECTION_LOG
         if (r)
-            printf("Pyramid shadow volume is outside frustum.\n");
+            sreMessage(SRE_MESSAGE_LOG, "Pyramid shadow volume is outside frustum.\n");
 #endif
         return r;
     }
@@ -1011,7 +1012,7 @@ bool sreFrustum::ShadowVolumeIsOutsideFrustum(sreShadowVolume& sv) const {
         bool r = !Intersects(*sv.pyramid_cone, frustum_world);
 #ifdef SHADOW_VOLUME_INTERSECTION_LOG
         if (r)
-            printf("Pyramid cone shadow volume is outside frustum.\n");
+            sreMessage(SRE_MESSAGE_LOG, "Pyramid cone shadow volume is outside frustum.\n");
 #endif
         return r;
     }
@@ -1020,7 +1021,7 @@ bool sreFrustum::ShadowVolumeIsOutsideFrustum(sreShadowVolume& sv) const {
         bool r = !Intersects(*sv.cylinder, frustum_world);
 #ifdef SHADOW_VOLUME_INTERSECTION_LOG
         if (r)
-            printf("Cylinder shadow volume is outside frustum.\n");
+            sreMessage(SRE_MESSAGE_LOG, "Cylinder shadow volume is outside frustum.\n");
 #endif
         return r;
     }

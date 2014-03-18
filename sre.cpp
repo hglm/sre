@@ -31,6 +31,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #endif
 
 #include "sre.h"
+#include "sreRandom.h"
 #include "sre_internal.h"
 #include "shader.h"
 
@@ -1131,4 +1132,24 @@ void sreView::SetForwardVector(const Vector3D& forward) {
 
 void sreView::SetAscendVector(const Vector3D& ascend) {
     ascend_vector = ascend;
+}
+
+// Default random number generator.
+
+// This global variable definition will trigger the constructor at
+// program initialization time.
+static sreCMWCRNG sre_internal_rng;
+static sreRNG *sre_default_rng = NULL;
+
+SRE_API sreRNG *sreGetDefaultRNG() {
+   if (sre_default_rng == NULL)
+       sre_default_rng = &sre_internal_rng;
+   return sre_default_rng;
+}
+
+SRE_API void sreSetDefaultRNG(sreRNG* rng) {
+    if (rng == NULL)
+        sre_default_rng = &sre_internal_rng;
+    else
+        sre_default_rng = rng;
 }

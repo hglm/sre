@@ -61,6 +61,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include "sreVectorMath.h"
 #include "sreBoundingVolume.h"
+#include "sreRandom.h"
 
 #define SRE_MAX_ACTIVE_LIGHTS_UNLIMITED 2147483647
 // When multi-pass rendering is used, the following value defines the default maximum number
@@ -184,26 +185,6 @@ private :
     void GenerateMipmapLevels(int starting_level, int& nu_levels, sreTexture **textures);
 };
 
-// Fluid data used for fluid models.
-
-class SRE_API sreFluid {
-private :
-    int	width;
-    int	height;			
-    float k1, k2, k3;
-public :
-    Vector3D *buffer[2];
-    int renderBuffer;
-    Vector3D *normal;
-    Vector3D *tangent;
-
-    sreFluid(int n, int m, float d, float t, float c, float mu);
-    ~sreFluid();	
-    void Evaluate(void);
-    void CreateDisturbance(int x, int y, float z);
-};
-
-
 class sreShadowVolume : public sreBoundingVolume {
 public :
     int light;
@@ -300,6 +281,8 @@ public :
     Color *colors;
     int flags;
     int sorting_dimension;
+    // Instancing (indicates which attributes are not shared with another model).
+    int instance_flags;
 
     sreBaseModel();
     sreBaseModel(int nu_vertices, int nu_triangles, int flags);
@@ -427,6 +410,8 @@ enum {
     SRE_LOD_MODEL_BILLBOARD = 0x8000,
     // Model is a halo (either single or a particle system).
     SRE_LOD_MODEL_LIGHT_HALO = 0x10000,
+    // Model is a fluid model of derived class sreLODModelFluid.
+    SRE_LOD_MODEL_IS_FLUID_MODEL = 0x20000,
     // Model has been uploaded to the GPU.
     SRE_LOD_MODEL_UPLOADED = 0x100000,
     // The following flag is deprecated. Use dynamic_flags instead.
@@ -450,8 +435,6 @@ public :
     // Multiple meshes.
     int nu_meshes;
     sreModelMesh *mesh;
-    // Instancing.
-    int instance_flags;
     // Vertex attribute information (for non-interleaved buffers, and up to
     // three interleaved buffers).
     sreAttributeInfo attribute_info;
@@ -461,7 +444,8 @@ public :
     sreLODModel *AllocateNewOfSameType() const;
     sreLODModel *CreateCopy() const;
     // Vertex buffer creation.
-    void InitVertexBuffers(int attribute_mask, int dynamic_flags);
+    void UploadToGPU(int attribute_mask, int dynamic_flags);
+    void DeleteFromGPU();
     void NewVertexBuffers(int attribute_mask, int dynamic_flags, Vector4D *positions, bool shadow);
     void NewVertexBufferInterleaved(int attribute_mask, Vector4D *positions, bool shadow);
     // Setting up GL vertex attribute array pointers before drawing an object (the attribute
@@ -483,11 +467,41 @@ public :
     ModelEdge *edge;
 
     sreLODModelShadowVolume();
+    ~sreLODModelShadowVolume();
     // Edge handling.
     void CalculateEdges();
     void RemoveUnnecessaryEdges();
     void DestroyEdges();
 };
+
+// Fluid data used for fluid models.
+
+class SRE_API sreFluid {
+private :
+    int	width;
+    int	height;			
+    float k1, k2, k3;
+public :
+    Vector3D *buffer[2];
+    int renderBuffer;
+    Vector3D *normal;
+    Vector3D *tangent;
+
+    sreFluid(int n, int m, float d, float t, float c, float mu);
+    ~sreFluid();	
+    void Evaluate(void);
+    void CreateDisturbance(int x, int y, float z);
+};
+
+class SRE_API sreLODModelFluid : public sreLODModel {
+public :
+    sreFluid *fluid;
+
+    sreLODModelFluid();
+    ~sreLODModelFluid();
+    void Evaluate();
+};
+
 
 // Definitions for sreModel::model_flags (not to be confused with the flags field
 // of the LOD models).
@@ -496,17 +510,17 @@ enum {
     // Whether shadow volumes for the model are configured (implies that all
     // LOD sub-models are of the type sreLODModelShadowVolume and have fully
     // configured shadow volume support).
-    SRE_MODEL_SHADOW_VOLUMES_CONFIGURED = 1,
+    SRE_MODEL_SHADOW_VOLUMES_CONFIGURED = 0x1,
     // The LOD model (usually a single one) is a billboard.
-    SRE_MODEL_BILLBOARD = 2,
+    SRE_MODEL_BILLBOARD = 0x2,
     // The LOD model is a light halo (SRE_MODEL_BILLBOARD should also be set).
-    SRE_MODEL_LIGHT_HALO = 4,
+    SRE_MODEL_LIGHT_HALO = 0x4,
     // The LOD model is a particle system (SRE_MODEL_BILLBOARD should also be set,
     // SRE_MODEL_LIGHT_HALO may be set).
     // The vertex position attribute of the LOD model represent all combined (disjoint) triangles
     // of the particle system and the normal attribute additionally holds the center position of
     // the billboard to which the particle triangle belongs.
-    SRE_MODEL_PARTICLE_SYSTEM = 8,
+    SRE_MODEL_PARTICLE_SYSTEM = 0x8,
 };
 
 // Bounding volume flags for a model (sreModel::bounds_flags). Either
@@ -580,17 +594,16 @@ public:
     // treshold scaling defined for the referring sreObject.
     float lod_threshold_scaling;
     sreLODModel *lod_model[SRE_MAX_LOD_LEVELS];
-    // Fluid.
-    sreFluid *fluid;
 
     sreModel();
+    ~sreModel();
     sreModel *CreateNewInstance() const;
     void CalculatePrincipalComponents();
     void CalculateBoundingSphere();
     void CalculateBoundingBox();
     void CalculateBoundingEllipsoid(sreBoundingVolumeEllipsoid& ellipsoid);
     void CalculateBoundingCylinder(sreBoundingVolumeCylinder& cylinder);
-    void SetBoundingCapsule(const sreBoundingVolumeCapsule& capsule);
+    void SetBoundingCollisionShapeCapsule(const sreBoundingVolumeCapsule& capsule);
     void CalculateAABB();
     void CalculateBounds();
     void SetOBBWithAABBBounds(const sreBoundingVolumeAABB& _AABB);
@@ -686,6 +699,7 @@ public:
     bool shadow_map_required;
 
     sreLight();
+    ~sreLight();
     void CalculateSpotLightCylinderRadius(); // For spot lights.
     void CalculateBoundingVolumes();
     void CalculateLightVolumeAABB(sreBoundingVolumeAABB& AABB_out);
@@ -810,16 +824,16 @@ class sreSceneEntityList;
 // These flags apply to scene objects (sreObject::flags).
 enum {
     // Texture/attribute flags.
-    SRE_OBJECT_USE_TEXTURE = 1,
-    SRE_OBJECT_USE_NORMAL_MAP = 2,
-    SRE_OBJECT_USE_SPECULARITY_MAP = 4,
-    SRE_OBJECT_USE_EMISSION_MAP = 8,
-    SRE_OBJECT_MULTI_COLOR = 16,
-    SRE_OBJECT_TRANSPARENT_TEXTURE = 32,
-    SRE_OBJECT_TRANSPARENT_EMISSION_MAP = 64,
-    SRE_OBJECT_3D_TEXTURE = 128,
-    SRE_OBJECT_EMISSION_ONLY = 256,
-    SRE_OBJECT_EMISSION_ADD_DIFFUSE_REFLECTION_COLOR = 512,
+    SRE_OBJECT_USE_TEXTURE = 0x1,
+    SRE_OBJECT_USE_NORMAL_MAP = 0x2,
+    SRE_OBJECT_USE_SPECULARITY_MAP = 0x4,
+    SRE_OBJECT_USE_EMISSION_MAP = 0x8,
+    SRE_OBJECT_MULTI_COLOR = 0x10,
+    SRE_OBJECT_TRANSPARENT_TEXTURE = 0x20,
+    SRE_OBJECT_TRANSPARENT_EMISSION_MAP = 0x40,
+    SRE_OBJECT_3D_TEXTURE = 0x80,
+    SRE_OBJECT_EMISSION_ONLY = 0x100,
+    SRE_OBJECT_EMISSION_ADD_DIFFUSE_REFLECTION_COLOR = 0x200,
     // Hidden surface removal/shadows.
     // Infinite distance objects do not occlude anything and are not included in
     // the main static scenery octree.
@@ -848,7 +862,10 @@ enum {
     SRE_OBJECT_PARTICLE_SYSTEM = 0x800000,
     // Object is hidden (not rendered), but can interact in terms of physics or serve
     // as control object or attachment point for lights, and may cast shadows.
-    SRE_OBJECT_HIDDEN = 0x1000000
+    SRE_OBJECT_HIDDEN = 0x1000000,
+    // Object is animated. For semi-static objects like fluid (DYNAMIC_POSITION not set), 
+    // reprocessing is skipped.
+    SRE_OBJECT_ANIMATED = 0x2000000
 };
 
 class sreScissorsCacheEntry : public sreScissors {
@@ -1244,7 +1261,8 @@ public :
 enum {
     SRE_PREPARE_PREPROCESS = 1,
     SRE_PREPARE_UPLOAD_ALL_MODELS = 2,
-    SRE_PREPARE_UPLOAD_NO_MODELS = 4
+    SRE_PREPARE_UPLOAD_NO_MODELS = 4,
+    SRE_PREPARE_REUSE_OCTREES = 8
 };
 
 // The top-level scene class, contain arrays of the objects and lights in the scene,
@@ -1319,7 +1337,11 @@ public:
     int current_physics_lod_level;
 
     sreScene(int max_scene_objects, int max_models, int max_lights);
-    void Clear();
+    ~sreScene();
+    // Make scene empty. Models are not affected.
+    void ClearObjectsAndLights();
+    // Free all models.
+    void ClearModels();
      // Functions used for scene construction.
     void SetColor(Color color); // Same SetDiffuseReflectionColor
     void SetFlags(int flags);
@@ -1459,6 +1481,7 @@ public:
     void PrepareForRendering(unsigned int prepare_flags);
     // Octree creation and static light volume objects calculation.
     void CreateOctrees();
+    void ClearOctrees();
     void DetermineStaticLightVolumeIntersectingObjects(const sreFastOctree& fast_oct, int array_index,
         const sreLight& light, int &nu_intersecting_objects, int *intersecting_object) const;
     void CalculateStaticLightObjectLists();
@@ -1804,7 +1827,8 @@ void sreSaveModelToSREBinaryModelFile(sreModel *m, const char *pathname,
 
 SRE_API sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d,
     float t, float c, float mu);
-SRE_API void sreEvaluateModelFluid(sreModel *o);
+SRE_API void sreEvaluateModelFluid(sreModel *m);
+SRE_API void sreCreateModelFluidDisturbance(sreModel *m, int x, int y, float z);
 
 // Defined in standard_objects.cpp:
 SRE_API sreModel *sreCreateSphereModel(sreScene *scene, float oblateness);
@@ -1895,5 +1919,9 @@ enum {
 // if the message is printed.
 SRE_API void sreMessage(int priority, const char *format, ...);
 SRE_API void sreMessageNoNewline(int priority, const char *format, ...);
+
+// Default random number generator.
+SRE_API sreRNG *sreGetDefaultRNG();
+SRE_API void sreSetDefaultRNG(sreRNG* rng) ;
 
 #endif

@@ -21,13 +21,16 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <math.h>
 
 #include "sre.h"
+#include "sreRandom.h"
 #include "demo.h"
 
 #ifndef OPENGL_ES2
 #define LOTS_OF_SPOTLIGHTS
 #endif
 
-#define FLUID_SIZE 32
+static sreRNG *rng;
+
+#define FLUID_SIZE 64
 #define USE_WATER
 #ifdef USE_WATER
 const float disturbance_frequency = 0.01;
@@ -41,7 +44,7 @@ const float disturbance_frequency = 0.1;
 const Color liquid_specular_reflection_color = Color(0.2, 0.2, 0.2);
 
 static float disturbance_displacement_func() {
-   float r = (float)rand() / RAND_MAX;
+   float r = rng->RandomFloat(1.0f);
    return 0.3 + 1.5 * pow(r, 6);
 }
 #endif
@@ -50,6 +53,8 @@ static sreObject *fluid_scene_object;
 static int light_object[13 * 28];
 
 void Demo1CreateScene(sreScene *scene, sreView *view) {
+    rng = sreGetDefaultRNG();
+
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);
     // Add player sphere as scene object 0.
     scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS |
@@ -177,8 +182,8 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     scene->AddObject(pond, 0, 0, 0, 0, 0, 0, 1.0f);
     // Create fluid.
 #if 1
-    sreModel *fluid_object = sreCreateFluidModel(scene, FLUID_SIZE, FLUID_SIZE, (float)30 / FLUID_SIZE, 1.0,
-        0.1, 0.01);
+    sreModel *fluid_object = sreCreateFluidModel(scene, FLUID_SIZE, FLUID_SIZE,
+        30.0f / FLUID_SIZE, 1.0f, 0.1f, 0.01f);
 #ifdef USE_WATER
     sreTexture *texture = new sreTexture("water1", TEXTURE_TYPE_NORMAL);
     scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
@@ -222,7 +227,6 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     // This overrides the original direction of the light.
     scene->AttachLight(j, l, Vector3D(0, 0, 0), spot_dir);
     scene->SetEmissionColor(Color(0, 0, 0));
-    scene->AddObject(block_model, 20.0, 0.0, 0, 0, 0, 0, 5.0);
 
 #ifdef LOTS_OF_SPOTLIGHTS
     // Add colored spotlights.
@@ -249,11 +253,12 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     }
 #endif
 
-    // Add dynamic block object.
+    // Add dynamic block objects.
     scene->SetDiffuseReflectionColor(Color(1.0, 0.4, 0.3));
     scene->SetMass(1.0);
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_DYNAMIC_POSITION);
-    scene->AddObject(block_model, -20.0, -20.0, 0, 0, 0, 0, 8.0);
+    scene->AddObject(block_model, -20.0f, -20.0f, 0, 0, 0, 0, 8.0f);
+    scene->AddObject(block_model, 20.0f, 0.0, 0, 0, 0, 0, 5.0f);
 }
 
 static double demo1_previous_time = 0;
@@ -267,9 +272,10 @@ void Demo1Step(sreScene *scene, double demo_time) {
     while (fluid_time >= (float)1 /60) {
         fluid_time -= (float)1 / 60;
         // On average every hundred 60th of a second, create a disturbance.
-        if ((float)rand() / RAND_MAX < disturbance_frequency)
-            fluid_scene_object->model->fluid->CreateDisturbance(
-                rand() % (FLUID_SIZE - 1) + 1, rand() % (FLUID_SIZE - 1) + 1, disturbance_displacement_func());
+        if (rng->RandomFloat(0.1f) < disturbance_frequency)
+            sreCreateModelFluidDisturbance(fluid_scene_object->model,
+                rng->RandomInt(FLUID_SIZE - 1) + 1, rng->RandomInt(FLUID_SIZE - 1) + 1,
+                disturbance_displacement_func());
         sreEvaluateModelFluid(fluid_scene_object->model);
     }
 #endif

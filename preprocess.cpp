@@ -122,7 +122,6 @@ sreModel *sreObject::ConvertToStaticScenery() const {
     }
     new_m->collision_shape_static = m->collision_shape_static;
     new_m->collision_shape_dynamic = m->collision_shape_dynamic;
-    new_m->fluid = m->fluid;
     return new_m;
 }
 
@@ -509,7 +508,8 @@ void sreScene::EliminateTJunctions() {
                 "before conversion to absolute coordinates (model id = %d).\n",
                  sceneobject[i]->model->id);
         if (!(sceneobject[i]->flags & (SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_INFINITE_DISTANCE |
-        SRE_OBJECT_BILLBOARD | SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_PARTICLE_SYSTEM))) {
+        SRE_OBJECT_BILLBOARD | SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_PARTICLE_SYSTEM |
+        SRE_OBJECT_ANIMATED))) {
             sreModel *m = sceneobject[i]->ConvertToStaticScenery();
             RegisterModel(m);
             sceneobject_belonging_to_object[m->id] = i;

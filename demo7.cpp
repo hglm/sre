@@ -64,8 +64,16 @@ void Demo7CreateScene(sreScene *scene, sreView *view) {
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
     sreModel *torus_model = sreCreateTorusModel(scene);
     scene->SetColor(Color(1.0f, 0.25f, 0));
-    for (int y = 0; y < 9; y++)
-        for (int x = 0; x < 5; x++)
+#ifdef OPENGL_ES2
+    // Reduce the number of spheres when using OpenGL-ES2 2.0
+    int stepy = 8;
+    int stepx = 4;
+#else
+    int stepy = 1;
+    int stepx = 1;
+#endif
+    for (int y = 0; y < 9; y += stepy)
+        for (int x = 0; x < 5; x += stepx)
             scene->AddObject(sphere_model, - 10 + x * 6.0, 40 + y * 6.0, 8.0, 0, 0, 0, 3.0);
 
     // Add transparent texture.

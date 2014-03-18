@@ -72,19 +72,21 @@ sreScene::sreScene(int _max_scene_objects, int _max_models, int _max_scene_light
     max_visible_lights = 0;
 }
 
-// Make an already existing scene empty. Models are not affected.
-// CreateOctrees() must be called before attempting to render a
-// scene again.
-
-void sreScene::Clear() {
+void sreScene::ClearOctrees() {
     // The storage for the fast octrees is freed, but they are invalid
     // until CreateOctrees() is called again.
     fast_octree_static.Destroy();
     fast_octree_dynamic.Destroy();
     fast_octree_static_infinite_distance.Destroy();
     fast_octree_dynamic_infinite_distance.Destroy();
-    for (int i = 0; i < nu_objects; i++)
+}
+
+// Make an already existing scene empty. Models are not affected.
+
+void sreScene::ClearObjectsAndLights() {
+    for (int i = 0; i < nu_objects; i++) {
         delete sceneobject[i];
+    }
     nu_objects = 0;
     for (int i = 0; i < nu_lights; i++)
         delete global_light[i];
@@ -92,8 +94,22 @@ void sreScene::Clear() {
     deleted_ids->MakeEmpty();
 }
 
+sreScene::~sreScene() {
+    ClearModels();
+    delete [] model;
+    ClearObjectsAndLights();
+    delete [] sceneobject;
+    delete [] global_light;
+
+    delete [] visible_object;
+    delete [] shadow_caster_object;
+    delete [] final_pass_object;
+    delete [] visible_light;
+}
+
 void sreScene::PrepareForRendering(unsigned int flags) {
-    CreateOctrees();
+    if (!(flags & SRE_PREPARE_REUSE_OCTREES))
+        CreateOctrees();
     if (flags & SRE_PREPARE_PREPROCESS)
         Preprocess();
     if (!(flags & SRE_PREPARE_UPLOAD_NO_MODELS)) {
@@ -133,7 +149,8 @@ void sreScene::PrepareForRendering(unsigned int flags) {
     visible_light = new int[max_visible_lights];
 
     // Upload models to GPU memory.
-    UploadModels();
+    if (!(flags & SRE_PREPARE_UPLOAD_NO_MODELS))
+        UploadModels();
 }
 
 // Scene builder helper functions.

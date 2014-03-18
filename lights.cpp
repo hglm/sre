@@ -82,6 +82,13 @@ sreLight::sreLight() {
     changing_every_frame = false;
 }
 
+sreLight::~sreLight() {
+    if (nu_light_volume_objects > 0)
+        delete [] light_volume_object;
+    if (nu_shadow_caster_objects > 0)
+        delete [] shadow_caster_object;
+}
+
 // Calculate the bounding cylinder and spherical_sector radius.
 
 #if 0

@@ -247,7 +247,6 @@ static void sreBackendInitialize(sreApplication *app, int *argc, char ***argv) {
     if (multipass_rendering && !multiple_lights)
         sreSetMultiPassMaxActiveLights(1);
 
-
     // Enable mouse panning by default for framebuffer back-ends.
     if (sre_internal_backend->index == SRE_BACKEND_GLES2_ALLWINNER_MALI_FB ||
     sre_internal_backend->index == SRE_BACKEND_GLES2_RPI_FB) {
@@ -258,6 +257,37 @@ static void sreBackendInitialize(sreApplication *app, int *argc, char ***argv) {
         sre_internal_application->mouse_sensitivity = Vector2D(2.0f, - 2.0f);
     }
 
+}
+
+static const char *shadow_str[3] = {
+    "No shadows", "Stencil shadow volumes", "Shadow mapping" };
+
+static void PrintConfigurationInfo() {
+    sreMessage(SRE_MESSAGE_INFO, "Back-end: %s", sre_internal_backend->name);
+    sreMessage(SRE_MESSAGE_INFO, "Default shadow settings: %s", shadow_str[shadows]);
+    sreMessage(SRE_MESSAGE_INFO, "Default number of lights: %s",
+        multiple_lights == true ? "Unlimited" : "Single");
+    sreMessage(SRE_MESSAGE_INFO, "Rendering method: %s",
+        multipass_rendering == true ? "Multi-pass" : "Single-pass");
+    if (debug_level > 0)
+        sreMessage(SRE_MESSAGE_INFO, "SRE library debug message level = %d.", debug_level);
+    if (benchmark_mode)
+        sreMessage(SRE_MESSAGE_INFO, "Benchmark mode enabled.");
+}
+
+void sreInitializeApplication(sreApplication *app, int *argc, char ***argv) {
+    sreMessage(SRE_MESSAGE_INFO, "Initializing back-end.");
+    sre_internal_application = app;
+    if (sre_internal_backend == NULL)
+        sreSelectBackend(SRE_BACKEND_DEFAULT);
+    sreBackendSetOptionDefaults();
+    sreBackendProcessOptions(argc, argv);
+    if (preprocess)
+        app->SetFlags(app->GetFlags() | SRE_APPLICATION_FLAG_PREPROCESS);
+    sreBackendInitialize(app, argc, argv);
+    PrintConfigurationInfo();
+
+    sreMessage(SRE_MESSAGE_INFO, "Initializing scene.");
     // Create a scene with initial default maximums of 1024 objects, 256 models and 128 lights.
     // Dynamic reallocation in libsre should ensure that actual numbers are practically
     // unlimited (except for main memory and GPU memory restrictions).
@@ -270,15 +300,6 @@ static void sreBackendInitialize(sreApplication *app, int *argc, char ***argv) {
     app->view->SetMovementMode(SRE_MOVEMENT_MODE_STANDARD);
 }
 
-void sreInitializeApplication(sreApplication *app, int *argc, char ***argv) {
-    sre_internal_application = app;
-    if (sre_internal_backend == NULL)
-        sreSelectBackend(SRE_BACKEND_DEFAULT);
-    sreBackendSetOptionDefaults();
-    sreBackendProcessOptions(argc, argv);
-    sreBackendInitialize(app, argc, argv);
-}
-
 sreApplication::sreApplication() {
     flags = SRE_APPLICATION_FLAG_DISPLAY_FPS | SRE_APPLICATION_FLAG_JUMP_ALLOWED;
     input_acceleration = 0;
@@ -287,7 +308,7 @@ sreApplication::sreApplication() {
     gravity_position = Point3D(0, 0, 0);
     hovering_height_acceleration = 100.0f;
     jump_requested = false;
-    stop_signalled = false;
+    stop_signal = 0;
     control_object = 0;
     mouse_sensitivity = Vector2D(1.0f, 1.0f);
 
@@ -306,37 +327,17 @@ void sreApplication::SetFlags(unsigned int _flags) {
     flags = _flags;
 }
 
-static const char *shadow_str[3] = {
-    "No shadows", "Stencil shadow volumes", "Shadow mapping" };
-
-static void PrintConfigurationInfo() {
-        printf("Back-end: %s\n", sre_internal_backend->name);
-        printf("Default shadow settings: %s\n"
-            "Default number of lights: %s\n"
-            "Rendering method: %s\n", shadow_str[shadows],
-            multiple_lights == true ? "Unlimited" : "Single",
-            multipass_rendering == true ? "Multi-pass" : "Single-pass");
-    if (debug_level > 0)
-        printf("SRE library debug message level = %d.\n", debug_level);
-    if (benchmark_mode)
-        printf("Benchmark mode enabled.\n");
-}
-
-void sreMainLoop(sreApplication *app, unsigned int prepare_flags) {
-    app->scene->PrepareForRendering(prepare_flags);
-    if (!(app->flags & SRE_APPLICATION_FLAG_NO_PHYSICS))
-        app->InitializePhysics();
-    PrintConfigurationInfo();
-    printf("Starting rendering.\n");
+void sreMainLoop(sreApplication *app) {
+    sreMessage(SRE_MESSAGE_INFO, "Starting main rendering loop.");
     double time_physics_previous = sre_internal_backend->GetCurrentTime();
     double time_physics_current = time_physics_previous;
     double end_time = sre_internal_backend->GetCurrentTime();
     app->start_time = end_time;
     double previous_time;
     int nu_frames = 0;
+    app->stop_signal = 0;
     for (;;) {
-        if (app->stop_signalled) {
-            app->stop_signalled = false;
+        if (app->stop_signal != 0) {
             break;
         }
         app->StepBeforeRender(end_time - app->start_time);
@@ -367,27 +368,43 @@ void sreMainLoop(sreApplication *app, unsigned int prepare_flags) {
             for (int i = 0; i < 10; i++)
                 total += fps_table[i];
             current_averaged_fps = total / 10;
-//            printf("current fps: %.2lf\n", current_averaged_fps);
+//            sreMessage(SRE_MESSAGE_INFO, "current fps: %.2lf\n", current_averaged_fps);
         }
         if (benchmark_mode && end_time - app->start_time > 20.0)
             break;
-    }
-    if (!(app->flags & SRE_APPLICATION_FLAG_NO_PHYSICS))
-        app->DestroyPhysics();
+    }    
 }
 
 void sreRunApplication(sreApplication *app) {
     unsigned int prepare_flags = 0;
-    if (preprocess)
-        prepare_flags = SRE_PREPARE_PREPROCESS;
-    sreMainLoop(app, prepare_flags);
+    if (app->flags & SRE_APPLICATION_FLAG_PREPROCESS)
+        prepare_flags |= SRE_PREPARE_PREPROCESS;
+    if (app->flags & SRE_APPLICATION_FLAG_UPLOAD_NO_MODELS)
+        prepare_flags |= SRE_PREPARE_UPLOAD_NO_MODELS;
+    if (app->flags & SRE_APPLICATION_FLAG_UPLOAD_ALL_MODELS)
+        prepare_flags |= SRE_PREPARE_UPLOAD_ALL_MODELS;
+    if (app->flags & SRE_APPLICATION_FLAG_REUSE_OCTREES)
+        prepare_flags |= SRE_PREPARE_REUSE_OCTREES;
+    app->scene->PrepareForRendering(prepare_flags);
+    if (!(app->flags & SRE_APPLICATION_FLAG_NO_PHYSICS))
+        app->InitializePhysics();
+    sreMainLoop(app);
     if (benchmark_mode) {
        double fps = (double)sreGetCurrentFrame() /
            (sre_internal_backend->GetCurrentTime() - app->start_time);
-       printf("Benchmark result: %.3lf fps\n", fps);
+       sreMessage(SRE_MESSAGE_INFO, "Benchmark result: %.3lf fps\n", fps);
     }
+    if (!(app->flags & SRE_APPLICATION_FLAG_NO_PHYSICS))
+        app->DestroyPhysics();
+    if (!(app->flags & SRE_APPLICATION_FLAG_REUSE_OCTREES))
+        app->scene->ClearOctrees();
+}
+
+void sreFinalizeApplication(sreApplication *app) {
+    sreMessage(SRE_MESSAGE_INFO, "Deleting scene and closing back-end window.");
+    delete app->scene;
+    delete app;
     sre_internal_backend->Finalize();
-    exit(0);
 }
 
 void sreNoPhysicsApplication::DoPhysics(double previous_time, double current_time) {

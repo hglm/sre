@@ -471,8 +471,9 @@ void sreModel::CalculateBounds() {
             bv_special.ellipsoid = new sreBoundingVolumeEllipsoid;
             *bv_special.ellipsoid = ellipsoid;
             best_volume = volume_ellipsoid;
-            if (sre_internal_debug_message_level >= 2)
-                printf("Bounding ellipsoid provides smallest bounding volume of %f.\n", volume_ellipsoid);
+            sreMessage(SRE_MESSAGE_LOG,
+                "Bounding ellipsoid provides smallest bounding volume of %f.",
+                volume_ellipsoid);
         }
         else if (volume_cylinder < 0.99f * best_volume &&
         (best_volume - volume_cylinder) > EPSILON2) {
@@ -481,8 +482,9 @@ void sreModel::CalculateBounds() {
             bv_special.cylinder = new sreBoundingVolumeCylinder;
             *bv_special.cylinder = cylinder;
             best_volume = volume_cylinder;
-            if (sre_internal_debug_message_level >= 2)
-                printf("Bounding cylinder provides smallest bounding volume of %f.\n", volume_cylinder);
+            sreMessage(SRE_MESSAGE_LOG,
+                "Bounding cylinder provides smallest bounding volume of %f.",
+                volume_cylinder);
         }
     }
     CalculateAABB();
@@ -533,7 +535,7 @@ void sreModel::SetOBBWithAABBBounds(const sreBoundingVolumeAABB& _AABB) {
     bounds_flags = SRE_BOUNDS_PREFER_BOX;
 }
 
-void sreModel::SetBoundingCapsule(const sreBoundingVolumeCapsule& capsule) {
+void sreModel::SetBoundingCollisionShapeCapsule(const sreBoundingVolumeCapsule& capsule) {
     special_collision_shape = new sreBoundingVolume;
     special_collision_shape->capsule = new sreBoundingVolumeCapsule;
     special_collision_shape->type = SRE_BOUNDING_VOLUME_CAPSULE;

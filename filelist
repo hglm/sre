@@ -42,6 +42,7 @@ sre/opengl-x11.cpp
 sre/preprocess.cpp
 sre/random.cpp
 sre/read_model_file.cpp
+sre/rng-cmwc.cpp
 sre/scene.cpp
 sre/shader_loading.cpp
 sre/shader_matrix.cpp

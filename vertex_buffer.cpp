@@ -180,7 +180,7 @@ Vector4D *positions, bool shadow) {
     glBindBuffer(GL_ARRAY_BUFFER, GL_interleaved_buffer);
     glBufferData(GL_ARRAY_BUFFER, buffer_size, buffer, GL_STATIC_DRAW);
     if (glGetError() != GL_NO_ERROR)
-        sreFatalError("Error executing glBufferData\n");
+        sreFatalError("Error executing glBufferData.");
     // Set the model OpenGL buffer IDs for the attributes, all referring to the
     // same interleaved vertex buffer.
     for (int i = 0; i < SRE_NU_VERTEX_ATTRIBUTES; i++)
@@ -219,13 +219,13 @@ static bool OnlyOneAttributeSet(int attribute_mask) {
 // already initalized (shared) attributes plus the attributes in attribute_mask (which
 // will be newly allocated) is equal to sreLODObject::flags.
 
-void sreLODModel::InitVertexBuffers(int attribute_mask, int dynamic_flags) {
+void sreLODModel::UploadToGPU(int attribute_mask, int dynamic_flags) {
     // Check that all attributes defined in attribute_mask are present in the model
     // (enabled in sreBaseModel::flags).
     if ((attribute_mask & flags) != attribute_mask)
-        sreFatalError("Error (GL3InitVertexBuffers): Not all requested attributes are present the base model.");
+        sreFatalError("Error (sreLODModel::UploadToGPU): Not all requested attributes are present the base model.");
     if (attribute_mask == 0)
-        sreFatalError("Error (GL3InitVertexBuffers): attribute_mask = 0 (unexpected).");
+        sreFatalError("Error (sreLODModel::UploadToGPU): attribute_mask = 0 (unexpected).");
 
     // This is not the best place to initialize this table (which is used when drawing objects).
     if (!attribute_list_table_initialized)
@@ -317,7 +317,7 @@ finish :
         delete [] positions_4D;
 
     sreMessage(SRE_MESSAGE_LOG,
-        "GL3InitVertexBuffers: Uploading model %d, attribute_mask 0x%02X.\n",
+        "sreLODModel::UploadToGPU: Uploading model %d, attribute_mask 0x%02X.",
         id, attribute_mask);
 
     // If the model is in any way instanced (at least one attribute shared), then we can
@@ -360,7 +360,7 @@ copy_indices:
         GL_indexsize = 2;
         sreMessage(SRE_MESSAGE_LOG,
             "Less or equal to %d vertices in object (including extruded shadow vertices), "
-            "using 16-bit indices.\n", max_short_index + 1);
+            "using 16-bit indices.", max_short_index + 1);
     }
     // Upload triangle vertex indices.
     glGenBuffers(1, &GL_element_buffer);
@@ -381,8 +381,20 @@ calculate_edges :
         model_shadow_volume->CalculateEdges();
     else
         sreMessage(SRE_MESSAGE_WARNING,
-            "Warning: GL3InitVertexBuffers: edges already calculated "
-            "(shouldn't happen).\n");
+            "Warning: sreLODModel::UploadToGPU: edges already calculated "
+            "(shouldn't happen).");
+}
+
+void sreLODModel::DeleteFromGPU() {
+    // Check the uninterleaved and up to three interleaved attribute masks.
+    unsigned int mask = attribute_info.attribute_masks;
+    for (int i = 0; i < 4; i++) {
+         for (int j = 0; j < SRE_NU_VERTEX_ATTRIBUTES; j++)
+             if ((mask & instance_flags) & (1 << j))
+                 glDeleteBuffers(1, &GL_attribute_buffer[i]);
+         mask >>= 8;
+    }
+    glDeleteBuffers(1, &GL_element_buffer);
 }
 
 // Billboarding (dynamic vertex buffers). Note that the vertex attribute for the

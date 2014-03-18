@@ -246,8 +246,9 @@ void GUITextMessageTimeoutCallback() {
 void GUIKeyPressCallback(unsigned int key) {
     switch (key) {
     case 'Q' :
-        sre_internal_backend->Finalize();
-        exit(0);
+        sre_internal_application->stop_signal = SRE_APPLICATION_STOP_SIGNAL_QUIT;
+//        sre_internal_backend->Finalize();
+//        exit(0);
         break;
     case 'F' :
         sre_internal_backend->GLSync();

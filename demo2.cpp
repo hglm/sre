@@ -156,9 +156,9 @@ void Demo2CreateScene(sreScene *scene, sreView *view) {
     cylinder_model->SetLODModelFlags(SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT);
     for (int i = 0; i < 30; i++) {
        Color color = Color(
-           (float)rand() / RAND_MAX * 0.8 + 0.2,
-           (float)rand() / RAND_MAX * 0.8 + 0.2,
-           (float)rand() / RAND_MAX * 0.8 + 0.2
+           rng->RandomFloat(1.0f) * 0.8 + 0.2,
+           rng->RandomFloat(1.0f) * 0.8 + 0.2,
+           rng->RandomFloat(1.0f) * 0.8 + 0.2
            );
         for (int j = 0; j < 50; j++) {
             float x = cosf((j / 50.0 + (i & 1) * 0.5) * 2.0 * M_PI) * (i * 100.0 + 200.0);
@@ -170,7 +170,7 @@ void Demo2CreateScene(sreScene *scene, sreView *view) {
             scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 2.0f, 0);
             scene->AddObject(cylinder_model, x, y, 0, 0, 0, 0, 2.0f);
             scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 1.0f, 0);
-            if ((float)rand() / RAND_MAX < 0.05) {
+            if (rng->RandomFloat(1.0f) < 0.05) {
                 int k = rand() & 3;
                 Color light_color = light_color_array[k];
                 scene->SetEmissionColor(light_object_color_array[k]);

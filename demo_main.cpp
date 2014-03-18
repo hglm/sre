@@ -165,10 +165,16 @@ int main(int argc, char **argv) {
                 break;
             }
         }
-    else
-        sreFatalError("No demo name specified.");
-    if (demo_index < 0 || demo_index >= NU_DEMOS)
-        sreFatalError("Invalid demo name.");
+    else {
+        sreMessage(SRE_MESSAGE_INFO, "No demo name specified.");
+        sreFinalizeApplication(app);
+        exit(1);
+    }
+    if (demo_index < 0 || demo_index >= NU_DEMOS) {
+        sreMessage(SRE_MESSAGE_INFO, "Invalid demo name.");
+        sreFinalizeApplication(app);
+        exit(1);
+    }
     
     if (demo_index == 6 || demo_index == 0) {
         app->view->SetViewModeLookAt(Point3D(0, - 60.0, 40.0), Point3D(0, 140.0, 0),
@@ -190,5 +196,6 @@ int main(int argc, char **argv) {
     app->control_object = 0;
 
     sreRunApplication(app);
+    sreFinalizeApplication(app);
     exit(0);
 }

@@ -379,7 +379,7 @@ void GameApplication::StepBeforeRender(double demo_time) {
         break;
     }
     if (demo_time >= timeout)
-        stop_signalled = true;
+        stop_signal = SRE_APPLICATION_STOP_SIGNAL_CUSTOM;
 }
 
 void GameApplication::StepBeforePhysics(double demo_time) {
@@ -434,11 +434,12 @@ static void RunGame(GameApplication *app) {
         success = false;
         timeout = DBL_MAX;
         app->view->SetViewAngles(Vector3D(0, 0, 0));
-        sreMainLoop(app, SRE_PREPARE_UPLOAD_NO_MODELS);
+        sreRunApplication(app);
+        scene->ClearObjectsAndLights();
+        if (app->stop_signal & SRE_APPLICATION_STOP_SIGNAL_QUIT)
+            break;
         if (success)
             level++;
-        app->DestroyPhysics();
-        scene->Clear();
     }
 }
 
@@ -447,11 +448,15 @@ int main(int argc, char **argv) {
     sreInitializeApplication(app, &argc, &argv);
     scene = app->scene;
 
-    app->SetFlags(app->GetFlags() & (~SRE_APPLICATION_FLAG_JUMP_ALLOWED));
+    app->SetFlags((app->GetFlags() | SRE_APPLICATION_FLAG_UPLOAD_NO_MODELS)
+        & (~SRE_APPLICATION_FLAG_JUMP_ALLOWED));
     app->view->SetViewModeFollowObject(0, 40.0, Vector3D(0, 0, 10.0));
     app->view->SetMovementMode(SRE_MOVEMENT_MODE_STANDARD);
     // Provide double the horizontal impulse (higher mass).
     app->horizontal_acceleration = 200.0f;
 
     RunGame(app);
+
+    sreFinalizeApplication(app);
+    exit(0);
 }

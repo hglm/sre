@@ -256,15 +256,17 @@ public :
 
 // Generalized bounding volume. Used for shadow volumes.
 
-enum sreBoundingVolumeType { SRE_BOUNDING_VOLUME_EMPTY,
+enum sreBoundingVolumeType {
+    SRE_BOUNDING_VOLUME_UNDEFINED, SRE_BOUNDING_VOLUME_EMPTY,
     SRE_BOUNDING_VOLUME_EVERYWHERE, SRE_BOUNDING_VOLUME_SPHERE,
-    SRE_BOUNDING_VOLUME_ELLIPSOID, SRE_BOUNDING_VOLUME_CYLINDER,
-    SRE_BOUNDING_VOLUME_PYRAMID, SRE_BOUNDING_VOLUME_PYRAMID_CONE,
-    SRE_BOUNDING_VOLUME_SPHERICAL_SECTOR, SRE_BOUNDING_VOLUME_HALF_CYLINDER,
-    SRE_BOUNDING_VOLUME_CAPSULE,
+    SRE_BOUNDING_VOLUME_ELLIPSOID, SRE_BOUNDING_VOLUME_BOX,
+    SRE_BOUNDING_VOLUME_CYLINDER,
     // A bounding volume of the following type is assumed to be of the type
     // sreBoundingVolumeConvexHullConfigurable.
-    SRE_BOUNDING_VOLUME_CONVEX_HULL
+    SRE_BOUNDING_VOLUME_CONVEX_HULL,
+    SRE_BOUNDING_VOLUME_PYRAMID, SRE_BOUNDING_VOLUME_PYRAMID_CONE,
+    SRE_BOUNDING_VOLUME_SPHERICAL_SECTOR, SRE_BOUNDING_VOLUME_HALF_CYLINDER,
+    SRE_BOUNDING_VOLUME_CAPSULE
 };
 
 class sreBoundingVolume {
@@ -276,18 +278,19 @@ public :
     sreBoundingVolumeEllipsoid *ellipsoid;
     sreBoundingVolumeBox *box;
     sreBoundingVolumeCylinder *cylinder;
-    sreBoundingVolumeConvexHullFull *convex_hull;
+    sreBoundingVolumeConvexHullFull *convex_hull_full;
+    // The configurable convex hull includes plane definitions (vertex lists).
+    sreBoundingVolumeConvexHullConfigurable *convex_hull_configurable;
     sreBoundingVolumePyramid *pyramid;
     sreBoundingVolumePyramidCone *pyramid_cone;
     sreBoundingVolumeSphericalSector *spherical_sector;
-    // The configurable convex hull includes plane definitions (vertex lists).
-    sreBoundingVolumeConvexHullConfigurable *convex_hull_configurable;
     sreBoundingVolumeHalfCylinder *half_cylinder;
     sreBoundingVolumeCapsule *capsule;
     };
 
-    ~sreBoundingVolume();
     sreBoundingVolume() { }
+    ~sreBoundingVolume();
+    void Clear(); 
     // Only the bounding volume types relevant to shadow volumes are fully implemented.
     void SetEmpty();
     void SetEverywhere();

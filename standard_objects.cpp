@@ -1328,7 +1328,7 @@ sreModel *sreCreateCapsuleModel(sreScene *scene, float cap_radius, float length,
     capsule.radius_z = radius_z;
     capsule.center.Set(0, 0, 0);
     capsule.axis.Set(1.0, 0, 0);
-    m->SetBoundingCapsule(capsule);
+    m->SetBoundingCollisionShapeCapsule(capsule);
     scene->RegisterModel(m);
     return m;
 }

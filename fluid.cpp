@@ -147,6 +147,44 @@ void sreFluid::CreateDisturbance(int x, int y, float z) {
     }
 }
 
+sreLODModelFluid::sreLODModelFluid() {
+    flags = SRE_LOD_MODEL_IS_FLUID_MODEL;
+}
+
+sreLODModelFluid::~sreLODModelFluid() {
+    delete fluid;
+}
+
+void sreLODModelFluid::Evaluate() {
+    // Update the fluid state.
+    fluid->Evaluate();
+    // Update vertex buffers.
+    // Since the vertex buffer has four-dimensions vertices, we have to convert from the
+    // fluid state's three-dimensional vertices.
+    float *fvertices = new float[nu_vertices * 4];
+    Vector3D *vert = fluid->buffer[fluid->renderBuffer];
+    for (int i = 0; i < nu_vertices; i++) {
+        fvertices[i * 4] = vert[i].x;
+        fvertices[i * 4 + 1] = vert[i].y;
+        fvertices[i * 4 + 2] = vert[i].z;
+        fvertices[i * 4 + 3] = 1.0;
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
+    glBufferData(GL_ARRAY_BUFFER, nu_vertices * sizeof(float) * 4, &fvertices[0], GL_DYNAMIC_DRAW);
+    delete fvertices;
+    // Update normals.
+    glBindBuffer(GL_ARRAY_BUFFER, GL_attribute_buffer[SRE_ATTRIBUTE_NORMAL]);
+    glBufferData(GL_ARRAY_BUFFER, nu_vertices * sizeof(float) * 3, fluid->normal, GL_DYNAMIC_DRAW);
+}
+
+void sreEvaluateModelFluid(sreModel *m) {
+    ((sreLODModelFluid *)m->lod_model[0])->Evaluate();
+}
+
+void sreCreateModelFluidDisturbance(sreModel *m, int x, int y, float z) {
+    ((sreLODModelFluid *)m->lod_model[0])->fluid->CreateDisturbance(x, y, z);
+}
+
 #define mesh(x, y) ((y) * (width + 1) + (x)) 
 
 // Create fluid mesh, width and height must be multiple of 2.
@@ -160,7 +198,7 @@ sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d, f
         sreFatalError("Fluid t parameter out of range.\n");
     }
     sreModel *m = new sreModel;
-    sreLODModel *lm = sreNewLODModelNoShadowVolume();
+    sreLODModelFluid *lm = new sreLODModelFluid;
     m->lod_model[0] = lm;
     m->nu_lod_levels = 1;
     // Create object vertices and triangles.
@@ -187,9 +225,12 @@ sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d, f
             lm->triangle[i + 7].AssignVertices(mesh(x + 1, y + 1), mesh(x + 2, y + 2), mesh(x + 1, y + 2));
             i += 8;
         }
-    lm->flags = SRE_POSITION_MASK | SRE_TEXCOORDS_MASK | SRE_LOD_MODEL_VERTEX_BUFFER_DYNAMIC;
+    lm->fluid = new sreFluid(width + 1, height + 1, d, t, c, mu);
+    lm->flags = SRE_POSITION_MASK | SRE_TEXCOORDS_MASK | SRE_LOD_MODEL_VERTEX_BUFFER_DYNAMIC |
+        SRE_LOD_MODEL_IS_FLUID_MODEL;
     lm->vertex_normal = new Vector3D[lm->nu_vertices];
     lm->CalculateNormals(); // Will set SRE_NORMAL_MASK.
+    // Bounding box z extent should depend on parameters (fix me).
     sreBoundingVolumeAABB AABB;
     AABB.dim_min = Vector3D(0, 0, - 2.0f);
     AABB.dim_max = Vector3D(width * d, height * d, 2.0f);
@@ -199,30 +240,6 @@ sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d, f
     scene->RegisterModel(m);
     m->collision_shape_static = SRE_COLLISION_SHAPE_STATIC;
     m->collision_shape_dynamic = SRE_COLLISION_SHAPE_STATIC; 
-    m->fluid = new sreFluid(width + 1, height + 1, d, t, c, mu);
     return m;
-}
-
-void sreEvaluateModelFluid(sreModel *m) {
-    sreLODModel *lm = m->lod_model[0];
-    // Update the fluid state.
-    m->fluid->Evaluate();
-    // Update vertex buffers.
-    // Since the vertex buffer has four-dimensions vertices, we have to convert from the fluid state's
-    // three-dimensional vertices.
-    float *fvertices = new float[lm->nu_vertices * 4];
-    Vector3D *vert = m->fluid->buffer[m->fluid->renderBuffer];
-    for (int i = 0; i < lm->nu_vertices; i++) {
-        fvertices[i * 4] = vert[i].x;
-        fvertices[i * 4 + 1] = vert[i].y;
-        fvertices[i * 4 + 2] = vert[i].z;
-        fvertices[i * 4 + 3] = 1.0;
-    }
-    glBindBuffer(GL_ARRAY_BUFFER, lm->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
-    glBufferData(GL_ARRAY_BUFFER, lm->nu_vertices * sizeof(float) * 4, &fvertices[0], GL_DYNAMIC_DRAW);
-    delete fvertices;
-    // Update normals.
-    glBindBuffer(GL_ARRAY_BUFFER, lm->GL_attribute_buffer[SRE_ATTRIBUTE_NORMAL]);
-    glBufferData(GL_ARRAY_BUFFER, lm->nu_vertices * sizeof(float) * 3, m->fluid->normal, GL_DYNAMIC_DRAW);
 }
 

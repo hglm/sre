@@ -25,6 +25,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sreBackend.h"
 #include "demo.h"
 
+static sreRNG *rng;
 static int lightsource_object_index[2];
 
 #if defined(OPENGL)
@@ -33,6 +34,8 @@ static int lightsource_object_index[2];
 #define HALO_LIGHT
 
 void Demo5CreateScene(sreScene *scene, sreView *view) {
+    rng = sreGetDefaultRNG();
+
     // Set diffuse fraction to 0.6 and two roughness values of 0.1 and 0.25 with weight 0.4 and 0.6,
     // isotropic.
     scene->SetMicrofacetParameters(0.6, 0.1, 0.4, 0.25, 0.6, false);
@@ -90,9 +93,9 @@ void Demo5CreateScene(sreScene *scene, sreView *view) {
             float wz = 2;
             int h = rand() % 4 + 1;
             for (int z = 0; z < h; z++) {
-                c.r = (float)rand() / RAND_MAX;
-                c.g = (float)rand() / RAND_MAX;
-                c.b = (float)rand() / RAND_MAX;
+                c.r = rng->RandomFloat(1.0f);
+                c.g = rng->RandomFloat(1.0f);
+                c.b = rng->RandomFloat(1.0f);
                 scene->SetColor(c);
 		scene->SetNormalMap(donut_normalmap[rand() & 0]);
                 i = scene->AddObject(torus_model, wx, wy, wz + z * TORUS_RADIUS2 * 2, 0, 0, 0, 1);
@@ -131,9 +134,9 @@ void Demo5CreateScene(sreScene *scene, sreView *view) {
     scene->SetNormalMap(wall_normals);
     for (int i = 0; i < 20; i++) {
         Color *color = new Color;
-        color->r = (float)rand() / RAND_MAX;
-        color->g = (float)rand() / RAND_MAX;
-        color->b = (float)rand() / RAND_MAX;
+        color->r = rng->RandomFloat(1.0f);
+        color->g = rng->RandomFloat(1.0f);
+        color->b = rng->RandomFloat(1.0f);
         scene->SetColor(color);
         int j = scene->AddObject(torus_model, x, y, z, 0, 0, 0, size);
         scene->sceneobject[j]->destructable = false;
@@ -202,9 +205,9 @@ void Demo5CreateScene(sreScene *scene, sreView *view) {
     // Add a lot of towers at great distance.
     sreModel *tower_model = sreCreateBlockModel(scene, 50, 50, 500);
     for (int i = 0; i < 100; i++) {
-        c.r = (float)rand() / RAND_MAX;
-        c.g = (float)rand() / RAND_MAX;
-        c.b = (float)rand() / RAND_MAX;
+        c.r = rng->RandomFloat(1.0f);
+        c.g = rng->RandomFloat(1.0f);
+        c.b = rng->RandomFloat(1.0f);
         scene->SetColor(c);
         float x = (float)rand() * 10000 / RAND_MAX - 5000;
         float y = (float)rand() * 10000 / RAND_MAX - 5000;

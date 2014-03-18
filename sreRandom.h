@@ -16,8 +16,46 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 */
 
-#include <stdio.h>   // Debugging.
+#ifndef __SRE_RANDOM_H__
+#define __SRE_RANDOM_H__
+
+// Generic helper definitions for shared library support
+#if defined _WIN32 || defined __CYGWIN__
+  #define SRE_RANDOM_HELPER_SHARED_IMPORT __declspec(dllimport)
+  #define SRE_RANDOM_HELPER_SHARED_EXPORT __declspec(dllexport)
+  #define SRE_RANDOM_HELPER_SHARED_LOCAL
+#else
+  #if __GNUC__ >= 4
+    #define SRE_RANDOM_HELPER_SHARED_IMPORT __attribute__ ((visibility ("default")))
+    #define SRE_RANDOM_HELPER_SHARED_EXPORT __attribute__ ((visibility ("default")))
+    #define SRE_RANDOM_HELPER_SHARED_LOCAL  __attribute__ ((visibility ("hidden")))
+  #else
+    #define SRE_RANDOM_HELPER_SHARED_IMPORT
+    #define SRE_RANDOM_HELPER_SHARED_EXPORT
+    #define SRE_RANDOM_HELPER_SHARED_LOCAL
+  #endif
+#endif
+
+// Now we use the generic helper definitions above to define SRE_RANDOM_API and SRE_RANDOM_LOCAL.
+// SRE_RANDOM_API is used for the public API symbols. It either DLL imports or DLL exports (or does nothing
+// for static build). SRE_RANDOM_LOCAL is used for non-api symbols.
+
+#ifdef SRE_RANDOM_SHARED
+  // Defined if SRE is compiled as a shared library/DLL.
+  #ifdef SRE_RANDOM_SHARED_EXPORTS
+  // Defined if we are building the SRE shared library (instead of using it).
+    #define SRE_RANDOM_API SRE_RANDOM_HELPER_SHARED_EXPORT
+  #else
+    #define SRE_RANDOM_API SRE_RANDOM_HELPER_SHARED_IMPORT
+  #endif // SRE_RANDOM_SHARED_EXPORTS
+  #define SRE_RANDOM_LOCAL SRE_RANDOM_HELPER_SHARED_LOCAL
+#else // SRE_RANDOM_SHARED is not defined: this means SRE is a static lib.
+  #define SRE_RANDOM_API
+  #define SRE_RANDOM_LOCAL
+#endif // SRE_RANDOM_SHARED
+
 #include <stdint.h>  // For uint64_t.
+#include <math.h>
 #include <limits.h>  // For __WORDSIZE.
 #include <float.h>   // For DBL_MAX.
 
@@ -59,8 +97,22 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 //     two less than or equal to 2 ^ 16.
 // unsigned int RandomIntPowerOfTwoRepeat()
 //     Repeat random integer function with the last power of two range previously
-//     used in any of the RandomInt functions above, or the specialized functions
+//     used in any of the RandomInt functions above, or the specialized function
 //     below. This the fastest of the random integer functions.
+// void RandomIntPowerOfTwoPrepareForRepeat(unsigned int n)
+//     Prepare for power of two range so that it is cached, but do not return any
+//     random number yet.
+// unsigned int RandomIntGeneralRepeat()
+//     Repeat random integer function with the general range previously set
+//     with RandomIntGeneralPrepareForRepeat().
+// void RandomIntGeneralPrepareForRepeat(unsigned int n)
+//     Prepare for general range (either a power of two or not) so that it is cached,
+//     but do not return any random number yet. Only RandomIntGeneralRepeat() will use
+//     the cached information.
+// int CalculateLog2(int n)
+//     Efficiently calculate floor(log2(n)), valid for n >= 1.
+// int CalculatePowerOfTwoShift(int n)
+//     Efficiently calculate log2(n), returns - 1 if n is not a power of two.
 //
 // Floating point core functions:
 //
@@ -88,8 +140,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 //     Return a random double from 0 to range (exclusive) with very high precision.
 //     A higher degree of precision can be achieved when the range is large
 //     (much larger than 1.0, so that the return value can have higher effective
-//     precision). This functions is relatively slow because it uses natural
-//     exponent and logarithm calculations.
+//     precision). This functions can be slower because it uses natural
+//     exponent and logarithm calculations, but on PC-class CPUs the difference
+//     is not large (helped by inlining and thereby allowing the compiler to
+//     optimize scheduling by mixing integer and floating point instructions).
 // double RandomDoubleLP(float range)
 //     Return a random double from 0 to range (exclusive) with low precision.
 //     A precision of 32 bits is applied within the range.
@@ -132,14 +186,16 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 //
 // unsigned int RandomIntEmpirical(unsigned int n)
 //     RandomInt() that will use the empirical strategy for ranges that are not
-//     a power of two (see below). Detects powers of two.
+//     a power of two (see below). Detects powers of two. Only available when
+//     the empirical strategy is included.
 // unsigned int RandomIntRemainder(unsigned int n)
 //     RandomInt() that will use the remainder strategy for ranges that are not
-//     a power of two. Detects powers of two.
+//     a power of two. Detects powers of two. Only available if the emperical
+//     strategy is included.
 // unsigned int RandomIntRemainderDirect(unsigned int n)
 //     Trivial RandomInt() variant that directly uses the remainder
-//     after division of a 32-bit random integer by the range. This is only
-//     RandomInt() version that does not cache a power of two range.
+//     after division of a 32-bit random integer by the range. This is one of
+//     the few RandomInt() version that does not cache a power of two range.
 //
 // sreCMWCRNG::sreCMWCRNG()
 //     Constructor for the default complement-multiply-with-carry RNG
@@ -175,7 +231,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // more so when the number of random bits of the remainder input is not
 // sufficiently higher than the number of bits required for the random
 // integer range. Integer divide/ remainder is also notoriously slow even
-// on modern CPUs.
+// on modern CPUs. It is disabled by default.
 
 // The following defines the strategy used by default by the general RandomInt(n)
 // family of functions. One line must be uncommented.
@@ -191,12 +247,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // uncommented.
 #define SRE_RANDOM_INT_INCLUDE_EMPIRICAL_STRATEGY
 // #define SRE_RANDOM_INT_INCLUDE_REMAINDER_STRATEGY
-
-// The SRE_RANDOM_CACHE_NON_POWER_OF_TWO option enables caching the bit shift
-//  of non-powers-of-two when SRE_RANDOM_INT EMPIRICAL is enabled. It seems to
-// degrade performance instead of improving it.
-
-// #define SRE_RANDOM_CACHE_NON_POWER_OF_TWO
 
 // Two strategies are provided for determining whether an integer range value
 // is power of two, and concurrently determining the highest order bit that
@@ -307,7 +357,7 @@ static void ValidateBitsNeeded(unsigned int n, unsigned int n_bits) {
 extern const unsigned char sre_internal_random_table[257] SRE_ALIGNED(256);
 #endif
 
-class SRE_API  SRE_PACKED sreRNG {
+class SRE_RANDOM_API  SRE_PACKED sreRNG {
 private :
 #if SRE_STORAGE_SIZE == 64
     // 64 bits of storage.
@@ -318,18 +368,14 @@ private :
 #endif
     // The last power of two, for which the shift has been cached.
     unsigned int last_power_of_two;
-#ifdef SRE_RANDOM_CACHE_NON_POWER_OF_TWO
     // The last non-power of two, for which the shift has been cached.
-#endif
-    unsigned int last_non_power_of_two;
+    unsigned int last_general_range;
     // Number of bits in storage (0 to 31/63).
     unsigned char storage_size;
     // The bit shift corresponding to the last power of two (log2(n)).
     unsigned char last_power_of_two_shift;
-#ifdef SRE_RANDOM_CACHE_NON_POWER_OF_TWO
     // The bit shift corresponding to the last non-power of two (log2(n - 1) + 1).
-    unsigned char last_non_power_of_two_shift;
-#endif
+    unsigned char last_general_range_shift;
 
     // Constructor and virtual functions.
 public :
@@ -350,18 +396,16 @@ private :
     inline int GetLastPowerOfTwoShift() const {
         return last_power_of_two_shift;
     }
-#ifdef SRE_RANDOM_CACHE_NON_POWER_OF_TWO
-    inline void SetLastNonPowerOfTwoData(unsigned int n, unsigned int shift) {
-        last_non_power_of_two = n;
-        last_non_power_of_two_shift = shift;
+    inline void SetLastGeneralRangeData(unsigned int n, unsigned int shift) {
+        last_general_range = n;
+        last_general_range_shift = shift;
     }
-    inline unsigned int GetLastNonPowerOfTwo() const {
-        return last_non_power_of_two;
+    inline unsigned int GetLastGeneralRange() const {
+        return last_general_range;
     }
-    inline int GetLastNonPowerOfTwoShift() const {
-        return last_non_power_of_two_shift;
+    inline int GetLastGeneralRangeShift() const {
+        return last_general_range_shift;
     }
-#endif
 
 #ifdef SRE_RANDOM_LOG2_LOOKUP_TABLE
     // The following lookup table functions do not actually belong in the
@@ -436,6 +480,7 @@ private :
     unsigned int GetBitsNeededLookupTableMax65536(unsigned int n);
 #endif
 #ifdef SRE_RANDOM_CALCULATE_LOG2
+public :
     // Calculate floor(log2(n))). For a power of two, this is equivalent to the
     // number of bits needed to represent the range 0 to n - 1. For a non-power-of-two,
     // the return value is one less than the number of bits needed to represent
@@ -464,6 +509,7 @@ private :
         shift += bits >> 1;
         return shift;
     }
+private :
     // Calculate number of bits needed for an integer range of n (log2(n - 1) + 1).
     inline unsigned int CalculateBitsNeeded(unsigned int n) const {
         unsigned int shift = CalculateLog2(n);
@@ -538,47 +584,6 @@ private :
         VALIDATE_BITS_NEEDED(n, shift);
 	return shift;
     }
-#if 0
-    // Calculate number of bits needed (log2(n - 1) + 1) algebraically instead of
-    // using a lookup table. Despite the fair number of terms, the resulting
-    // code surprisingly efficient on most CPUs as the compiler is able to
-    // significantly optimize both complexity and instruction scheduling; the lack
-    // of branches is critical.
-    // Old, non-optimal implementation (disabled).
-    inline unsigned int CalculateBitsNeeded(unsigned int n) const {
-        // Calculate which bytes of n holds bits.
-        unsigned char byte3_flag = (((((n >> 24) & 0xFF) + 0xFF) & 0x100) >> 8);
-        unsigned char nu_bytes = byte3_flag * 4;
-        unsigned char mask_bit = byte3_flag ^ 1;
-        unsigned char byte2_flag = (((((n >> 16) & 0xFF) + 0xFF) & 0x100) >> 8);
-        nu_bytes += (byte2_flag & mask_bit) * 3;
-        mask_bit &= byte2_flag ^ 1;
-        unsigned char byte1_flag = (((((n >> 8) & 0xFF) + 0xFF) & 0x100) >> 8);
-        nu_bytes += (byte1_flag & mask_bit) * 2;
-        mask_bit &= byte1_flag ^ 1;
-        // The lowest byte must be non-zero if mask_bit is 1.
-        nu_bytes += mask_bit;
-//        unsigned char byte0_flag = ((((n & 0xFF) + 0xFF) & 0x100) >> 8);
-//        byte_count += byte0_flag & mask_bit;
-        unsigned int shift = nu_bytes * 8;
-        unsigned char highest_byte = n >> (shift - 8);
-        // Assign four to nibble if bits 4-7 are non-zero, zero otherwise.
-        unsigned char nibble = ((((highest_byte >> 4) + 0xF) & 0x10) >> 2);
-        // Assign two to pair if bits 2-3 within the highest nibble are non-zero.
-        unsigned char pair = ((((highest_byte >> nibble) + 0xC) & 0x10) >> 3);
-        // Assign one of the highest bit witin the highest-order bit pair is non-zero.
-        unsigned char bit = (highest_byte >> (nibble + pair + 1));
-//        printf("Bit offsets: byte %d, nibble %d, pair %d, bit %d\n",
-//            shift, nibble, pair, bit);
-        // If bit is 1, subtract 1, otherwise the lower order bit within the pair
-        // must be 1, so subtract 2.
-        shift -= (4 - nibble) + (2 - pair) + (2 - bit);
-         // Additionally, if n is not a power of two, one more bit is needed.
-        shift += (n + ((1 << shift) - 1)) >> (shift + 1);
-        VALIDATE_BITS_NEEDED(n, shift);
-	return shift;
-    }
-#endif
 #endif
 
     // Helper functions.
@@ -681,12 +686,6 @@ public :
             return RandomBits(shift);
         }
         unsigned int shift;
-#ifdef SRE_RANDOM_CACHE_NON_POWER_OF_TWO
-        if (n == GetLastNonPowerOfTwo()) {
-            shift = GetLastNonPowerOfTwoShift();
-        }
-        else
-#endif
         {
 #ifdef SRE_RANDOM_CALCULATE_LOG2
             shift = CalculateBitsNeeded(n);
@@ -697,9 +696,6 @@ public :
                 SetLastPowerOfTwoData(n, shift);
                 return RandomBits(shift);
             }
-#ifdef SRE_RANDOM_CACHE_NON_POWER_OF_TWO
-            SetLastNonPowerOfTwoData(n, shift);
-#endif
         }
         for (;;) {
             // Keep trying until the value is within the range.
@@ -714,12 +710,6 @@ public :
             return RandomBits(shift);
         }
         unsigned int shift;
-#ifdef SRE_RANDOM_CACHE_NON_POWER_OF_TWO
-        if (n == GetLastNonPowerOfTwo()) {
-            shift = GetLastNonPowerOfTwoShift();
-        }
-        else
-#endif
         {
 #ifdef SRE_RANDOM_CALCULATE_LOG2
             shift = CalculateBitsNeededMax256(n);
@@ -730,9 +720,6 @@ public :
                 SetLastPowerOfTwoData(n, shift);
                 return RandomBits(shift);
             }
-#ifdef SRE_RANDOM_CACHE_NON_POWER_OF_TWO
-            SetLastNonPowerOfTwoData(n, shift);
-#endif
         }
         for (;;) {
             // Keep trying until the value is within the range.
@@ -747,12 +734,6 @@ public :
             return RandomBits(shift);
         }
         unsigned int shift;
-#ifdef SRE_RANDOM_CACHE_NON_POWER_OF_TWO
-        if (n == GetLastNonPowerOfTwo()) {
-            shift = GetLastNonPowerOfTwoShift();
-        }
-        else
-#endif
         {
 #ifdef SRE_RANDOM_CALCULATE_LOG2
             shift = CalculateBitsNeededMax65536(n);
@@ -763,9 +744,6 @@ public :
                 SetLastPowerOfTwoData(n, shift);
                 return RandomBits(shift);
             }
-#ifdef SRE_RANDOM_CACHE_NON_POWER_OF_TWO
-            SetLastNonPowerOfTwoData(n, shift);
-#endif
         }
         for (;;) {
             // Keep trying until the value is within the range.
@@ -860,9 +838,43 @@ public :
        SetLastPowerOfTwoData(1 << shift, shift);
        return RandomBits(shift);
     }
-    // Repeat random integer function with the previously used power of two range.
+    // Repeat random integer function with the previously used power of two range
+    // (with any integer function).
     inline unsigned int RandomIntPowerOfTwoRepeat() {
         return RandomBits(GetLastPowerOfTwoShift());
+    }
+    // Prepare for power of two range so that it is cached, but do not return any
+    // random number yet.
+    inline void RandomIntPowerOfTwoPrepareForRepeat(unsigned int n) {
+        if (n == GetLastPowerOfTwo())
+		return;
+	int shift = CalculateLog2(n);
+        SetLastPowerOfTwoData(n, shift);
+    }
+    // Repeat random integer function with the general range previously set
+    // with RandomIntGeneralPrepareForRepeat().
+    inline unsigned int RandomIntGeneralRepeat() {
+        for (;;) {
+            // Keep trying until the value is within the range.
+            unsigned int r = RandomBits(GetLastGeneralRangeShift());
+            if (r < GetLastGeneralRange())
+                return r;
+        }
+    }
+    // Prepare for general range (either a power of two or not) so that it is cached,
+    // but do not return any random number yet.
+    inline void RandomIntGeneralPrepareForRepeat(unsigned int n) {
+        if (n == GetLastGeneralRange())
+            return;
+        int shift = CalculateBitsNeeded(n);
+        SetLastGeneralRangeData(n, shift);
+    }
+    // Efficiently calculate log2(n), returns - 1 if n is not a power of two.
+    inline int CalculatePowerOfTwoShift(unsigned int n) {
+	unsigned int shift = CalculateLog2(n);
+	if (((unsigned int)1 << shift) == n)
+		return shift;
+	return - 1;
     }
 
     // Floating point functions (all inline).
@@ -903,9 +915,9 @@ public :
     // precision).
     double RandomDoubleHP(double range) {
         if (range <= 1.00001d)
-            // When range <= 1.0, the standard high-precision function is already
+            // When range <= 1.0, the standard function is already
             // optimal.
-            return RandomDoubleHP(range);
+            return RandomDouble(range);
         const double high_value = DBL_MAX;
         // Use the identity exp(x + y) = exp(x) * exp(y).
         // Scale the 32 bit random integers r0 and r1 so that
@@ -964,6 +976,8 @@ public :
     void CalculateRandomOrder(unsigned int *order, unsigned int n);
 }  SRE_ALIGNED(64);
 
+// Default RNG implementation (Complementary-multiply-with-carry).
+
 // State size for default CMWC random number generator must be a power of
 // two. A small state size does not seem to significantly affect the
 // statistical qualities of the random number generator. For scientific
@@ -971,7 +985,7 @@ public :
 // size is configurable at run time.
 #define SRE_RANDOM_CMWC_RNG_DEFAULT_STATE_SIZE 8
 
-class SRE_API sreCMWCRNG : public sreRNG {
+class SRE_RANDOM_API sreCMWCRNG : public sreRNG {
 private :
     unsigned int *Q;
     unsigned int c;
@@ -989,10 +1003,5 @@ public :
     unsigned int Random32();
 };
 
-// Get the default RNG allocated used internally by the library.
-// The standard default RNG is always initialized and available at program start.
-SRE_API sreRNG *sreGetDefaultRNG();
-// Set the default RNG to be used internally by the library.
-// Can be used to replace the standard default RNG.
-// A value of NULL reselects the standard (always initialized) default RNG.
-SRE_API void sreSetDefaultRNG(sreRNG *rng);
+#endif
+

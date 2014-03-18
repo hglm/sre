@@ -59,7 +59,21 @@ enum {
     SRE_APPLICATION_FLAG_LOCK_PANNING = 0x20,
     // Whether mouse panning is enabled (usually in a windowing environment).
     SRE_APPLICATION_FLAG_PAN_WITH_MOUSE = 0x40,
-    SRE_APPLICATION_FLAG_NO_PHYSICS = 0x80
+    SRE_APPLICATION_FLAG_NO_PHYSICS = 0x80,
+    // Preprocess the scene (reducing artifacts especially for stencil shadow volumes)
+    // when executing sreRunApplication().
+    SRE_APPLICATION_FLAG_PREPROCESS = 0x100,
+    // When executing sreRunApplication(), do not upload any models to the GPU.
+    SRE_APPLICATION_FLAG_UPLOAD_NO_MODELS = 0x200,
+    // When executing sreRunApplication(), upload all (LOD)-models (do not exclude
+    // unreferenced ones).
+    SRE_APPLICATION_FLAG_UPLOAD_ALL_MODELS = 0x400,
+    SRE_APPLICATION_FLAG_REUSE_OCTREES = 0x800
+};
+
+enum {
+    SRE_APPLICATION_STOP_SIGNAL_QUIT = 1,
+    SRE_APPLICATION_STOP_SIGNAL_CUSTOM = 2
 };
 
 class sreApplication {
@@ -71,7 +85,7 @@ public :
     sreView *view;
     Point3D gravity_position;
     double start_time;
-    bool stop_signalled;
+    int stop_signal;
     // Control object.
     int control_object;
     float input_acceleration;
@@ -86,6 +100,7 @@ public :
     char *text_message[24];
 
     sreApplication();
+    virtual ~sreApplication() { }
     unsigned int GetFlags();
     void SetFlags(unsigned int flags);
     void ApplyControlObjectInputs(double dt);
@@ -122,10 +137,14 @@ extern sreApplication *sre_internal_application;
 SRE_API void sreSelectBackend(int backend);
 // Initialize the back-end and create an empty app->scene and default app->view.
 SRE_API void sreInitializeApplication(sreApplication *app, int *argc, char ***argv);
-// Run the application using the selected back-end.
+// Run the application using the selected back-end, initializing octrees, uploading models
+// to the GPU, and creating physics data structures when required, and running the main loop.
+// Octrees and physics data structures are deleted before returning.
 SRE_API void sreRunApplication(sreApplication *app);
-// Run the main loop without destroying the device-specific window.
-SRE_API void sreMainLoop(sreApplication *app, unsigned int prepare_flags);
+// Finalize the application (delete scene and close back-end and window).
+void sreFinalizeApplication(sreApplication *app);
+// Run just the main loop.
+SRE_API void sreMainLoop(sreApplication *app);
 SRE_API void sreBackendGLSwapBuffers();
 SRE_API void sreBackendStandardTextOverlay();
 
