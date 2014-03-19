@@ -5,20 +5,21 @@ Edit Makefile.conf to edit the configuration. It is possible to
 compile the library and demo program without installing by setting
 the library configuration to STATIC.
 
-The current version as of Feb 2014 has been tested and works
-correctly with  full features with OpenGL on a Linux PC platform,
+The current version as of March 2014 has been tested and works
+correctly with full features with OpenGL on a Linux PC platform,
 although it has not been tested much beyond a discrete NVIDIA GPU.
 On NVIDIA-based devices, installing NVIDIA's optimized Linux drivers
 is highly recommended.
 
 The OpenGL-ES 2.0 X11 back-end compiles and works, although it has
 only been tested on a Mali-400 platform. The framebuffer OpenGL-ES
-2.0 back-ends may require more work.
+2.0 back-end should also work, and have primarily been tested on
+the Raspberry Pi platform.
 
 Running "make" compiles the library. It might be necessary to run
 "make rules" beforehand.
-Running "make demo" compiles the demo application, which will be
-called sre-demo.
+Running "make demo" compiles the demo applications, which will be
+called sre-demo and game.
 Running "make install" (usually as superuser) installs the library
 and header file into the directories specified in the configuration
 file. Installation is not necessary to compile or run the demo.
@@ -29,12 +30,10 @@ for help. There are about 15 different demo scenes/tests present,
 one of which must be supplied as an argument. For example,
 "./sre-demo demo10".
 
-Demos that should work include demo1, demo2, demo5, demo5, demo7, demo8,
-demo10 and demo11.
+Demos that should work include demo1, demo2, demo5, demo6, demo7, demo8,
+demo9, demo10 and demo11.
 
-game is simple game in which a ball must be pushed onto the ground; it
-should work in the current code base but may cause problems when moving
-to a new level.
+game is simple game in which a ball must be pushed onto the ground.
 
 textdemo demonstrates the text drawing functions that use a highly
 optimized text shader.
@@ -44,9 +43,8 @@ Demos that do not work correctly in the current version:
 demo3 is a small solar system simulator that is not up-to-date with the
 current code base.
 
-demo4 is a sophisticated Earth terrain demo that needs some fixes to
-work correctly with the current code base, and requires very large
-terrain textures that are not included.
+demo4/4b/4c is a sophisticated Earth terrain demo that requires
+(potentially very large) terrain textures that are not included.
 
 --- Requirements ---
 
@@ -63,7 +61,7 @@ Platform-specific development libraries are needed to compile the
 back-end. This includes:
 
 - X11 development libraries for pure X11 support (should not be needed
-  for GLFW/GLUT in X11 environment).
+  for GLFW/pure GLUT in X11 environment).
 - GFLW development library for GLFW support.
 - GLUT/freeglut for GLUT support. The pure OpenGL X11 back-end
   also requires freeglut (for initialization only).
@@ -288,7 +286,7 @@ pipeline.
 
 - Try font texture stored with only one component, preferably something
   like UINT8, reducing memory requirements and GPU texture cache
-  footprint.
+  footprint [currently uses one float component].
 
 - Before uploading model triangles to the GPU we should try optimizing
   the triangle layout for cache coherency (keep as many vertices in the
@@ -375,11 +373,11 @@ pipeline.
   yet).
 
 - Message priority levels and functions for errors, debugging and logging
-  have been introduced. Only part of the code uses this mechanism, the
-  rest still uses printf and exit and should be updated.
+  have been introduced. Only part of the code uses this mechanism, some
+  parts still uses printf and exit and should be updated.
 
 - Geometry scissors caching and associated overhead could be omitted when
-  the frustum is detected to be changing every frame.
+  the frustum is detected to be changing every frame [implemented].
 
 - For spotlights, ideally the spherical sector bounding volume should be
   used for geometry scissors calculation instead of the much large
@@ -390,6 +388,7 @@ pipeline.
   unoptimized in the lighting shaders (it passes a matrix as
   interpolated value, and is not a full tangent-space implementation;
   multiple normalizations may play a role). This should be optimized.
+  Using smaller, ETC1-compressed normal maps helps.
 
 --- LICENSE --
 
