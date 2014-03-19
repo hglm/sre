@@ -89,7 +89,8 @@ FRAMEBUFFER_COMMON_MODULE_OBJECTS = CriticalSection.o MouseEventQueue.o linux-fb
 # Variable for things like extra device-specific include directories etc.
 EXTRA_CFLAGS_LIB =
 EXTRA_CFLAGS_BACKEND =
-LFLAGS_LIBRARY =
+LFLAGS_LIBRARY = -lpng
+PKG_CONFIG_REQUIREMENTS =
 
 ifdef OPENGL_ES2
 # OPENGL ES2 platform configuration.
@@ -136,6 +137,7 @@ EXTRA_CFLAGS_LIB += -I/opt/vc/include/ \
 EXTRA_CFLAGS_BACKEND = $(EXTRA_CFLAGS_LIB) 
 LFLAGS_DEMO += -L/opt/vc/lib/ -lopenmaxil -lbcm_host -lvcos -lvchiq_arm \
 -L/opt/vc/libs/ilclient -L/opt/vc/libs/vgfont
+LFLAGS_LIBRARY += -lopenmaxil -lbcm_host -lvcos -lvchiq_arm
 endif
 
 LFLAGS_DEMO += -lGLESv2 -lEGL
@@ -144,6 +146,7 @@ else # !defined(OPENGL_ES2)
 
 EXTRA_PKG_CONFIG_DEMO = gl glew
 EXTRA_PKG_CONFIG_LIB = gl glew
+PKG_CONFIG_REQUIREMENTS += gl glew
 DEFINES_LIB = -DOPENGL #-DNO_SHADOW_MAP -DNO_HDR -DNO_SRGB -DNO_DEPTH_CLAMP -DNO_MULTI_SAMPLE
 DEFINES_DEMO = -DOPENGL #-DNO_LARGE_TEXTURES
 LFLAGS_DEMO =
@@ -153,6 +156,7 @@ LFLAGS_GLUT =
 # Raw X11 platform with OpenGL 3+
 ifneq (,$(findstring GL_X11,$(SUPPORTED_BACKENDS)))
 LFLAGS_GLUT = -lglut
+LFLAGS_LIBRARY += -lX11
 PLATFORM_MODULE_OBJECTS += opengl-x11.o
 WINDOW_SYSTEM = X11
 endif
@@ -160,6 +164,8 @@ endif
 # GLFW platform configuration.
 ifneq (,$(findstring GL_GLFW,$(SUPPORTED_BACKENDS)))
 LFLAGS_DEMO += -lglfw
+LFLAGS_LIBRARY += -lglfw
+PKG_CONFIG_REQUIREMENTS += libglfw
 PLATFORM_MODULE_OBJECTS += glfw.o
 endif
 
@@ -177,6 +183,7 @@ DEFINES_DEMO += -DOPENGL_FREEGLUT
 endif
 
 LFLAGS_DEMO += $(LFLAGS_GLUT)
+LFLAGS_LIBRARY += $(FLAGS_GLUT)
 
 endif # !defined(OPENGL_ES2)
 
@@ -241,6 +248,7 @@ DEFINES_LIB += -DASSIMP_SUPPORT
 EXTRA_LIBRARY_MODULE_OBJECTS += assimp.o
 LFLAGS_LIBRARY += -lassimp
 LFLAGS_DEMO += -lassimp
+PKG_CONFIG_REQUIREMENTS += assimp
 endif
 
 ifneq ($(MULTI_SAMPLE_AA), 4)
@@ -255,30 +263,31 @@ DEFINES_DEMO += -DWINDOW_WIDTH=$(WINDOW_WIDTH) -DWINDOW_HEIGHT=$(WINDOW_HEIGHT)
 ifeq ($(BULLET_PHYSICS), YES)
 DEFINES_DEMO += -DUSE_BULLET
 PLATFORM_MODULE_OBJECTS += bullet.o
+PKG_CONFIG_REQUIREMENTS += bullet
 endif
 
 LFLAGS_DEMO += -lpthread
+LIBRARY_FLAGS_DEMO =
 
 # Set final CFLAGS.
 ifeq ($(LIBRARY_CONFIGURATION), SHARED)
 CFLAGS_LIB = -fPIC -fvisibility=hidden
 LFLAGS_DEMO += -lpng
-LFLAGS_DEMO += libsrebackend.a
-LFLAGS_DEMO += -lsre
+LIBRARY_LFLAGS_DEMO += libsrebackend.a -lsre
 else
 CFLAGS_LIB =
 # libpng dependency is not automatically recognized with static library.
 LFLAGS_DEMO += -lpng
+# The static/debug library is linked from the build directory.
 ifeq ($(LIBRARY_CONFIGURATION), DEBUG)
-LFLAGS_DEMO += libsrebackend_dbg.a
-LFLAGS_DEMO += libsre_dbg.a
+LIBRARY_LFLAGS_DEMO += libsrebackend_dbg.a libsre_dbg.a 
 else
-LFLAGS_DEMO += libsrebackend.a
-LFLAGS_DEMO += libsre.a
+LIBRARY_LFLAGS_DEMO += libsrebackend.a libsre.a
 endif
 endif
 CFLAGS_LIB += $(EXTRA_CFLAGS_LIB) $(CFLAGS) $(DEFINES_LIB) -I.
 CFLAGS_DEMO = $(EXTRA_CFLAGS_BACKEND) $(CFLAGS) $(DEFINES_DEMO) $(DEFINES_BACKEND) -I.
+ALL_LFLAGS_DEMO=$(LIBRARY_LFLAGS_DEMO) $(LFLAGS_DEMO) $(PKG_CONFIG_LIBS_DEMO)
 
 # Set pkg-config definitions.
 PKG_CONFIG_CFLAGS_DEMO = `pkg-config --cflags bullet $(EXTRA_PKG_CONFIG_DEMO)`
@@ -301,6 +310,8 @@ BACKEND_MODULE_OBJECTS = sre_backend.o gui-common.o $(PLATFORM_MODULE_OBJECTS)
 
 LIBRARY_HEADER_FILES = sre.h sreVectorMath.h sreBoundingVolume.h sreRandom.h sreBackend.h
 
+LIBRARY_PKG_CONFIG_FILE = sre.pc
+
 ifeq ($(LIBRARY_CONFIGURATION), DEBUG)
 BACKEND_OBJECT = libsrebackend_dbg.a
 else
@@ -309,7 +320,7 @@ endif
 ifeq ($(LIBRARY_CONFIGURATION), SHARED)
 LIBRARY_OBJECT = libsre.so.$(VERSION)
 INSTALL_TARGET = install_shared install_backend
-LIBRARY_DEPENDENCY = $(SHARED_LIB_DIR)/$(LIBRARY_OBJECT) $(BACKEND_OBJECT)
+LIBRARY_DEPENDENCY = $(SHARED_LIB_INSTALL_DIR)/$(LIBRARY_OBJECT) $(BACKEND_OBJECT)
 else
 ifeq ($(LIBRARY_CONFIGURATION), DEBUG)
 LIBRARY_OBJECT = libsre_dbg.a
@@ -327,7 +338,7 @@ library : $(LIBRARY_OBJECT)
 
 libsre.so.$(VERSION) : $(LIBRARY_MODULE_OBJECTS)
 	g++ -shared -Wl,-soname,libsre.so.$(VERSION_MAJOR) -fPIC -o libsre.so.$(VERSION) \
-$(LIBRARY_MODULE_OBJECTS) -lc -lm -lpng $(LFLAGS_LIBRARY)
+$(LIBRARY_MODULE_OBJECTS) $(LFLAGS_LIBRARY) -lm -lc
 	@echo Run '(sudo) make install to install.'
 
 libsre.a : $(LIBRARY_MODULE_OBJECTS)
@@ -352,43 +363,56 @@ libsrebackend_dbg.a : $(BACKEND_MODULE_OBJECTS)
 	@echo 'Make demo to make the demo program without installing.'
 	@echo 'Both library and backend are compiled with debugging enabled.'
 
-install : $(INSTALL_TARGET) install_headers
+install : $(INSTALL_TARGET) install_headers install_pkgconfig
 
 install_headers : $(LIBRARY_HEADER_FILES)
 	@for x in $(LIBRARY_HEADER_FILES); do \
 	echo Installing $$x.; \
-	install -m 0644 $$x $(INCLUDE_DIR)/$$x; done
+	install -m 0644 $$x $(HEADER_FILE_INSTALL_DIR)/$$x; done
 
 install_shared : $(LIBRARY_OBJECT)
-	install -m 0644 $(LIBRARY_OBJECT) $(SHARED_LIB_DIR)/$(LIBRARY_OBJECT)
-	ln -sf $(SHARED_LIB_DIR)/$(LIBRARY_OBJECT) $(SHARED_LIB_DIR)/libsre.so
-	ln -sf $(SHARED_LIB_DIR)/$(LIBRARY_OBJECT) $(SHARED_LIB_DIR)/libsre.so.$(VERSION_MAJOR)
+	install -m 0644 $(LIBRARY_OBJECT) $(SHARED_LIB_INSTALL_DIR)/$(LIBRARY_OBJECT)
+	ln -sf $(SHARED_LIB_INSTALL_DIR)/$(LIBRARY_OBJECT) $(SHARED_LIB_INSTALL_DIR)/libsre.so
+	ln -sf $(SHARED_LIB_INSTALL_DIR)/$(LIBRARY_OBJECT) $(SHARED_LIB_INSTALL_DIR)/libsre.so.$(VERSION_MAJOR)
 	@echo Run make demo to make the demo program.
 
 install_static : $(LIBRARY_OBJECT)
-	install -m 0644 $(LIBRARY_OBJECT) $(STATIC_LIB_DIR)/$(LIBRARY_OBJECT)
+	install -m 0644 $(LIBRARY_OBJECT) $(STATIC_LIB_INSTALL_DIR)/$(LIBRARY_OBJECT)
+
+install_pkgconfig : $(LIBRARY_PKG_CONFIG_FILE)
+	install -m 0644 sre.pc $(PKG_CONFIG_INSTALL_DIR)/pkgconfig/$(LIBRARY_PKG_CONFIG_FILE) 
 
 install_backend : $(BACKEND_OBJECT)
-	install -m 0644 $(BACKEND_OBJECT) $(STATIC_LIB_DIR)/$(BACKEND_OBJECT)
+	install -m 0644 $(BACKEND_OBJECT) $(STATIC_LIB_INSTALL_DIR)/$(BACKEND_OBJECT)
 	@echo Run make demo to make the demo program.
 
 demo : $(ALL_DEMO_PROGRAMS)
 
 $(DEMO_PROGRAM) : $(LIBRARY_DEPENDENCY) $(BACKEND_OBJECT) $(DEMO_MODULE_OBJECTS)
-	g++ $(DEMO_MODULE_OBJECTS) -o $(DEMO_PROGRAM) $(LFLAGS_DEMO) $(PKG_CONFIG_LIBS_DEMO)
+	g++ $(DEMO_MODULE_OBJECTS) -o $(DEMO_PROGRAM) $(ALL_LFLAGS_DEMO)
 
 game : $(LIBRARY_DEPENDENCY) $(BACKEND_OBJECT) game.o
-	g++ game.o -o game $(LFLAGS_DEMO) $(PKG_CONFIG_LIBS_DEMO)
+	g++ game.o -o game $(ALL_LFLAGS_DEMO)
+
+$(LIBRARY_PKG_CONFIG_FILE) : Makefile.conf Makefile
+	@echo Generating sre.pc.
+	@echo Name: sre > sre.pc
+	@echo Description: SRE real-time rendering engine >> sre.pc
+	@echo Requires: $(PKG_CONFIG_REQUIREMENTS) >> sre.pc
+	@echo Version: $(VERSION) >> sre.pc
+	@echo Libs: $(LFLAGS_DEMO) $(PKG_CONFIG_LIBS_DEMO) -lsrebackend  -lsre >> sre.pc
+	@echo Cflags: >> sre.pc
 
 shaders_builtin.cpp : $(SHADER_SOURCES)
-	echo // libsre v$(VERSION) shaders, `date --rfc-3339='date'` > shaders_builtin.cpp
-	echo // Automatically generated.\\n >> shaders_builtin.cpp
-	echo '#include <math.h>' >> shaders_builtin.cpp
-	echo '#include "sre.h"\n#include "shader.h"\n' >> shaders_builtin.cpp
-	echo -n 'int sre_nu_builtin_shader_sources = ' >> shaders_builtin.cpp
-	echo $(SHADER_SOURCES) | wc -w | awk '{ print($$0 ";") }' >> shaders_builtin.cpp
-	echo '\n'const sreBuiltinShaderTable sre_builtin_shader_table[] = { >> shaders_builtin.cpp
-	for x in $(SHADER_SOURCES); do \
+	@echo Generating shaders_builtin.cpp
+	@echo // libsre v$(VERSION) shaders, `date --rfc-3339='date'` > shaders_builtin.cpp
+	@echo // Automatically generated.\\n >> shaders_builtin.cpp
+	@echo '#include <math.h>' >> shaders_builtin.cpp
+	@echo '#include "sre.h"\n#include "shader.h"\n' >> shaders_builtin.cpp
+	@echo -n 'int sre_nu_builtin_shader_sources = ' >> shaders_builtin.cpp
+	@echo $(SHADER_SOURCES) | wc -w | awk '{ print($$0 ";") }' >> shaders_builtin.cpp
+	@echo '\n'const sreBuiltinShaderTable sre_builtin_shader_table[] = { >> shaders_builtin.cpp
+	@for x in $(SHADER_SOURCES); do \
 	echo { '"'$$x'"', >> shaders_builtin.cpp; \
 	cat $$x | sed ':l1 s/\"/@R@/; tl1; :l2 s/@R@/\\\"/; tl2' | \
 	awk '{ print("\"" $$0 "\\n\"") }' >> shaders_builtin.cpp; \
@@ -401,6 +425,7 @@ clean :
 	rm -f libsre.a
 	rm -f libsre_dbg.a
 	rm -f libsrebackend.a
+	rm -f sre.pc
 	rm -f $(DEMO_PROGRAM)
 	rm -f game
 
@@ -413,17 +438,17 @@ rules :
 	make .rules
 
 .rules : Makefile.conf Makefile
-	rm -f .rules
-	# Create rules to compile library modules.364
-
-	for x in $(LIBRARY_MODULE_OBJECTS); do \
+	@echo Generating .rules.
+	@rm -f .rules
+	@# Create rules to compile library modules.
+	@for x in $(LIBRARY_MODULE_OBJECTS); do \
 	echo $$x : >> .rules; \
 	SOURCEFILE=`echo $$x | sed s/\\\.o/\.cpp/`; \
 	echo \\tg++ -c '$$(CFLAGS_LIB)' "$$SOURCEFILE" \
 	-o $$x '$$(PKG_CONFIG_CFLAGS_LIB)' >> .rules; \
 	done
-	# Create rules to compile demo/back-end modules.
-	for x in $(ALL_DEMO_MODULE_OBJECTS) $(ALL_BACKEND_MODULE_OBJECTS); do \
+	@# Create rules to compile demo/back-end modules.
+	@for x in $(ALL_DEMO_MODULE_OBJECTS) $(ALL_BACKEND_MODULE_OBJECTS); do \
 	echo $$x : >> .rules; \
 	SOURCEFILE=`echo $$x | sed s/\\\.o/\.cpp/`; \
 	echo \\tg++ -c '$$(CFLAGS_DEMO)' "$$SOURCEFILE" \
@@ -435,20 +460,20 @@ dep :
 	make .depend
 
 .depend: Makefile.conf Makefile
-	# Do not include shaders_builtin.cpp yet because creates dependency
-        # problems.
-	g++ -MM $(patsubst %.o,%.cpp,$(ORIGINAL_LIBRARY_MODULE_OBJECTS)) >> .depend
+	@echo Generating .depend.
+	@# Do not include shaders_builtin.cpp yet because creates dependency problems.
+	@g++ -MM $(patsubst %.o,%.cpp,$(ORIGINAL_LIBRARY_MODULE_OBJECTS)) >> .depend
         # Make sure Makefile.conf is a dependency for all modules.
-	for x in $(ORIGINAL_LIBRARY_MODULE_OBJECTS); do \
+	@for x in $(ORIGINAL_LIBRARY_MODULE_OBJECTS); do \
 	echo $$x : Makefile.conf >> .depend; done
-	echo '# Module dependencies' >> .depend
-	g++ -MM $(patsubst %.o,%.cpp,$(ALL_DEMO_MODULE_OBJECTS) $(BACKEND_MODULE_OBJECTS)) >> .depend
-        # Make sure Makefile.conf is a dependency for all modules.
-	for x in $(ALL_DEMO_MODULE_OBJECTS) $(BACKEND_MODULE_OBJECTS); do \
+	@echo '# Module dependencies' >> .depend
+	@g++ -MM $(patsubst %.o,%.cpp,$(ALL_DEMO_MODULE_OBJECTS) $(BACKEND_MODULE_OBJECTS)) >> .depend
+	@# Make sure Makefile.conf is a dependency for all modules.
+	@for x in $(ALL_DEMO_MODULE_OBJECTS) $(BACKEND_MODULE_OBJECTS); do \
 	echo $$x : Makefile.conf >> .depend; done
-	# Add dependencies for builtin shaders.
-	echo shaders_builtin.cpp : $(SHADER_SOURCES) >> .depend
-	echo shaders_builtin.o : shaders_builtin.cpp sre.h shader.h >> .depend
+	@# Add dependencies for builtin shaders.
+	@echo shaders_builtin.cpp : $(SHADER_SOURCES) >> .depend
+	@echo shaders_builtin.o : shaders_builtin.cpp sre.h shader.h >> .depend
 
 include .rules
 include .depend
