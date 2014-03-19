@@ -101,10 +101,14 @@ sreScene::~sreScene() {
     delete [] object;
     delete [] light;
 
-    delete [] visible_object;
-    delete [] shadow_caster_object;
-    delete [] final_pass_object;
-    delete [] visible_light;
+    if (max_visible_objects > 0)
+        delete [] visible_object;
+    if (max_shadow_caster_objects > 0)
+        delete [] shadow_caster_object;
+    if (max_final_pass_objects > 0)
+        delete [] final_pass_object;
+    if (max_visible_lights > 0)
+        delete [] visible_light;
 }
 
 void sreScene::PrepareForRendering(unsigned int flags) {
