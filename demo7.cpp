@@ -66,8 +66,8 @@ void Demo7CreateScene(sreScene *scene, sreView *view) {
     scene->SetColor(Color(1.0f, 0.25f, 0));
 #ifdef OPENGL_ES2
     // Reduce the number of spheres when using OpenGL-ES2 2.0
-    int stepy = 8;
-    int stepx = 4;
+    int stepy = 2;
+    int stepx = 2;
 #else
     int stepy = 1;
     int stepx = 1;

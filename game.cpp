@@ -298,9 +298,11 @@ void LevelFourCreateScene() {
     // Add block after ramp.
     scene->SetTexture(marble_texture);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_CAST_SHADOWS);
+    scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
     i = scene->AddObject(block_30x30x30_model, - 50, 120, 0, 0, 0, 0, 1);
-    scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
     // Add steep ramp
+    scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
+    scene->SetDiffuseReflectionColor(red);
     i = scene->AddObject(ramp_towards_back_30x50x30_model, - 50, 150, 30, 0, 0, 0, 1);
     // Add blocks after ramp.
     scene->SetTexture(marble_texture);
