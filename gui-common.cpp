@@ -25,9 +25,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sreBackend.h"
 #include "gui-common.h"
 
-int window_width = WINDOW_WIDTH;
-int window_height = WINDOW_HEIGHT;
-
 static bool accelerate_pressed = false;
 static bool decelerate_pressed = false;
 static bool ascend_pressed = false;
@@ -252,7 +249,8 @@ void GUIKeyPressCallback(unsigned int key) {
         break;
     case 'F' :
         sre_internal_backend->GLSync();
-        sre_internal_backend->ToggleFullScreenMode(window_width, window_height,
+        sre_internal_backend->ToggleFullScreenMode(
+            sre_internal_application->window_width, sre_internal_application->window_height,
             (sre_internal_application->flags & SRE_APPLICATION_FLAG_PAN_WITH_MOUSE) != 0);
         break;
     case 'M' :
@@ -261,7 +259,8 @@ void GUIKeyPressCallback(unsigned int key) {
             sre_internal_application->SetFlags(sre_internal_application->GetFlags() & (~SRE_APPLICATION_FLAG_PAN_WITH_MOUSE));
         }
         else {
-            sre_internal_backend->WarpCursor(window_width / 2, window_height / 2);
+            sre_internal_backend->WarpCursor(sre_internal_application->window_width / 2,
+               sre_internal_application->window_height / 2);
             sre_internal_backend->HideCursor();
             sre_internal_application->SetFlags(sre_internal_application->GetFlags() | SRE_APPLICATION_FLAG_PAN_WITH_MOUSE);
         }
