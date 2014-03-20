@@ -155,18 +155,24 @@ public:
     unsigned int *data;
     int opengl_id;
     int type;
+    unsigned int largest_level_width;
 
-    sreTexture() { }
+    // Use of constructors in applications to create textures is deprecated.
+    // use sreCreateTexture() instead.
+    sreTexture();
     // Create a texture (and upload it to the GPU, normally) from a
     // texture file (.png, .ktx, .dds). basepathname should exclude any
     // extension; the desired extensions will be automatically looked for,
     // in order of preference.
-    sreTexture(const char *basepathname, int type);
+    sreTexture(const char *pathname_without_ext, int type);
     // Create a standard RGBA8 texture of size w x h, memory is allocated
     // in system memory (sreTexture::data) but it is not uploaded to the
     // GPU.
     sreTexture(int w, int h);
     ~sreTexture();
+    void ClearData();
+    void Load(const char *pathname_without_ext, int type);
+    // Upload a single-level texture to the GPU.
     void UploadGL(bool keep_data);
     unsigned int LookupPixel(int x, int y);
     void SetPixel(int x, int y, unsigned int value);
@@ -1711,6 +1717,8 @@ SRE_API sreTexture *sreCreateCheckerboardTexture(int type, int w, int h, int bw,
 SRE_API sreTexture *sreCreateStripesTexture(int type, int w, int h, int bh,
     Color color0, Color color1);
 SRE_API sreTexture *sreCreateTexture(const char *pathname, int type);
+SRE_API sreTexture *sreCreateTextureLimitLevelWidth(const char *pathname, int type,
+    int max_level_width);
 SRE_API float sreGetMaxAnisotropyLevel();
 SRE_API sreTexture *sreCreateTextTexture(const char *str, sreFont *font);
 

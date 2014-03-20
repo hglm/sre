@@ -133,6 +133,11 @@ static void CheckTextureFormats() {
     checked_texture_formats = true;
 }
 
+sreTexture::sreTexture() {
+    data = NULL;
+    largest_level_width = (unsigned int)1 << 30;
+}
+
 sreTexture::sreTexture(int w, int h) {
     width = w;
     height = h;
@@ -141,10 +146,16 @@ sreTexture::sreTexture(int w, int h) {
     format = TEXTURE_FORMAT_RAW;
     nu_components = 4;
     bit_depth = 8;
+    largest_level_width = (unsigned int)1 << 30;
+}
+
+void sreTexture::ClearData() {
+    delete [] data;
+    data = NULL;
 }
 
 sreTexture::~sreTexture() {
-    delete [] data;
+    ClearData();
 }
 
 static int CountPowersOfTwo(int w, int h) {
@@ -206,6 +217,11 @@ int& target_width, int& target_height, int& nu_levels_skipped) {
     power_of_two_count = CountPowersOfTwo(width, height);
     nu_mipmaps_used = nu_mipmaps;
     CalculateTargetSize(target_width, target_height, nu_levels_skipped);
+    // Adjust the number of levels skipped according to the largest allowed
+    // texture width for the texture.
+    while ((width >> nu_levels_skipped) > largest_level_width) {
+        nu_levels_skipped++;
+    }
     nu_mipmaps_used -= nu_levels_skipped;
     if (nu_mipmaps_used < 1) {
         // When there insufficient lower detail compressed mipmap levels, use
@@ -973,11 +989,24 @@ static bool FileExists(const char *filename) {
 #endif
 }
 
-sreTexture *sreCreateTexture(const char *filename, int type) {
-    return new sreTexture(filename, type);
+sreTexture *sreCreateTexture(const char *pathname, int type) {
+    return new sreTexture(pathname, type);
 }
 
-sreTexture::sreTexture(const char *basefilename, int _type) {
+sreTexture *sreCreateTextureLimitLevelWidth(const char *pathname, int type,
+int largest_level_width) {
+    sreTexture *tex = new sreTexture;
+    tex->largest_level_width = largest_level_width;
+    tex->Load(pathname, type);
+    return tex;
+}
+
+sreTexture::sreTexture(const char *pathname_without_ext, int _type) {
+    largest_level_width = (unsigned int)1 << 30;
+    Load(pathname_without_ext, _type);
+}
+
+void sreTexture::Load(const char *basefilename, int _type) {
     if (!checked_texture_formats)
         CheckTextureFormats();
     char s[80];
