@@ -343,11 +343,13 @@ $(LIBRARY_MODULE_OBJECTS) $(LFLAGS_LIBRARY) -lm -lc
 
 libsre.a : $(LIBRARY_MODULE_OBJECTS)
 	ar r libsre.a $(LIBRARY_MODULE_OBJECTS)
+	ranlib libsre.a
 	@echo 'Run (sudo) make install to install or make demo to make the'
 	@echo 'demo program without installing.'
 
 libsre_dbg.a : $(LIBRARY_MODULE_OBJECTS)
 	ar r libsre_dbg.a $(LIBRARY_MODULE_OBJECTS)
+	ranlib libsre_dbg.a
 	@echo 'Make demo to make the demo program without installing.'
 	@echo 'Both library and demo are compiled with debugging enabled.'
 
@@ -355,11 +357,13 @@ backend : $(BACKEND_OBJECT)
 
 libsrebackend.a : $(BACKEND_MODULE_OBJECTS)
 	ar r libsrebackend.a $(BACKEND_MODULE_OBJECTS)
+	ranlib libsrebackend.a
 	@echo 'Run (sudo) make install to install or make demo to make the'
 	@echo 'demo program without installing.'
 
 libsrebackend_dbg.a : $(BACKEND_MODULE_OBJECTS)
 	ar r libsrebackend_dbg.a $(BACKEND_MODULE_OBJECTS)
+	ranlib libsrebackend_dbg.a
 	@echo 'Make demo to make the demo program without installing.'
 	@echo 'Both library and backend are compiled with debugging enabled.'
 
