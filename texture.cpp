@@ -212,11 +212,11 @@ int power_of_two_count) {
 }
 
 void sreTexture::SelectMipmaps(int nu_mipmaps, int& power_of_two_count, int& nu_mipmaps_used,
-int& target_width, int& target_height, int& nu_levels_skipped) {
+int& target_width, int& target_height, int& nu_levels_skipped, int flags) {
     // Count whether width or height is a power of two.
     power_of_two_count = CountPowersOfTwo(width, height);
     nu_mipmaps_used = nu_mipmaps;
-    CalculateTargetSize(target_width, target_height, nu_levels_skipped);
+    CalculateTargetSize(target_width, target_height, nu_levels_skipped, flags);
     // Adjust the number of levels skipped according to the largest allowed
     // texture width for the texture.
     while ((width >> nu_levels_skipped) > largest_level_width) {
@@ -281,7 +281,13 @@ int& target_width, int& target_height, int& nu_levels_skipped) {
     }
 }
 
-void sreTexture::UploadGL(bool keep_data) {
+void sreTexture::UploadGL(int flags) {
+    if (width > sre_internal_max_texture_size || height > sre_internal_max_texture_size) {
+        printf("Error - texture size of (%d x %d) is too large (max supported %d x %d).\n",
+            width, height, sre_internal_max_texture_size, sre_internal_max_texture_size);
+        exit(1);
+    }
+
 #ifndef NO_SRGB
     if (format == TEXTURE_FORMAT_RAW) {
         // Regular (image) textures should be handled as SRGB.
@@ -409,7 +415,7 @@ void sreTexture::UploadGL(bool keep_data) {
         glGenerateMipmap(GL_TEXTURE_2D);
         sreAbortOnGLError("Error after glGenerateMipmap (internal format = %d).\n", internal_format);
     }
-    if (!keep_data)
+    if (!(flags & SRE_TEXTURE_TYPE_FLAG_KEEP_DATA))
         delete [] data;
  
     RegisterTexture(this);
@@ -532,13 +538,6 @@ void sreTexture::LoadPNG(const char *filename, int flags) {
         sreFatalError("Unexpected PNG file color type %d.", color_type);
     printf("Loading uncompressed texture with size (%d x %d), bit depth %d, %d components.\n",
         width, height, png_bit_depth, nu_components);
-    GLint max_texture_size;
-    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size);
-    if (width > max_texture_size || height > max_texture_size) {
-        printf("Error - texture size of (%d x %d) is too large (max supported %d x %d).\n",
-            width, height, max_texture_size, max_texture_size);
-        exit(1);
-    }
     if (color_type == PNG_COLOR_TYPE_GRAY) {
         data = (unsigned int *)new unsigned char[width * height * (bit_depth / 8) *
             nu_components];
@@ -565,10 +564,10 @@ void sreTexture::LoadPNG(const char *filename, int flags) {
 
     format = TEXTURE_FORMAT_RAW;
 
-    ApplyTextureDetailSettings();
+    ApplyTextureDetailSettings(flags);
     if (type != TEXTURE_TYPE_WILL_MERGE_LATER &&
     !(flags & SRE_TEXTURE_TYPE_FLAG_NO_UPLOAD)) {
-        UploadGL((flags & SRE_TEXTURE_TYPE_FLAG_KEEP_DATA) != 0);
+        UploadGL(flags);
     }
 }
 
@@ -724,7 +723,7 @@ default :
 
     int power_of_two_count, nu_mipmaps_used, target_width, target_height, nu_levels_skipped;
     SelectMipmaps(header.numberOfMipmapLevels, power_of_two_count, nu_mipmaps_used,
-        target_width, target_height, nu_levels_skipped);
+        target_width, target_height, nu_levels_skipped, 0);
 
     SetGLTextureParameters(type, nu_components, nu_mipmaps_used, power_of_two_count);
 
@@ -944,7 +943,7 @@ void sreTexture::LoadDDS(const char *filename) {
 
     int power_of_two_count, nu_mipmaps_used, target_width, target_height, nu_levels_skipped;
     SelectMipmaps(mipMapCount, power_of_two_count, nu_mipmaps_used, target_width, target_height,
-       nu_levels_skipped);
+       nu_levels_skipped, 0);
     SetGLTextureParameters(type, nu_components, nu_mipmaps_used, power_of_two_count);
     sreAbortOnGLError("Error after setting texture parameters.\n");
 
@@ -1257,7 +1256,7 @@ void sreScene::ApplyGlobalTextureParameters(int flags, int filter, float anisotr
 #define SRE_TEXTURE_DETAIL_VERY_LOW_AREA_THRESHOLD (128 * 128)
 
 void sreTexture::CalculateTargetSize(int& target_width, int& target_height,
-int &nu_levels_to_skip) {
+int &nu_levels_to_skip, int flags) {
     // Use heuristics to reduce the texture size when the relevant settings
     // are enabled.
     int area = width * height;
@@ -1323,12 +1322,21 @@ int &nu_levels_to_skip) {
     // For textures that were already a power of two, output the number of
     // mipmap levels that may be skipped (e.g. for compressed textures).
     nu_levels_to_skip = reduction_shift;
-    target_width = mini(target_width, sre_internal_max_texture_size);
-    target_height = mini(target_height, sre_internal_max_texture_size);
-    if (target_width == width && target_height == height)
-       return;
-    sreMessage(SRE_MESSAGE_INFO, "Reducing texture size from %dx%d to %dx%d.",
-       width, height, target_width, target_height);
+    // When the texture has to be uploaded to the GPU, check whether the dimensions are
+    // within limits.
+    if (!(flags & SRE_TEXTURE_TYPE_FLAG_NO_UPLOAD)) {
+       float ratio_w = (float)target_width / sre_internal_max_texture_size;
+       float ratio_h = (float)target_width / sre_internal_max_texture_size;
+       float ratio_max = maxf(ratio_w, ratio_h);
+       if (ratio_max > 1.0f) {
+           target_width *= 1.0f / ratio_max;
+           target_height *= 1.0f / ratio_max;
+       }
+       if (target_width == width && target_height == height)
+           return;
+       sreMessage(SRE_MESSAGE_INFO, "Reducing texture size from %dx%d to %dx%d.",
+           width, height, target_width, target_height);
+    }
 }
 
 static void AssignTextureToImage(sreTexture *tex, sreMipmapImage *image) {
@@ -1395,11 +1403,11 @@ sreTexture **textures) {
 
 // Apply texture detail settings to an uncompressed texture.
 
-void sreTexture::ApplyTextureDetailSettings() {
+void sreTexture::ApplyTextureDetailSettings(int flags) {
     if (type == TEXTURE_TYPE_NORMAL_MAP)
         return;
     int target_width, target_height, levels_to_skip;
-    CalculateTargetSize(target_width, target_height, levels_to_skip);
+    CalculateTargetSize(target_width, target_height, levels_to_skip, flags);
     if (target_width == width && target_height == height)
         return;
     // Scale down when necessary.

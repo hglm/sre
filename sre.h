@@ -173,7 +173,7 @@ public:
     void ClearData();
     void Load(const char *pathname_without_ext, int type);
     // Upload a single-level texture to the GPU.
-    void UploadGL(bool keep_data);
+    void UploadGL(int flags);
     unsigned int LookupPixel(int x, int y);
     void SetPixel(int x, int y, unsigned int value);
     void MergeTransparencyMap(sreTexture *t);
@@ -184,10 +184,10 @@ public:
     void ChangeParameters(int flags, int filter, float anisotropy);
 private :
     void CalculateTargetSize(int& target_width, int& target_height,
-        int &nu_levels_to_skip);
+        int &nu_levels_to_skip, int flags);
     void SelectMipmaps(int nu_mipmaps, int& power_of_two_count, int& nu_mipmaps_used,
-        int& target_width, int& target_height, int& nu_levels_skipped);
-    void ApplyTextureDetailSettings();
+        int& target_width, int& target_height, int& nu_levels_skipped, int flags);
+    void ApplyTextureDetailSettings(int flags);
     void GenerateMipmapLevels(int starting_level, int& nu_levels, sreTexture **textures);
 };
 
