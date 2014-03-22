@@ -69,9 +69,11 @@ varying vec2 text_image_position_var;
 // With OpenGL-ES2, only two characters are packed into each int.
 #ifdef GL_ES
 #ifdef FLOATING_POINT_TEXT_STRING
+// For some platform (RPi), storing characters as floating point
+// is more efficient.
 uniform mediump float string_in[MAX_TEXT_LENGTH * 2];
-#elif defined(LIMITED_UNIFORM_INT_PRECISION
-// For platforms where ints are limited to five bits (RPi), each
+#elif defined(LIMITED_UNIFORM_INT_PRECISION)
+// For platforms where ints are limited to five bits (e.g. RPi), each
 // character is stored in two ints.
 uniform _uintlowp string_in[MAX_TEXT_LENGTH * 2];
 #else
