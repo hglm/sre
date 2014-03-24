@@ -619,8 +619,6 @@ bool sreTexture::LoadKTX(const char *filename) {
             h[i + 2] = temp;
 	}
     }
-    printf("Loading KTX texture with size (%d x %d), %d mipmap levels.\n", header.pixelWidth, header.pixelHeight,
-        header.numberOfMipmapLevels);
     // Skip metadata
     unsigned char *metadata = (unsigned char *)alloca(header.bytesOfKeyValueData);
     fread(metadata, 1, header.bytesOfKeyValueData, f);
@@ -700,6 +698,13 @@ default :
          break;
     }
 
+    int power_of_two_count, nu_mipmaps_used, target_width, target_height, nu_levels_skipped;
+    SelectMipmaps(header.numberOfMipmapLevels, power_of_two_count, nu_mipmaps_used,
+        target_width, target_height, nu_levels_skipped, 0);
+
+    printf("Loading KTX texture with size (%d x %d), using %d mipmap levels starting at %d.\n",
+        header.pixelWidth, header.pixelHeight, nu_mipmaps_used, nu_levels_skipped);
+
     /* KTX files require an unpack alignment of 4 */
     GLint previousUnpackAlignment;
     glGetIntegerv(GL_UNPACK_ALIGNMENT, &previousUnpackAlignment);
@@ -710,6 +715,7 @@ default :
     glGenTextures(1, &texid);
     opengl_id = texid;
     glBindTexture(GL_TEXTURE_2D, opengl_id);
+    SetGLTextureParameters(type, nu_components, nu_mipmaps_used, power_of_two_count);
 
     khronos_uint32_t faceLodSize;
     khronos_uint32_t faceLodSizeRounded;
@@ -720,12 +726,6 @@ default :
     width = header.pixelWidth;
     height = header.pixelHeight;
     format = supported_format;
-
-    int power_of_two_count, nu_mipmaps_used, target_width, target_height, nu_levels_skipped;
-    SelectMipmaps(header.numberOfMipmapLevels, power_of_two_count, nu_mipmaps_used,
-        target_width, target_height, nu_levels_skipped, 0);
-
-    SetGLTextureParameters(type, nu_components, nu_mipmaps_used, power_of_two_count);
 
     data = NULL;
     for (level = 0; level < nu_mipmaps_used + nu_levels_skipped; level++) {
@@ -791,8 +791,6 @@ void sreTexture::LoadDDS(const char *filename) {
     width         = *(unsigned int *)(header + 12);
     unsigned int linearSize     = *(unsigned int *)(header + 16);
     unsigned int mipMapCount = *(unsigned int *)(header + 24);
-
-    printf("Loading DDS texture with size (%d x %d), %d mipmap levels.\n", width, height, mipMapCount);
 
     char four_cc[5];
     strncpy(four_cc, (char *)&header[80], 4);
@@ -907,6 +905,30 @@ void sreTexture::LoadDDS(const char *filename) {
          break;
     }
 
+    // Check whether the texture dimensions are a power of two.
+    int count = CountPowersOfTwo(width, height);
+
+    // Check for buggy dds files that have too many mipmap levels for non-square textures.
+    int w = width;
+    int h = height;
+    for (int i = 0; i < mipMapCount; i++) {
+        if (w == 0 || h == 0) {
+            mipMapCount = i;
+            break;
+        }
+        w /= 2;
+        h /= 2;
+    }
+
+    int power_of_two_count, nu_mipmaps_used, target_width, target_height, nu_levels_skipped;
+    SelectMipmaps(mipMapCount, power_of_two_count, nu_mipmaps_used, target_width, target_height,
+       nu_levels_skipped, 0);
+
+    sreMessage(SRE_MESSAGE_INFO,
+        "Loading DDS texture with size (%d x %d), %d mipmap levels starting at %d.\n",
+         width, height, mipMapCount, nu_levels_skipped);
+
+    // Load texture file into buffer.
     unsigned char *buffer;
     unsigned int bufsize;
     // Only RGTC2 (BC5) has a 16-byte block size.
@@ -927,23 +949,6 @@ void sreTexture::LoadDDS(const char *filename) {
     // "Bind" the newly created texture : all future texture functions will modify this texture
     glBindTexture(GL_TEXTURE_2D, textureID);
 
-    // Check whether the texture dimensions are a power of two.
-    int count = CountPowersOfTwo(width, height);
-    // Check for buggy dds files that have too many mipmap levels for non-square textures.
-    int w = width;
-    int h = height;
-    for (int i = 0; i < mipMapCount; i++) {
-        if (w == 0 || h == 0) {
-            mipMapCount = i;
-            break;
-        }
-        w /= 2;
-        h /= 2;
-    }
-
-    int power_of_two_count, nu_mipmaps_used, target_width, target_height, nu_levels_skipped;
-    SelectMipmaps(mipMapCount, power_of_two_count, nu_mipmaps_used, target_width, target_height,
-       nu_levels_skipped, 0);
     SetGLTextureParameters(type, nu_components, nu_mipmaps_used, power_of_two_count);
     sreAbortOnGLError("Error after setting texture parameters.\n");
 
