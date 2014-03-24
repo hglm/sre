@@ -20,7 +20,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 //
 // It has been written to be compatible with both OpenGL 2.0+ and OpenGL ES 2.0.
 
+#if defined(CUBE_MAP) || defined(PROJECTION) || defined (GL_ES)
 uniform mat4 MVP;
+#else
+uniform mat4x3 MVP;
+#endif
 attribute vec4 position_in;
 #ifdef TEXTURE_ALPHA
 attribute vec2 texcoord_in;
@@ -51,6 +55,10 @@ void main() {
 #ifdef CUBE_MAP
 	position_world_var = (model_matrix * position_in).xyz;
 #endif
+#ifdef PROJECTION
 	gl_Position = MVP * position_in;
+#else
+	gl_Position = vec4((MVP * position_in).xyz, 1.0);
+#endif
 }
 

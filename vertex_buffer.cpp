@@ -403,9 +403,9 @@ void sreLODModel::DeleteFromGPU() {
 
 void GL3SetBillboard(sreObject *so) {
     Point3D P = so->sphere.center;
-    Vector3D right_vector = Cross(camera_vector, up_vector);
+    Vector3D right_vector = Cross(sre_internal_camera_vector, sre_internal_up_vector);
     Vector3D X = 0.5 * so->billboard_width * right_vector;
-    Vector3D Y = 0.5 * so->billboard_height * up_vector;
+    Vector3D Y = 0.5 * so->billboard_height * sre_internal_up_vector;
     sreLODModel *m = so->model->lod_model[0];
     // A single billboard is set up as a triangle fan consisting of two triangles.
     m->vertex[0] = P + X + Y;
@@ -425,9 +425,9 @@ void GL3SetBillboard(sreObject *so) {
 }
 
 void GL3SetParticleSystem(sreObject *so) {
-    Vector3D right_vector = Cross(camera_vector, up_vector);
+    Vector3D right_vector = Cross(sre_internal_camera_vector, sre_internal_up_vector);
     Vector3D X = 0.5 * so->billboard_width * right_vector;
-    Vector3D Y = 0.5 * so->billboard_height * up_vector;
+    Vector3D Y = 0.5 * so->billboard_height * sre_internal_up_vector;
     sreLODModel *m = so->model->lod_model[0];
     // Set LOD model billboard vertex positions and, for halos, centers (stored as normal
     // attribute and duplicated for every vertex of a billboard).

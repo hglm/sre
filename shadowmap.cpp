@@ -69,12 +69,12 @@ static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
     // version), the MVP matrix uniform is set, and when a transparent texture is used it is
     // bound to GL_TEXTURE0 and the UV transformation matrix is set.
     // the UV transformation.
-    if (light.type & SRE_LIGHT_POINT_SOURCE) {
+    if (light.type & SRE_LIGHT_POINT_SOURCE)
         GL3InitializeCubeShadowMapShader(*so);
-    }
-    else {
+    else if (light.type & SRE_LIGHT_SPOT)
+        GL3InitializeProjectionShadowMapShader(*so);
+    else
         GL3InitializeShadowMapShader(*so);
-    }
     glEnableVertexAttribArray(0);
     sreLODModel *m = sreCalculateLODModel(*so);
     glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);

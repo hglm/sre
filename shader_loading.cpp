@@ -1173,6 +1173,21 @@ static const MiscShaderInfo misc_shader_info[] = {
     "gl3_shadow_map.vert", "gl3_shadow_map.frag", "#define TEXTURE_ALPHA\n#define UV_TRANSFORM\n"
     },
     {
+    "Shadow map shader (spotlights)",
+    SRE_SHADER_MASK_SHADOW_MAP,
+    (1 << UNIFORM_MISC_MVP),
+    (1 << ATTRIBUTE_POSITION),
+    "gl3_shadow_map.vert", "gl3_shadow_map.frag",  "#define PROJECTION\n"
+    },
+    {
+    "Shadow map shader for transparent textures (spotlights)",
+    SRE_SHADER_MASK_SHADOW_MAP,
+    (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_TEXTURE_SAMPLER) | (1 << UNIFORM_MISC_UV_TRANSFORM),
+    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS),
+    "gl3_shadow_map.vert", "gl3_shadow_map.frag",
+    "#define PROJECTION\n#define TEXTURE_ALPHA\n#define UV_TRANSFORM\n"
+    },
+    {
     "Shadow cube-map shader",
     SRE_SHADER_MASK_SHADOW_MAP,
     (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_LIGHT_POSITION) |

@@ -21,12 +21,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // The following matrices are only used in the shader modules.
 // The general projection/view matrices are defined in sre_internal.h.
-extern Matrix4D inverse_model_matrix;
-extern Matrix4D shadow_map_matrix;
-extern Matrix4D shadow_map_lighting_pass_matrix;
-extern Matrix4D sre_internal_geometry_matrix_scissors_projection_matrix;
-extern Vector3D up_vector;
-extern Vector3D camera_vector;
+extern MatrixTransform shadow_map_matrix;
+extern Matrix4D projection_shadow_map_matrix;
+extern Matrix4D cube_shadow_map_matrix;
+extern MatrixTransform shadow_map_lighting_pass_matrix;
+extern Vector3D sre_internal_up_vector;
+extern Vector3D sre_internal_camera_vector;
 
 // vertex_buffer.cpp
 
@@ -217,6 +217,8 @@ enum {
 #ifndef NO_SHADOW_MAP
     SRE_MISC_SHADER_SHADOW_MAP,
     SRE_MISC_SHADER_SHADOW_MAP_TRANSPARENT,
+    SRE_MISC_SHADER_PROJECTION_SHADOW_MAP,
+    SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_TRANSPARENT,
     SRE_MISC_SHADER_CUBE_SHADOW_MAP,
     SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT,
 #endif

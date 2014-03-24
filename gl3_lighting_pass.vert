@@ -61,7 +61,11 @@ uniform bool use_emission_map_in;
 uniform vec3 diffuse_reflection_color_in;
 #endif
 #if defined(SHADOW_MAP) && !defined(SPOT_LIGHT_SHADOW_MAP)
+#ifdef GL_ES
 uniform mat4 shadow_map_transformation_matrix;
+#else
+uniform mat4x3 shadow_map_transformation_matrix;
+#endif
 #endif
 attribute vec4 position_in;
 #ifdef TEXCOORD_IN

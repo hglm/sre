@@ -121,9 +121,28 @@ static void GL3InitializeShaderWithAmbientColor(int loc) {
 
 #ifndef NO_SHADOW_MAP
 
+// For regular shadow maps (directional lights), the shadow_map_matrix and
+// MVP will fit in a 4x3 matrix (class MatrixTransform).
+
 static void GL3InitializeShadowMapShaderWithShadowMapMVP(int loc, const sreObject& so) {
+#ifdef OPENGL_ES2
     Matrix4D MVP = shadow_map_matrix * so.model_matrix;
-    glUniformMatrix4fv(loc, 1, GL_FALSE, (const float *)&MVP);
+    glUniformMatrix4fv(loc, 1, GL_FALSE, (GLfloat *)&MVP);
+#else
+    MatrixTransform MVP = shadow_map_matrix * so.model_matrix;
+    glUniformMatrix4x3fv(loc, 1, GL_FALSE, (GLfloat *)&MVP);
+#endif
+}
+
+static void GL3InitializeShadowMapShaderWithProjectionShadowMapMVP(int loc,
+const sreObject& so) {
+    Matrix4D MVP = projection_shadow_map_matrix * so.model_matrix;
+    glUniformMatrix4fv(loc, 1, GL_FALSE, (GLfloat *)&MVP);
+}
+
+static void GL3InitializeShadowMapShaderWithCubeShadowMapMVP(int loc, const sreObject& so) {
+    Matrix4D MVP = cube_shadow_map_matrix * so.model_matrix;
+    glUniformMatrix4fv(loc, 1, GL_FALSE, (GLfloat *)&MVP);
 }
 
 static void GL3InitializeShadowMapShaderWithLightPosition(int loc) {
@@ -415,9 +434,13 @@ static void GL3InitializeShaderWithId(int loc, const sreObject& so) {
 // Shadow map-related uniforms setting before drawing each object in a light pass.
 
 static void GL3InitializeShaderWithShadowMapTransformationMatrix(int loc, const sreObject& so) {
+#ifdef OPENGL_ES2
     Matrix4D transformation_matrix = shadow_map_lighting_pass_matrix * so.model_matrix;
-    // Why const float *?
-    glUniformMatrix4fv(loc, 1, GL_FALSE, (const float *)&transformation_matrix);
+    glUniformMatrix4fv(loc, 1, GL_FALSE, (float *)&transformation_matrix);
+#else
+    MatrixTransform transformation_matrix = shadow_map_lighting_pass_matrix * so.model_matrix;
+    glUniformMatrix4x3fv(loc, 1, GL_FALSE, (float *)&transformation_matrix);
+#endif
 }
 
 // Setting up before drawing objects for a light with shadow map support.
@@ -2153,10 +2176,32 @@ void GL3InitializeShadowMapShader(const sreObject& so) {
     }
 }
 
+void GL3InitializeProjectionShadowMapShader(const sreObject& so) {
+    if (so.render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE) {
+        glUseProgram(misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_TRANSPARENT].program);
+        GL3InitializeShadowMapShaderWithShadowMapMVP(
+            misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_TRANSPARENT].uniform_location[UNIFORM_MISC_MVP], so);
+        GL3InitializeShaderWithUVTransform(
+            misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_TRANSPARENT].
+            uniform_location[UNIFORM_MISC_UV_TRANSFORM], so);
+        // When the texture is NULL, it is assumed that the object uses a mesh with different
+        // textures for each sub-mesh, which will be bound later.
+        if (so.texture != NULL) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, so.texture->opengl_id);
+        }
+    }
+    else {
+        glUseProgram(misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP].program);
+        GL3InitializeShadowMapShaderWithShadowMapMVP(
+            misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP].uniform_location[UNIFORM_MISC_MVP], so);
+    }
+}
+
 void GL3InitializeCubeShadowMapShader(const sreObject& so) {
     if (so.render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE) {
         glUseProgram(misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT].program);
-        GL3InitializeShadowMapShaderWithShadowMapMVP(misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT]
+        GL3InitializeShadowMapShaderWithCubeShadowMapMVP(misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT]
             .uniform_location[UNIFORM_MISC_MVP], so);
         GL3InitializeShaderWithModelMatrix(
             misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT]
@@ -2173,7 +2218,7 @@ void GL3InitializeCubeShadowMapShader(const sreObject& so) {
     }
     else {
         glUseProgram(misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP].program);
-        GL3InitializeShadowMapShaderWithShadowMapMVP(misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP]
+        GL3InitializeShadowMapShaderWithCubeShadowMapMVP(misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP]
             .uniform_location[UNIFORM_MISC_MVP], so);
         GL3InitializeShaderWithModelMatrix(
             misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP].uniform_location[UNIFORM_MISC_MODEL_MATRIX], so);

@@ -36,18 +36,19 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "win32_compat.h"
 #include "sre.h"
 #include "sre_internal.h"
+#include "shader.h"
 
 Matrix4D sre_internal_projection_matrix;
 MatrixTransform sre_internal_view_matrix;
 Matrix4D sre_internal_view_projection_matrix;
 
-// Matrix4D shadow_map_transformation_matrix;
-Matrix4D inverse_model_matrix;
-Matrix4D shadow_map_matrix;
-Matrix4D shadow_map_lighting_pass_matrix;
-Matrix4D sre_internal_geometry_matrix_scissors_projection_matrix;
-Vector3D up_vector;
-Vector3D camera_vector;
+MatrixTransform shadow_map_matrix;
+Matrix4D projection_shadow_map_matrix;
+Matrix4D cube_shadow_map_matrix;
+MatrixTransform shadow_map_lighting_pass_matrix;
+// Matrix4D sre_internal_geometry_matrix_scissors_projection_matrix;
+Vector3D sre_internal_up_vector;
+Vector3D sre_internal_camera_vector;
 // The sre_internal_aspect_changed flag will be set at the time of
 // the the first projection matrix set-up, and subsequently when the
 // aspect ratio changes due to window resizes etc. The value of the
@@ -60,10 +61,10 @@ void GL3Perspective(float fov, float aspect, float nearp, float farp) {
 #if 0
     float f = 1 / tan((fov * M_PI/ 180) / 2);
     projection_matrix.Set(
-        f / aspect, 0, 0, 0,
-        0, f, 0, 0,
-        0, 0, (farp + nearp) / (nearp - farp), 2 * farp * nearp / (nearp - farp),
-        0, 0, -1, 0);
+        f / aspect, 0.0f, 0.0f, 0,
+        0.0f, f, 0.0f, 0,
+        0.0f, 0.0f, (farp + nearp) / (nearp - farp), 2 * farp * nearp / (nearp - farp),
+        0.0f, 0.0f, -1.0f, 0.0f);
 #endif
     if (aspect != sre_internal_aspect_ratio) {
         sre_internal_aspect_ratio = aspect;
@@ -77,10 +78,10 @@ void GL3Perspective(float fov, float aspect, float nearp, float farp) {
     float t = (1 / aspect) * n / e;
     // Set up a projection matrix with an infinite view frustum. We use depth clamping.
     sre_internal_projection_matrix.Set(
-        2 * n / (r - l), 0, (r + l) / (r - l), 0,
-        0, 2 * n / (t - b), (t + b) / (t - b), 0,
-        0, 0, - 1, - 2 * n,
-        0, 0, - 1, 0);
+        2 * n / (r - l), 0.0f, (r + l) / (r - l), 0.0f,
+        0.0f, 2 * n / (t - b), (t + b) / (t - b), 0.0f,
+        0.0f, 0.0f, - 1.0f, - 2 * n,
+        0.0f, 0.0f, - 1.0f, 0.0f);
 }
 
 void GL3PerspectiveTweaked(float fov, float aspect, float nearp, float farp) {
@@ -97,10 +98,10 @@ void GL3PerspectiveTweaked(float fov, float aspect, float nearp, float farp) {
     // Set up a projection matrix with an infinite view frustum. Tweaked with small constant epsilon.
     const float epsilon = 0.001;
     sre_internal_projection_matrix.Set(
-        2 * n / (r - l), 0, (r + l) / (r - l), 0,
-        0, 2 * n / (t - b), (t + b) / (t - b), 0,
-        0, 0, epsilon - 1, n * (epsilon - 2),
-        0, 0, - 1, 0);
+        2 * n / (r - l), 0.0f, (r + l) / (r - l), 0.0f,
+        0.0f, 2 * n / (t - b), (t + b) / (t - b), 0.0f,
+        0.0f, 0.0f, epsilon - 1.0f, n * (epsilon - 2),
+        0.0f, 0.0f, - 1.0f, 0.0f);
 }
 
 void GL3LookAt(float viewpx, float viewpy, float viewpz, float lookx, float looky, float lookz,
@@ -108,16 +109,16 @@ float upx, float upy, float upz) {
     Vector3D F = Vector3D(lookx, looky, lookz) - Vector3D(viewpx, viewpy, viewpz);
     Vector3D Up = Vector3D(upx, upy, upz);
     Vector3D f = F.Normalize();
-    camera_vector = f;
+    sre_internal_camera_vector = f;
     Up.Normalize();
-    up_vector = Up;
+    sre_internal_up_vector = Up;
     Vector3D s = Cross(f, Up);
     Vector3D u = Cross(s, f);
     MatrixTransform M;
     M.Set(
-        s.x, s.y, s.z, 0,
-        u.x, u.y, u.z, 0,
-        - f.x, - f.y, - f.z, 0);
+        s.x, s.y, s.z, 0.0f,
+        u.x, u.y, u.z, 0.0f,
+        - f.x, - f.y, - f.z, 0.0f);
     MatrixTransform T;
     T.AssignTranslation(Vector3D(- viewpx, - viewpy, -viewpz));
     sre_internal_view_matrix = M * T;
@@ -132,29 +133,26 @@ float upx, float upy, float upz) {
 void GL3CalculateShadowMapMatrix(Vector3D viewp, Vector3D light_direction, Vector3D x_direction,
 Vector3D y_direction, Vector3D dim_min, Vector3D dim_max) {
     // Look at.
-    Matrix4D M;
+    MatrixTransform M;
     M.Set(
-        x_direction.x, x_direction.y, x_direction.z, 0,
-        y_direction.x, y_direction.y, y_direction.z, 0,
-        - light_direction.x, - light_direction.y, - light_direction.z, 0,
-        0, 0, 0, 1.0);
-    Matrix4D T;
+        x_direction.x, x_direction.y, x_direction.z, 0.0f,
+        y_direction.x, y_direction.y, y_direction.z, 0.0f,
+        - light_direction.x, - light_direction.y, - light_direction.z, 0.0f);
+    MatrixTransform T;
     T.AssignTranslation(- viewp);
     // Set orthographic projection matrix.
-    Matrix4D shadow_map_projection_matrix;
+    MatrixTransform shadow_map_projection_matrix;
     shadow_map_projection_matrix.Set(
-        2.0 / (dim_max.x - dim_min.x), 0, 0, - (dim_max.x + dim_min.x) / (dim_max.x - dim_min.x),
-        0, 2.0 / (dim_max.y - dim_min.y), 0, - (dim_max.y + dim_min.y) / (dim_max.y - dim_min.y),
-        0, 0, - 2.0 / dim_max.z, - 1.0,
-        0, 0, 0, 1.0);
+        2.0 / (dim_max.x - dim_min.x), 0.0f, 0.0f, - (dim_max.x + dim_min.x) / (dim_max.x - dim_min.x),
+        0.0f, 2.0 / (dim_max.y - dim_min.y), 0.0f, - (dim_max.y + dim_min.y) / (dim_max.y - dim_min.y),
+        0.0f, 0.0f, - 2.0 / dim_max.z, - 1.0f);
     shadow_map_matrix = shadow_map_projection_matrix * (M * T);
     // Calculate viewport matrix for lighting pass with shadow map.
-    Matrix4D shadow_map_viewport_matrix;
+    MatrixTransform shadow_map_viewport_matrix;
     shadow_map_viewport_matrix.Set(
-        0.5, 0, 0, 0.5,
-        0, 0.5, 0, 0.5,
-        0, 0, 0.5, 0.5,
-        0, 0, 0, 1.0);
+        0.5f, 0.0f, 0.0f, 0.5f,
+        0.0f, 0.5f, 0.0f, 0.5f,
+        0.0f, 0.0f, 0.5f, 0.5f);
     shadow_map_lighting_pass_matrix = shadow_map_viewport_matrix * shadow_map_matrix;
 }
 
@@ -163,13 +161,12 @@ Vector3D up_vector, float zmax) {
     Vector3D fvec = zdir;
     Vector3D s = Cross(fvec, up_vector);
     Vector3D u = Cross(s, fvec);
-    Matrix4D M;
+    MatrixTransform M;
     M.Set(
-        s.x, s.y, s.z, 0,
-        u.x, u.y, u.z, 0,
-        - fvec.x, - fvec.y, - fvec.z, 0,
-        0, 0, 0, 1.0f);
-    Matrix4D T;
+        s.x, s.y, s.z, 0.0f,
+        u.x, u.y, u.z, 0.0f,
+        - fvec.x, - fvec.y, - fvec.z, 0.0f);
+    MatrixTransform T;
     T.AssignTranslation(- light_position);
     // Calculate the projection matrix with a field of view of 90 degrees.
     float aspect = 1.0;
@@ -182,12 +179,15 @@ Vector3D up_vector, float zmax) {
     float t = (1.0f / aspect) * n / e;
     Matrix4D shadow_map_projection_matrix;
     shadow_map_projection_matrix.Set(
-        2 * n / (r - l), 0, (r + l) / (r - l), 0,
-        0, 2 * n / (t - b), (t + b) / (t - b), 0,
-        0, 0, - (f + n) / (f - n), - 2 * n * f / (f - n),
-        0, 0, - 1.0f, 0);
-    shadow_map_matrix = shadow_map_projection_matrix * (M * T);
+        2 * n / (r - l), 0.0f, (r + l) / (r - l), 0.0f,
+        0.0f, 2 * n / (t - b), (t + b) / (t - b), 0.0f,
+        0.0f, 0.0f, - (f + n) / (f - n), - 2 * n * f / (f - n),
+        0.0f, 0.0f, - 1.0f, 0.0f);
+    cube_shadow_map_matrix = shadow_map_projection_matrix * (M * T);
 }
+
+// Calculate projection shadow map matrix, used for generating spotlight shadow
+// maps.
 
 void GL3CalculateProjectionShadowMapMatrix(Vector3D viewp, Vector3D light_direction,
 Vector3D x_direction, Vector3D y_direction, float zmax) {
@@ -202,7 +202,7 @@ Vector3D x_direction, Vector3D y_direction, float zmax) {
         s.x, s.y, s.z, 0,
         u.x, u.y, u.z, 0,
         - fvec.x, - fvec.y, - fvec.z, 0,
-        0, 0, 0, 1.0f);
+        0.0f, 0.0f, 0.0f, 1.0f);
     Matrix4D T;
     T.AssignTranslation(- viewp);
     // Calculate the projection matrix with a field of view of 90 degrees.
@@ -214,13 +214,13 @@ Vector3D x_direction, Vector3D y_direction, float zmax) {
     float r = n / e;
     float b = - (1 / aspect) * n / e;
     float t = (1 / aspect) * n / e;
-    Matrix4D shadow_map_projection_matrix;
-    shadow_map_projection_matrix.Set(
-        2 * n / (r - l), 0, (r + l) / (r - l), 0,
-        0, 2 * n / (t - b), (t + b) / (t - b), 0,
-        0, 0, - (f + n) / (f - n), - 2 * n * f / (f - n),
-        0, 0, - 1.0, 0);
-    shadow_map_matrix = shadow_map_projection_matrix * (M * T);
+    Matrix4D projection_matrix;
+    projection_matrix.Set(
+        2 * n / (r - l), 0.0f, (r + l) / (r - l), 0.0f,
+        0.0f, 2 * n / (t - b), (t + b) / (t - b), 0.0f,
+        0.0f, 0.0f, - (f + n) / (f - n), - 2 * n * f / (f - n),
+        0.0f, 0.0f, - 1.0f, 0.0f);
+    projection_shadow_map_matrix = projection_matrix * (M * T);
     // For spot lights, the shadow map viewport transformation is done in the
     // object lighting pass shaders.
     shadow_map_lighting_pass_matrix = shadow_map_matrix;
@@ -230,12 +230,12 @@ void GL3CalculateShadowMapMatrixAlwaysLight() {
     // Set a matrix that produces shadow map coordinates that are out of bounds in x and y, with w coordinate 1
     // and a z-coordinate of 0.5. In the pixel shader, this produces no shadow.
     shadow_map_lighting_pass_matrix.Set(
-        0, 0, 0, -2.0,
-        0, 0, 0, -2.0,
-        0, 0, 0, 0.5,
-        0, 0, 0, 1.0
-     );
+        0.0f, 0.0f, 0.0f, -2.0f,
+        0.0f, 0.0f, 0.0f, -2.0,
+        0.0f, 0.0f, 0.0f, 0.5f);
 }
+
+#if 0
 
 void GL3CalculateGeometryScissorsMatrixAndSetViewport(const sreScissors& scissors) {
     Matrix4D clip_matrix;
@@ -270,3 +270,4 @@ void GL3CalculateGeometryScissorsMatrixAndSetViewport(const sreScissors& scissor
     sre_internal_geometry_matrix_scissors_projection_matrix = clip_matrix * sre_internal_projection_matrix;
 }
 
+#endif
