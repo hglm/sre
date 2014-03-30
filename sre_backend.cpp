@@ -392,7 +392,7 @@ void sreRunApplication(sreApplication *app) {
     if (benchmark_mode) {
        double fps = (double)sreGetCurrentFrame() /
            (sre_internal_backend->GetCurrentTime() - app->start_time);
-       sreMessage(SRE_MESSAGE_INFO, "Benchmark result: %.3lf fps\n", fps);
+       sreMessage(SRE_MESSAGE_INFO, "Benchmark result: %.3lf fps", fps);
     }
     if (!(app->flags & SRE_APPLICATION_FLAG_NO_PHYSICS))
         app->DestroyPhysics();

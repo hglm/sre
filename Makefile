@@ -47,6 +47,22 @@ endif
 ifeq ($(TARGET_CPU), CORTEX_A9)
 OPTCFLAGS += -mcpu=cortex-a9
 endif
+
+# SIMD configuration (SSE on x86).
+ifeq ($(TARGET_SIMD), X86_SSE3)
+OPTCFLAGS += -msse3 -DUSE_SSE2 -DUSE_SSE3
+else
+ifeq ($(TARGET_SIMD), X86_SSE2)
+OPTCFLAGS += -msse2 -DUSE_SSE2
+endif
+endif
+ifeq ($(TARGET_SIMD), ARM_NEON)
+OPTCFLAGS +=-DUSE_ARM_NEON -mneon
+endif
+ifeq ($(TARGET_SIMD), NONE)
+OPTCFLAGS +=-DNO_SIMD
+endif
+
 ifeq ($(LIBRARY_CONFIGURATION), DEBUG)
 OPTCFLAGS = -ggdb
 endif

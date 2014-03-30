@@ -48,14 +48,22 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 //
 //============================================================================
 
-#ifdef NO_VECTOR_MEMORY_INDEXING
+#ifndef __GNUC__
 
-static const float sre_internal_vector4d_select_table[16] = {
-	1.0f, 0.0f, 0.0f, 0.0f,
-	0.0f, 1.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, 1.0f, 0.0f,
-	0.0f, 0.0f, 0.0f, 1.0f
-};
+#define SRE_ALIGNED(n)
+#define SRE_PACKED
+#define LINE_SIZE 128
+
+#else
+
+#define SRE_ALIGNED(n) __attribute__ ((aligned(n)))
+#define SRE_PACKED __attribute__ ((packed))
+// Very rough guess at a cache line size usable for alignment,
+#ifdef OPENGL_ES2
+#define SRE_LINE_SIZE 64
+#else
+#define SRE_LINE_SIZE 128
+#endif
 
 #endif
 
@@ -86,22 +94,10 @@ class SRE_API Vector2D
 			return ((&x)[k]);
 		}
 
-#ifndef NO_VECTOR_MEMORY_INDEXING
 		const float& operator [](int k) const
 		{
 			return ((&x)[k]);
 		}
-#else
-		// [] operator using external table. The table has four floats
-		// per entry, which makes addressing easier and allow sharing
-                // the table with the Vector4D [] operator.
-                float operator [](int k) const {
-                    return
-			sre_internal_vector4d_select_table[k * 4] * x +
-			sre_internal_vector4d_select_table[k * 4 + 1] * y;
-                }
-
-#endif
 		
 		Vector2D& operator +=(const Vector2D& v)
 		{
@@ -376,24 +372,10 @@ class SRE_API Vector3D
 			return ((&x)[k]);
 		}
 
-#ifndef NO_VECTOR_MEMORY_INDEXING
 		const float& operator [](int k) const
 		{
 			return ((&x)[k]);
 		}
-#else
-
-		// [] operator using external table. The table has four floats
-		// per entry, which makes addressing easier and allow sharing
-                // the table with the Vector4D [] operator.
-                float operator [](int k) const {
-                    return
-			sre_internal_vector4d_select_table[k * 4] * x +
-			sre_internal_vector4d_select_table[k * 4 + 1] * y +
-			sre_internal_vector4d_select_table[k * 4 + 2] * z;
-                }
-
-#endif
 
 		Vector2D& GetVector2D(void)
 		{
@@ -914,22 +896,10 @@ class SRE_API Vector4D
 			return ((&x)[k]);
 		}
 
-#ifndef NO_VECTOR_MEMORY_INDEXING
 		const float& operator [](int k) const
 		{
 			return ((&x)[k]);
 		}
-#else
-		// [] operator using external table. The table has four floats
-		// per entry. It is shared, with the Vector2D/Vector3D [] operators.
-                float operator [](int k) const {
-                    return
-			sre_internal_vector4d_select_table[k * 4] * x +
-			sre_internal_vector4d_select_table[k * 4 + 1] * y +
-			sre_internal_vector4d_select_table[k * 4 + 2] * z +
-			sre_internal_vector4d_select_table[k * 4 + 2] * z;
-                }
-#endif
 		const Vector3D& GetVector3D(void) const
 		{
 			return (*reinterpret_cast<const Vector3D *>(this));
@@ -1291,7 +1261,15 @@ class SRE_API Matrix3D
 		{
 			return (n[j][i]);
 		}
-		
+
+		float& Get(int row, int column){
+			return (n[row][column]);
+		}
+
+		const float& Get(int row, int column) const {
+			return (n[row][column]);
+		}
+
 		Vector3D& operator [](int j)
 		{
 			return (*reinterpret_cast<Vector3D *>(n[j]));
@@ -1358,7 +1336,6 @@ class MatrixTransform;
 class SRE_API Matrix4D
 {
 	public:
-		
 		float	n[4][4];
 	
 	public:
@@ -1372,46 +1349,43 @@ class SRE_API Matrix4D
 		Matrix4D& Set(const Vector4D& c1, const Vector4D& c2, const Vector4D& c3, const Vector4D& c4);
 		Matrix4D& Set(float n00, float n01, float n02, float n03, float n10, float n11, float n12, float n13, float n20, float n21, float n22, float n23, float n30, float n31, float n32, float n33);
 		
-		float& operator ()(int i, int j)
-		{
-			return (n[j][i]);
-		}
-		
+		// Return element at row i, column j.
 		const float& operator ()(int i, int j) const
 		{
 			return (n[j][i]);
 		}
-		
-		Vector4D& operator [](int j)
+
+		const float& Get(int column, int row) const {
+			return (n[column][row]);
+		}
+
+ 		// Get row j.
+		Vector4D GetRow(int j) const
 		{
-			return (*reinterpret_cast<Vector4D *>(n[j]));
+			return (Vector4D(n[0][j], n[1][j], n[2][j], n[3][j]));
 		}
 		
-		const Vector4D& operator [](int j) const
+		// Get column i.
+		const Vector4D& GetColumn(int i) const
 		{
-			return (*reinterpret_cast<const Vector4D *>(n[j]));
+			return (*reinterpret_cast<const Vector4D *>(n[i]));
 		}
-		
-		Vector4D GetRow(int i) const
+
+		Matrix4D& SetRow(int j, const Vector3D& row)
 		{
-			return (Vector4D(n[0][i], n[1][i], n[2][i], n[3][i]));
-		}
-		
-		Matrix4D& SetRow(int i, const Vector3D& row)
-		{
-			n[0][i] = row.x;
-			n[1][i] = row.y;
-			n[2][i] = row.z;
-			n[3][i] = 0.0F;
+			n[0][j] = row.x;
+			n[1][j] = row.y;
+			n[2][j] = row.z;
+			n[3][j] = 0.0f;
 			return (*this);
 		}
 		
-		Matrix4D& SetRow(int i, const Vector4D& row)
+		Matrix4D& SetRow(int j, const Vector4D& row)
 		{
-			n[0][i] = row.x;
-			n[1][i] = row.y;
-			n[2][i] = row.z;
-			n[3][i] = row.w;
+			n[0][j] = row.x;
+			n[1][j] = row.y;
+			n[2][j] = row.z;
+			n[3][j] = row.w;
 			return (*this);
 		}
 		
@@ -1442,7 +1416,7 @@ class SRE_API Matrix4D
 		friend SRE_API Vector4D operator *(const Point2D& p, const Matrix4D& m);
 		friend SRE_API bool operator ==(const Matrix4D& m1, const Matrix4D& m2);
 		friend SRE_API bool operator !=(const Matrix4D& m1, const Matrix4D& m2);
-};
+} SRE_ALIGNED(16);
 
 
 SRE_API float Determinant(const Matrix4D& m);
@@ -1455,23 +1429,56 @@ SRE_API Matrix4D Transpose(const Matrix4D& m);
 class SRE_API MatrixTransform
 {
 	public:
-		
-		float	n[4][3];
-	
+		// The interal storage format has been switched from column-major to
+		// row-major for MatrixTransform only.
+		float n[3][4];
+
 	public:
 		MatrixTransform() {}
 		
 		MatrixTransform(float n00, float n01, float n02, float n03, float n10, float n11, float n12, float n13, float n20, float n21, float n22, float n23);
+		MatrixTransform(const Vector3D& c1, const Vector3D& c2, const Vector3D& c3, const Vector3D& c4);
 		MatrixTransform& Set(float n00, float n01, float n02, float n03, float n10, float n11, float n12, float n13, float n20, float n21, float n22, float n23);
+		MatrixTransform& Set(const Vector3D& c1, const Vector3D& c2, const Vector3D& c3, const Vector3D& c4);
 
-		float& operator ()(int i, int j)
-		{
-			return (n[j][i]);
-		}
-
+		// Return element at row i, column j.
 		const float& operator ()(int i, int j) const
 		{
-			return (n[j][i]);
+			return (n[i][j]);
+		}
+
+		const float& Get(int column, int row) const {
+			return (n[row][column]);
+		}
+
+ 		// Get column i.
+		Vector4D GetColumn(int i) const
+		{
+			return Vector4D(n[0][i], n[1][i], n[2][i],
+                            Vector4D(0.0f, 0.0f, 0.0f, 1.0f)[i]);
+		}
+
+		const Vector4D& GetRow(int j) const
+		{
+			return (*reinterpret_cast<const Vector4D *>(n[j]));
+		}
+
+		MatrixTransform& SetRow(int j, const Vector3D& row)
+		{
+			n[j][0] = row.x;
+			n[j][1] = row.y;
+			n[j][2] = row.z;
+			n[j][3] = 0.0f;
+			return (*this);
+		}
+		
+		MatrixTransform& SetRow(int j, const Vector4D& row)
+		{
+			n[j][0] = row.x;
+			n[j][1] = row.y;
+			n[j][2] = row.z;
+			n[j][3] = row.w;
+			return (*this);
 		}
 
 		SRE_API MatrixTransform& operator *=(const MatrixTransform& m);
@@ -1482,6 +1489,8 @@ class SRE_API MatrixTransform
                 SRE_API MatrixTransform& AssignRotationAlongZAxis(float angle);
                 SRE_API MatrixTransform& AssignTranslation(const Vector3D& translation);
                 SRE_API MatrixTransform& AssignScaling(float scaling);
+		// Return text respresentation. To be freed with delete [].
+		char *GetString() const;
 
 		friend SRE_API MatrixTransform operator *(const MatrixTransform& m1, const MatrixTransform& m2);
 		friend SRE_API Matrix4D operator *(const Matrix4D& m1, const MatrixTransform& m2);
@@ -1493,7 +1502,7 @@ class SRE_API MatrixTransform
 		friend SRE_API Vector4D operator *(const Point3D& p, const MatrixTransform& m);
 		friend SRE_API bool operator ==(const MatrixTransform& m1, const MatrixTransform& m2);
 		friend SRE_API bool operator !=(const MatrixTransform& m1, const MatrixTransform& m2);
-};
+} SRE_ALIGNED(16);
 
 SRE_API Matrix4D Inverse(const MatrixTransform& m);
 SRE_API Matrix4D Transpose(const MatrixTransform& m);
@@ -1815,6 +1824,43 @@ static inline int maxi(int x, int y) {
         return y;
     return x;
 }
+
+// Vector functions (SSE, NEON etc).
+
+// Calculate an array of dot products.
+
+void CalculateDotProducts(int n, const Vector3D *v1, const Vector3D *v2,
+float *dot);
+
+void CalculateDotProducts(int n, const Vector4D *v1, const Vector4D *v2,
+float *dot);
+
+// Determine the minimum and maximum dot product of an array of vertices with a
+// given constant vector.
+
+void CalculateMinAndMaxDotProduct(int nu_vertices, Vector3D *vertex,
+const Vector3D& v2, float& min_dot_product, float& max_dot_product);
+
+void CalculateMinAndMaxDotProduct(int nu_vertices, Vector4D *vertex,
+const Vector4D& v2, float& min_dot_product, float& max_dot_product);
+
+// Determine the minimum and maximum dot products of an array of vertices with three
+// constant vectors.
+
+void CalculateMinAndMaxDotProductWithThreeConstantVectors(int nu_vertices,
+Vector3D *vertex, const Vector3D* v2, float* min_dot_product, float* max_dot_product);
+
+void CalculateMinAndMaxDotProductWithThreeConstantVectors(int nu_vertices,
+Vector4D *vertex, const Vector4D *v2, float *min_dot_product, float *max_dot_product);
+
+// Determine the indices within an array of vertices that have the minimum and
+// maximum dot product with a given constant vector.
+
+void GetIndicesWithMinAndMaxDotProduct(int nu_vertices, Vector3D *vertex,
+const Vector3D& v2, int& i_Pmin, int& i_Pmax);
+
+void GetIndicesWithMinAndMaxDotProduct(int nu_vertices, Vector4D *vertex,
+const Vector4D& v2, int& i_Pmin, int& i_Pmax);
 
 #endif
 

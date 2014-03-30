@@ -65,7 +65,7 @@ static void GL3InitializeShaderWithModelMatrix(int loc, const sreObject& so) {
     Matrix4D m = Matrix4D(so.model_matrix);
     glUniformMatrix4fv(loc, 1, GL_FALSE, (const float *)&m);
 #else
-    glUniformMatrix4x3fv(loc, 1, GL_FALSE, (const float *)&so.model_matrix);
+    glUniformMatrix4x3fv(loc, 1, GL_TRUE, (const float *)&so.model_matrix);
 #endif
 }
 
@@ -130,7 +130,7 @@ static void GL3InitializeShadowMapShaderWithShadowMapMVP(int loc, const sreObjec
     glUniformMatrix4fv(loc, 1, GL_FALSE, (GLfloat *)&MVP);
 #else
     MatrixTransform MVP = shadow_map_matrix * so.model_matrix;
-    glUniformMatrix4x3fv(loc, 1, GL_FALSE, (GLfloat *)&MVP);
+    glUniformMatrix4x3fv(loc, 1, GL_TRUE, (GLfloat *)&MVP);
 #endif
 }
 
@@ -439,7 +439,7 @@ static void GL3InitializeShaderWithShadowMapTransformationMatrix(int loc, const 
     glUniformMatrix4fv(loc, 1, GL_FALSE, (float *)&transformation_matrix);
 #else
     MatrixTransform transformation_matrix = shadow_map_lighting_pass_matrix * so.model_matrix;
-    glUniformMatrix4x3fv(loc, 1, GL_FALSE, (float *)&transformation_matrix);
+    glUniformMatrix4x3fv(loc, 1, GL_TRUE, (float *)&transformation_matrix);
 #endif
 }
 

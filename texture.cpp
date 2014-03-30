@@ -536,7 +536,8 @@ void sreTexture::LoadPNG(const char *filename, int flags) {
     }
     else
         sreFatalError("Unexpected PNG file color type %d.", color_type);
-    printf("Loading uncompressed texture with size (%d x %d), bit depth %d, %d components.\n",
+    sreMessage(SRE_MESSAGE_INFO,
+        "Loading uncompressed texture with size (%d x %d), bit depth %d, %d components.",
         width, height, png_bit_depth, nu_components);
     if (color_type == PNG_COLOR_TYPE_GRAY) {
         data = (unsigned int *)new unsigned char[width * height * (bit_depth / 8) *
@@ -702,7 +703,8 @@ default :
     SelectMipmaps(header.numberOfMipmapLevels, power_of_two_count, nu_mipmaps_used,
         target_width, target_height, nu_levels_skipped, 0);
 
-    printf("Loading KTX texture with size (%d x %d), using %d mipmap levels starting at %d.\n",
+    sreMessage(SRE_MESSAGE_INFO,
+        "Loading KTX texture with size (%d x %d), using %d mipmap levels starting at %d.",
         header.pixelWidth, header.pixelHeight, nu_mipmaps_used, nu_levels_skipped);
 
     /* KTX files require an unpack alignment of 4 */
@@ -925,7 +927,7 @@ void sreTexture::LoadDDS(const char *filename) {
        nu_levels_skipped, 0);
 
     sreMessage(SRE_MESSAGE_INFO,
-        "Loading DDS texture with size (%d x %d), %d mipmap levels starting at %d.\n",
+        "Loading DDS texture with size (%d x %d), %d mipmap levels starting at %d.",
          width, height, mipMapCount, nu_levels_skipped);
 
     // Load texture file into buffer.

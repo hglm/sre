@@ -47,7 +47,7 @@ sreLODModel *sreCalculateLODModel(const sreObject& so) {
     }
     if (so.max_lod_level > 0) {
         float w = Dot(sre_internal_view_projection_matrix.GetRow(3), so.sphere.center);
-        if (w == 0)
+        if (w <= 0.0001f)
             return m->lod_model[so.min_lod_level];
         float size = fabsf(so.sphere.radius * 2.0f / w);
         sreLODModel *new_m = m->lod_model[so.min_lod_level];

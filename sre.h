@@ -50,7 +50,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     #define SRE_API SRE_HELPER_DLL_IMPORT
   #endif // SRE_DLL_EXPORTS
   #define SRE_LOCAL SRE_HELPER_DLL_LOCAL
-#else // SRE_DLL is not defined: this means SRE is a static lib.
+#else // SRE_DLL is not defined this means SRE is a static lib.
   #define SRE_API
   #define SRE_LOCAL
 #endif // SRE_DLL
@@ -60,6 +60,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define SRE_GLINT int
 
 #include "sreVectorMath.h"
+// Note: sreVectorMath.h also provides alignment macro SRE_ALIGNED(n)
 #include "sreBoundingVolume.h"
 #include "sreRandom.h"
 

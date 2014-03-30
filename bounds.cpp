@@ -27,6 +27,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre.h"
 #include "sre_internal.h"
 #include "sre_bounds.h"
+#include "sre_simd.h"
 
 //============================================================================
 //
@@ -216,27 +217,19 @@ void sreBaseModel::CalculatePrincipalComponents(srePCAComponent *PCA, Point3D &c
         PCA[1].vector = temp_V;
     }
 #endif
-    // Given principal axis R, S, and T, calculate the minimum and maximum extents in each directions.
-    float min_dot_product_R = POSITIVE_INFINITY_FLOAT;
-    float max_dot_product_R = NEGATIVE_INFINITY_FLOAT;
-    float min_dot_product_S = POSITIVE_INFINITY_FLOAT;
-    float max_dot_product_S = NEGATIVE_INFINITY_FLOAT;
-    float min_dot_product_T = POSITIVE_INFINITY_FLOAT;
-    float max_dot_product_T = NEGATIVE_INFINITY_FLOAT;
-    for (int i = 0; i < nu_vertices; i++) {
-        min_dot_product_R = minf(min_dot_product_R, Dot(vertex[i], PCA[0].vector));
-        max_dot_product_R = maxf(max_dot_product_R, Dot(vertex[i], PCA[0].vector));
-        min_dot_product_S = minf(min_dot_product_S, Dot(vertex[i], PCA[1].vector));
-        max_dot_product_S = maxf(max_dot_product_S, Dot(vertex[i], PCA[1].vector));
-        min_dot_product_T = minf(min_dot_product_T, Dot(vertex[i], PCA[2].vector));
-        max_dot_product_T = maxf(max_dot_product_T, Dot(vertex[i], PCA[2].vector));
+    // Given principal axis R, S, and T, calculate the minimum and maximum extents
+    // in each direction.
+    Vector3D PCA_C[3];
+    float min_dot_product[3], max_dot_product[3];
+    for (int i = 0; i < 3; i++)
+        PCA_C[i] = PCA[i].vector;
+    CalculateMinAndMaxDotProductWithThreeConstantVectors(nu_vertices, vertex,
+        PCA_C, min_dot_product, max_dot_product);
+    center.Set(0.0f, 0.0f, 0.0f);
+    for (int i = 0; i < 3; i++) {
+        PCA[i].size = max_dot_product[i] - min_dot_product[i];
+        center +=  (max_dot_product[i] + min_dot_product[i]) * 0.5f * PCA[i].vector;
     }
-    PCA[0].size = max_dot_product_R - min_dot_product_R;
-    PCA[1].size = max_dot_product_S - min_dot_product_S;
-    PCA[2].size = max_dot_product_T - min_dot_product_T;
-    center = (max_dot_product_R + min_dot_product_R) * 0.5 * PCA[0].vector +
-        (max_dot_product_S + min_dot_product_S) * 0.5 * PCA[1].vector +
-        (max_dot_product_T + min_dot_product_T) * 0.5 * PCA[2].vector;
     // Sort components on decreasing size so that R is the largest dimension.
     if (PCA[0].size < PCA[1].size) {
         float temp = PCA[0].size;
@@ -264,27 +257,17 @@ void sreBaseModel::CalculatePrincipalComponents(srePCAComponent *PCA, Point3D &c
     }
 }
 
+
 void sreBaseModel::CalculatePCABoundingSphere(const srePCAComponent *PCA,
 sreBoundingVolumeSphere& sphere) const {
     // Given principal axis R, calculate the points Pk and Pl representing the minimum and
     // maximum extents in that direction.
-    float min_dot_product = POSITIVE_INFINITY_FLOAT;
-    float max_dot_product = NEGATIVE_INFINITY_FLOAT;
-    int i_Pk, i_Pl;
-    for (int i = 0; i < nu_vertices; i++) {
-        float dot = Dot(vertex[i], PCA[0].vector);
-        if (dot < min_dot_product) {
-            min_dot_product = dot;
-            i_Pk = i;
-        }
-        if (dot > max_dot_product) {
-            max_dot_product = dot;
-            i_Pl = i;
-        }
-    }
+    int i_Pmin, i_Pmax;
+    GetIndicesWithMinAndMaxDotProduct(nu_vertices, vertex, PCA[0].vector, i_Pmin, i_Pmax);
+
     // Calculate the center and radius.
-    sphere.center = (vertex[i_Pk] + vertex[i_Pl]) * 0.5;
-    float r_squared = SquaredMag(vertex[i_Pk] - sphere.center);
+    sphere.center = (vertex[i_Pmin] + vertex[i_Pmax]) * 0.5f;
+    float r_squared = SquaredMag(vertex[i_Pmin] - sphere.center);
     // Make sure every point is inside the sphere.
     for (int i = 0; i < nu_vertices; i++) {
         float d_squared = SquaredMag(vertex[i] - sphere.center);
@@ -294,7 +277,7 @@ sreBoundingVolumeSphere& sphere) const {
             Point3D G = sphere.center - sqrtf(r_squared) * (vertex[i] - sphere.center) /
                 Magnitude(vertex[i] - sphere.center);
             // The new center is placed halfway between the points G and Pi.
-            sphere.center = (G + vertex[i]) * 0.5;
+            sphere.center = (G + vertex[i]) * 0.5f;
             r_squared = SquaredMag(vertex[i] - sphere.center);
         }
     }
@@ -332,22 +315,12 @@ sreBoundingVolumeCylinder& cylinder) const {
    Point3D *H = new Point3D[nu_vertices];
    for (int i = 0; i < nu_vertices; i++)
        H[i] = vertex[i] - Dot(vertex[i], PCA[0].vector) * PCA[0].vector;
-    float min_dot_product = POSITIVE_INFINITY_FLOAT;
-    float max_dot_product = NEGATIVE_INFINITY_FLOAT;
-    int i_Hk, i_Hl;
-    for (int i = 0; i < nu_vertices; i++) {
-        float dot = Dot(H[i], PCA[1].vector);
-        if (dot < min_dot_product) {
-            min_dot_product = dot;
-            i_Hk = i;
-        }
-        if (dot > max_dot_product) {
-            max_dot_product = dot;
-            i_Hl = i;
-        }
-    }
-    cylinder.center = (H[i_Hk] + H[i_Hl]) * 0.5;
-    float r_squared = SquaredMag(H[i_Hk] - cylinder.center);
+
+    int i_Hmin, i_Hmax;
+    GetIndicesWithMinAndMaxDotProduct(nu_vertices, H, PCA[1].vector, i_Hmin, i_Hmax);
+
+    cylinder.center = (H[i_Hmin] + H[i_Hmax]) * 0.5;
+    float r_squared = SquaredMag(H[i_Hmin] - cylinder.center);
     for (int i = 0; i < nu_vertices; i++) {
         float d_squared = SquaredMag(H[i] - cylinder.center);
         if (d_squared > r_squared) {
@@ -357,19 +330,14 @@ sreBoundingVolumeCylinder& cylinder) const {
             r_squared = SquaredMag(H[i] - cylinder.center);
         }
     }
+    delete [] H;
     cylinder.radius = sqrtf(r_squared);
     cylinder.axis = PCA[0].vector;
     cylinder.length = PCA[0].size;
-    min_dot_product = POSITIVE_INFINITY_FLOAT;
-    max_dot_product = NEGATIVE_INFINITY_FLOAT;
-    for (int i = 0; i < nu_vertices; i++) {
-        float dot = Dot(vertex[i], PCA[0].vector);
-        if (dot < min_dot_product)
-            min_dot_product = dot;
-        if (dot > max_dot_product)
-            max_dot_product = dot;
-    }
-    cylinder.center = (min_dot_product + max_dot_product) * 0.5 * PCA[0].vector;
+    float min_dot_product, max_dot_product;
+    CalculateMinAndMaxDotProduct(nu_vertices, vertex, PCA[0].vector,
+        min_dot_product, max_dot_product);
+    cylinder.center = (min_dot_product + max_dot_product) * 0.5f * PCA[0].vector;
 }
 
 void sreBaseModel::CalculateAABB(sreBoundingVolumeAABB& AABB) const {

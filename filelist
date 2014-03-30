@@ -68,6 +68,7 @@ sre/SafeQueue.h
 sre/sre_bounds.h
 sre/sre.h
 sre/sre_internal.h
+sre/sre_simd.h
 sre/shader.h
 sre/sreBackend.h
 sre/sreBoundingVolume.h

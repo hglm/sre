@@ -37,6 +37,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre.h"
 #include "sre_internal.h"
 #include "sre_bounds.h"
+#include "sre_simd.h"
 
 // Cache for objects (point source lights and spotlights).
 // The total number of entries is four times this number (four per object).
@@ -45,70 +46,163 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // The total number of entries is four times this number (four per model).
 #define SRE_SHADOW_VOLUME_MODEL_CACHE_SIZE 256
 
-#define NON_LIGHT_FACING 0
-#define LIGHT_FACING 1
-#define PERPENDICULAR_TO_LIGHT 4
+enum {
+    SRE_FACE_FLAG_LIGHT_FACING = 1,
+    SRE_FACE_FLAG_PERPENDICULAR_TO_LIGHT = 2
+};
 
 // VBO edges implementation
 
-class Edge {
-public :
-    int vertex0;
-    int vertex1;
-};
+// Class to hold shadow volume building information.
+
+// Number of bits to use for face flags storage. A value of eight uses a byte
+// for each triangle and simplifies the code at expense of greater memory requirements.
+#define SRE_FACE_FLAG_BITS 8
+#define SRE_FACE_FLAG_MASK ((1 << SRE_FACE_FLAG_BITS) - 1)
 
 class EdgeArray {
 public :
-    int nu_edges;
-    sreLODModelShadowVolume *model;
+    sreLODModelShadowVolume *m;
     sreModel *full_model;
-    Edge *edge;
+    // The silhouette is defined by edge indices (when bit 31 is cleared) into
+    // model's edge array. When bit 31 is set, the edge should be reversed.
+    unsigned int *edge_index;
+    int nu_edges;
     int max_edges;
+    // The face type (light facing or not) of every face (triangle in the model).
+    // Four flags fields are packed into each byte.
+    unsigned char *face_type;
+    int max_face_types;
 
-    void AppendEdge(ModelEdge *e);
-    void AppendEdgeReversed(ModelEdge *e);
+    EdgeArray();
+    void CheckEdgeCapacity(int nu_edges_required);
+    inline void AppendEdge(int model_edge_index) {
+        edge_index[nu_edges] = model_edge_index;
+        nu_edges++;    
+    }
+    inline void AppendEdgeReversed(int model_edge_index) {
+        edge_index[nu_edges] = model_edge_index | 0x80000000;
+        nu_edges++;    
+    }
+    inline void GetVertices(unsigned int i, unsigned int& v0, unsigned int &v1) {
+        unsigned int index = edge_index[i] & 0x7FFFFFFF;
+        unsigned int mask1 = (int)((edge_index[i] & 0x80000000)) >> 31;
+        unsigned int mask0 = ~mask1;
+        v0 = (m->edge[index].vertex_index[0] & mask0) +
+            (m->edge[index].vertex_index[1] & mask1);
+        v1 = (m->edge[index].vertex_index[0] & mask1) +
+            (m->edge[index].vertex_index[1] & mask0);
+    }
+    inline void GetFirstVertex(unsigned int i, unsigned int& v0) {
+        unsigned int index = edge_index[i] & 0x7FFFFFFF;
+        unsigned int mask1 = (int)((edge_index[i] & 0x80000000)) >> 31;
+        unsigned int mask0 = ~mask1;
+        v0 = (m->edge[index].vertex_index[0] & mask0) +
+            (m->edge[index].vertex_index[1] & mask1);
+    }
+    inline void GetSecondVertex(unsigned int i, unsigned int& v1) {
+        unsigned int index = edge_index[i] & 0x7FFFFFFF;
+        unsigned int mask1 = (int)((edge_index[i] & 0x80000000)) >> 31;
+        unsigned int mask0 = ~mask1;
+        v1 = (m->edge[index].vertex_index[0] & mask1) +
+            (m->edge[index].vertex_index[1] & mask0);
+    }
+    void CheckFaceTypeCapacity(int nu_faces_required);
+    // Pack four face types into each byte.
+    inline void SetFaceType(int i, unsigned int flags) {
+#if SRE_FACE_FLAG_BITS == 8
+        face_type[i] = flags;
+#else
+        int j = i / (8 / SRE_FACE_FLAG_BITS);
+        unsigned char value = face_type[j];
+        int shift = (i & ((8 / SRE_FACE_FLAG_BITS) - 1)) * SRE_FACE_FLAG_BITS;
+        unsigned char mask = SRE_FACE_FLAG_MASK << shift;
+        face_type[j] = (value & (~mask)) | (flags << shift);
+#endif
+    }
+    inline unsigned int GetFaceType(int i) {
+        int j = i / (8 / SRE_FACE_FLAG_BITS);
+        int shift = (i & ((8 / SRE_FACE_FLAG_BITS) - 1)) * SRE_FACE_FLAG_BITS;
+        return (face_type[j] >> shift) & SRE_FACE_FLAG_MASK;
+    }
+    // Set afce types for four triangles.
+    inline void SetFourFaceTypes(int i, unsigned int byte_flags) {
+#if SRE_FACE_FLAG_BITS == 8
+        *(unsigned int *)(&face_type[i]) = byte_flags;
+#else
+        unsigned int packed_flags =
+            (byte_flags & 0x1) | ((byte_flags & 0x100) >> (8 - SRE_FACE_FLAG_BITS)) |
+            ((byte_flags & 0x10000) >> (16 - SRE_FACE_FLAG_BITS * 2)) |
+            ((byte_flags & 0x1000000) >> (24 - SRE_FACE_FLAG_BITS * 3));
+        int j = i / (8 / SRE_FACE_FLAG_BITS);
+#if SRE_FACE_FLAG_BITS == 4
+        *(unsigned short *)(&face_type[j]) = byte_flags;
+#elif SRE_FACE_FLAG_BITS == 2
+        face_type[j] = packed_flags;
+#else
+        unsigned char shift = (i & 4);
+        face_type[j] = (face_type[j] & (0xF << (4 - shift))) | (packed_flags << shift);
+#endif
+#endif
+    }
+    // Return four face types packed into a byte.
+    inline unsigned int GetFourFaceTypes(int i) {
+        return GetFaceType(i) | (GetFaceType(i + 1) << 8) | (GetFaceType(i + 2) << 16) |
+            (GetFaceType(i + 3) << 24);
+    }
+    inline bool IsLightFacing(int triangle_index) {
+        return (GetFaceType(triangle_index) & SRE_FACE_FLAG_LIGHT_FACING) != 0;
+    }
 };
 
 
-void EdgeArray::AppendEdge(ModelEdge *e) {
-    edge[nu_edges].vertex0 = e->vertex_index[0];
-    edge[nu_edges].vertex1 = e->vertex_index[1];
-    nu_edges++;    
+EdgeArray::EdgeArray() {
+    edge_index = new unsigned int[SRE_DEFAULT_MAX_SILHOUETTE_EDGES]; 
+    max_edges = SRE_DEFAULT_MAX_SILHOUETTE_EDGES;
+    // Face types do not need to be stored after silhouette determination; only maintain
+    // one global buffer.
+    face_type = NULL;
+    max_face_types = 0;
 }
 
-void EdgeArray::AppendEdgeReversed(ModelEdge *e) {
-    edge[nu_edges].vertex0 = e->vertex_index[1];
-    edge[nu_edges].vertex1 = e->vertex_index[0];
-    nu_edges++;    
+void EdgeArray::CheckEdgeCapacity(int nu_edges_required) {
+    if (nu_edges_required > max_edges) {
+        delete [] edge_index;
+        // Add a little extra capacity to avoid constant reallocation in the unlikely
+        // theoretical case of a small number of triangles being added to the largest
+        // model continuously.
+        edge_index = new unsigned int[nu_edges_required + 1024];
+        max_edges = nu_edges_required + 1024;
+    }
 }
 
-// Face types do not need to be stored after silhouette determination; only maintain
-// one global buffer.
-static char *face_type = NULL;
-static int max_face_types = 0;
-
-static void CalculateSilhouetteEdges(const Vector4D& lightpos, EdgeArray *ea) {
-    sreLODModelShadowVolume *m = ea->model;
-
-    // Dynamically reallocate the face type buffer when required.
-    if (m->nu_triangles > max_face_types) {
+void EdgeArray::CheckFaceTypeCapacity(int nu_faces_required) {
+    if (nu_faces_required > max_face_types) {
         if (face_type != NULL)
             delete [] face_type;
         // Add a little extra capacity to avoid constant reallocation in the unlikely
         // theoretical case of a small number of triangles being added to the largest
         // model continuously.
-        face_type = new char[m->nu_triangles + 1024];
-        max_face_types = m->nu_triangles + 1024;
+        int new_size = (nu_faces_required + 1024 + (8 / SRE_FACE_FLAG_BITS - 1)) /
+            (8 / SRE_FACE_FLAG_BITS);
+        face_type = new unsigned char[new_size];
+        max_face_types = new_size;
     }
+}
+
+static EdgeArray *silhouette_edges = NULL;
+
+static void CalculateSilhouetteEdges(const Vector4D& lightpos, EdgeArray *ea) {
+    sreLODModelShadowVolume *m = ea->m;
+
+    // Dynamically reallocate the face type buffer when required.
+    ea->CheckFaceTypeCapacity(m->nu_triangles);
+
     // Dynamically enlarge the edge array when required.
-    if (m->nu_edges > ea->max_edges) {
-        delete [] ea->edge;
-        // Add a little extra capacity to avoid constant reallocation in the unlikely
-        // theoretical case of a small number of triangles being added to the largest
-        // model continuously.
-        ea->edge = new Edge[m->nu_edges + 1024];
-        ea->max_edges = m->nu_edges + 1024;
-    }
+    ea->CheckEdgeCapacity(m->nu_edges);
+
+    ea->nu_edges = 0;
+
     // Determine which triangles are facing the light.
     // Note that lightpos is in model space.
     // In the VBO edges implementation, it is acceptable to do this in the model's
@@ -116,47 +210,176 @@ static void CalculateSilhouetteEdges(const Vector4D& lightpos, EdgeArray *ea) {
     if ((m->flags & (SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT)) ==
     SRE_LOD_MODEL_NOT_CLOSED)
          goto model_not_closed;
-    for (int i = 0; i < m->nu_triangles; i++) {
-        Vector3D light_vector = lightpos.GetPoint3D() - lightpos.w * m->vertex[m->triangle[i].vertex_index[0]];
-        if (Dot(light_vector, m->triangle[i].normal) < 0)
-            face_type[i] = NON_LIGHT_FACING;
-        else
-            face_type[i] = LIGHT_FACING;
+    {
+    int i = 0;
+#ifdef USE_SSE2
+#define TRIANGLES_AT_A_TIME 4
+    // Process TRIANGLES_AT_AT_TIME triangles at a time using SIMD.
+    const __simd128_float zeros = simd128_set_zero_float();
+    const __simd128_float m_lightpos_x = simd128_set1_float(lightpos.x);
+    const __simd128_float m_lightpos_y = simd128_set1_float(lightpos.y);
+    const __simd128_float m_lightpos_z = simd128_set1_float(lightpos.z);
+    const __simd128_float m_lightpos_w = simd128_set1_float(lightpos.w);
+    for (; i + TRIANGLES_AT_A_TIME - 1 < m->nu_triangles; i += TRIANGLES_AT_A_TIME) {
+        for (int j = 0; j < TRIANGLES_AT_A_TIME / 4; j++) {
+            int k = i + j * 4;
+#if 1
+            // Calculate dot products of the light vector lv and triangle normal tn.
+            Vector3D vertex0[4], tn[4];
+            for (int l = 0; l < 4; l++) { 
+                 vertex0[l] = m->vertex[m->triangle[k + l].vertex_index[0]];
+                 tn[l] = m->triangle[k + l].normal;
+            }
+            __simd128_float m_vertex0_x = simd128_set_float(vertex0[0].x, vertex0[1].x,
+                 vertex0[2].x, vertex0[3].x);
+            __simd128_float m_vertex0_y = simd128_set_float(vertex0[0].y, vertex0[1].y,
+                 vertex0[2].y, vertex0[3].y);
+            __simd128_float m_vertex0_z = simd128_set_float(vertex0[0].z, vertex0[1].z,
+                 vertex0[2].z, vertex0[3].z);
+            __simd128_float m_lv_x = simd128_sub_float(m_lightpos_x,
+                 simd128_mul_float(m_lightpos_w, m_vertex0_x));
+            __simd128_float m_lv_y = simd128_sub_float(m_lightpos_y,
+                 simd128_mul_float(m_lightpos_w, m_vertex0_y));
+            __simd128_float m_lv_z = simd128_sub_float(m_lightpos_z,
+                 simd128_mul_float(m_lightpos_w, m_vertex0_z));
+            __simd128_float m_tn_x = simd128_set_float(tn[0].x, tn[1].x, tn[2].x, tn[3].x);
+            __simd128_float m_tn_y = simd128_set_float(tn[0].y, tn[1].y, tn[2].y, tn[3].y);
+            __simd128_float m_tn_z = simd128_set_float(tn[0].z, tn[1].z, tn[2].z, tn[3].z);
+            __simd128_float m_dot_x = simd128_mul_float(m_lv_x, m_tn_x);
+            __simd128_float m_dot_y = simd128_mul_float(m_lv_y, m_tn_y);
+            __simd128_float m_dot_z = simd128_mul_float(m_lv_z, m_tn_z);
+            // mul0 should contain only the x components of the dot products, etc.
+            __simd128_float result = simd128_add_float(simd128_add_float(m_dot_x, m_dot_y), m_dot_z);
+#else
+            __simd128_float result;
+            SIMDCalculateFourDotProductsV4NoStore(&v1[0][0], &v2[0][0], result);
+#endif
+            // Produce 32-bit masks (0xFFFFFFFF or 0x00000000) for each comparison result.
+            __simd128_int comp = simd128_cmpge_float(result, zeros);
+            unsigned int face_flags = simd128_convert_masks_int32_int1(comp);
+            unsigned int byte_flags = (face_flags & 0x1) + ((face_flags & 0x2) << 7)
+                + ((face_flags & 0x4) << 14) + ((face_flags & 0x8) << 21);
+            // Set four flags at a time.
+            ea->SetFourFaceTypes(k, byte_flags);
+//            printf("face_type[0, 1, 2, 3] = 0x%08X\n", ea->GetFourFaceTypes(k));
+        }
     }
-    for (int i = 0; i < m->nu_edges; i++) {
+#endif
+    for (;i < m->nu_triangles; i++) {
+        Vector3D light_vector = lightpos.GetPoint3D() - lightpos.w * m->vertex[m->triangle[i].vertex_index[0]];
+        if (Dot(light_vector, m->triangle[i].normal) < 0.0f)
+            ea->SetFaceType(i, 0);
+        else
+            ea->SetFaceType(i, SRE_FACE_FLAG_LIGHT_FACING);
+    }
+    // Check the orientation of the faces with the respect to the light to determine the
+    // silhouette edges.
+    i = 0;
+    // Processing of multiple edges a time is supported when the face flags are stored
+    // as a single byte.
+#if SRE_FACE_FLAG_BITS == 8
+#define EDGES_AT_A_TIME 8
+    for (; i + EDGES_AT_A_TIME - 1 < m->nu_edges; i += EDGES_AT_A_TIME) {
+        // Process 4, 8 or 16 edges a time.
+        unsigned int face_type_bits_tri0 =
+            (unsigned int)ea->face_type[m->edge[i + 0].triangle_index[0]] +
+            ((unsigned int)ea->face_type[m->edge[i + 1].triangle_index[0]] << 1) +
+            ((unsigned int)ea->face_type[m->edge[i + 2].triangle_index[0]] << 2) +
+            ((unsigned int)ea->face_type[m->edge[i + 3].triangle_index[0]] << 3);
+        unsigned int face_type_bits_tri1 =
+            (unsigned int)ea->face_type[m->edge[i + 0].triangle_index[1]] +
+            ((unsigned int)ea->face_type[m->edge[i + 1].triangle_index[1]] << 1) +
+            ((unsigned int)ea->face_type[m->edge[i + 2].triangle_index[1]] << 2) +
+            ((unsigned int)ea->face_type[m->edge[i + 3].triangle_index[1]] << 3);
+#if EDGES_AT_A_TIME >= 8
+        face_type_bits_tri0 +=
+            ((unsigned int)ea->face_type[m->edge[i + 4].triangle_index[0]] << 4) +
+            ((unsigned int)ea->face_type[m->edge[i + 5].triangle_index[0]] << 5) +
+            ((unsigned int)ea->face_type[m->edge[i + 6].triangle_index[0]] << 6) +
+            ((unsigned int)ea->face_type[m->edge[i + 7].triangle_index[0]] << 7);
+        face_type_bits_tri1 +=
+            ((unsigned int)ea->face_type[m->edge[i + 4].triangle_index[1]] << 4) +
+            ((unsigned int)ea->face_type[m->edge[i + 5].triangle_index[1]] << 5) +
+            ((unsigned int)ea->face_type[m->edge[i + 6].triangle_index[1]] << 6) +
+            ((unsigned int)ea->face_type[m->edge[i + 7].triangle_index[1]] << 7);
+#endif
+#if EDGES_AT_A_TIME == 16
+        face_type_bits_tri0 +=
+            ((unsigned int)ea->face_type[m->edge[i + 8].triangle_index[0]] << 8) +
+            ((unsigned int)ea->face_type[m->edge[i + 9].triangle_index[0]] << 9) +
+            ((unsigned int)ea->face_type[m->edge[i + 10].triangle_index[0]] << 10) +
+            ((unsigned int)ea->face_type[m->edge[i + 11].triangle_index[0]] << 11);
+        face_type_bits_tri0 +=
+            ((unsigned int)ea->face_type[m->edge[i + 12].triangle_index[0]] << 12) +
+            ((unsigned int)ea->face_type[m->edge[i + 13].triangle_index[0]] << 13) +
+            ((unsigned int)ea->face_type[m->edge[i + 14].triangle_index[0]] << 14) +
+            ((unsigned int)ea->face_type[m->edge[i + 15].triangle_index[0]] << 15);
+        face_type_bits_tri1 +=
+            ((unsigned int)ea->face_type[m->edge[i + 8].triangle_index[1]] << 8) +
+            ((unsigned int)ea->face_type[m->edge[i + 9].triangle_index[1]] << 9) +
+            ((unsigned int)ea->face_type[m->edge[i + 10].triangle_index[1]] << 10) +
+            ((unsigned int)ea->face_type[m->edge[i + 11].triangle_index[1]] << 11);
+        face_type_bits_tri1 +=
+            ((unsigned int)ea->face_type[m->edge[i + 12].triangle_index[1]] << 12) +
+            ((unsigned int)ea->face_type[m->edge[i + 13].triangle_index[1]] << 13) +
+            ((unsigned int)ea->face_type[m->edge[i + 14].triangle_index[1]] << 14) +
+            ((unsigned int)ea->face_type[m->edge[i + 15].triangle_index[1]] << 15);
+#endif
+        unsigned int cond_int = face_type_bits_tri0 ^ face_type_bits_tri1;
+        // Process multiple checks at a time, so that a set of four/sixteen edges can be
+        // immediately dismissed when none of them are part of the silhouette.
+        for (int j = 0; j < EDGES_AT_A_TIME; j++) {
+            if (cond_int == 0)
+                break;
+            // Set the "reverse edge" bit when triangle 0 faces the light.
+            unsigned int reversed_bit = face_type_bits_tri0 << 31;
+            if (cond_int & 0x1) {
+                ea->AppendEdge((i + j) | reversed_bit);
+            }
+            face_type_bits_tri0 >>= 1;
+            cond_int >>= 1;
+        }
+    }
+#endif // SRE_FACE_FLAG_BITS == 8 (processed multiple edges at a time).
+    // Process the remaining edges.
+    for (; i < m->nu_edges; i++) {
         ModelEdge *e = &m->edge[i];
         // Check the orientation of the faces with the respect to the light to determine the
         // silhouette edge.
-        unsigned char face_type0 = face_type[e->triangle_index[0]];
-        unsigned char face_type1 = face_type[e->triangle_index[1]];
+        unsigned char face_type0 = ea->GetFaceType(e->triangle_index[0]);
+        unsigned char face_type1 = ea->GetFaceType(e->triangle_index[1]);
         if (face_type0 != face_type1) {
             // Convention is that e0 to e1 is counterclockwise in face 0 and clockwise in
             // face 1.
-            if (face_type0 == NON_LIGHT_FACING)
-                ea->AppendEdge(e);
-            else
-                ea->AppendEdgeReversed(e);
+            // Set the "reverse edge" bit when triangle 0 faces the light.
+            unsigned int reversed_bit = (unsigned int)face_type0 << 31;
+            ea->AppendEdge(i | reversed_bit);
         }
     }
     return;
+    }
 
 model_not_closed :
     for (int i = 0; i < m->nu_triangles; i++) {
         Vector3D light_vector = lightpos.GetPoint3D() - lightpos.w * m->vertex[m->triangle[i].vertex_index[0]];
         float dot = Dot(light_vector, m->triangle[i].normal);
+        int face_flags;
         if (dot < 0)
-            face_type[i] = NON_LIGHT_FACING;
+            face_flags = 0;
         else
-            face_type[i] = LIGHT_FACING;
-        if (dot > - 0.01 && dot < 0.01)
-            face_type[i] |= PERPENDICULAR_TO_LIGHT;
+            face_flags = SRE_FACE_FLAG_LIGHT_FACING;
+#if SRE_FACE_FLAG_BITS > 1
+        if (dot > - 0.01f && dot < 0.01f)
+            face_flags |= SRE_FACE_FLAG_PERPENDICULAR_TO_LIGHT;
+#endif
+        ea->SetFaceType(i, face_flags);
     }
     for (int i = 0; i < m->nu_edges; i++) {
         ModelEdge *e = &m->edge[i];
         if (e->triangle_index[1] == -1) {
             // The edge has only one triangle. 
             bool swapped = false;
-            if ((face_type[e->triangle_index[0]] & 1) == NON_LIGHT_FACING)
+            if (!ea->IsLightFacing(e->triangle_index[0]))
                 swapped = true;
             if (e->vertex_index[1] < e->vertex_index[0])
                 swapped = !swapped;
@@ -186,15 +409,15 @@ model_not_closed :
             Vector4D K = Vector4D(N, - Dot(N, m->vertex[vertex_index0]));
             // Make sure the normal is pointed outward by taking the distance to the projected center.
             if ((Dot(K, center) < 0) ^ swapped)
-                ea->AppendEdge(e);
+                ea->AppendEdge(i);
             else
-                ea->AppendEdgeReversed(e);
+                ea->AppendEdgeReversed(i);
             continue;
         }
         // Check the orientation of the faces with the respect to the light to determine the
         // silhouette edge.
-        unsigned char face_type0 = face_type[e->triangle_index[0]];
-        unsigned char face_type1 = face_type[e->triangle_index[1]];
+        unsigned char face_type0 = ea->GetFaceType(e->triangle_index[0]);
+        unsigned char face_type1 = ea->GetFaceType(e->triangle_index[1]);
 #if 0
         if ((face_type0 & PERPENDICULAR_TO_LIGHT) || (face_type1 & PERPENDICULAR_TO_LIGHT)) {
             printf("At least one face perpendicular to light (edge %d).\n", i);
@@ -234,19 +457,20 @@ model_not_closed :
             Vector4D K = Vector4D(N, - Dot(N, m->vertex[vertex_index0]));
             // Make sure the normal is pointed outward by taking the distance to the projected center.
             if ((Dot(K, center) < 0) ^ swapped)
-                ea->AppendEdge(e);
+                ea->AppendEdge(i);
             else
-                ea->AppendEdgeReversed(e);
+                ea->AppendEdgeReversed(i);
             continue;
         }
 #endif
-        if ((face_type0 & 1) != (face_type1 & 1)) {
+        if ((face_type0 & SRE_FACE_FLAG_LIGHT_FACING)
+        != (face_type1 & SRE_FACE_FLAG_LIGHT_FACING)) {
             // Convention is that e0 to e1 is counterclockwise in face 0 and clockwise in
             // face 1.
-            if ((face_type0 & 1) == NON_LIGHT_FACING)
-                ea->AppendEdge(e);
+            if (!(face_type0 & SRE_FACE_FLAG_LIGHT_FACING))
+                ea->AppendEdge(i);
             else
-                ea->AppendEdgeReversed(e);
+                ea->AppendEdgeReversed(i);
         }
     }
     return;
@@ -285,7 +509,7 @@ enum {
     SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN = 4
 };
 
-static void AddSides(sreLODModelShadowVolume *m, EdgeArray *ea, const sreLight& light, int array_buffer_flags) {
+static void AddSides(EdgeArray *ea, const sreLight& light, int array_buffer_flags) {
     // Add the sides of the shadow volume based on the silhouette. For light cap vertices
     // projected to the dark cap, a w component of 0 is used.
     if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
@@ -296,9 +520,11 @@ static void AddSides(sreLODModelShadowVolume *m, EdgeArray *ea, const sreLight& 
         // extruded to infinity. The extruded vertex index used doesn't matter, as long as
         // the w component is 0.
         for (int i = 0; i < ea->nu_edges; i++) {
-            EmitVertexShort(ea->edge[i].vertex0);
-            EmitVertexShort(ea->edge[i].vertex1);
-            EmitVertexShort(m->vertex_index_shadow_offset);
+            unsigned int v0, v1;
+            ea->GetVertices(i, v0, v1);
+            EmitVertexShort(v0);
+            EmitVertexShort(v1);
+            EmitVertexShort(ea->m->vertex_index_shadow_offset);
         }
         return;
     }
@@ -306,10 +532,10 @@ static void AddSides(sreLODModelShadowVolume *m, EdgeArray *ea, const sreLight& 
     // Each silhouette edge vertex is extruded to infinity to help
     // construct the sides of the shadow volume.
     for (int i = 0; i < ea->nu_edges; i++) {
-        int v0 = ea->edge[i].vertex0;
-        int extr_v0 = v0 + m->vertex_index_shadow_offset;
-        int v1 = ea->edge[i].vertex1;
-        int extr_v1 = v1 + m->vertex_index_shadow_offset;
+        unsigned int v0, v1;
+        ea->GetVertices(i, v0, v1);
+        unsigned int extr_v0 = v0 + ea->m->vertex_index_shadow_offset;
+        unsigned int extr_v1 = v1 + ea->m->vertex_index_shadow_offset;
         // Generate first triangle.
         EmitVertexShort(v0);
         EmitVertexShort(v1);
@@ -326,18 +552,20 @@ add_sides_int :
         // Directional light. The sides converge to a single point -L.
         // Or a beam light, in which case the sides converge to the beam light direction.
         for (int i = 0; i < ea->nu_edges; i++) {
-            EmitVertexInt(ea->edge[i].vertex0);
-            EmitVertexInt(ea->edge[i].vertex1);
-            EmitVertexInt(m->vertex_index_shadow_offset);
+            unsigned int v0, v1;
+            ea->GetVertices(i, v0, v1);
+            EmitVertexInt(v0);
+            EmitVertexInt(v1);
+            EmitVertexInt(ea->m->vertex_index_shadow_offset);
         }
         return;
     }
     // Point light or spot light, the sides are extruded to infinity.
     for (int i = 0; i < ea->nu_edges; i++) {
-        int v0 = ea->edge[i].vertex0;
-        int extr_v0 = v0 + m->vertex_index_shadow_offset;
-        int v1 = ea->edge[i].vertex1;
-        int extr_v1 = v1 + m->vertex_index_shadow_offset;
+        unsigned int v0, v1;
+        ea->GetVertices(i, v0, v1);
+        unsigned int extr_v0 = v0 + ea->m->vertex_index_shadow_offset;
+        unsigned int extr_v1 = v1 + ea->m->vertex_index_shadow_offset;
         // Generate first triangle.
         EmitVertexInt(v0);
         EmitVertexInt(v1);
@@ -356,7 +584,7 @@ add_sides_int :
 // each side "quad". This saves just one index value per pair of side triangles; the savings are not
 // great (it would be difficult to generate larger triangle strips form silhouette data).
 
-static void AddSidesTriangleStrip(sreLODModelShadowVolume *m, EdgeArray *ea, const sreLight& light,
+static void AddSidesTriangleStrip(EdgeArray *ea, const sreLight& light,
 int array_buffer_flags) {
     // Add the sides of the shadow volume based on the silhouette. For light cap vertices
     // projected to the dark cap, a w component of 0 is used.
@@ -367,11 +595,13 @@ int array_buffer_flags) {
         // Or a beam light, in which case the sides converge to the beam light direction
         // extruded to infinity. The extruded vertex index used doesn't matter, as long as
         // the w component is 0.
-        // Construct a triangle fan with
+        // Construct a triangle strip.
         for (int i = 0; i < ea->nu_edges; i++) {
-            EmitVertexShort(ea->edge[i].vertex0);
-            EmitVertexShort(ea->edge[i].vertex1);
-            EmitVertexShort(m->vertex_index_shadow_offset);
+            unsigned int v0, v1;
+            ea->GetVertices(i, v0, v1);
+            EmitVertexShort(v0);
+            EmitVertexShort(v1);
+            EmitVertexShort(ea->m->vertex_index_shadow_offset);
         }
         return;
     }
@@ -380,10 +610,10 @@ int array_buffer_flags) {
     // Each silhouette edge vertex is extruded to infinity to help
     // construct the sides of the shadow volume.
     for (int i = 0; i < ea->nu_edges; i++) {
-        int v0 = ea->edge[i].vertex0;
-        int extr_v0 = v0 + m->vertex_index_shadow_offset;
-        int v1 = ea->edge[i].vertex1;
-        int extr_v1 = v1 + m->vertex_index_shadow_offset;
+        unsigned int v0, v1;
+        ea->GetVertices(i, v0, v1);
+        unsigned int extr_v0 = v0 + ea->m->vertex_index_shadow_offset;
+        unsigned int extr_v1 = v1 + ea->m->vertex_index_shadow_offset;
         // Generate triangle strip consisting of the triangles:
         // (v1, extr_v1, v0) and (v0, extr_v1, extr_v0).
         EmitVertexShort(v1);
@@ -397,10 +627,10 @@ int array_buffer_flags) {
 add_sides_triangle_strip_int :
     // Point light or spot light, the sides are extruded to infinity.
     for (int i = 0; i < ea->nu_edges; i++) {
-        int v0 = ea->edge[i].vertex0;
-        int extr_v0 = v0 + m->vertex_index_shadow_offset;
-        int v1 = ea->edge[i].vertex1;
-        int extr_v1 = v1 + m->vertex_index_shadow_offset;
+        unsigned int v0, v1;
+        ea->GetVertices(i, v0, v1);
+        unsigned int extr_v0 = v0 + ea->m->vertex_index_shadow_offset;
+        unsigned int extr_v1 = v1 + ea->m->vertex_index_shadow_offset;
         // Generate triangle strip consisting of the triangles:
         // (v1, extr_v1, v0) and (v0, extr_v1, extr_v0).
         EmitVertexInt(v1);
@@ -421,7 +651,7 @@ add_sides_triangle_strip_int :
 // resulting triangle fan will be relatively cache-coherent, and should be fast to draw.
 // Returns true when succesful, false otherwise.
 
-static bool AddSidesTriangleFan(sreLODModelShadowVolume *m, EdgeArray *ea, const sreLight& light,
+static bool AddSidesTriangleFan(EdgeArray *ea, const sreLight& light,
 int array_buffer_flags) {
     // Add the sides of the shadow volume based on the silhouette. For light cap vertices
     // projected to the dark cap, a w component of 0 is used.
@@ -441,23 +671,25 @@ int array_buffer_flags) {
     // silhouette with ordered edges in that case. Irregular models are detected and the
     // function returns false; a standard shadow volume (consisting of triangles) can be
     // constructed instead.
-    int *edge_starting_at_vertex = (int *)alloca(sizeof(int) * m->nu_vertices);
-    for (int i = 0; i < m->nu_vertices; i++)
+    int *edge_starting_at_vertex = (int *)alloca(sizeof(int) * ea->m->nu_vertices);
+    for (int i = 0; i < ea->m->nu_vertices; i++)
         edge_starting_at_vertex[i] = - 1;
-    for (int i = 0; i < ea->nu_edges; i++)
-        edge_starting_at_vertex[ea->edge[i].vertex0] = i;
+    for (int i = 0; i < ea->nu_edges; i++) {
+        unsigned int v0;
+        ea->GetFirstVertex(i, v0);
+        edge_starting_at_vertex[v0] = i;
+    }
 
-    int starting_vertex;
-    int v0, v1;
+    unsigned int starting_vertex;
+    unsigned int v0, v1;
 
     if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
         goto add_sides_triangle_fan_int;
 
     // Construct a triangle fan around the extruded point.
-    EmitVertexShort(m->vertex_index_shadow_offset);
-    starting_vertex = ea->edge[0].vertex0;
-    v0 = starting_vertex;
-    v1 = ea->edge[0].vertex1;
+    EmitVertexShort(ea->m->vertex_index_shadow_offset);
+    ea->GetVertices(0, v0, v1);
+    starting_vertex = v0;
     for (;;) { 
         EmitVertexShort(v0);
         v0 = v1;
@@ -469,16 +701,15 @@ int array_buffer_flags) {
             nu_shadow_volume_vertices = 0;
             return false;
         }
-        v1 = ea->edge[e].vertex1;
+        ea->GetSecondVertex(e, v1);
     }
     EmitVertexShort(starting_vertex); // Close the volume (around the silhouette).
     return true;
 
 add_sides_triangle_fan_int :
-    EmitVertexInt(m->vertex_index_shadow_offset);
-    starting_vertex = ea->edge[0].vertex0;
-    v0 = starting_vertex;
-    v1 = ea->edge[0].vertex1;
+    EmitVertexInt(ea->m->vertex_index_shadow_offset);
+    ea->GetVertices(0, v0, v1);
+    starting_vertex = v0;
     for (;;) {
         EmitVertexInt(v0);
         v0 = v1;
@@ -490,14 +721,15 @@ add_sides_triangle_fan_int :
             nu_shadow_volume_vertices = 0;
             return false;
         }
-        v1 = ea->edge[e].vertex1;
+        ea->GetSecondVertex(e, v1);
     }
     EmitVertexShort(starting_vertex); // Close the volume (around the silhouette).
     return true;
 }
 
 
-static void AddLightCap(sreLODModelShadowVolume *m, int array_buffer_flags) {
+static void AddLightCap(EdgeArray *ea, int array_buffer_flags) {
+    sreLODModelShadowVolume *m = ea->m;
     // A light cap may be required for point or spot lights for depth-fail rendering.
     // The light cap consists of all model triangles that face the light.
     if (m->flags & SRE_LOD_MODEL_NOT_CLOSED)
@@ -505,7 +737,7 @@ static void AddLightCap(sreLODModelShadowVolume *m, int array_buffer_flags) {
     if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
         goto add_light_cap_int;
     for (int i = 0; i < m->nu_triangles; i++)
-        if (face_type[i] == LIGHT_FACING) {
+        if (ea->IsLightFacing(i)) {
             EmitVertexShort(m->triangle[i].vertex_index[0]);
             EmitVertexShort(m->triangle[i].vertex_index[1]);
             EmitVertexShort(m->triangle[i].vertex_index[2]);
@@ -514,7 +746,7 @@ static void AddLightCap(sreLODModelShadowVolume *m, int array_buffer_flags) {
 
 add_light_cap_int :
     for (int i = 0; i < m->nu_triangles; i++)
-        if (face_type[i] == LIGHT_FACING) {
+        if (ea->IsLightFacing(i)) {
             EmitVertexInt(m->triangle[i].vertex_index[0]);
             EmitVertexInt(m->triangle[i].vertex_index[1]);
             EmitVertexInt(m->triangle[i].vertex_index[2]);
@@ -525,7 +757,7 @@ add_light_cap_not_closed :
     if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
         goto add_light_cap_not_closed_int;
     for (int i = 0; i < m->nu_triangles; i++)
-        if ((face_type[i] & 1) == LIGHT_FACING) {
+        if (ea->IsLightFacing(i)) {
             EmitVertexShort(m->triangle[i].vertex_index[0]);
             EmitVertexShort(m->triangle[i].vertex_index[1]);
             EmitVertexShort(m->triangle[i].vertex_index[2]);
@@ -541,7 +773,7 @@ add_light_cap_not_closed :
 
 add_light_cap_not_closed_int :
     for (int i = 0; i < m->nu_triangles; i++)
-        if ((face_type[i] & 1) == LIGHT_FACING) {
+        if (ea->IsLightFacing(i)) {
             EmitVertexInt(m->triangle[i].vertex_index[0]);
             EmitVertexInt(m->triangle[i].vertex_index[1]);
             EmitVertexInt(m->triangle[i].vertex_index[2]);
@@ -556,7 +788,8 @@ add_light_cap_not_closed_int :
     return;
 }
 
-static void AddDarkCap(sreLODModelShadowVolume *m, int array_buffer_flags) {
+static void AddDarkCap(EdgeArray *ea, int array_buffer_flags) {
+    sreLODModelShadowVolume *m = ea->m;
     // A dark cap may be required for point or spot lights for depth-fail rendering.
     // Since vertices are extruded to infinity, we can use the same vertices
     // as the light cap, but extruded to infinity (w == 0), and their order reversed
@@ -566,7 +799,7 @@ static void AddDarkCap(sreLODModelShadowVolume *m, int array_buffer_flags) {
     if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
         goto add_dark_cap_int;
     for (int i = 0; i < m->nu_triangles; i++)
-        if (face_type[i] == LIGHT_FACING) {
+        if (!ea->IsLightFacing(i)) {
             EmitVertexShort(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
             EmitVertexShort(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
             EmitVertexShort(m->triangle[i].vertex_index[0] + m->vertex_index_shadow_offset);
@@ -575,7 +808,7 @@ static void AddDarkCap(sreLODModelShadowVolume *m, int array_buffer_flags) {
 
 add_dark_cap_int :
     for (int i = 0; i < m->nu_triangles; i++)
-        if (face_type[i] == LIGHT_FACING) {
+        if (!ea->IsLightFacing(i)) {
             EmitVertexInt(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
             EmitVertexInt(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
             EmitVertexInt(m->triangle[i].vertex_index[0] + m->vertex_index_shadow_offset);
@@ -586,7 +819,7 @@ add_dark_cap_not_closed :
     if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
         goto add_dark_cap_not_closed_int;
     for (int i = 0; i < m->nu_triangles; i++)
-        if ((face_type[i] & 1) == LIGHT_FACING) {
+        if (!ea->IsLightFacing(i)) {
             EmitVertexShort(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
             EmitVertexShort(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
             EmitVertexShort(m->triangle[i].vertex_index[0] + m->vertex_index_shadow_offset);
@@ -602,7 +835,7 @@ add_dark_cap_not_closed :
 
 add_dark_cap_not_closed_int :
     for (int i = 0; i < m->nu_triangles; i++)
-        if ((face_type[i] & 1) == LIGHT_FACING) {
+        if (!ea->IsLightFacing(i)) {
             EmitVertexInt(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
             EmitVertexInt(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
             EmitVertexInt(m->triangle[i].vertex_index[0] + m->vertex_index_shadow_offset);
@@ -1046,7 +1279,6 @@ const Vector4D& lightpos_model, int type) {
     return true;
 }
 
-static EdgeArray *silhouette_edges = NULL;
 
 // Draw an object's shadow volume for the given light. The object has already been
 // determined to be a shadow caster in terms of being in the light volume and in
@@ -1207,9 +1439,8 @@ skip_cache :
             glGenBuffers(1, &element_buffer_id);
 
         // Calculate silhouette edges.
-        silhouette_edges->model = m;
+        silhouette_edges->m = m;
         silhouette_edges->full_model = so->model;
-        silhouette_edges->nu_edges = 0;
         CalculateSilhouetteEdges(lightpos_model, silhouette_edges);
 
         // The number of edges in the silhouette limits the worst-case total amount of vertices
@@ -1280,7 +1511,7 @@ skip_cache :
                 // a regular shadow volume, only try when the shadow volume will be cached
                 // subsequently.
                 array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN;
-                bool r = AddSidesTriangleFan(m, silhouette_edges, *light, array_buffer_flags);
+                bool r = AddSidesTriangleFan(silhouette_edges, *light, array_buffer_flags);
                 if (r) {
                     array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN;
 #if 0
@@ -1294,7 +1525,7 @@ skip_cache :
                     if (sre_internal_debug_message_level >= 1)
                         printf("Triangle fan shadow volume construction failed for model %d.\n", m->id);
 #endif
-                    AddSides(m, silhouette_edges, *light, array_buffer_flags);
+                    AddSides(silhouette_edges, *light, array_buffer_flags);
                 }
             }
             else
@@ -1304,11 +1535,11 @@ skip_cache :
                 // When we just need the sides for a point or spot light, we can use triangle strips with
                 // primitive restart for all of the shadow volume, resulting in a small saving of GPU space.
                 array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_STRIP;
-                AddSidesTriangleStrip(m, silhouette_edges, *light, array_buffer_flags);
+                AddSidesTriangleStrip(silhouette_edges, *light, array_buffer_flags);
             }
             else
 #endif
-                AddSides(m, silhouette_edges, *light, array_buffer_flags);
+                AddSides(silhouette_edges, *light, array_buffer_flags);
             if (nu_shadow_volume_vertices > 0) {
                 glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
                 glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
@@ -1325,7 +1556,7 @@ skip_cache :
                 && !(m->flags & (SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_CONTAINS_HOLES))) {
                     // For closed models with a directional light or beam light, we can create a
                     // triangle fan representing the shadow volume (sides only).
-                    bool r = AddSidesTriangleFan(m, silhouette_edges, *light, array_buffer_flags);
+                    bool r = AddSidesTriangleFan(silhouette_edges, *light, array_buffer_flags);
                     if (r)
                         array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN;
                     else {
@@ -1335,7 +1566,7 @@ skip_cache :
                         if (sre_internal_debug_message_level >= 1)
                             printf("Triangle fan shadow volume construction failed for model %d.\n", m->id);
 #endif
-                        AddSides(m, silhouette_edges, *light, array_buffer_flags);
+                        AddSides(silhouette_edges, *light, array_buffer_flags);
                     }
                 }
                 else
@@ -1345,20 +1576,20 @@ skip_cache :
                     // When we just need the sides for a point or spot light, we can use triangle strips with
                     // primitive restart for all of the shadow volume.
                     array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_STRIP;
-                    AddSidesTriangleStrip(m, silhouette_edges, *light, array_buffer_flags);
+                    AddSidesTriangleStrip(silhouette_edges, *light, array_buffer_flags);
                 }
                 else
 #endif
-                    AddSides(m, silhouette_edges, *light, array_buffer_flags);
+                    AddSides(silhouette_edges, *light, array_buffer_flags);
             }
             else {
                  // At least a lightcap or darkcap is needed.
                 if (!(type & TYPE_SKIP_SIDES))
-                    AddSides(m, silhouette_edges, *light, array_buffer_flags);
+                    AddSides(silhouette_edges, *light, array_buffer_flags);
                 if (!(type & TYPE_SKIP_DARKCAP))
-                    AddDarkCap(m, array_buffer_flags);
+                    AddDarkCap(silhouette_edges, array_buffer_flags);
                 if (!(type & TYPE_SKIP_LIGHTCAP))
-                    AddLightCap(m, array_buffer_flags);
+                    AddLightCap(silhouette_edges, array_buffer_flags);
             }
             if (nu_shadow_volume_vertices > 0) {
                 glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
@@ -1868,10 +2099,9 @@ void sreRenderShadowVolumes(sreScene *scene, sreLight *light, sreFrustum &frustu
     current_element_buffer = 0;
 #endif
     last_vertexbuffer_id = 0xFFFFFFFF;
+    // Create global silhouette edges data structure.
     if (silhouette_edges == NULL) {
         silhouette_edges = new EdgeArray;
-        silhouette_edges->edge = new Edge[SRE_DEFAULT_MAX_SILHOUETTE_EDGES]; 
-        silhouette_edges->max_edges = SRE_DEFAULT_MAX_SILHOUETTE_EDGES;
     }
     if (shadow_volume_vertex == NULL) {
         shadow_volume_vertex = new int[SRE_DEFAULT_MAX_SHADOW_VOLUME_VERTICES];
