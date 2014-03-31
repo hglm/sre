@@ -21,11 +21,20 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // intersection.cpp and not included in this header file; these can be made
 // non-static and added to this header file when required by a different module.
 
+#include "sre_simd.h"
+
 // Inline AABB utility functions.
 
 // Update AABB1 with the union of AABB1 and AABB2.
 
-static inline void UpdateAABB(sreBoundingVolumeAABB& AABB1, const sreBoundingVolumeAABB& AABB2) {
+static inline void UpdateAABB(sreBoundingVolumeAABB& AABB1,
+const sreBoundingVolumeAABB& AABB2) {
+    // Use of SSE for just this function produces larger and less efficient code,
+    // so it is disabled. The packing/unpacking to and from SSE registers
+    // causes most of the overhead. Any succesful SSE optimization need to integrate
+    // the higher level function and keep track of the iteratively updated AABB
+    // exclusively in SSE registers, using the SIMD-specific structures and functions
+    // as implemented below.
     AABB1.dim_min.x = minf(AABB1.dim_min.x, AABB2.dim_min.x);
     AABB1.dim_max.x = maxf(AABB1.dim_max.x, AABB2.dim_max.x);
     AABB1.dim_min.y = minf(AABB1.dim_min.y, AABB2.dim_min.y);
@@ -54,6 +63,64 @@ static inline void UpdateAABB(sreBoundingVolumeAABB& AABB, const Point3D& P) {
     AABB.dim_min.z = minf(AABB.dim_min.z, P.z);
     AABB.dim_max.z = maxf(AABB.dim_max.z, P.z);
 }
+
+#ifdef USE_SSE2
+
+class sreBoundingVolumeAABB_SIMD {
+public :
+    __simd128_float m_dim_min;
+    __simd128_float m_dim_max;
+
+    void Set(const sreBoundingVolumeAABB& AABB) {
+        m_dim_min = simd128_set_float(
+            AABB.dim_min.x, AABB.dim_min.y, AABB.dim_min.z, 0.0f);
+        m_dim_max = simd128_set_float(
+            AABB.dim_max.x, AABB.dim_max.y, AABB.dim_max.z, 0.0f);
+    }
+    void Get(sreBoundingVolumeAABB& AABB) {
+        AABB.dim_min.x = simd128_get_float(simd128_select_float(m_dim_min, 0, 0, 0, 0));
+        AABB.dim_min.y = simd128_get_float(simd128_select_float(m_dim_min, 1, 1, 1, 1));
+        AABB.dim_min.z = simd128_get_float(simd128_select_float(m_dim_min, 2, 2, 2, 2));
+        AABB.dim_max.x = simd128_get_float(simd128_select_float(m_dim_max, 0, 0, 0, 0));
+        AABB.dim_max.y = simd128_get_float(simd128_select_float(m_dim_max, 1, 1, 1, 1));
+        AABB.dim_max.z = simd128_get_float(simd128_select_float(m_dim_max, 2, 2, 2, 2));
+    }
+};
+
+// SIMD-optimized version that updates an AABB stored in SIMD registers.
+
+static inline void UpdateAABB(sreBoundingVolumeAABB_SIMD& AABB1_SIMD,
+const sreBoundingVolumeAABB& AABB2) {
+    __simd128_float m_dim_min2 = simd128_set_float(
+        AABB2.dim_min.x, AABB2.dim_min.y, AABB2.dim_min.z, 0.0f);
+    __simd128_float m_dim_max2 = simd128_set_float(
+        AABB2.dim_max.x, AABB2.dim_max.y, AABB2.dim_max.z, 0.0f);
+    AABB1_SIMD.m_dim_min = simd128_min_float(AABB1_SIMD.m_dim_min, m_dim_min2);
+    AABB1_SIMD.m_dim_max = simd128_max_float(AABB1_SIMD.m_dim_max, m_dim_max2);
+}
+
+// SIMD-optimized version that updates an AABB stored in SIMD registers.
+
+static inline void UpdateAABBWithIntersection(sreBoundingVolumeAABB_SIMD& AABB1_SIMD,
+const sreBoundingVolumeAABB& AABB2) {
+    __simd128_float m_dim_min2 = simd128_set_float(
+        AABB2.dim_min.x, AABB2.dim_min.y, AABB2.dim_min.z, 0.0f);
+    __simd128_float m_dim_max2 = simd128_set_float(
+        AABB2.dim_max.x, AABB2.dim_max.y, AABB2.dim_max.z, 0.0f);
+    AABB1_SIMD.m_dim_min = simd128_max_float(AABB1_SIMD.m_dim_min, m_dim_min2);
+    AABB1_SIMD.m_dim_max = simd128_min_float(AABB1_SIMD.m_dim_max, m_dim_max2);
+}
+
+// SIMD-optimized version that updates an AABB stored in SIMD registers.
+
+static inline void UpdateAABB(sreBoundingVolumeAABB_SIMD& AABB1_SIMD,
+const Point3D& P) {
+    __simd128_float m_point = simd128_set_float(P.x, P.y, P.z, 0.0f);
+    AABB1_SIMD.m_dim_min = simd128_min_float(AABB1_SIMD.m_dim_min, m_point);
+    AABB1_SIMD.m_dim_max = simd128_max_float(AABB1_SIMD.m_dim_max, m_point);
+}
+
+#endif
 
 // Utility functions and data structures for an array of bounding box vertices.
 
@@ -108,7 +175,7 @@ static inline bool Intersects(const sreBoundingVolumeAABB& AABB1, const sreBound
 
 static inline bool Intersects(const Point3D& P, const sreBoundingVolumeAABB& AABB) {
     return P.x >= AABB.dim_min.x && P.y >= AABB.dim_min.y && P.z >= AABB.dim_min.z &&
-        P.x <=AABB.dim_max.x && P.y <= AABB.dim_max.y && P.z <= AABB.dim_max.z;
+        P.x <= AABB.dim_max.x && P.y <= AABB.dim_max.y && P.z <= AABB.dim_max.z;
 }
 
 static inline bool Intersects(const Point3D& point, const sreBoundingVolumeConvexHull &ch) {

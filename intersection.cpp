@@ -28,6 +28,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre_internal.h"
 #include "sre_bounds.h"
 #include "win32_compat.h"
+#include "sre_simd.h"
 
 // Intersection tests against a hull (a collection of vertex positions).
 
@@ -648,6 +649,12 @@ static bool Intersects(const sreBoundingVolumeAABB& AABB, const sreBoundingVolum
 // More detailed intersection test of an AABB against a sphere. Returns more exact information,
 // and will detect more non-intersections than the function above.
 
+#ifdef USE_SSE2
+static char bit_count4[16] = {
+    0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4
+};
+#endif
+
 static BoundsCheckResult QueryIntersection(const sreBoundingVolumeAABB& AABB,
 const sreBoundingVolumeSphere& sphere) {
     // First perform a rough test using the sphere's AABB. This will catch AABB's that are
@@ -657,8 +664,45 @@ const sreBoundingVolumeSphere& sphere) {
     // Check whether each of the corners of the AABB is inside the sphere. To accurately discriminate
     // between partially inside, completely inside, and completely outside, all corners have to be
     // checked.
-    int intersection_count;
-    intersection_count = Intersects(Point3D(AABB.dim_min.x, AABB.dim_min.y, AABB.dim_min.z), sphere);
+    int intersection_count = 0;
+#ifdef USE_SSE2
+    __simd128_float m_corner_x, m_corner_y, m_corner_z;
+    __simd128_float m_dim_min = simd128_set_float(AABB.dim_min.x, AABB.dim_min.y,
+        AABB.dim_min.z, 0.0f);
+    __simd128_float m_dim_max = simd128_set_float(AABB.dim_max.x, AABB.dim_max.y,
+        AABB.dim_max.z, 0.0f);
+    __simd128_float m_sphere_radius_squared = simd128_set1_float(sqrf(sphere.radius));
+    __simd128_float m_sphere_center = simd128_set_float(
+         sphere.center.x, sphere.center.y, sphere.center.z, 0.0f);
+    __simd128_float m_sphere_center_x = simd128_select_float(m_sphere_center, 0, 0, 0, 0);
+    __simd128_float m_sphere_center_y = simd128_select_float(m_sphere_center, 1, 1, 1, 1);
+    __simd128_float m_sphere_center_z = simd128_select_float(m_sphere_center, 2, 2, 2, 2);
+    m_corner_y = simd128_merge_float(m_dim_min, m_dim_max, 1, 1, 1, 1);
+    m_corner_z = simd128_add_float(
+        simd128_select_float(m_dim_min, 2, 3, 2, 3),
+        simd128_select_float(m_dim_max, 3, 2, 3, 2)
+        );
+    __simd128_float m_dim_min_max_x = simd128_merge_float(m_dim_min, m_dim_max, 0, 0, 0, 0);
+    for (int i = 0; i < 2; i++) {
+        // Check the four corners at x = dim_min.x (i = 0) and x = dim_max.x (i = 1).
+        m_corner_x = simd128_select_float(m_dim_min_max_x, i * 2, i * 2, i * 2, i * 2);
+        // Calculate SquaredMag(corner[i] - sphere.center).
+        __simd128_float m_temp_x = simd128_sub_float(m_corner_x, m_sphere_center_x);
+        __simd128_float m_temp_y = simd128_sub_float(m_corner_y, m_sphere_center_y);
+        __simd128_float m_temp_z = simd128_sub_float(m_corner_z, m_sphere_center_z);
+        m_temp_x = simd128_mul_float(m_temp_x, m_temp_x);
+        m_temp_y = simd128_mul_float(m_temp_y, m_temp_y);
+        m_temp_z = simd128_mul_float(m_temp_z, m_temp_z);
+        __simd128_float m_squared_mag = simd128_add_float(
+            simd128_add_float(m_temp_x, m_temp_y),
+            m_temp_z);
+        // Count the number of corners that are inside the sphere.
+         __simd128_int m_comp = simd128_cmplt_float(m_squared_mag,
+            m_sphere_radius_squared);
+        intersection_count += bit_count4[simd128_convert_masks_int32_int1(m_comp)];
+    }
+#else
+    intersection_count += Intersects(Point3D(AABB.dim_min.x, AABB.dim_min.y, AABB.dim_min.z), sphere);
     intersection_count += Intersects(Point3D(AABB.dim_max.x, AABB.dim_min.y, AABB.dim_min.z), sphere);
     intersection_count += Intersects(Point3D(AABB.dim_min.x, AABB.dim_max.y, AABB.dim_min.z), sphere);
     intersection_count += Intersects(Point3D(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_min.z), sphere);
@@ -666,6 +710,7 @@ const sreBoundingVolumeSphere& sphere) {
     intersection_count += Intersects(Point3D(AABB.dim_max.x, AABB.dim_min.y, AABB.dim_max.z), sphere);
     intersection_count += Intersects(Point3D(AABB.dim_min.x, AABB.dim_max.y, AABB.dim_max.z), sphere);
     intersection_count += Intersects(Point3D(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_max.z), sphere);
+#endif
     if (intersection_count == 8)
         return SRE_COMPLETELY_INSIDE;
     if (intersection_count != 0)
@@ -683,12 +728,22 @@ const sreBoundingVolumeSphere& sphere) {
     // dimensions the AABB is completely outside. If the AABB encloses the sphere or one or faces
     // intersect with it (without one corner being inside the sphere), the sphere's center must be
     // inside the AABB for at least one coordinate dimension.
+#ifdef USE_SSE2
+    // The fourth component should be ignored.
+    __simd128_int m_comp = simd128_and_int(
+        simd128_cmpge_float(m_sphere_center, m_dim_min),
+        simd128_cmple_float(m_sphere_center, m_dim_max)
+        );
+    if ((simd128_convert_masks_int32_int1(m_comp) & 0x7) != 0)
+        return SRE_PARTIALLY_INSIDE;
+#else
     if (sphere.center.x >= AABB.dim_min.x && sphere.center.x <= AABB.dim_max.x)
         return SRE_PARTIALLY_INSIDE;
     if (sphere.center.y >= AABB.dim_min.y && sphere.center.y <= AABB.dim_max.y)
         return SRE_PARTIALLY_INSIDE;
     if (sphere.center.z >= AABB.dim_min.z && sphere.center.z <= AABB.dim_max.z)
         return SRE_PARTIALLY_INSIDE;
+#endif
     return SRE_COMPLETELY_OUTSIDE;
 }
 
@@ -1139,6 +1194,22 @@ bool Intersects(const Point3D& P, const sreBoundingVolumeBox& box) {
 // Intersection test of two AABBs.
 
 bool IsCompletelyInside(const sreBoundingVolumeAABB& AABB1, const sreBoundingVolumeAABB& AABB2) {
+#ifdef USE_SSE2
+    __simd128_float m_dim_min1 = simd128_set_float(
+         AABB1.dim_min.x, AABB1.dim_min.y, AABB1.dim_min.z, 0.0f);
+    __simd128_float m_dim_min2 = simd128_set_float(
+         AABB2.dim_min.x, AABB2.dim_min.y, AABB2.dim_min.z, 0.0f);
+    __simd128_float m_dim_max1 = simd128_set_float(
+         AABB1.dim_max.x, AABB1.dim_max.y, AABB1.dim_max.z, 0.0f);
+    __simd128_float m_dim_max2 = simd128_set_float(
+         AABB2.dim_max.x, AABB2.dim_max.y, AABB2.dim_max.z, 0.0f);
+    __simd128_int m_comp = simd128_or_int(
+         simd128_cmplt_float(m_dim_min1, m_dim_min2),
+         simd128_cmpgt_float(m_dim_max1, m_dim_max2)
+         );
+     if (simd128_convert_masks_int32_int1(m_comp) != 0)
+         return false;
+#else
     if (AABB1.dim_min.x < AABB2.dim_min.x)
         return false;
     if (AABB1.dim_max.x > AABB2.dim_max.x)
@@ -1151,6 +1222,7 @@ bool IsCompletelyInside(const sreBoundingVolumeAABB& AABB1, const sreBoundingVol
         return false;
     if (AABB1.dim_max.z > AABB2.dim_max.z)
         return false;
+#endif
     return true;
 }
 

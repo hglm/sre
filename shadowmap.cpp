@@ -125,14 +125,54 @@ static void RenderShadowMapFromCasterArray(sreScene *scene, const sreLight& ligh
         RenderShadowMapObject(scene->object[scene->shadow_caster_object[i]], light);
 }
 
-//Vector3D AABB_shadow_receiver_max, AABB_shadow_receiver_max;
-//Vector3D AABB_shadow_caster_min, AABB_shadow_caster_max;
+// The calculated shadow AABBs are stored in a global variable.
 static sreBoundingVolumeAABB AABB_shadow_receiver;
 static sreBoundingVolumeAABB AABB_shadow_caster;
 
+// During shadow AABB determination, SIMD registers/code may be used.
+#ifdef USE_SSE2
+#define SHADOW_AABB_TYPE sreBoundingVolumeAABB_SIMD
+#else
+#define SHADOW_AABB_TYPE sreBoundingVolumeAABB
+#endif
+
+class sreShadowAABBGenerationInfo {
+public :
+    SHADOW_AABB_TYPE casters;
+    SHADOW_AABB_TYPE receivers;
+
+    void Initialize() {
+#ifdef USE_SSE2
+        casters.m_dim_min = simd128_set1_float(POSITIVE_INFINITY_FLOAT);
+        casters.m_dim_max = simd128_set1_float(NEGATIVE_INFINITY_FLOAT);
+        receivers.m_dim_min = casters.m_dim_min;
+        receivers.m_dim_max = casters.m_dim_max;
+#else
+        casters.dim_min = receivers.dim_min = Vector3D(POSITIVE_INFINITY_FLOAT, 
+            POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT);
+        casters.dim_max = receivers.dim_max = Vector3D(NEGATIVE_INFINITY_FLOAT,
+            NEGATIVE_INFINITY_FLOAT, NEGATIVE_INFINITY_FLOAT);
+#endif
+    }
+    void GetCasters(sreBoundingVolumeAABB& AABB) {
+#ifdef USE_SSE2
+        casters.Get(AABB);
+#else
+        AABB = casters;
+#endif
+    }
+    void GetReceivers(sreBoundingVolumeAABB& AABB) {
+#ifdef USE_SSE2
+        receivers.Get(AABB);
+#else
+        AABB = receivers;
+#endif
+    }
+};
+
 // Update an AABB with the union of the AABB and the bounding volume of an object.
 
-static void UpdateAABBWithObject(sreBoundingVolumeAABB& AABB, sreObject *so) {
+static void UpdateAABBWithObject(SHADOW_AABB_TYPE &AABB, sreObject *so) {
      if (!(so->flags & SRE_OBJECT_DYNAMIC_POSITION)) {
          // Static object, use the precalculated precise AABB.
          // Use inline function from sre_bounds.h that updates an AAAB with the union with
@@ -180,15 +220,17 @@ static void CheckShadowCasterCapacity(sreScene *scene) {
 // root node. The special bound check result value SRE_BOUNDS_DO_NOT_CHECK disables
 // all octree bounds checks (useful for root node-only octrees).
 
-static void FindAABBDirectionalLight(const sreFastOctree& fast_oct, int array_index, sreScene *scene,
-const sreFrustum& frustum, BoundsCheckResult octree_bounds_check_result) {
+static void FindAABBDirectionalLight(sreShadowAABBGenerationInfo& AABB_generation_info,
+const sreFastOctree& fast_oct, int array_index,
+sreScene *scene, const sreFrustum& frustum, BoundsCheckResult octree_bounds_check_result) {
     // For directional lights, the shadow caster volume defined for the frustum is equal
     // to the shadow receiver volume.
     // Check whether the octree is completely outside or completely inside that volume,
     // if the octree is not already completely inside.
     // When intersection tests are not allowed, the macro expression will always return
     // false.
-    if (SRE_BOUNDS_NOT_EQUAL_AND_TEST_ALLOWED(octree_bounds_check_result, SRE_COMPLETELY_INSIDE)) {
+    if (SRE_BOUNDS_NOT_EQUAL_AND_TEST_ALLOWED(octree_bounds_check_result,
+    SRE_COMPLETELY_INSIDE)) {
         int node_index = fast_oct.array[array_index];
         octree_bounds_check_result = QueryIntersection(fast_oct.node_bounds[node_index],
             frustum.shadow_caster_volume);
@@ -214,27 +256,29 @@ const sreFrustum& frustum, BoundsCheckResult octree_bounds_check_result) {
                 if (!Intersects(*so, frustum.shadow_caster_volume))
                     continue;
             if (so->flags & SRE_OBJECT_CAST_SHADOWS) {
-                UpdateAABBWithObject(AABB_shadow_caster, so);
+                UpdateAABBWithObject(AABB_generation_info.casters, so);
                 CheckShadowCasterCapacity(scene);
                 scene->shadow_caster_object[scene->nu_shadow_caster_objects]= so->id;
                 scene->nu_shadow_caster_objects++;
             }
             // For all objects that receive light, update the shadow receiver AABB.
             if (!(so->flags & SRE_OBJECT_EMISSION_ONLY)) 
-                UpdateAABBWithObject(AABB_shadow_receiver, so);
+                UpdateAABBWithObject(AABB_generation_info.receivers, so);
         }
     }
     // Check every non-empty subnode.
     array_index += nu_entities;
     for (int i = 0; i < nu_octants; i++)
-        FindAABBDirectionalLight(fast_oct, fast_oct.array[array_index + i], scene,
+        FindAABBDirectionalLight(AABB_generation_info,
+            fast_oct, fast_oct.array[array_index + i], scene,
             frustum, octree_bounds_check_result);
 }
 
 // Find the AABB for all potential shadow casters within the range of a local light.
 // Also keep track of the shadow receivers AABB.
 
-static void FindAABBLocalLight(const sreFastOctree& fast_oct, int array_index, sreScene *scene,
+static void FindAABBLocalLight(sreShadowAABBGenerationInfo& AABB_generation_info,
+const sreFastOctree& fast_oct, int array_index, sreScene *scene,
 const sreFrustum& frustum, const sreLight& light, BoundsCheckResult octree_bounds_check_result) {
     int node_index = fast_oct.array[array_index];
     if (SRE_BOUNDS_NOT_EQUAL_AND_TEST_ALLOWED(octree_bounds_check_result, SRE_COMPLETELY_INSIDE)) {
@@ -263,7 +307,7 @@ const sreFrustum& frustum, const sreLight& light, BoundsCheckResult octree_bound
                     // For objects that cast shadows, update the caster AABB if the object falls within
                     // the shadow caster volume.
                     if (Intersects(*so, frustum.shadow_caster_volume)) {
-                        UpdateAABBWithObject(AABB_shadow_caster, so);
+                        UpdateAABBWithObject(AABB_generation_info.casters, so);
                         CheckShadowCasterCapacity(scene);
                         scene->shadow_caster_object[scene->nu_shadow_caster_objects]= so->id;
                         scene->nu_shadow_caster_objects++;
@@ -271,14 +315,15 @@ const sreFrustum& frustum, const sreLight& light, BoundsCheckResult octree_bound
                 }
                 // For all objects that receive light, update the shadow receiver AABB.
                 if (!(so->flags & SRE_OBJECT_EMISSION_ONLY))
-                    UpdateAABBWithObject(AABB_shadow_receiver, so);
+                    UpdateAABBWithObject(AABB_generation_info.receivers, so);
             }
         }
     }
     // Check every non-empty subnode.
     array_index += nu_entities;
     for (int i = 0; i < nu_octants; i++)
-        FindAABBLocalLight(fast_oct, fast_oct.array[array_index + i], scene, frustum, light,
+        FindAABBLocalLight(AABB_generation_info,
+            fast_oct, fast_oct.array[array_index + i], scene, frustum, light,
             octree_bounds_check_result);
 }
 
@@ -538,15 +583,16 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
     if (!(light.type & SRE_LIGHT_DIRECTIONAL)) {
         // Point light, spot light or beam light.
         // Find the AABB for all potential shadow casters and receivers within the range of the light.
-        AABB_shadow_receiver.dim_min = Vector3D(POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT,
-            POSITIVE_INFINITY_FLOAT);
-        AABB_shadow_receiver.dim_max = Vector3D(NEGATIVE_INFINITY_FLOAT, NEGATIVE_INFINITY_FLOAT,
-            NEGATIVE_INFINITY_FLOAT);
-        AABB_shadow_caster = AABB_shadow_receiver;
+        sreShadowAABBGenerationInfo AABB_generation_info;
+        AABB_generation_info.Initialize();
         // Note: infinite distance objects do not cast shadows, their octrees can be skipped.
-        FindAABBLocalLight(scene->fast_octree_static, 0, scene, frustum, light, SRE_BOUNDS_UNDEFINED);
+        FindAABBLocalLight(AABB_generation_info,
+            scene->fast_octree_static, 0, scene, frustum, light, SRE_BOUNDS_UNDEFINED);
         // Since the dynamic object octree has no bounds, disable octree bounds checking.
-        FindAABBLocalLight(scene->fast_octree_dynamic, 0, scene, frustum, light, SRE_BOUNDS_DO_NOT_CHECK);
+        FindAABBLocalLight(AABB_generation_info,
+            scene->fast_octree_dynamic, 0, scene, frustum, light, SRE_BOUNDS_DO_NOT_CHECK);
+        AABB_generation_info.GetCasters(AABB_shadow_caster);
+        AABB_generation_info.GetReceivers(AABB_shadow_receiver);
         if (AABB_shadow_caster.dim_min.x == POSITIVE_INFINITY_FLOAT ||
         AABB_shadow_receiver.dim_min.x == POSITIVE_INFINITY_FLOAT ||
         !Intersects(AABB_shadow_caster, AABB_shadow_receiver)) {
@@ -588,12 +634,15 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
 
     // Directional light.
     // Calculate AABB of the objects in the shadow casters and shadow receivers volumes.
-    AABB_shadow_caster.dim_min = Vector3D(POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT);
-    AABB_shadow_caster.dim_max = Vector3D(NEGATIVE_INFINITY_FLOAT, NEGATIVE_INFINITY_FLOAT, NEGATIVE_INFINITY_FLOAT);
-    AABB_shadow_receiver = AABB_shadow_caster;
+    sreShadowAABBGenerationInfo AABB_generation_info;
+    AABB_generation_info.Initialize();
     // Note: infinite distance objects do not cast shadows, their octrees can be skipped.
-    FindAABBDirectionalLight(scene->fast_octree_static, 0, scene, frustum, SRE_BOUNDS_UNDEFINED);
-    FindAABBDirectionalLight(scene->fast_octree_dynamic, 0, scene, frustum, SRE_BOUNDS_DO_NOT_CHECK);
+    FindAABBDirectionalLight(AABB_generation_info,
+        scene->fast_octree_static, 0, scene, frustum, SRE_BOUNDS_UNDEFINED);
+    FindAABBDirectionalLight(AABB_generation_info,
+        scene->fast_octree_dynamic, 0, scene, frustum, SRE_BOUNDS_DO_NOT_CHECK);
+    AABB_generation_info.GetCasters(AABB_shadow_caster);
+    AABB_generation_info.GetReceivers(AABB_shadow_receiver);
     if (AABB_shadow_caster.dim_min.x == POSITIVE_INFINITY_FLOAT ||
     AABB_shadow_receiver.dim_min.x == POSITIVE_INFINITY_FLOAT ||
     !Intersects(AABB_shadow_caster, AABB_shadow_receiver)) {
