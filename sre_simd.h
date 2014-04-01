@@ -69,6 +69,14 @@ typedef __m128i __simd128_int;
 #define SHUFFLE(w0, w1, w2, w3) \
     (w0 | (w1 << 2) | (w2 << 4) | (w3 << 6))
 
+static inline __simd128_int simd128_cast_float_int(__simd128_float s) {
+    return _mm_castps_si128(s);
+}
+
+static inline __simd128_float simd128_cast_int_float(__simd128_int s) {
+    return _mm_castsi128_ps(s);
+}
+
 static inline __simd128_float simd128_set1_float(float f) {
     return _mm_set1_ps(f);
 }
@@ -103,10 +111,15 @@ static inline __simd128_float simd128_sub_float(__simd128_float s1, __simd128_fl
     return _mm_sub_ps(s1, s2);
 }
 
+static inline __simd128_int simd128_select_int32(__simd128_int s1,
+unsigned int word0, unsigned int word1, unsigned int word2, unsigned int word3) {
+    return _mm_shuffle_epi32(s1, SHUFFLE(word0, word1, word2, word3));
+}
+
 static inline __simd128_float simd128_select_float(__simd128_float s1,
 unsigned int word0, unsigned int word1, unsigned int word2, unsigned int word3) {
-    return _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(s1),
-        SHUFFLE(word0, word1, word2, word3)));
+    return simd128_cast_int_float(simd128_select_int32(simd128_cast_float_int(s1),
+        word0, word1, word2, word3));
 }
 
 // Return 128-bit SSE register with 32-bit values shuffled, starting from bit 0,
@@ -115,7 +128,23 @@ unsigned int word0, unsigned int word1, unsigned int word2, unsigned int word3) 
 static inline __simd128_float simd128_merge_float(__simd128_float s1, __simd128_float s2,
 unsigned int s1_word0, unsigned int s1_word1, unsigned int s2_word0,
 unsigned int s2_word1) {
-   return _mm_shuffle_ps(s1, s2, SHUFFLE(s1_word0, s1_word1, s2_word0, s2_word1));
+    return _mm_shuffle_ps(s1, s2, SHUFFLE(s1_word0, s1_word1, s2_word0, s2_word1));
+}
+
+static inline __simd128_int simd128_merge_int32(__simd128_int s1, __simd128_int s2,
+unsigned int s1_word0, unsigned int s1_word1, unsigned int s2_word0,
+unsigned int s2_word1) {
+    return simd128_cast_float_int(simd128_merge_float(
+        simd128_cast_int_float(s1), simd128_cast_int_float(s2),
+        s1_word0, s1_word1, s2_word0, s2_word1));
+}
+
+// Return 128-bit SSE register with the lowest order 32-bit float from s1 and the
+// remaining 32-bit floats from s2.
+
+static inline __simd128_float simd128_merge1_float(__simd128_float s1,
+__simd128_float s2) {
+    return _mm_move_ss(s2, s1);
 }
 
 static inline __simd128_int simd128_set_int32(int i0, int i1, int i2, int i3) {
@@ -153,14 +182,6 @@ static inline int simd128_get_int32(__simd128_int s) {
 
 static inline float simd128_get_float(__simd128_float s) {
     return _mm_cvtss_f32(s);
-}
-
-static inline __simd128_int simd128_cast_float_int(__simd128_float s) {
-    return _mm_castps_si128(s);
-}
-
-static inline __simd128_float simd128_cast_int_float(__simd128_int s) {
-    return _mm_castsi128_ps(s);
 }
 
 // Comparison functions. Returns integer vector with full bitmask set for each
@@ -388,7 +409,7 @@ const float * __restrict__ m2, float * __restrict m3) {
                 simd128_mul_float(v2, col2_m1),
                 simd128_mul_float(v3, col3_m1))
             );
-        _mm_store_ps(&m3[i * 4], result_col);
+        simd128_store_float(&m3[i * 4], result_col);
     }
 }
 
@@ -409,7 +430,7 @@ const float * __restrict__ m2, float * __restrict m3) {
         __simd128_float v1 = simd128_select_float(row, 1, 1, 1, 1);
         __simd128_float v2 = simd128_select_float(row, 2, 2, 2, 2);
         __simd128_float v3_mult = simd128_select_float(
-            _mm_move_ss(row, zeros), 0, 0, 0, 3);
+            simd128_merge1_float(zeros, row), 0, 0, 0, 3);
         __simd128_float result_row = simd128_add_float(
             simd128_add_float(
                 simd128_mul_float(v0, row0),
@@ -418,7 +439,7 @@ const float * __restrict__ m2, float * __restrict m3) {
                 simd128_mul_float(v2, row2),
                 v3_mult)
             );
-        _mm_store_ps(&m3[i * 4], result_row);
+        simd128_store_float(&m3[i * 4], result_row);
     }
 }
 
@@ -431,22 +452,38 @@ const float * __restrict__ m2, float * __restrict m3) {
     __simd128_float col1 = simd128_load_float(&m1[4]);
     __simd128_float col2 = simd128_load_float(&m1[8]);
     __simd128_float col3 = simd128_load_float(&m1[12]);
-    for (int i = 0; i < 4; i++) {
-        __simd128_float row = simd128_load_float(&m2[i * 4]);
-	__simd128_float v0 = simd128_select_float(row, 0, 0, 0, 0);
-        __simd128_float v1 = simd128_select_float(row, 1, 1, 1, 1);
-        __simd128_float v2 = simd128_select_float(row, 2, 2, 2, 2);
-        __simd128_float v3 = simd128_select_float(row, 3, 3, 3, 3);
+    __simd128_float m2_row0 = simd128_load_float(&m2[0]);
+    __simd128_float m2_row1 = simd128_load_float(&m2[4]);
+    __simd128_float m2_row2 = simd128_load_float(&m2[8]);
+    for (int i = 0; i < 3; i++) {
+        // Get column i from each row of m2.
+	__simd128_float m2_coli_row0 = simd128_select_float(m2_row0, 0, 0, 0, 0);
+ 	__simd128_float m2_coli_row1 = simd128_select_float(m2_row1, 0, 0, 0, 0);
+	__simd128_float m2_coli_row2 = simd128_select_float(m2_row2, 0, 0, 0, 0);
+        m2_row0 = simd128_shift_right_float(m2_row0, 1);
+        m2_row1 = simd128_shift_right_float(m2_row1, 1);
+        m2_row2 = simd128_shift_right_float(m2_row2, 1);
         __simd128_float result_col = simd128_add_float(
             simd128_add_float(
-                simd128_mul_float(v0, col0),
-                simd128_mul_float(v1, col1)),
-            simd128_add_float(
-                simd128_mul_float(v2, col2),
-                simd128_mul_float(v3, col3))
+                simd128_mul_float(m2_coli_row0, col0),
+                simd128_mul_float(m2_coli_row1, col1)),
+            simd128_mul_float(m2_coli_row2, col2)
             );
-        _mm_store_ps(&m3[i * 4], result_col);
+        simd128_store_float(&m3[i * 4], result_col);
     }
+    // Element 0 of m2_coli_row0/1/2 now contains column 3 of each row.
+    __simd128_float m2_col3_row0 = simd128_select_float(m2_row0, 0, 0, 0, 0);
+    __simd128_float m2_col3_row1 = simd128_select_float(m2_row1, 0, 0, 0, 0);
+    __simd128_float m2_col3_row2 = simd128_select_float(m2_row2, 0, 0, 0, 0);
+    __simd128_float result_col3 = simd128_add_float(
+        simd128_add_float(
+            simd128_mul_float(m2_col3_row0, col0),
+            simd128_mul_float(m2_col3_row1, col1)),
+        simd128_add_float(
+            simd128_mul_float(m2_col3_row2, col2),
+            col3)
+        );
+    simd128_store_float(&m3[3 * 4], result_col3);
 }
 
 #endif
@@ -494,14 +531,14 @@ static inline void SIMDCalculateFourDotProducts(const Vector4D * __restrict v1,
 const Vector4D * __restrict v2, float * __restrict dot) {
     __simd128_float result;
     SIMDCalculateFourDotProductsV4NoStore(v1, v2, result);
-    _mm_store_ps(dot, result);
+    simd128_store_float(dot, result);
 }
 
 static inline void SIMDCalculateFourDotProducts(const Vector3D * __restrict v1,
 const Vector3D * __restrict v2, float * __restrict dot) {
     __simd128_float result;
     SIMDCalculateFourDotProductsV3NoStore(v1, v2, result);
-    _mm_store_ps(dot, result);
+    simd128_store_float(dot, result);
 }
 
 #endif

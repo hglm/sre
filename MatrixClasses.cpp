@@ -861,7 +861,7 @@ MatrixTransform& MatrixTransform::operator *=(const MatrixTransform& __restrict_
 MatrixTransform operator *(const MatrixTransform& __restrict__ m1,
 const MatrixTransform& __restrict__ m2)
 {
-#ifdef USE_SSE2_NOT
+#ifdef USE_SSE2
     MatrixTransform m3;
     SIMDMatrixMultiply4x3(&m1.n[0][0], &m2.n[0][0], &m3.n[0][0]);
 #if 0
@@ -874,90 +874,104 @@ const MatrixTransform& __restrict__ m2)
 #endif
     return m3;
 #else
-	return (MatrixTransform(m1.Get(0, 0) * m2.Get(0, 0) + m1.Get(1, 0) * m2.Get(0, 1) + m1.Get(2, 0) * m2.Get(0, 2),
-					 m1.Get(0, 0) * m2.Get(1, 0) + m1.Get(1, 0) * m2.Get(1, 1) + m1.Get(2, 0) * m2.Get(1, 2),
-					 m1.Get(0, 0) * m2.Get(2, 0) + m1.Get(1, 0) * m2.Get(2, 1) + m1.Get(2, 0) * m2.Get(2, 2),
-					 m1.Get(0, 0) * m2.Get(3, 0) + m1.Get(1, 0) * m2.Get(3, 1) + m1.Get(2, 0) * m2.Get(3, 2) + m1.Get(3, 0),
-					 m1.Get(0, 1) * m2.Get(0, 0) + m1.Get(1, 1) * m2.Get(0, 1) + m1.Get(2, 1) * m2.Get(0, 2),
-					 m1.Get(0, 1) * m2.Get(1, 0) + m1.Get(1, 1) * m2.Get(1, 1) + m1.Get(2, 1) * m2.Get(1, 2),
-					 m1.Get(0, 1) * m2.Get(2, 0) + m1.Get(1, 1) * m2.Get(2, 1) + m1.Get(2, 1) * m2.Get(2, 2),
-					 m1.Get(0, 1) * m2.Get(3, 0) + m1.Get(1, 1) * m2.Get(3, 1) + m1.Get(2, 1) * m2.Get(3, 2) + m1.Get(3, 1),
-					 m1.Get(0, 2) * m2.Get(0, 0) + m1.Get(1, 2) * m2.Get(0, 1) + m1.Get(2, 2) * m2.Get(0, 2),
-					 m1.Get(0, 2) * m2.Get(1, 0) + m1.Get(1, 2) * m2.Get(1, 1) + m1.Get(2, 2) * m2.Get(1, 2),
-					 m1.Get(0, 2) * m2.Get(2, 0) + m1.Get(1, 2) * m2.Get(2, 1) + m1.Get(2, 2) * m2.Get(2, 2),
-					 m1.Get(0, 2) * m2.Get(3, 0) + m1.Get(1, 2) * m2.Get(3, 1) + m1.Get(2, 2) * m2.Get(3, 2) + m1.Get(3, 2)));
+    return
+        MatrixTransform(
+            m1.Get(0, 0) * m2.Get(0, 0) + m1.Get(1, 0) * m2.Get(0, 1) + m1.Get(2, 0) * m2.Get(0, 2),
+            m1.Get(0, 0) * m2.Get(1, 0) + m1.Get(1, 0) * m2.Get(1, 1) + m1.Get(2, 0) * m2.Get(1, 2),
+            m1.Get(0, 0) * m2.Get(2, 0) + m1.Get(1, 0) * m2.Get(2, 1) + m1.Get(2, 0) * m2.Get(2, 2),
+            m1.Get(0, 0) * m2.Get(3, 0) + m1.Get(1, 0) * m2.Get(3, 1) + m1.Get(2, 0) * m2.Get(3, 2) + m1.Get(3, 0),
+            m1.Get(0, 1) * m2.Get(0, 0) + m1.Get(1, 1) * m2.Get(0, 1) + m1.Get(2, 1) * m2.Get(0, 2),
+            m1.Get(0, 1) * m2.Get(1, 0) + m1.Get(1, 1) * m2.Get(1, 1) + m1.Get(2, 1) * m2.Get(1, 2),
+            m1.Get(0, 1) * m2.Get(2, 0) + m1.Get(1, 1) * m2.Get(2, 1) + m1.Get(2, 1) * m2.Get(2, 2),
+            m1.Get(0, 1) * m2.Get(3, 0) + m1.Get(1, 1) * m2.Get(3, 1) + m1.Get(2, 1) * m2.Get(3, 2) + m1.Get(3, 1),
+            m1.Get(0, 2) * m2.Get(0, 0) + m1.Get(1, 2) * m2.Get(0, 1) + m1.Get(2, 2) * m2.Get(0, 2),
+            m1.Get(0, 2) * m2.Get(1, 0) + m1.Get(1, 2) * m2.Get(1, 1) + m1.Get(2, 2) * m2.Get(1, 2),
+            m1.Get(0, 2) * m2.Get(2, 0) + m1.Get(1, 2) * m2.Get(2, 1) + m1.Get(2, 2) * m2.Get(2, 2),
+            m1.Get(0, 2) * m2.Get(3, 0) + m1.Get(1, 2) * m2.Get(3, 1) + m1.Get(2, 2) * m2.Get(3, 2) + m1.Get(3, 2));
 #endif
 }
 
 Matrix4D operator *(const Matrix4D& __restrict__ m1, const MatrixTransform& __restrict__ m2)
 {
-#ifdef USE_SSE2_NOT
+#ifdef USE_SSE2
     Matrix4D m3;
     SIMDMatrixMultiply4x4By4x3(&m1.n[0][0], &m2.n[0][0], &m3.n[0][0]);
+#if 0
+    char *s1 = m3.GetString();
+    Matrix4D m4 = m1 * Matrix4D(m2);
+    char *s2 = m4.GetString();
+    sreMessage(SRE_MESSAGE_INFO, "SIMD %s\nNon-SIMD %s", s1, s2);
+    delete [] s1;
+    delete [] s2;
+#endif
     return m3;
 #else
-    return (Matrix4D(m1.n[0][0] * m2.Get(0, 0) + m1.n[1][0] * m2.Get(0, 1) + m1.n[2][0] * m2.Get(0, 2),
-					 m1.n[0][0] * m2.Get(1, 0) + m1.n[1][0] * m2.Get(1, 1) + m1.n[2][0] * m2.Get(1, 2),
-					 m1.n[0][0] * m2.Get(2, 0) + m1.n[1][0] * m2.Get(2, 1) + m1.n[2][0] * m2.Get(2, 2),
-					 m1.n[0][0] * m2.Get(3, 0) + m1.n[1][0] * m2.Get(3, 1) + m1.n[2][0] * m2.Get(3, 2) + m1.n[3][0],
-					 m1.n[0][1] * m2.Get(0, 0) + m1.n[1][1] * m2.Get(0, 1) + m1.n[2][1] * m2.Get(0, 2),
-					 m1.n[0][1] * m2.Get(1, 0) + m1.n[1][1] * m2.Get(1, 1) + m1.n[2][1] * m2.Get(1, 2),
-					 m1.n[0][1] * m2.Get(2, 0) + m1.n[1][1] * m2.Get(2, 1) + m1.n[2][1] * m2.Get(2, 2),
-					 m1.n[0][1] * m2.Get(3, 0) + m1.n[1][1] * m2.Get(3, 1) + m1.n[2][1] * m2.Get(3, 2) + m1.n[3][1],
-					 m1.n[0][2] * m2.Get(0, 0) + m1.n[1][2] * m2.Get(0, 1) + m1.n[2][2] * m2.Get(0, 2),
-					 m1.n[0][2] * m2.Get(1, 0) + m1.n[1][2] * m2.Get(1, 1) + m1.n[2][2] * m2.Get(1, 2),
-					 m1.n[0][2] * m2.Get(2, 0) + m1.n[1][2] * m2.Get(2, 1) + m1.n[2][2] * m2.Get(2, 2),
-					 m1.n[0][2] * m2.Get(3, 0) + m1.n[1][2] * m2.Get(3, 1) + m1.n[2][2] * m2.Get(3, 2) + m1.n[3][2],
-					 m1.n[0][3] * m2.Get(0, 0) + m1.n[1][3] * m2.Get(0, 1) + m1.n[2][3] * m2.Get(0, 2),
-					 m1.n[0][3] * m2.Get(1, 0) + m1.n[1][3] * m2.Get(1, 1) + m1.n[2][3] * m2.Get(1, 2),
-					 m1.n[0][3] * m2.Get(2, 0) + m1.n[1][3] * m2.Get(2, 1) + m1.n[2][3] * m2.Get(2, 2),
-					 m1.n[0][3] * m2.Get(3, 0) + m1.n[1][3] * m2.Get(3, 1) + m1.n[2][3] * m2.Get(3, 2) + m1.n[3][3]));
+    return
+        Matrix4D(m1.Get(0, 0) * m2.Get(0, 0) + m1.Get(1, 0) * m2.Get(0, 1) + m1.Get(2, 0) * m2.Get(0, 2),
+            m1.Get(0, 0) * m2.Get(1, 0) + m1.Get(1, 0) * m2.Get(1, 1) + m1.Get(2, 0) * m2.Get(1, 2),
+            m1.Get(0, 0) * m2.Get(2, 0) + m1.Get(1, 0) * m2.Get(2, 1) + m1.Get(2, 0) * m2.Get(2, 2),
+            m1.Get(0, 0) * m2.Get(3, 0) + m1.Get(1, 0) * m2.Get(3, 1) + m1.Get(2, 0) * m2.Get(3, 2) + m1.Get(3, 0],
+            m1.Get(0, 1) * m2.Get(0, 0) + m1.Get(1, 1) * m2.Get(0, 1) + m1.Get(2, 1) * m2.Get(0, 2),
+            m1.Get(0, 1) * m2.Get(1, 0) + m1.Get(1, 1) * m2.Get(1, 1) + m1.Get(2, 1) * m2.Get(1, 2),
+            m1.Get(0, 1) * m2.Get(2, 0) + m1.Get(1, 1) * m2.Get(2, 1) + m1.Get(2, 1) * m2.Get(2, 2),
+            m1.Get(0, 1) * m2.Get(3, 0) + m1.Get(1, 1) * m2.Get(3, 1) + m1.Get(2, 1) * m2.Get(3, 2) + m1.Get(3, 1],
+            m1.Get(0, 2) * m2.Get(0, 0) + m1.Get(1, 2) * m2.Get(0, 1) + m1.Get(2, 2) * m2.Get(0, 2),
+            m1.Get(0, 2) * m2.Get(1, 0) + m1.Get(1, 2) * m2.Get(1, 1) + m1.Get(2, 2) * m2.Get(1, 2),
+            m1.Get(0, 2) * m2.Get(2, 0) + m1.Get(1, 2) * m2.Get(2, 1) + m1.Get(2, 2) * m2.Get(2, 2),
+            m1.Get(0, 2) * m2.Get(3, 0) + m1.Get(1, 2) * m2.Get(3, 1) + m1.Get(2, 2) * m2.Get(3, 2) + m1.Get(3, 2],
+            m1.Get(0, 3) * m2.Get(0, 0) + m1.Get(1, 3) * m2.Get(0, 1) + m1.Get(2, 3) * m2.Get(0, 2),
+            m1.Get(0, 3) * m2.Get(1, 0) + m1.Get(1, 3) * m2.Get(1, 1) + m1.Get(2, 3) * m2.Get(1, 2),
+            m1.Get(0, 3) * m2.Get(2, 0) + m1.Get(1, 3) * m2.Get(2, 1) + m1.Get(2, 3) * m2.Get(2, 2),
+            m1.Get(0, 3) * m2.Get(3, 0) + m1.Get(1, 3) * m2.Get(3, 1) + m1.Get(2, 3) * m2.Get(3, 2) + m1.Get(3, 3]));
 #endif
 }
 
 Vector4D operator *(const MatrixTransform&  __restrict__ m, const Vector4D& __restrict__ v)
 {
-	return (Vector4D(m.Get(0, 0) * v.x + m.Get(1, 0) * v.y + m.Get(2, 0) * v.z + m.Get(3, 0) * v.w,
-					 m.Get(0, 1) * v.x + m.Get(1, 1) * v.y + m.Get(2, 1) * v.z + m.Get(3, 1) * v.w,
-					 m.Get(0, 2) * v.x + m.Get(1, 2) * v.y + m.Get(2, 2) * v.z + m.Get(3, 2) * v.w,
-					 v.w));
+    return Vector4D(
+        m.Get(0, 0) * v.x + m.Get(1, 0) * v.y + m.Get(2, 0) * v.z + m.Get(3, 0) * v.w,
+        m.Get(0, 1) * v.x + m.Get(1, 1) * v.y + m.Get(2, 1) * v.z + m.Get(3, 1) * v.w,
+        m.Get(0, 2) * v.x + m.Get(1, 2) * v.y + m.Get(2, 2) * v.z + m.Get(3, 2) * v.w,
+        v.w);
 }
 
 Vector4D operator *(const MatrixTransform& __restrict__ m, const Vector3D& __restrict__ v)
 {
-	return (Vector4D(m.Get(0, 0) * v.x + m.Get(1, 0) * v.y + m.Get(2, 0) * v.z,
-					 m.Get(0, 1) * v.x + m.Get(1, 1) * v.y + m.Get(2, 1) * v.z,
-					 m.Get(0, 2) * v.x + m.Get(1, 2) * v.y + m.Get(2, 2) * v.z,
-					 0));
+    return Vector4D(
+        m.Get(0, 0) * v.x + m.Get(1, 0) * v.y + m.Get(2, 0) * v.z,
+        m.Get(0, 1) * v.x + m.Get(1, 1) * v.y + m.Get(2, 1) * v.z,
+        m.Get(0, 2) * v.x + m.Get(1, 2) * v.y + m.Get(2, 2) * v.z,
+        0.0f);
 }
 
 Vector4D operator *(const MatrixTransform& __restrict__ m, const Point3D& __restrict__ p)
 {
-	return (Vector4D(m.Get(0, 0) * p.x + m.Get(1, 0) * p.y + m.Get(2, 0) * p.z + m.Get(3, 0),
-					 m.Get(0, 1) * p.x + m.Get(1, 1) * p.y + m.Get(2, 1) * p.z + m.Get(3, 1),
-					 m.Get(0, 2) * p.x + m.Get(1, 2) * p.y + m.Get(2, 2) * p.z + m.Get(3, 2),
-					 1.0f));
+    return Vector4D(
+        m.Get(0, 0) * p.x + m.Get(1, 0) * p.y + m.Get(2, 0) * p.z + m.Get(3, 0),
+        m.Get(0, 1) * p.x + m.Get(1, 1) * p.y + m.Get(2, 1) * p.z + m.Get(3, 1),
+        m.Get(0, 2) * p.x + m.Get(1, 2) * p.y + m.Get(2, 2) * p.z + m.Get(3, 2),
+        1.0f);
 }
 
 
 bool operator ==(const MatrixTransform& m1, const MatrixTransform& m2)
 {
-	return ((m1.Get(0, 0) == m2.Get(0, 0)) && (m1.Get(0, 1) == m2.Get(0, 1)) &&
-		(m1.Get(0, 2) == m2.Get(0, 2)) && (m1.Get(1, 0) == m2.Get(1, 0)) &&
-		(m1.Get(1, 1) == m2.Get(1, 1)) && (m1.Get(1, 2) == m2.Get(1, 2)) &&
-		(m1.Get(2, 0) == m2.Get(2, 0)) && (m1.Get(2, 1) == m2.Get(2, 1)) &&
-		(m1.Get(2, 2) == m2.Get(2, 2)) && (m1.Get(3, 0) == m2.Get(3, 0)) &&
-		(m1.Get(3, 1) == m2.Get(3, 1)) && (m1.Get(3, 2) == m2.Get(3, 2)));
+    return ((m1.Get(0, 0) == m2.Get(0, 0)) && (m1.Get(0, 1) == m2.Get(0, 1)) &&
+        (m1.Get(0, 2) == m2.Get(0, 2)) && (m1.Get(1, 0) == m2.Get(1, 0)) &&
+        (m1.Get(1, 1) == m2.Get(1, 1)) && (m1.Get(1, 2) == m2.Get(1, 2)) &&
+        (m1.Get(2, 0) == m2.Get(2, 0)) && (m1.Get(2, 1) == m2.Get(2, 1)) &&
+        (m1.Get(2, 2) == m2.Get(2, 2)) && (m1.Get(3, 0) == m2.Get(3, 0)) &&
+        (m1.Get(3, 1) == m2.Get(3, 1)) && (m1.Get(3, 2) == m2.Get(3, 2)));
 }
 
 bool operator !=(const MatrixTransform& m1, const MatrixTransform& m2)
 {
-	return ((m1.Get(0, 0) != m2.Get(0, 0)) || (m1.Get(0, 1) != m2.Get(0, 1)) ||
-		(m1.Get(0, 2) != m2.Get(0, 2)) || (m1.Get(1, 0) != m2.Get(1, 0)) ||
-		(m1.Get(1, 1) != m2.Get(1, 1)) || (m1.Get(1, 2) != m2.Get(1, 2)) ||
-		(m1.Get(2, 0) != m2.Get(2, 0)) || (m1.Get(2, 1) != m2.Get(2, 1)) ||
-		(m1.Get(2, 2) != m2.Get(2, 2)) || (m1.Get(3, 0) != m2.Get(3, 0)) ||
-		(m1.Get(3, 1) != m2.Get(3, 1)) || (m1.Get(3, 2) != m2.Get(3, 2)));
+    return ((m1.Get(0, 0) != m2.Get(0, 0)) || (m1.Get(0, 1) != m2.Get(0, 1)) ||
+        (m1.Get(0, 2) != m2.Get(0, 2)) || (m1.Get(1, 0) != m2.Get(1, 0)) ||
+        (m1.Get(1, 1) != m2.Get(1, 1)) || (m1.Get(1, 2) != m2.Get(1, 2)) ||
+        (m1.Get(2, 0) != m2.Get(2, 0)) || (m1.Get(2, 1) != m2.Get(2, 1)) ||
+        (m1.Get(2, 2) != m2.Get(2, 2)) || (m1.Get(3, 0) != m2.Get(3, 0)) ||
+        (m1.Get(3, 1) != m2.Get(3, 1)) || (m1.Get(3, 2) != m2.Get(3, 2)));
 }
 
 Matrix4D Inverse(const MatrixTransform& m)

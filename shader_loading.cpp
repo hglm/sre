@@ -1420,6 +1420,8 @@ void sreValidateShadowVolumeShaders() {
 void sreValidateShadowMapShaders() {
    misc_shader[SRE_MISC_SHADER_SHADOW_MAP].Validate();
    misc_shader[SRE_MISC_SHADER_SHADOW_MAP_TRANSPARENT].Validate();
+   misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP].Validate();
+   misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_TRANSPARENT].Validate();
    misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP].Validate();
    misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT].Validate();
 
