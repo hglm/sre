@@ -649,7 +649,7 @@ static bool Intersects(const sreBoundingVolumeAABB& AABB, const sreBoundingVolum
 // More detailed intersection test of an AABB against a sphere. Returns more exact information,
 // and will detect more non-intersections than the function above.
 
-#ifdef USE_SSE2
+#ifdef USE_SIMD
 static char bit_count4[16] = {
     0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4
 };
@@ -665,12 +665,11 @@ const sreBoundingVolumeSphere& sphere) {
     // between partially inside, completely inside, and completely outside, all corners have to be
     // checked.
     int intersection_count = 0;
-#ifdef USE_SSE2
+#ifdef USE_SIMD
     __simd128_float m_corner_x, m_corner_y, m_corner_z;
-    __simd128_float m_dim_min = simd128_set_float(AABB.dim_min.x, AABB.dim_min.y,
-        AABB.dim_min.z, 0.0f);
-    __simd128_float m_dim_max = simd128_set_float(AABB.dim_max.x, AABB.dim_max.y,
-        AABB.dim_max.z, 0.0f);
+    // simd128_load(Vector3D) returns 0.0f in w component.
+    __simd128_float m_dim_min = simd128_load(&AABB.dim_min);
+    __simd128_float m_dim_max = simd128_load(&AABB.dim_max);
     __simd128_float m_sphere_radius_squared = simd128_set1_float(sqrf(sphere.radius));
     __simd128_float m_sphere_center = simd128_set_float(
          sphere.center.x, sphere.center.y, sphere.center.z, 0.0f);
@@ -728,7 +727,7 @@ const sreBoundingVolumeSphere& sphere) {
     // dimensions the AABB is completely outside. If the AABB encloses the sphere or one or faces
     // intersect with it (without one corner being inside the sphere), the sphere's center must be
     // inside the AABB for at least one coordinate dimension.
-#ifdef USE_SSE2
+#ifdef USE_SIMD
     // The fourth component should be ignored.
     __simd128_int m_comp = simd128_and_int(
         simd128_cmpge_float(m_sphere_center, m_dim_min),
@@ -1194,15 +1193,11 @@ bool Intersects(const Point3D& P, const sreBoundingVolumeBox& box) {
 // Intersection test of two AABBs.
 
 bool IsCompletelyInside(const sreBoundingVolumeAABB& AABB1, const sreBoundingVolumeAABB& AABB2) {
-#ifdef USE_SSE2
-    __simd128_float m_dim_min1 = simd128_set_float(
-         AABB1.dim_min.x, AABB1.dim_min.y, AABB1.dim_min.z, 0.0f);
-    __simd128_float m_dim_min2 = simd128_set_float(
-         AABB2.dim_min.x, AABB2.dim_min.y, AABB2.dim_min.z, 0.0f);
-    __simd128_float m_dim_max1 = simd128_set_float(
-         AABB1.dim_max.x, AABB1.dim_max.y, AABB1.dim_max.z, 0.0f);
-    __simd128_float m_dim_max2 = simd128_set_float(
-         AABB2.dim_max.x, AABB2.dim_max.y, AABB2.dim_max.z, 0.0f);
+#ifdef USE_SIMD
+    __simd128_float m_dim_min1 = simd128_load(&AABB1.dim_min);
+    __simd128_float m_dim_min2 = simd128_load(&AABB2.dim_min);
+    __simd128_float m_dim_max1 = simd128_load(&AABB1.dim_max);
+    __simd128_float m_dim_max2 = simd128_load(&AABB2.dim_max);
     __simd128_int m_comp = simd128_or_int(
          simd128_cmplt_float(m_dim_min1, m_dim_min2),
          simd128_cmpgt_float(m_dim_max1, m_dim_max2)

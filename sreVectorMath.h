@@ -1055,7 +1055,7 @@ class SRE_API Vector4D
 
 		// Return text respresentation. To be freed with delete [].
 		char *GetString() const;
-};
+} SRE_ALIGNED(16);
 
 
 inline Vector4D operator -(const Vector4D& v)
@@ -1825,7 +1825,7 @@ static inline int maxi(int x, int y) {
     return x;
 }
 
-// Vector functions (SSE, NEON etc).
+// Vector functions with optional SIMD (SSE, NEON etc) support.
 
 // Calculate an array of dot products.
 
@@ -1861,6 +1861,12 @@ const Vector3D& v2, int& i_Pmin, int& i_Pmax);
 
 void GetIndicesWithMinAndMaxDotProduct(int nu_vertices, Vector4D *vertex,
 const Vector4D& v2, int& i_Pmin, int& i_Pmax);
+
+// Multiply an array of vertices with a constant matrix.
+
+void MatrixMultiply(int n, const Matrix4D& m, const Vector4D *v1, Vector4D *v2);
+
+void MatrixMultiply(int n, const MatrixTransform& m, const Vector3D *v1, Vector3D *v2);
 
 #endif
 

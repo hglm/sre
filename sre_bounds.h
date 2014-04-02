@@ -64,7 +64,7 @@ static inline void UpdateAABB(sreBoundingVolumeAABB& AABB, const Point3D& P) {
     AABB.dim_max.z = maxf(AABB.dim_max.z, P.z);
 }
 
-#ifdef USE_SSE2
+#ifdef USE_SIMD
 
 class sreBoundingVolumeAABB_SIMD {
 public :

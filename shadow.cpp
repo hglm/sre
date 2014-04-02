@@ -210,21 +210,47 @@ static void CalculateSilhouetteEdges(const Vector4D& lightpos, EdgeArray *ea) {
     if ((m->flags & (SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT)) ==
     SRE_LOD_MODEL_NOT_CLOSED)
          goto model_not_closed;
+
+// Configuration for SIMD light facing triangle calculation.
+// TRIANGLES_AT_A_TIME must be 4.
+#define TRIANGLES_AT_A_TIME 4
+// Whether to use full optimized SIMD, as opposed to using SIMD just for dot products.
+#define USE_INLINE_SIMD_FOR_LIGHT_VECTOR_CALCULATION
+// Whether to use simd_load instructions to load entire vectors into SIMD registers,
+// and then transposing vectors to obtain the appropriate set-up for calculation, as
+// opposed to using simd_set to set vector components.
+// Not using load instruction seems to be slightly faster in this case.
+// #define USE_LOAD_INSTRUCTION
+
     {
     int i = 0;
-#ifdef USE_SSE2
-#define TRIANGLES_AT_A_TIME 4
+#ifdef USE_SIMD
     // Process TRIANGLES_AT_AT_TIME triangles at a time using SIMD.
-    const __simd128_float zeros = simd128_set_zero_float();
+    const __simd128_float m_zeros = simd128_set_zero_float();
+#ifdef USE_INLINE_SIMD_FOR_LIGHT_VECTOR_CALCULATION
     const __simd128_float m_lightpos_x = simd128_set1_float(lightpos.x);
     const __simd128_float m_lightpos_y = simd128_set1_float(lightpos.y);
     const __simd128_float m_lightpos_z = simd128_set1_float(lightpos.z);
     const __simd128_float m_lightpos_w = simd128_set1_float(lightpos.w);
+#endif
     for (; i + TRIANGLES_AT_A_TIME - 1 < m->nu_triangles; i += TRIANGLES_AT_A_TIME) {
         for (int j = 0; j < TRIANGLES_AT_A_TIME / 4; j++) {
             int k = i + j * 4;
-#if 1
             // Calculate dot products of the light vector lv and triangle normal tn.
+#ifdef USE_INLINE_SIMD_FOR_LIGHT_VECTOR_CALCULATION
+#ifdef USE_LOAD_INSTRUCTION
+            __simd128_float m_vertex0_0 = simd128_load(
+                &m->vertex[m->triangle[k + 0].vertex_index[0]]);
+            __simd128_float m_vertex0_1 = simd128_load(
+                &m->vertex[m->triangle[k + 1].vertex_index[0]]);
+            __simd128_float m_vertex0_2 = simd128_load(
+                &m->vertex[m->triangle[k + 2].vertex_index[0]]);
+            __simd128_float m_vertex0_3 = simd128_load(
+                &m->vertex[m->triangle[k + 3].vertex_index[0]]);
+            __simd128_float m_vertex0_x, m_vertex0_y, m_vertex0_z;
+            simd128_transpose4to3_float(m_vertex0_0, m_vertex0_1, m_vertex0_2,
+                m_vertex0_3, m_vertex0_x, m_vertex0_y, m_vertex0_z);
+#else
             Vector3D vertex0[4], tn[4];
             for (int l = 0; l < 4; l++) { 
                  vertex0[l] = m->vertex[m->triangle[k + l].vertex_index[0]];
@@ -236,27 +262,45 @@ static void CalculateSilhouetteEdges(const Vector4D& lightpos, EdgeArray *ea) {
                  vertex0[2].y, vertex0[3].y);
             __simd128_float m_vertex0_z = simd128_set_float(vertex0[0].z, vertex0[1].z,
                  vertex0[2].z, vertex0[3].z);
+#endif
             __simd128_float m_lv_x = simd128_sub_float(m_lightpos_x,
                  simd128_mul_float(m_lightpos_w, m_vertex0_x));
             __simd128_float m_lv_y = simd128_sub_float(m_lightpos_y,
                  simd128_mul_float(m_lightpos_w, m_vertex0_y));
             __simd128_float m_lv_z = simd128_sub_float(m_lightpos_z,
                  simd128_mul_float(m_lightpos_w, m_vertex0_z));
+#ifdef USE_LOAD_INSTRUCTION
+            __simd128_float m_tn0 = simd128_load(&m->triangle[k + 0].normal);
+            __simd128_float m_tn1 = simd128_load(&m->triangle[k + 1].normal);
+            __simd128_float m_tn2 = simd128_load(&m->triangle[k + 2].normal);
+            __simd128_float m_tn3 = simd128_load(&m->triangle[k + 3].normal);
+            __simd128_float m_tn_x, m_tn_y, m_tn_z;
+            simd128_transpose4to3_float(m_tn0, m_tn1, m_tn2,
+                m_tn3, m_tn_x, m_tn_y, m_tn_z);
+#else
             __simd128_float m_tn_x = simd128_set_float(tn[0].x, tn[1].x, tn[2].x, tn[3].x);
             __simd128_float m_tn_y = simd128_set_float(tn[0].y, tn[1].y, tn[2].y, tn[3].y);
             __simd128_float m_tn_z = simd128_set_float(tn[0].z, tn[1].z, tn[2].z, tn[3].z);
+#endif
             __simd128_float m_dot_x = simd128_mul_float(m_lv_x, m_tn_x);
             __simd128_float m_dot_y = simd128_mul_float(m_lv_y, m_tn_y);
             __simd128_float m_dot_z = simd128_mul_float(m_lv_z, m_tn_z);
             // mul0 should contain only the x components of the dot products, etc.
-            __simd128_float result = simd128_add_float(simd128_add_float(m_dot_x, m_dot_y), m_dot_z);
+            __simd128_float m_result = simd128_add_float(
+                simd128_add_float(m_dot_x, m_dot_y), m_dot_z);
 #else
-            __simd128_float result;
-            SIMDCalculateFourDotProductsV4NoStore(&v1[0][0], &v2[0][0], result);
+            Vector3D lv[4], tn[4];
+            for (int l = 0; l < 4; l++) {
+                lv[l] = lightpos.GetPoint3D() - lightpos.w *
+                    m->vertex[m->triangle[k + l].vertex_index[0]];
+                tn[l] = m->triangle[k + l].normal;
+            }
+            __simd128_float m_result;
+            SIMDCalculateFourDotProductsNoStore(&lv[0], &tn[0], m_result);
 #endif
             // Produce 32-bit masks (0xFFFFFFFF or 0x00000000) for each comparison result.
-            __simd128_int comp = simd128_cmpge_float(result, zeros);
-            unsigned int face_flags = simd128_convert_masks_int32_int1(comp);
+            __simd128_int m_comp = simd128_cmpge_float(m_result, m_zeros);
+            unsigned int face_flags = simd128_convert_masks_int32_int1(m_comp);
             unsigned int byte_flags = (face_flags & 0x1) + ((face_flags & 0x2) << 7)
                 + ((face_flags & 0x4) << 14) + ((face_flags & 0x8) << 21);
             // Set four flags at a time.
@@ -266,7 +310,8 @@ static void CalculateSilhouetteEdges(const Vector4D& lightpos, EdgeArray *ea) {
     }
 #endif
     for (;i < m->nu_triangles; i++) {
-        Vector3D light_vector = lightpos.GetPoint3D() - lightpos.w * m->vertex[m->triangle[i].vertex_index[0]];
+        Vector3D light_vector = lightpos.GetPoint3D() -
+            lightpos.w * m->vertex[m->triangle[i].vertex_index[0]];
         if (Dot(light_vector, m->triangle[i].normal) < 0.0f)
             ea->SetFaceType(i, 0);
         else

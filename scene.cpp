@@ -27,6 +27,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "win32_compat.h"
 #include "sre.h"
 #include "sre_internal.h"
+#include "sre_simd.h"
 
 // Constructor function for Scene.
 

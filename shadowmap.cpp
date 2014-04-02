@@ -130,7 +130,7 @@ static sreBoundingVolumeAABB AABB_shadow_receiver;
 static sreBoundingVolumeAABB AABB_shadow_caster;
 
 // During shadow AABB determination, SIMD registers/code may be used.
-#ifdef USE_SSE2
+#ifdef USE_SIMD
 #define SHADOW_AABB_TYPE sreBoundingVolumeAABB_SIMD
 #else
 #define SHADOW_AABB_TYPE sreBoundingVolumeAABB
@@ -142,7 +142,7 @@ public :
     SHADOW_AABB_TYPE receivers;
 
     void Initialize() {
-#ifdef USE_SSE2
+#ifdef USE_SIMD
         casters.m_dim_min = simd128_set1_float(POSITIVE_INFINITY_FLOAT);
         casters.m_dim_max = simd128_set1_float(NEGATIVE_INFINITY_FLOAT);
         receivers.m_dim_min = casters.m_dim_min;
@@ -155,14 +155,14 @@ public :
 #endif
     }
     void GetCasters(sreBoundingVolumeAABB& AABB) {
-#ifdef USE_SSE2
+#ifdef USE_SIMD
         casters.Get(AABB);
 #else
         AABB = casters;
 #endif
     }
     void GetReceivers(sreBoundingVolumeAABB& AABB) {
-#ifdef USE_SSE2
+#ifdef USE_SIMD
         receivers.Get(AABB);
 #else
         AABB = receivers;
