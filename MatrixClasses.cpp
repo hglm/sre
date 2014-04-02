@@ -1747,6 +1747,25 @@ void MatrixMultiply(int n, const Matrix4D& m, const Vector4D *v1, Vector4D *v2) 
         v2[i] = m * v1[i];
 }
 
+void MatrixMultiply(int n, const Matrix4D& m, const Point3D *p1, Point3D *p2) {
+    int i = 0;
+#ifdef USE_SIMD
+    Matrix4DSIMD m_simd;
+    m_simd.Set(m);
+    for (; i + 3 < n; i += 4) {
+        // Processing one vertex at a time using SIMD is not very efficient.
+        // Process four at at time.
+        SIMDMatrixMultiplyFourVectors(m_simd, &p1[i], &p2[i]);
+    }
+    // Handle remaining vertices.
+    for (; i < n; i++)
+        SIMDMatrixMultiplyVector(m_simd, &p1[i], &p2[i]);
+#else
+    for (; i < n; i++)
+        p2[i] = m * p1[i];
+#endif
+}
+
 void MatrixMultiply(int n, const MatrixTransform& m, const Vector3D *v1, Vector3D *v2) {
     int i = 0;
 #ifdef SIMD_HAVE_MATRIX4X3_VECTOR_MULTIPLICATION
@@ -1765,3 +1784,4 @@ void MatrixMultiply(int n, const MatrixTransform& m, const Vector3D *v1, Vector3
         v2[i] = m * v1[i];
 #endif
 }
+

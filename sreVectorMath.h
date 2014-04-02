@@ -1866,6 +1866,8 @@ const Vector4D& v2, int& i_Pmin, int& i_Pmax);
 
 void MatrixMultiply(int n, const Matrix4D& m, const Vector4D *v1, Vector4D *v2);
 
+void MatrixMultiply(int n, const Matrix4D& m, const Point3D *p1, Point3D *p2);
+
 void MatrixMultiply(int n, const MatrixTransform& m, const Vector3D *v1, Vector3D *v2);
 
 #endif

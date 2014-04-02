@@ -87,8 +87,8 @@ void sreFrustum::Calculate() {
     frustum_eye.plane[5].Set(0, 0, 1.0, farD);
     // Convert the planes to world space.
     Matrix4D transpose_view_matrix = Transpose(sre_internal_view_matrix);
-    for (int i = 0; i < 6; i++)
-        frustum_world.plane[i] = transpose_view_matrix * frustum_eye.plane[i];
+    MatrixMultiply(6, transpose_view_matrix, &frustum_eye.plane[0],
+        &frustum_world.plane[0]);
 //    for (int i = 0; i < 5; i++)
 //        printf("plane_world[%d] = (%f, %f, %f, %f)\n", i, plane_world[i].K.x, plane_world[i].K.y, plane_world[i].K.z,
 //            plane_world[i].K.w);
@@ -107,14 +107,15 @@ void sreFrustum::Calculate() {
     if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING) {
         Point3D vertex[8];
         sreBoundingVolumeAABB AABB = sre_internal_shadow_map_AABB;
-        vertex[0] = (inverse_view_matrix * Point3D(AABB.dim_min.x, AABB.dim_min.y, AABB.dim_min.z)).GetPoint3D();
-        vertex[1] = (inverse_view_matrix * Point3D(AABB.dim_max.x, AABB.dim_min.y, AABB.dim_min.z)).GetPoint3D();
-        vertex[2] = (inverse_view_matrix * Point3D(AABB.dim_min.x, AABB.dim_max.y, AABB.dim_min.z)).GetPoint3D();
-        vertex[3] = (inverse_view_matrix * Point3D(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_min.z)).GetPoint3D();
-        vertex[4] = (inverse_view_matrix * Point3D(AABB.dim_min.x, AABB.dim_min.y, AABB.dim_max.z)).GetPoint3D();
-        vertex[5] = (inverse_view_matrix * Point3D(AABB.dim_max.x, AABB.dim_min.y, AABB.dim_max.z)).GetPoint3D();
-        vertex[6] = (inverse_view_matrix * Point3D(AABB.dim_min.x, AABB.dim_max.y, AABB.dim_max.z)).GetPoint3D();
-        vertex[7] = (inverse_view_matrix * Point3D(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_max.z)).GetPoint3D();
+        vertex[0] = Point3D(AABB.dim_min.x, AABB.dim_min.y, AABB.dim_min.z);
+        vertex[1] = Point3D(AABB.dim_max.x, AABB.dim_min.y, AABB.dim_min.z);
+        vertex[2] = Point3D(AABB.dim_min.x, AABB.dim_max.y, AABB.dim_min.z);
+        vertex[3] = Point3D(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_min.z);
+        vertex[4] = Point3D(AABB.dim_min.x, AABB.dim_min.y, AABB.dim_max.z);
+        vertex[5] = Point3D(AABB.dim_max.x, AABB.dim_min.y, AABB.dim_max.z);
+        vertex[6] = Point3D(AABB.dim_min.x, AABB.dim_max.y, AABB.dim_max.z);
+        vertex[7] = Point3D(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_max.z);
+        MatrixMultiply(8, inverse_view_matrix, vertex, vertex);
         shadow_map_region_AABB.dim_min =
             Point3D(POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT);
         shadow_map_region_AABB.dim_max =

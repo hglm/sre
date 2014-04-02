@@ -30,7 +30,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre.h"
 #include "sre_internal.h"
 
-
 //============================================================================
 //
 // Listing 15.1
