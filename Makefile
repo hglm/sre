@@ -32,7 +32,7 @@ endif
 ifeq ($(LIBRARY_CONFIGURATION), SHARED)
 LIBRARY_LINK_DEFINES = -DSRE_DLL -DSRE_DLL_EXPORTS
 endif
-ifeq ($(LIBRARY_CONFIGYURATION), DEBUG)
+ifeq ($(LIBRARY_CONFIGURATION), DEBUG)
 LIBRARY_LINK_DEFINES =
 endif
 
@@ -313,7 +313,7 @@ CORE_LIBRARY_MODULE_OBJECTS = sre.o draw.o geometry.o read_model_file.o binary_m
 texture.o shadow.o shadow_bounds.o MatrixClasses.o intersection.o preprocess.o mipmap.o \
 frustum.o bounds.o octree.o fluid.o standard_objects.o text.o scene.o lights.o shadowmap.o \
 bounding_volume.o random.o rng-cmwc.o shader_matrix.o shader_loading.o vertex_buffer.o \
-shader_uniform.o draw_object.o
+shader_uniform.o draw_object.o sreSIMD.o
 DEMO_MODULE_OBJECTS = demo_main.o demo1.o demo2.o demo4.o demo4b.o \
 demo5.o demo7.o demo8.o demo9.o demo10.o demo11.o textdemo.o
 ALL_DEMO_MODULE_OBJECTS = $(DEMO_MODULE_OBJECTS) game.o

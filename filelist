@@ -51,6 +51,7 @@ sre/shadow.cpp
 sre/shadow_bounds.cpp
 sre/shadowmap.cpp
 sre/sre.cpp
+sre/sreSIMD.cpp
 sre/standard_objects.cpp
 sre/text.cpp
 sre/textdemo.cpp

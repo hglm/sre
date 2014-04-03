@@ -28,7 +28,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 //
 //============================================================================
 
-// Some changes and extensions by Harm Hanemaaijer, 2012-2014.
+// Several changes and extensions by Harm Hanemaaijer, 2012-2014.
 
 #include <stdlib.h>
 #include <stdio.h>

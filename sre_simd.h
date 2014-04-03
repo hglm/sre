@@ -39,11 +39,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // 16-byte boundaries or packed every 12 bytes. Vector4D structures are assumed
 // to have 16-byte alignment.
 
-static inline __simd128_float simd128_load(const Vector4D *v) {
+static inline_only __simd128_float simd128_load(const Vector4D *v) {
     return simd128_load_float(&v->x);
 }
 
-static inline __simd128_float simd128_load(const Vector3D *v) {
+static inline_only __simd128_float simd128_load(const Vector3D *v) {
     // When Vector3D is stored as 16 bytes (the same amount of space as Vector4D),
     // a standard 16-byte aligned load can be used.
     // Rely on compiler optimization to eliminate the conditional and unused code
@@ -57,7 +57,7 @@ static inline __simd128_float simd128_load(const Vector3D *v) {
 
 // Load a vector and set the fourth component w to 0.0f.
 
-static inline __simd128_float simd128_load_and_set_w(const Vector3D *v) {
+static inline_only __simd128_float simd128_load_and_set_w(const Vector3D *v) {
     // When Vector3D is stored as 16 bytes (the same amount of space as Vector4D),
     // a standard 16-byte aligned load can be used.
     // Rely on compiler optimization to eliminate the conditional and unused code
@@ -80,13 +80,13 @@ static inline __simd128_float simd128_load_and_set_w(const Vector3D *v) {
         return simd128_load3_float(&v->x);
 }
 
-static inline __simd128_float simd128_load(const Point3D *p) {
+static inline_only __simd128_float simd128_load(const Point3D *p) {
     return simd128_load(&p->GetVector3D());
 }
 
 // Load a point vector and set the fourth component w to 1.0f.
 
-static inline __simd128_float simd128_load_and_set_w(const Point3D *p) {
+static inline_only __simd128_float simd128_load_and_set_w(const Point3D *p) {
     __simd128_float m_v;
     if (sizeof(Vector3D) == 16)
          m_v = simd128_load_float(&p->x);
@@ -103,11 +103,11 @@ static inline __simd128_float simd128_load_and_set_w(const Point3D *p) {
         ));
 }
 
-static inline void simd128_store(Vector4D *v, __simd128_float m_v) {
+static inline_only void simd128_store(Vector4D *v, __simd128_float m_v) {
     simd128_store_float(&v->x, m_v);
 }
 
-static inline void simd128_store(Vector3D *v, __simd128_float m_v) {
+static inline_only void simd128_store(Vector3D *v, __simd128_float m_v) {
     // When Vector3D is stored as 16 bytes (the same amount of space as Vector4D),
     // a standard 16-byte aligned store can be used.
     // Rely on compiler optimization to eliminate the conditional and unused code
@@ -121,14 +121,14 @@ static inline void simd128_store(Vector3D *v, __simd128_float m_v) {
         simd128_store3_float(&v->x, m_v);
 }
 
-static inline void simd128_store(Point3D *p, __simd128_float m_v) {
+static inline_only void simd128_store(Point3D *p, __simd128_float m_v) {
     simd128_store(&p->GetVector3D(), m_v);
 }
 
 // SSE matrix multiplication for matrices in column-major order.
 // Requires 16-byte alignment of the matrices.
 
-static inline void SIMDMatrixMultiply(const Matrix4D& __restrict m1,
+static inline_only void SIMDMatrixMultiply(const Matrix4D& __restrict m1,
 const Matrix4D& __restrict__ m2, Matrix4D& __restrict m3) {
     simd_matrix_multiply_4x4CM_float(&m1.n[0][0], &m2.n[0][0], &m3.n[0][0]);
 }
@@ -137,7 +137,7 @@ const Matrix4D& __restrict__ m2, Matrix4D& __restrict m3) {
 // other matrices which are in column-major order).
 // The fourth row is implicitly defined as (0.0f, 0.0f, 0.0f, 1.0f).
 
-static inline void SIMDMatrixMultiply(const MatrixTransform& __restrict m1,
+static inline_only void SIMDMatrixMultiply(const MatrixTransform& __restrict m1,
 const MatrixTransform& __restrict__ m2, MatrixTransform& __restrict m3) {
     simd_matrix_multiply_4x3RM_float(&m1.n[0][0], &m2.n[0][0], &m3.n[0][0]);
 }
@@ -146,7 +146,7 @@ const MatrixTransform& __restrict__ m2, MatrixTransform& __restrict m3) {
 // order (different from the 4x4 matrix which is in column-major order).
 // The fourth row of the 4x3 matrix is implicitly defined as (0.0f, 0.0f, 0.0f, 1.0f).
 
-static inline void SIMDMatrixMultiply(const Matrix4D& __restrict m1,
+static inline_only void SIMDMatrixMultiply(const Matrix4D& __restrict m1,
 const MatrixTransform& __restrict__ m2, Matrix4D& __restrict m3) {
     simd_matrix_multiply_4x4CM_4x3RM_float(&m1.n[0][0], &m2.n[0][0], &m3.n[0][0]);
 }
@@ -154,12 +154,12 @@ const MatrixTransform& __restrict__ m2, Matrix4D& __restrict m3) {
 // Calculate four dot products from two vector arrays and return the results in a
 // SIMD register.
 
-static inline void SIMDCalculateFourDotProductsNoStore(
+static inline_only void SIMDCalculateFourDotProductsNoStore(
 const Vector4D * __restrict v1, const Vector4D * __restrict v2, __simd128_float& result) {
     simd_four_dot_products_vector4_float(&v1[0].x, &v2[0].x, result);
 }
 
-static inline void SIMDCalculateFourDotProductsNoStore(
+static inline_only void SIMDCalculateFourDotProductsNoStore(
 const Vector3D * __restrict v1, const Vector3D * __restrict v2, __simd128_float& result) {
     if (sizeof(Vector3D) == 16)
         simd_four_dot_products_vector3_storage4_float(&v1[0].x, &v2[0].x, result);
@@ -167,14 +167,14 @@ const Vector3D * __restrict v1, const Vector3D * __restrict v2, __simd128_float&
         simd_four_dot_products_vector3_storage3_float(&v1[0].x, &v2[0].x, result);
 }
 
-static inline void SIMDCalculateFourDotProducts(const Vector4D * __restrict v1,
+static inline_only void SIMDCalculateFourDotProducts(const Vector4D * __restrict v1,
 const Vector4D * __restrict v2, float * __restrict dot) {
     __simd128_float m_result;
     SIMDCalculateFourDotProductsNoStore(v1, v2, m_result);
     simd128_store_float(dot, m_result);
 }
 
-static inline void SIMDCalculateFourDotProducts(const Vector3D * __restrict v1,
+static inline_only void SIMDCalculateFourDotProducts(const Vector3D * __restrict v1,
 const Vector3D * __restrict v2, float * __restrict dot) {
     __simd128_float m_result;
     SIMDCalculateFourDotProductsNoStore(v1, v2, m_result);
@@ -184,12 +184,12 @@ const Vector3D * __restrict v2, float * __restrict dot) {
 // Calculate n dot products from one vector array and one constant vector,
 // and store the result in an array of floats.
 
-static inline void SIMDCalculateDotProductsWithConstantVector(int n,
+static inline_only void SIMDCalculateDotProductsWithConstantVector(int n,
 const Vector4D * __restrict v1, const Vector4D& __restrict v2, float * __restrict dot) {
     simd_dot_product_nx1_vector4_float(n, &v1[0].x, &v2.x, dot);
 }
 
-static inline void SIMDCalculateDotProductsWithConstantVector(int n,
+static inline_only void SIMDCalculateDotProductsWithConstantVector(int n,
 const Vector3D * __restrict v1, const Vector4D& __restrict v2, float * __restrict dot) {
     if (sizeof(Vector3D) == 16)
         simd_dot_product_nx1_vector3_storage4_vector4_float(n, &v1[0].x, &v2.x, dot);
@@ -197,7 +197,7 @@ const Vector3D * __restrict v1, const Vector4D& __restrict v2, float * __restric
         simd_dot_product_nx1_vector3_storage3_float(n, &v1[0].x, &v2.x, dot);
 }
 
-static inline void SIMDCalculateDotProductsWithConstantVector(int n,
+static inline_only void SIMDCalculateDotProductsWithConstantVector(int n,
 const Point3D * __restrict p1, const Vector4D& __restrict v2, float * __restrict dot) {
     if (sizeof(Vector3D) == 16)
         simd_dot_product_nx1_point3_storage4_vector4_float(n, &p1[0].x, &v2.x, dot);
@@ -205,66 +205,33 @@ const Point3D * __restrict p1, const Vector4D& __restrict v2, float * __restrict
         simd_dot_product_nx1_point3_storage3_vector4_float(n, &p1[0].x, &v2.x, dot);
 }
 
-static inline void SIMDCalculateFourDotProductsWithConstantVector(
+static inline_only void SIMDCalculateFourDotProductsWithConstantVector(
 const Vector4D * __restrict v1, const Vector4D& __restrict v2, float * __restrict dot) {
     SIMDCalculateDotProductsWithConstantVector(4, v1, v2, dot);
 }
 
-static inline void SIMDCalculateFourDotProductsWithConstantVector(
+static inline_only void SIMDCalculateFourDotProductsWithConstantVector(
 const Vector3D * __restrict v1, const Vector3D& __restrict v2, float * __restrict dot) {
     SIMDCalculateDotProductsWithConstantVector(4, v1, v2, dot);
 }
 
-static inline void SIMDCalculateFourDotProductsWithConstantVector(
+static inline_only void SIMDCalculateFourDotProductsWithConstantVector(
 const Point3D * __restrict p1, const Vector4D& __restrict v2, float * __restrict dot) {
     SIMDCalculateDotProductsWithConstantVector(4, p1, v2, dot);
 }
 
-static inline void SIMDCalculateDotProductsWithConstantVectorAndCountNegative(int n,
+static inline_only void SIMDCalculateDotProductsWithConstantVectorAndCountNegative(int n,
 const Point3D * __restrict p1, const Vector4D& __restrict v2, float * __restrict dot,
 int& negative_count) {
-   __simd128_float m_v2 = simd128_load(&v2);
-    __simd128_float m_v2_x, m_v2_y, m_v2_z, m_v2_w;
-    m_v2_x = simd128_select_float(m_v2, 0, 0, 0, 0);
-    m_v2_y = simd128_select_float(m_v2, 1, 1, 1, 1);
-    m_v2_z = simd128_select_float(m_v2, 2, 2, 2, 2);
-    m_v2_w = simd128_select_float(m_v2, 3, 3, 3, 3);
-    __simd128_float m_zeros = simd128_set_zero_float();
-    int count = 0;
-    int i = 0;
-    for (; i + 3 < n; i += 4) {
-        __simd128_float m_v1_0 = simd128_load(&p1[i + 0]);
-        __simd128_float m_v1_1 = simd128_load(&p1[i + 1]);
-        __simd128_float m_v1_2 = simd128_load(&p1[i + 2]);
-        __simd128_float m_v1_3 = simd128_load(&p1[i + 3]);
-        __simd128_float m_v1_x, m_v1_y, m_v1_z;
-        simd128_transpose4to3_float(m_v1_0, m_v1_1, m_v1_2, m_v1_3, m_v1_x, m_v1_y, m_v1_z);
-        __simd128_float m_dot_x = simd128_mul_float(m_v1_x, m_v2_x);
-        __simd128_float m_dot_y = simd128_mul_float(m_v1_y, m_v2_y);
-        __simd128_float m_dot_z = simd128_mul_float(m_v1_z, m_v2_z);
-        // m_v1_w would contain only 1.0f so m_dot_w is equal to m_v2_w.
-        __simd128_float m_result = simd128_add_float(
-            simd128_add_float(m_dot_x, m_dot_y),
-            simd128_add_float(m_dot_z, m_v2_w)
-            );
-        simd128_store_float(&dot[i], m_result);
-        // Produce 32-bit bit masks indicating whether each result is smaller than zero.
-        __simd128_int m_comp = simd128_cmplt_float(m_result, m_zeros);
-        // Convert to 32-bit mask (bit 31) to packed bits and count the ones.
-        count += simd_count_bits_int4(simd128_convert_masks_int32_int1(m_comp));
-    }
-    for (; i < n; i++) {
-         // Load the point vector and make sure the w component is 1.0f.
-        __simd128_float m_v1 = simd128_load_and_set_w(&p1[i]);
-        __simd128_float m_dot = simd128_mul_float(m_v1, m_v2);
-        __simd128_float m_result = simd128_horizontal_add4_float(m_dot);
-        simd128_store_first_float(&dot[i], m_result);
-        count += (simd128_get_float(m_result) < 0.0f);
-    }
-    negative_count = count;
+    if (sizeof(Vector3D) == 16)
+        simd_dot_product_nx1_point3_storage4_vector4_and_count_negative_float(
+            n, &p1[0].x, &v2.x, dot, negative_count);
+    else
+        simd_dot_product_nx1_point3_storage3_vector4_and_count_negative_float(
+            n, &p1[0].x, &v2.x, dot, negative_count);
 }
 
-static inline void SIMDCalculateFourDotProductsWithConstantVectorAndCountNegative(
+static inline_only void SIMDCalculateFourDotProductsWithConstantVectorAndCountNegative(
 const Point3D * __restrict p1, const Vector4D& __restrict v2, float * __restrict dot,
 int& negative_count) {
     SIMDCalculateDotProductsWithConstantVectorAndCountNegative(4, p1, v2, dot,
@@ -290,7 +257,7 @@ public :
         m_row3 = simd128_load_float(&m.n[3][0]);
         simd128_transpose4_float(m_row0, m_row1, m_row2, m_row3);
     }
-    inline void Multiply(const __simd128_float m_v, __simd128_float& m_result) const {
+    inline_only void Multiply(const __simd128_float m_v, __simd128_float& m_result) const {
         __simd128_float m_mul0  = simd128_mul_float(m_row0, m_v);
         __simd128_float m_mul1  = simd128_mul_float(m_row1, m_v);
         __simd128_float m_mul2  = simd128_mul_float(m_row2, m_v);
@@ -300,7 +267,7 @@ public :
                 simd128_horizontal_add2_float(m_mul0, m_mul1),
                 simd128_horizontal_add2_float(m_mul2, m_mul3));
     }
-    inline Vector4D Multiply(const __simd128_float m_v) const {
+    inline_only Vector4D Multiply(const __simd128_float m_v) const {
         __simd128_float m_result;
         Multiply(m_v, m_result);
         return Vector4D(
@@ -310,10 +277,10 @@ public :
             simd128_get_float(simd128_shift_right_float(m_result, 3))
             );
     }
-    friend inline Vector4D operator *(const Matrix4DSIMD& m, const Vector4D& V) {
+    friend inline_only Vector4D operator *(const Matrix4DSIMD& m, const Vector4D& V) {
         return m.Multiply(simd128_set_float(V.x, V.y, V.z, V.w));
     }
-    friend inline Vector4D operator *(const Matrix4DSIMD& m, const Vector4D *Vp) {
+    friend inline_only Vector4D operator *(const Matrix4DSIMD& m, const Vector4D *Vp) {
         return m.Multiply(simd128_load_float(&Vp[0][0]));
     }
 };
@@ -321,7 +288,7 @@ public :
 // Multiple a 4x4 Matrix by a vector, and store the result in a vector.
 // Matrix4DSIMD m must be initialized.
 
-static inline void SIMDMatrixMultiplyVector(const Matrix4DSIMD& m, const Vector4D *v1p,
+static inline_only void SIMDMatrixMultiplyVector(const Matrix4DSIMD& m, const Vector4D *v1p,
 Vector4D *v2p) {
     __simd128_float m_v1 = simd128_load(v1p);
     __simd128_float m_result;
@@ -485,7 +452,7 @@ public :
         m_row1 = simd128_load_float(&m.n[1][0]);
         m_row2 = simd128_load_float(&m.n[2][0]);
     }
-    inline void Multiply(const __simd128_float m_v, __simd128_float& m_result) const {
+    inline_only void Multiply(const __simd128_float m_v, __simd128_float& m_result) const {
         __simd128_float m_mul0  = simd128_mul_float(m_row0, m_v);
         __simd128_float m_mul1  = simd128_mul_float(m_row1, m_v);
         __simd128_float m_mul2  = simd128_mul_float(m_row2, m_v);
@@ -495,7 +462,7 @@ public :
                 simd128_horizontal_add2_float(m_mul0, m_mul1),
                 simd128_horizontal_add2_float(m_mul2, m_zeros));
     }
-    inline Vector3D Multiply(const __simd128_float m_v) const {
+    inline_only Vector3D Multiply(const __simd128_float m_v) const {
         __simd128_float m_result;
         Multiply(m_v, m_result);
         return Vector3D(
@@ -504,10 +471,10 @@ public :
             simd128_get_float(simd128_shift_right_float(m_result, 2))
             );
     }
-    friend inline Vector3D operator *(const MatrixTransformSIMD& m, const Vector3D& V) {
+    friend inline_only Vector3D operator *(const MatrixTransformSIMD& m, const Vector3D& V) {
         return m.Multiply(simd128_set_float(V.x, V.y, V.z, 0.0f));
     }
-    friend inline Vector3D operator *(const MatrixTransformSIMD& m, const Vector3D *Vp) {
+    friend inline_only Vector3D operator *(const MatrixTransformSIMD& m, const Vector3D *Vp) {
         return m.Multiply(simd128_load_float(&Vp[0][0]));
     }
 };
@@ -515,7 +482,7 @@ public :
 // Multiple a 4x3 matrix by a vector, and store the result in a vector.
 // MatrixTransformSIMD m must be initialized.
 
-static inline void SIMDMatrixMultiplyVector(const MatrixTransformSIMD& m,
+static inline_only void SIMDMatrixMultiplyVector(const MatrixTransformSIMD& m,
 const Vector3D *v1p, Vector3D *v2p) {
     // Using simd128_load(const Vector3D *v).
     __simd128_float m_v1 = simd128_load(&v1p[0]);
