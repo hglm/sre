@@ -1893,13 +1893,14 @@ const Vector3D& v2, int& i_Pmin, int& i_Pmax);
 void GetIndicesWithMinAndMaxDotProduct(int nu_vertices, Vector4D *vertex,
 const Vector4D& v2, int& i_Pmin, int& i_Pmax);
 
-// Multiply an array of vertices with a constant matrix.
+// Multiply a constant matrix with an array of vectors.
 
-void MatrixMultiply(int n, const Matrix4D& m, const Vector4D *v1, Vector4D *v2);
+void MatrixMultiplyVectors(int n, const Matrix4D& m, const Vector4D *v1, Vector4D *v2);
 
-void MatrixMultiply(int n, const Matrix4D& m, const Point3D *p1, Point3D *p2);
+void MatrixMultiplyVectors(int n, const Matrix4D& m, const Point3D *p1, Point3D *p2);
 
-void MatrixMultiply(int n, const MatrixTransform& m, const Vector3D *v1, Vector3D *v2);
+void MatrixMultiplyVectors(int n, const MatrixTransform& m, const Vector3D *v1,
+Vector3D *v2);
 
 #endif
 

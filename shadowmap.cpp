@@ -143,8 +143,8 @@ public :
 
     void Initialize() {
 #ifdef USE_SIMD
-        casters.m_dim_min = simd128_set1_float(POSITIVE_INFINITY_FLOAT);
-        casters.m_dim_max = simd128_set1_float(NEGATIVE_INFINITY_FLOAT);
+        casters.m_dim_min = simd128_set_same_float(POSITIVE_INFINITY_FLOAT);
+        casters.m_dim_max = simd128_set_same_float(NEGATIVE_INFINITY_FLOAT);
         receivers.m_dim_min = casters.m_dim_min;
         receivers.m_dim_max = casters.m_dim_max;
 #else

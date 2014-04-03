@@ -228,10 +228,10 @@ static void CalculateSilhouetteEdges(const Vector4D& lightpos, EdgeArray *ea) {
     // Process TRIANGLES_AT_AT_TIME triangles at a time using SIMD.
     const __simd128_float m_zeros = simd128_set_zero_float();
 #ifdef USE_INLINE_SIMD_FOR_LIGHT_VECTOR_CALCULATION
-    const __simd128_float m_lightpos_x = simd128_set1_float(lightpos.x);
-    const __simd128_float m_lightpos_y = simd128_set1_float(lightpos.y);
-    const __simd128_float m_lightpos_z = simd128_set1_float(lightpos.z);
-    const __simd128_float m_lightpos_w = simd128_set1_float(lightpos.w);
+    const __simd128_float m_lightpos_x = simd128_set_same_float(lightpos.x);
+    const __simd128_float m_lightpos_y = simd128_set_same_float(lightpos.y);
+    const __simd128_float m_lightpos_z = simd128_set_same_float(lightpos.z);
+    const __simd128_float m_lightpos_w = simd128_set_same_float(lightpos.w);
 #endif
     for (; i + TRIANGLES_AT_A_TIME - 1 < m->nu_triangles; i += TRIANGLES_AT_A_TIME) {
         for (int j = 0; j < TRIANGLES_AT_A_TIME / 4; j++) {

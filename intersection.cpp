@@ -664,7 +664,7 @@ const sreBoundingVolumeSphere& sphere) {
     // simd128_load(Vector3D) returns 0.0f in w component.
     __simd128_float m_dim_min = simd128_load(&AABB.dim_min);
     __simd128_float m_dim_max = simd128_load(&AABB.dim_max);
-    __simd128_float m_sphere_radius_squared = simd128_set1_float(sqrf(sphere.radius));
+    __simd128_float m_sphere_radius_squared = simd128_set_same_float(sqrf(sphere.radius));
     __simd128_float m_sphere_center = simd128_set_float(
          sphere.center.x, sphere.center.y, sphere.center.z, 0.0f);
     __simd128_float m_sphere_center_x = simd128_select_float(m_sphere_center, 0, 0, 0, 0);

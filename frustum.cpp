@@ -88,7 +88,7 @@ void sreFrustum::Calculate() {
     frustum_eye.plane[5].Set(0, 0, 1.0, farD);
     // Convert the planes to world space.
     Matrix4D transpose_view_matrix = Transpose(sre_internal_view_matrix);
-    MatrixMultiply(6, transpose_view_matrix, &frustum_eye.plane[0],
+    MatrixMultiplyVectors(6, transpose_view_matrix, &frustum_eye.plane[0],
         &frustum_world.plane[0]);
 //    for (int i = 0; i < 5; i++)
 //        printf("plane_world[%d] = (%f, %f, %f, %f)\n", i, plane_world[i].K.x, plane_world[i].K.y, plane_world[i].K.z,
@@ -116,7 +116,7 @@ void sreFrustum::Calculate() {
         vertex[5] = Point3D(AABB.dim_max.x, AABB.dim_min.y, AABB.dim_max.z);
         vertex[6] = Point3D(AABB.dim_min.x, AABB.dim_max.y, AABB.dim_max.z);
         vertex[7] = Point3D(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_max.z);
-        MatrixMultiply(8, inverse_view_matrix, vertex, vertex);
+        MatrixMultiplyVectors(8, inverse_view_matrix, vertex, vertex);
         sreBoundingVolumeAABB empty_AABB;
         empty_AABB.dim_min =
             Point3D(POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT);
