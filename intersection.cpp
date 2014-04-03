@@ -649,12 +649,6 @@ static bool Intersects(const sreBoundingVolumeAABB& AABB, const sreBoundingVolum
 // More detailed intersection test of an AABB against a sphere. Returns more exact information,
 // and will detect more non-intersections than the function above.
 
-#ifdef USE_SIMD
-static char bit_count4[16] = {
-    0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4
-};
-#endif
-
 static BoundsCheckResult QueryIntersection(const sreBoundingVolumeAABB& AABB,
 const sreBoundingVolumeSphere& sphere) {
     // First perform a rough test using the sphere's AABB. This will catch AABB's that are
@@ -698,7 +692,7 @@ const sreBoundingVolumeSphere& sphere) {
         // Count the number of corners that are inside the sphere.
          __simd128_int m_comp = simd128_cmplt_float(m_squared_mag,
             m_sphere_radius_squared);
-        intersection_count += bit_count4[simd128_convert_masks_int32_int1(m_comp)];
+        intersection_count += simd_count_bits_int4(simd128_convert_masks_int32_int1(m_comp));
     }
 #else
     intersection_count += Intersects(Point3D(AABB.dim_min.x, AABB.dim_min.y, AABB.dim_min.z), sphere);

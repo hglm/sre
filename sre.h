@@ -796,13 +796,14 @@ public :
             return true;
         return false; 
     }
-    bool ScissorsRegionIsEqual(const sreScissors& scissors) {
+    bool ScissorsRegionIsEqual(const sreScissors& scissors) const {
         return left == scissors.left && right == scissors.right &&
             bottom == scissors.bottom && top == scissors.top;
     }
-    bool DepthBoundsAreEqual(const sreScissors& scissors) {
+    bool DepthBoundsAreEqual(const sreScissors& scissors) const {
         return near == scissors.near && far == scissors.far;
     }
+    void UpdateWithProjectedPoint(float x, float y, double z);
     void UpdateWithWorldSpaceBoundingHull(Point3D *P, int n);
     bool UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const sreFrustum& frustum);
     bool UpdateWithWorldSpaceBoundingPolyhedron(Point3D *P, int n, const sreFrustum& frustum);

@@ -25,6 +25,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre.h"
 #include "sre_internal.h"
 #include "sre_bounds.h"
+#include "sre_simd.h"
 #include "win32_compat.h"
 
 sreFrustum::sreFrustum() {
@@ -116,12 +117,24 @@ void sreFrustum::Calculate() {
         vertex[6] = Point3D(AABB.dim_min.x, AABB.dim_max.y, AABB.dim_max.z);
         vertex[7] = Point3D(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_max.z);
         MatrixMultiply(8, inverse_view_matrix, vertex, vertex);
-        shadow_map_region_AABB.dim_min =
+        sreBoundingVolumeAABB empty_AABB;
+        empty_AABB.dim_min =
             Point3D(POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT);
-        shadow_map_region_AABB.dim_max =
+        empty_AABB.dim_max =
             Point3D(NEGATIVE_INFINITY_FLOAT, NEGATIVE_INFINITY_FLOAT, NEGATIVE_INFINITY_FLOAT);
+#ifdef USE_SIMD
+        sreBoundingVolumeAABB_SIMD region_AABB;
+        region_AABB.Set(empty_AABB);
+#else
+        sreBoundingVolumeAABB region_AABB = empty_AABB;
+#endif
         for (int i = 0; i < 8; i++)
-            UpdateAABB(shadow_map_region_AABB, vertex[i]);
+            UpdateAABB(region_AABB, vertex[i]);
+#ifdef USE_SIMD
+        region_AABB.Get(shadow_map_region_AABB);
+#else
+        shadow_map_region_AABB = region_AABB;
+#endif
     }
 #endif
    // Set information indicating when the frustum has changed.
@@ -247,8 +260,13 @@ void sreFrustum::CalculateShadowCasterVolume(const Vector4D& lightpos, int nu_fr
     shadow_caster_volume.nu_planes = 0;
     // Calculate the dot products between the frustum planes and the light source.
     float dot[6];
+#if 1
+    CalculateDotProductsWithConstantVector(nu_frustum_planes, &frustum_world.plane[0],
+        lightpos, &dot[0]);
+#else
     for (int i = 0; i < nu_frustum_planes; i++)
         dot[i] = Dot(frustum_world.plane[i], lightpos);
+#endif
     // For each frustum plane, add it if it is part of the convex hull.
     for (int i = 0; i < nu_frustum_planes; i++)
         if (dot[i] > 0) {
@@ -321,6 +339,33 @@ end: ;
 #endif
 }
 
+void sreScissors::UpdateWithProjectedPoint(float x, float y, double z) {
+    if (z >= - 1.001d) {
+        // Beyond the near plane.
+        z = maxd(- 1.0d, z);
+        double depth = 0.5d * z + 0.5d;
+        near = mind(depth, near);
+        far = maxd(depth, far);
+        left = minf(x, left);
+        right = maxf(x, right);
+        bottom = minf(y, bottom);
+        top = maxf(y, top);
+        return;
+    }
+    sreMessage(SRE_MESSAGE_WARNING,
+        "Unexpected vertex in front of the near plane in UpdateWorldSpaceBoundingHull "
+        "z = %lf", z);
+    // In front of the near plane.
+    near = 0;
+    far = 1.0;
+    // We know that the light volume intersects the frustum, so it must extend to
+    // both sides of the near plane.
+    // Assume it fills the whole viewport (not optimal).
+    left = - 1.0f;
+    right = 1.0f;
+    bottom = - 1.0f;
+    top = 1.0f;
+}
 
 // Project world space vertex positions onto the image plane and update the scissors region
 // to include all vertices. Projected image plane locations are allowed to be outside of
@@ -330,39 +375,63 @@ end: ;
 // The input vertices are assumed to be beyond the near plane (although this is checked). 
 
 void sreScissors::UpdateWithWorldSpaceBoundingHull(Point3D *P, int n) {
-        for (int i = 0; i < n; i++) {
-            Vector4D Pproj = sre_internal_view_projection_matrix * P[i];
-            double z = (double)Pproj.z / (double)Pproj.w;
-            if (z >= - 1.0f - 0.001f) {
-                // Beyond the near plane.
-                if (z < - 1.0)
-                    z = - 1.0;
-                double depth = 0.5f * z + 0.5f;
-                near = minf(depth, near);
-                far = maxf(depth, far);
-                float x = Pproj.x / Pproj.w;
-                float y = Pproj.y / Pproj.w;
-                left = minf(x, left);
-                right = maxf(x, right);
-                bottom = minf(y, bottom);
-                top = maxf(y, top);
-            }
-            else {
-                sreMessage(SRE_MESSAGE_WARNING,
-                    "Unexpected vertex in front of the near plane in UpdateWorldSpaceBoundingHull "
-                    "z = %f, n = %d", z, n);
-                // In front of the near plane.
-                near = 0;
-                far = 1.0f;
-                // We know that the light volume intersects the frustum, so it must extend to
-                //both sides of the near plane.
-                // Assume it fills the whole viewport (not optimal).
-                left = - 1.0f;
-                right = 1.0f;
-                bottom = - 1.0f;
-                top = 1.0f;
-           }
-        }
+    int i = 0;
+#ifdef USE_SIMD
+    Matrix4DSIMD m_simd;
+    m_simd.Set(sre_internal_view_projection_matrix);
+    for (; i + 3 < n; i += 4) {
+        // Handle four vertices at a time.
+        __simd128_float m_Pproj0, m_Pproj1, m_Pproj2, m_Pproj3;
+        SIMDMatrixMultiplyFourVectorsNoStore(m_simd, &P[i], m_Pproj0, m_Pproj1, m_Pproj2,
+            m_Pproj3);
+        // Divide x and y coordinates by w.
+        __simd128_float m_Pproj_xy_0011 = simd128_merge_float(m_Pproj0, m_Pproj1, 0, 1, 0, 1);
+        __simd128_float m_Pproj_w_0011 = simd128_merge_float(m_Pproj0, m_Pproj1, 3, 3, 3, 3);
+        __simd128_float m_Pproj_xy_2233 = simd128_merge_float(m_Pproj2, m_Pproj3, 0, 1, 0, 1);
+        __simd128_float m_Pproj_w_2233 = simd128_merge_float(m_Pproj2, m_Pproj3, 3, 3, 3, 3);
+        __simd128_float m_xy_0011 = simd128_div_float(m_Pproj_xy_0011, m_Pproj_w_0011);
+        __simd128_float m_xy_2233 = simd128_div_float(m_Pproj_xy_2233, m_Pproj_w_2233);
+        // Divide z by w with double precision.
+        __simd128_float m_Pproj_z_01xx = simd128_interleave_high_float(m_Pproj0, m_Pproj1);
+        __simd128_float m_Pproj_z_23xx = simd128_interleave_high_float(m_Pproj2, m_Pproj3);
+        __simd128_double md_Pproj_z_01 = simd128_convert_float_double(m_Pproj_z_01xx);
+        __simd128_double md_Pproj_z_23 = simd128_convert_float_double(m_Pproj_z_23xx);
+        __simd128_float m_Pproj_w_01xx = simd128_select_float(m_Pproj_w_0011, 0, 2, 0, 2);
+        __simd128_float m_Pproj_w_23xx = simd128_select_float(m_Pproj_w_2233, 0, 2, 0, 2);
+        __simd128_double md_Pproj_w_01 = simd128_convert_float_double(m_Pproj_w_01xx);
+        __simd128_double md_Pproj_w_23 = simd128_convert_float_double(m_Pproj_w_23xx);
+        __simd128_double md_z_01 = simd128_div_double(md_Pproj_z_01, md_Pproj_w_01);
+        __simd128_double md_z_23 = simd128_div_double(md_Pproj_z_23, md_Pproj_w_23);
+        double z[4];
+        z[0] = simd128_get_double(md_z_01);
+        z[1] = simd128_get_double(simd128_select_double(md_z_01, 1, 1));
+        z[2] = simd128_get_double(md_z_23);
+        z[3] = simd128_get_double(simd128_select_double(md_z_23, 1, 1));
+        UpdateWithProjectedPoint(
+            simd128_get_float(m_xy_0011),
+            simd128_get_float(simd128_shift_right_float(m_xy_0011, 1)),
+            z[0]);
+        UpdateWithProjectedPoint(
+            simd128_get_float(simd128_shift_right_float(m_xy_0011, 2)),
+            simd128_get_float(simd128_shift_right_float(m_xy_0011, 3)),
+            z[1]);
+        UpdateWithProjectedPoint(
+            simd128_get_float(m_xy_2233),
+            simd128_get_float(simd128_shift_right_float(m_xy_2233, 1)),
+            z[2]);
+        UpdateWithProjectedPoint(
+            simd128_get_float(simd128_shift_right_float(m_xy_2233, 2)),
+            simd128_get_float(simd128_shift_right_float(m_xy_2233, 3)),
+            z[2]);
+    }
+#endif
+    for (; i < n; i++) {
+       Vector4D Pproj = sre_internal_view_projection_matrix * P[i];
+       float x = Pproj.x / Pproj.w;
+       float y = Pproj.y / Pproj.w;
+       double z = (double)Pproj.z / (double)Pproj.w;
+       UpdateWithProjectedPoint(x, y, z);
+    }
 }
 
 // Update the scissors region with a bounding box in world space, specified as vertices.
@@ -387,18 +456,15 @@ void sreScissors::UpdateWithWorldSpaceBoundingHull(Point3D *P, int n) {
 bool sreScissors::UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const sreFrustum& frustum) {
     // Clip against image plane.
     float dist[8];
-    int count = 0;
-    for (int i = 0; i < n; i++) {
-        dist[i] = Dot(frustum.frustum_world.plane[0], P[i]);
-        if (dist[i] < 0)
-            count++;
-    }
-    if (count == n)
-        return false;
+    int count;
+    CalculateDotProductsWithConstantVectorAndCountNegative(
+        n, &P[0], frustum.frustum_world.plane[0], &dist[0], count);
     if (count == 0) {
         UpdateWithWorldSpaceBoundingHull(P, n);
         return true;
     }
+    if (count == n)
+        return false;
     Point3D Q[12];
     int n_clipped = 0;
     // First clip the edges within the two planes. 
@@ -526,14 +592,9 @@ const sreFrustum& frustum) {
     // Clip against image plane.
     float dist[8];
     // Count the number of pyramid vertices that is outside the near plane.
-    int count = 0;
-    for (int i = 0; i < n; i++) {
-        dist[i] = Dot(frustum.frustum_world.plane[0], P[i]);
-        if (dist[i] < 0)
-            count++;
-    }
-    if (count == n)
-        return SRE_SCISSORS_REGION_EMPTY;
+    int count;
+    CalculateDotProductsWithConstantVectorAndCountNegative(
+        n, &P[0], frustum.frustum_world.plane[0], &dist[0], count);
     if (count == 0) {
         // The pyramid is entire inside the near plane; no clipping is necessary.
 //        printf("Pyramid (n = %d).\n", n);
@@ -543,6 +604,8 @@ const sreFrustum& frustum) {
         else 
             return SRE_SCISSORS_REGION_DEFINED;
     }
+    if (count == n)
+        return SRE_SCISSORS_REGION_EMPTY;
 
     // The pyramid has to be clipped against the near plane.
 

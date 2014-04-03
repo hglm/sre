@@ -1150,6 +1150,89 @@ float *dot) {
         dot[i] = Dot(v1[i], v2[i]);
 }
 
+// Calculate array of dot products of vector array v1 with constant vector v2.
+
+void CalculateDotProductsWithConstantVector(int n, const Vector3D *v1, const Vector3D& v2,
+float *dot) {
+    int i = 0;
+#ifdef USE_SIMD
+    for (; i + 3 < n; i += 4) {
+        SIMDCalculateFourDotProductsWithConstantVector(&v1[i], v2, &dot[i]);
+    }
+#else
+    for (; i + 3 < n; i += 4) {
+        dot[i] = Dot(v1[i], v2);
+        dot[i + 1] = Dot(v1[i + 1], v2);
+        dot[i + 2] = Dot(v1[i + 2], v2);
+        dot[i + 3] = Dot(v1[i + 3], v2);
+    }
+#endif
+    for (; i < n; i++)
+        dot[i] = Dot(v1[i], v2);
+}
+
+void CalculateDotProductsWithConstantVector(int n, const Vector4D *v1, const Vector4D& v2,
+float *dot) {
+    int i = 0;
+#ifdef USE_SIMD
+    for (; i + 3 < n; i += 4) {
+        SIMDCalculateFourDotProductsWithConstantVector(&v1[i], v2, &dot[i]);
+    }
+#else
+    for (; i + 3 < n; i += 4) {
+        dot[i] = Dot(v1[i], v2);
+        dot[i + 1] = Dot(v1[i + 1], v2);
+        dot[i + 2] = Dot(v1[i + 2], v2);
+        dot[i + 3] = Dot(v1[i + 3], v2);
+    }
+#endif
+    for (; i < n; i++)
+        dot[i] = Dot(v1[i], v2);
+}
+
+void CalculateDotProductsWithConstantVector(int n, const Point3D *p1, const Vector4D& v2,
+float *dot) {
+    int i = 0;
+#ifdef USE_SIMD
+    for (; i + 3 < n; i += 4) {
+        SIMDCalculateFourDotProductsWithConstantVector(&p1[i], v2, &dot[i]);
+    }
+#else
+    for (; i + 3 < n; i += 4) {
+        dot[i] = Dot(p1[i], v2);
+        dot[i + 1] = Dot(p1[i + 1], v2);
+        dot[i + 2] = Dot(p1[i + 2], v2);
+        dot[i + 3] = Dot(p1[i + 3], v2);
+    }
+#endif
+    for (; i < n; i++)
+        dot[i] = Dot(p1[i], v2);
+}
+
+void CalculateDotProductsWithConstantVectorAndCountNegative(int n, const Point3D *p1,
+const Vector4D& v2, float *dot, int& count) {
+    int i = 0;
+    count = 0;
+#ifdef USE_SIMD
+    SIMDCalculateDotProductsWithConstantVectorAndCountNegative(n, &p1[i], v2,
+        &dot[i], count);
+#else
+    for (; i + 3 < n; i += 4) {
+        dot[i] = Dot(p1[i], v2);
+        dot[i + 1] = Dot(p1[i + 1], v2);
+        dot[i + 2] = Dot(p1[i + 2], v2);
+        dot[i + 3] = Dot(p1[i + 3], v2);
+        count += (dot[i] < 0.0f) + (dot[i + 1] < 0.0f) + (dot[i + 2] < 0.0f) +
+            (dot[i + 3] < 0.0f);
+    }
+    for (; i < n; i++) {
+        dot[i] = Dot(p1[i], v2);
+        if (dot[i] < 0.0f)
+            count++;
+    }
+#endif
+}
+
 // Determine the minimum and maximum dot product of an array of vertices with a
 // given constant vector.
 

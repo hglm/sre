@@ -1825,6 +1825,18 @@ static inline int maxi(int x, int y) {
     return x;
 }
 
+static inline double mind(double x, double y) {
+    if (x < y)
+        return x;
+    return y;
+}
+
+static inline double maxd(double x, double y) {
+    if (y > x)
+        return y;
+    return x;
+}
+
 // Vector functions with optional SIMD (SSE, NEON etc) support.
 
 // Calculate an array of dot products.
@@ -1834,6 +1846,25 @@ float *dot);
 
 void CalculateDotProducts(int n, const Vector4D *v1, const Vector4D *v2,
 float *dot);
+
+// Calculate array of dot products of vector array v1 with constant vector v2.
+
+void CalculateDotProductsWithConstantVector(int n, const Vector3D *v1, const Vector3D& v2,
+float *dot);
+
+void CalculateDotProductsWithConstantVector(int n, const Vector4D *v1, const Vector4D& v2,
+float *dot);
+
+// Calculate array of dot products of point vector array v1 with constant vector v2.
+
+void CalculateDotProductsWithConstantVector(int n, const Point3D *p1, const Vector4D& v2,
+float *dot);
+
+// Calculate array of dot products of point vector array v1 with constant vector v2,
+// and count the number of dot products < 0.
+
+void CalculateDotProductsWithConstantVectorAndCountNegative(int n, const Point3D *p1,
+const Vector4D& v2, float *dot, int& negative_count);
 
 // Determine the minimum and maximum dot product of an array of vertices with a
 // given constant vector.
