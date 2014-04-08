@@ -240,15 +240,8 @@ int& negative_count) {
 
 // Data type for using SIMD to multiply a specific matrix with one or more vertices.
 
-class Matrix4DSIMD {
+class Matrix4DSIMD : public SIMDMatrix4x4 {
 public :
-    // When performing single vector multiplication, matrix row SIMD variables are
-    // needed.
-    __simd128_float m_row0;
-    __simd128_float m_row1;
-    __simd128_float m_row2;
-    __simd128_float m_row3;
-
     void Set(const Matrix4D& m) {
         // Load columns, then transpose to rows.
         m_row0 = simd128_load_float(&m.n[0][0]);
@@ -257,19 +250,9 @@ public :
         m_row3 = simd128_load_float(&m.n[3][0]);
         simd128_transpose4_float(m_row0, m_row1, m_row2, m_row3);
     }
-    inline_only void Multiply(const __simd128_float m_v, __simd128_float& m_result) const {
-        __simd128_float m_mul0  = simd128_mul_float(m_row0, m_v);
-        __simd128_float m_mul1  = simd128_mul_float(m_row1, m_v);
-        __simd128_float m_mul2  = simd128_mul_float(m_row2, m_v);
-        __simd128_float m_mul3  = simd128_mul_float(m_row3, m_v);
-        m_result =
-            simd128_horizontal_add2_float(
-                simd128_horizontal_add2_float(m_mul0, m_mul1),
-                simd128_horizontal_add2_float(m_mul2, m_mul3));
-    }
     inline_only Vector4D Multiply(const __simd128_float m_v) const {
         __simd128_float m_result;
-        Multiply(m_v, m_result);
+        MultiplyVector4(m_v, m_result);
         return Vector4D(
             simd128_get_float(m_result),
             simd128_get_float(simd128_shift_right_float(m_result, 1)),
@@ -292,7 +275,7 @@ static inline_only void SIMDMatrixMultiplyVector(const Matrix4DSIMD& m, const Ve
 Vector4D *v2p) {
     __simd128_float m_v1 = simd128_load(v1p);
     __simd128_float m_result;
-    m.Multiply(m_v1, m_result);
+    m.MultiplyVector4(m_v1, m_result);
     simd128_store(v2p, m_result);
 }
 
@@ -361,11 +344,11 @@ const Vector4D *v_source_p, Vector4D *v_result_p) {
     simd128_store(&v_result_p[3], m_result_3);
 }
 
-static inline void SIMDMatrixMultiplyVector(const Matrix4DSIMD& m, const Point3D *p1p,
+static inline_only void SIMDMatrixMultiplyVector(const Matrix4DSIMD& m, const Point3D *p1p,
 Point3D *p2p) {
     __simd128_float m_p1 = simd128_set_float(p1p->x, p1p->y, p1p->z, 1.0f);
     __simd128_float m_result;
-    m.Multiply(m_p1, m_result);
+    m.MultiplyVector4(m_p1, m_result);
     simd128_store(p2p, m_result);
 }
 
@@ -441,30 +424,17 @@ const Point3D *p_source_p, Point3D *p_result_p) {
 
 // Requires simd128_transpose4to3_float and simd_transpose3to4_float.
 
-class MatrixTransformSIMD {
+class MatrixTransformSIMD : public SIMDMatrix4x3 {
 public :
-    __simd128_float m_row0;
-    __simd128_float m_row1;
-    __simd128_float m_row2;
-
     void Set(const MatrixTransform& m) {
+        // MatrixTransform is already in row-major format.
         m_row0 = simd128_load_float(&m.n[0][0]);
         m_row1 = simd128_load_float(&m.n[1][0]);
         m_row2 = simd128_load_float(&m.n[2][0]);
     }
-    inline_only void Multiply(const __simd128_float m_v, __simd128_float& m_result) const {
-        __simd128_float m_mul0  = simd128_mul_float(m_row0, m_v);
-        __simd128_float m_mul1  = simd128_mul_float(m_row1, m_v);
-        __simd128_float m_mul2  = simd128_mul_float(m_row2, m_v);
-        __simd128_float m_zeros = simd128_set_zero_float();
-        m_result =
-            simd128_horizontal_add2_float(
-                simd128_horizontal_add2_float(m_mul0, m_mul1),
-                simd128_horizontal_add2_float(m_mul2, m_zeros));
-    }
     inline_only Vector3D Multiply(const __simd128_float m_v) const {
         __simd128_float m_result;
-        Multiply(m_v, m_result);
+        MultiplyVector3(m_v, m_result);
         return Vector3D(
             simd128_get_float(m_result),
             simd128_get_float(simd128_shift_right_float(m_result, 1)),
@@ -479,7 +449,7 @@ public :
     }
 };
 
-// Multiple a 4x3 matrix by a vector, and store the result in a vector.
+// Multiply a 4x3 matrix by a vector, and store the result in a vector.
 // MatrixTransformSIMD m must be initialized.
 
 static inline_only void SIMDMatrixMultiplyVector(const MatrixTransformSIMD& m,
@@ -487,10 +457,13 @@ const Vector3D *v1p, Vector3D *v2p) {
     // Using simd128_load(const Vector3D *v).
     __simd128_float m_v1 = simd128_load(&v1p[0]);
     __simd128_float m_result;
-    m.Multiply(m_v1, m_result);
+    m.MultiplyVector3(m_v1, m_result);
     // Using simd128_store(Vector3D *v).
     simd128_store(&v2p[0], m_result);
 }
+
+// Multiply a 4x3 matrix by an array of four vectors, and store the result in
+// an array of four vectors.
 
 static inline void SIMDMatrixMultiplyFourVectors(const MatrixTransformSIMD& m,
 const Vector3D *v_source_p, Vector3D *v_result_p) {
