@@ -420,7 +420,7 @@ $(LIBRARY_PKG_CONFIG_FILE) : Makefile.conf Makefile
 	@echo Description: SRE real-time rendering engine >> sre.pc
 	@echo Requires: $(PKG_CONFIG_REQUIREMENTS) >> sre.pc
 	@echo Version: $(VERSION) >> sre.pc
-	@echo Libs: $(LFLAGS_DEMO) $(PKG_CONFIG_LIBS_DEMO) -lsrebackend  -lsre >> sre.pc
+	@echo Libs:  -lsrebackend -lsre $(LFLAGS_DEMO) $(PKG_CONFIG_LIBS_DEMO) >> sre.pc
 	@echo Cflags: >> sre.pc
 
 shaders_builtin.cpp : $(SHADER_SOURCES)
