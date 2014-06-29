@@ -76,6 +76,7 @@ sre/sreBackend.h
 sre/sreBoundingVolume.h
 sre/sreRandom.h
 sre/sreVectorMath.h
+sre/sreDoubleMath.h
 sre/win32_compat.h
 sre/x11-common.h
 sre/gl3_billboard.frag

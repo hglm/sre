@@ -34,7 +34,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // Some changes and extensions by Harm Hanemaaijer, 2012-2014.
 
 #define Sqrt(x) sqrtf(x)
-#define InverseSqrt(x) (1 / sqrtf(x))
+#define InverseSqrt(x) (1.0f / sqrtf(x))
 
 //============================================================================
 //
@@ -192,7 +192,6 @@ inline bool operator !=(const Vector2D& v1, const Vector2D& v2)
 {
 	return ((v1.x != v2.x) || (v1.y != v2.y));
 }
-
 
 class SRE_API Point2D : public Vector2D
 {
@@ -740,7 +739,6 @@ inline Point3D operator &(const Vector3D& v, const Point3D& p)
 	return (Point3D(v.x * p.x, v.y * p.y, v.z * p.z));
 }
 
-
 inline float Dot(const Vector3D& v1, const Vector3D& v2)
 {
 	return (v1 * v2);
@@ -1262,12 +1260,12 @@ class SRE_API Matrix3D
 			return (n[j][i]);
 		}
 
-		float& Get(int row, int column){
-			return (n[row][column]);
+		float& Get(int column, int row) {
+			return (n[column][row]);
 		}
 
-		const float& Get(int row, int column) const {
-			return (n[row][column]);
+		const float& Get(int column, int row) const {
+			return (n[column][row]);
 		}
 
 		Vector3D& operator [](int j)

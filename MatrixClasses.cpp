@@ -40,6 +40,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sreRandom.h"
 #include "sre_internal.h"
 #include "sre_simd.h"
+#include "sreDoubleMath.h"
 
 // Initialize starting with the first row, then the next row, then subsequent columns.
 
@@ -1015,6 +1016,19 @@ char *Matrix3D::GetString() const {
     return s;
 }
 
+char *MatrixDouble3D::GetString() const {
+    char *s = new char[256];
+    sprintf(s, "Matrix3D( ");
+    for (int i = 0; i < 3; i++) {
+        VectorDouble3D V = GetRow(i);
+        char rowstr[64];
+        sprintf(rowstr, "(%lf, %lf, %lf) ", V.x, V.y, V.z);
+        strcat(s, rowstr);
+    }
+    strcat(s, ")");
+    return s;
+}
+
 char *Matrix4D::GetString() const {
     char *s = new char[256];
     sprintf(s, "Matrix4D( ");
@@ -1042,6 +1056,12 @@ char *MatrixTransform::GetString() const {
         strcat(s, rowstr);
     }
     strcat(s, ")");
+    return s;
+}
+
+char *VectorDouble3D::GetString() const {
+    char *s = new char[64];
+    sprintf(s, "VectorDouble3D(%lf, %lf, %lf)", x, y, z);
     return s;
 }
 
@@ -1868,3 +1888,267 @@ void MatrixMultiplyVectors(int n, const MatrixTransform& m, const Vector3D *v1, 
 #endif
 }
 
+// Double-precision variants.
+
+// Initialize starting with the first row, then the next row, then subsequent columns.
+
+MatrixDouble3D& MatrixDouble3D::Set(double n00, double n01, double n02, double n10, double n11, double n12, double n20, double n21, double n22)
+{
+	n[0][0] = n00;
+	n[0][1] = n10;
+	n[0][2] = n20;
+	n[1][0] = n01;
+	n[1][1] = n11;
+	n[1][2] = n21;
+	n[2][0] = n02;
+	n[2][1] = n12;
+	n[2][2] = n22;
+	return (*this);
+}
+
+// Initialize with columns c1, c2, c3.
+
+MatrixDouble3D& MatrixDouble3D::Set(const VectorDouble3D& c1, const VectorDouble3D& c2, const VectorDouble3D& c3)
+{
+	return Set(c1.x, c2.x, c3.x, c1.y, c2.y, c3.y, c1.z, c2.z, c3.z);
+}
+
+MatrixDouble3D::MatrixDouble3D(const VectorDouble3D& c1, const VectorDouble3D& c2, const VectorDouble3D& c3)
+{
+	Set(c1, c2, c3);
+}
+
+MatrixDouble3D::MatrixDouble3D(double n00, double n01, double n02, double n10, double n11, double n12, double n20, double n21, double n22)
+{
+	Set(n00, n01, n02, n10, n11, n12, n20, n21, n22);
+}
+
+
+MatrixDouble3D& MatrixDouble3D::operator *=(const MatrixDouble3D& __restrict__ m) __restrict__
+{
+	double t = n[0][0] * m.n[0][0] + n[1][0] * m.n[0][1] + n[2][0] * m.n[0][2];
+	double u = n[0][0] * m.n[1][0] + n[1][0] * m.n[1][1] + n[2][0] * m.n[1][2];
+	n[2][0] = n[0][0] * m.n[2][0] + n[1][0] * m.n[2][1] + n[2][0] * m.n[2][2];
+	n[0][0] = t;
+	n[1][0] = u;
+	
+	t = n[0][1] * m.n[0][0] + n[1][1] * m.n[0][1] + n[2][1] * m.n[0][2];
+	u = n[0][1] * m.n[1][0] + n[1][1] * m.n[1][1] + n[2][1] * m.n[1][2];
+	n[2][1] = n[0][1] * m.n[2][0] + n[1][1] * m.n[2][1] + n[2][1] * m.n[2][2];
+	n[0][1] = t;
+	n[1][1] = u;
+	
+	t = n[0][2] * m.n[0][0] + n[1][2] * m.n[0][1] + n[2][2] * m.n[0][2];
+	u = n[0][2] * m.n[1][0] + n[1][2] * m.n[1][1] + n[2][2] * m.n[1][2];
+	n[2][2] = n[0][2] * m.n[2][0] + n[1][2] * m.n[2][1] + n[2][2] * m.n[2][2];
+	n[0][2] = t;
+	n[1][2] = u;
+	
+	return (*this);
+}
+
+MatrixDouble3D& MatrixDouble3D::operator *=(double t)
+{
+	n[0][0] *= t;
+	n[0][1] *= t;
+	n[0][2] *= t;
+	n[1][0] *= t;
+	n[1][1] *= t;
+	n[1][2] *= t;
+	n[2][0] *= t;
+	n[2][1] *= t;
+	n[2][2] *= t;
+	
+	return (*this);
+}
+
+MatrixDouble3D& MatrixDouble3D::operator /=(double t)
+{
+	double f = 1.0F / t;
+	n[0][0] *= f;
+	n[0][1] *= f;
+	n[0][2] *= f;
+	n[1][0] *= f;
+	n[1][1] *= f;
+	n[1][2] *= f;
+	n[2][0] *= f;
+	n[2][1] *= f;
+	n[2][2] *= f;
+	
+	return (*this);
+}
+
+MatrixDouble3D& MatrixDouble3D::SetIdentity(void)
+{
+	n[0][0] = n[1][1] = n[2][2] = 1.0F;
+	n[0][1] = n[0][2] = n[1][0] = n[1][2] = n[2][0] = n[2][1] = 0.0F;
+	
+	return (*this);
+}
+
+MatrixDouble3D& MatrixDouble3D::AssignRotationAlongAxis(const VectorDouble3D& axis, double angle) {
+	double c = cos(angle);
+	double s = sin(angle);
+	Set(c + (1.0 - c) * axis.x * axis.x, (1.0 - c) * axis.x * axis.y - s * axis.z,
+		(1.0 - c) * axis.x * axis.z + s * axis.y,
+		(1.0 - c) * axis.x * axis.y + s * axis.z, c + (1.0 - c) * axis.y * axis.y,
+		(1.0 - c) * axis.y * axis.z - s * axis.x,
+		(1.0 - c) * axis.x * axis.z - s * axis.y, (1.0 - c) * axis.y * axis.z + s * axis.x,
+		c + (1 - c) * axis.z * axis.z);
+	return (*this);
+}
+
+MatrixDouble3D& MatrixDouble3D::AssignRotationAlongXAxis(double angle) {
+        Set(1.0, 0, 0,
+		0, cos(angle), - sin(angle),
+		0, sin(angle), cos(angle));
+	return (*this);
+}
+
+MatrixDouble3D& MatrixDouble3D::AssignRotationAlongYAxis(double angle) {
+	Set(cos(angle), 0, sin(angle),
+		0, 1.0, 0,
+		- sin(angle), 0, cos(angle));
+	return (*this);
+}
+
+MatrixDouble3D& MatrixDouble3D::AssignRotationAlongZAxis(double angle) {
+	Set(cos(angle), - sin(angle), 0,
+		sin(angle), cos(angle), 0,
+		0, 0, 1.0);
+	return (*this);
+}
+
+MatrixDouble3D& MatrixDouble3D::AssignTranslation(const Vector2D& translation) {
+    Set(1.0f, 0, translation.x,
+        0, 1.0f, translation.y,
+        0, 0, 1.0f);
+    return (*this);
+}
+
+MatrixDouble3D& MatrixDouble3D::AssignScaling(double scaling) {
+    Set(scaling, 0, 0,
+        0, scaling, 0,
+        0, 0, 1.0f);
+    return (*this);
+}
+
+MatrixDouble3D operator *(const MatrixDouble3D& __restrict__ m1, const MatrixDouble3D& __restrict__ m2)
+{
+	return (MatrixDouble3D(m1.n[0][0] * m2.n[0][0] + m1.n[1][0] * m2.n[0][1] + m1.n[2][0] * m2.n[0][2],
+					 m1.n[0][0] * m2.n[1][0] + m1.n[1][0] * m2.n[1][1] + m1.n[2][0] * m2.n[1][2],
+					 m1.n[0][0] * m2.n[2][0] + m1.n[1][0] * m2.n[2][1] + m1.n[2][0] * m2.n[2][2],
+					 m1.n[0][1] * m2.n[0][0] + m1.n[1][1] * m2.n[0][1] + m1.n[2][1] * m2.n[0][2],
+					 m1.n[0][1] * m2.n[1][0] + m1.n[1][1] * m2.n[1][1] + m1.n[2][1] * m2.n[1][2],
+					 m1.n[0][1] * m2.n[2][0] + m1.n[1][1] * m2.n[2][1] + m1.n[2][1] * m2.n[2][2],
+					 m1.n[0][2] * m2.n[0][0] + m1.n[1][2] * m2.n[0][1] + m1.n[2][2] * m2.n[0][2],
+					 m1.n[0][2] * m2.n[1][0] + m1.n[1][2] * m2.n[1][1] + m1.n[2][2] * m2.n[1][2],
+					 m1.n[0][2] * m2.n[2][0] + m1.n[1][2] * m2.n[2][1] + m1.n[2][2] * m2.n[2][2]));
+}
+
+MatrixDouble3D operator *(const MatrixDouble3D& m, double t)
+{
+	return (MatrixDouble3D(m.n[0][0] * t, m.n[1][0] * t, m.n[2][0] * t, m.n[0][1] * t, m.n[1][1] * t, m.n[2][1] * t, m.n[0][2] * t, m.n[1][2] * t, m.n[2][2] * t));
+}
+
+MatrixDouble3D operator /(const MatrixDouble3D& m, double t)
+{
+	double f = 1.0F / t;
+	return (MatrixDouble3D(m.n[0][0] * f, m.n[1][0] * f, m.n[2][0] * f, m.n[0][1] * f, m.n[1][1] * f, m.n[2][1] * f, m.n[0][2] * f, m.n[1][2] * f, m.n[2][2] * f));
+}
+
+VectorDouble3D operator *(const MatrixDouble3D& m, const VectorDouble3D& v)
+{
+	return (VectorDouble3D(m.n[0][0] * v.x + m.n[1][0] * v.y + m.n[2][0] * v.z, m.n[0][1] * v.x + m.n[1][1] * v.y + m.n[2][1] * v.z, m.n[0][2] * v.x + m.n[1][2] * v.y + m.n[2][2] * v.z));
+}
+
+VectorDouble3D operator *(const MatrixDouble3D& m, const Point3D& p)
+{
+	return (Point3D(m.n[0][0] * p.x + m.n[1][0] * p.y + m.n[2][0] * p.z, m.n[0][1] * p.x + m.n[1][1] * p.y + m.n[2][1] * p.z, m.n[0][2] * p.x + m.n[1][2] * p.y + m.n[2][2] * p.z));
+}
+
+VectorDouble3D operator *(const VectorDouble3D& v, const MatrixDouble3D& m)
+{
+	return (VectorDouble3D(m.n[0][0] * v.x + m.n[0][1] * v.y + m.n[0][2] * v.z, m.n[1][0] * v.x + m.n[1][1] * v.y + m.n[1][2] * v.z, m.n[2][0] * v.x + m.n[2][1] * v.y + m.n[2][2] * v.z));
+}
+
+VectorDouble3D operator *(const Point3D& p, const MatrixDouble3D& m)
+{
+	return (Point3D(m.n[0][0] * p.x + m.n[0][1] * p.y + m.n[0][2] * p.z, m.n[1][0] * p.x + m.n[1][1] * p.y + m.n[1][2] * p.z, m.n[2][0] * p.x + m.n[2][1] * p.y + m.n[2][2] * p.z));
+}
+
+bool operator ==(const MatrixDouble3D& m1, const MatrixDouble3D& m2)
+{
+	return ((m1.n[0][0] == m2.n[0][0]) && (m1.n[0][1] == m2.n[0][1]) && (m1.n[0][2] == m2.n[0][2]) && (m1.n[1][0] == m2.n[1][0]) && (m1.n[1][1] == m2.n[1][1]) && (m1.n[1][2] == m2.n[1][2]) && (m1.n[2][0] == m2.n[2][0]) && (m1.n[2][1] == m2.n[2][1]) && (m1.n[2][2] == m2.n[2][2]));
+}
+
+bool operator !=(const MatrixDouble3D& m1, const MatrixDouble3D& m2)
+{
+	return ((m1.n[0][0] != m2.n[0][0]) || (m1.n[0][1] != m2.n[0][1]) || (m1.n[0][2] != m2.n[0][2]) || (m1.n[1][0] != m2.n[1][0]) || (m1.n[1][1] != m2.n[1][1]) || (m1.n[1][2] != m2.n[1][2]) || (m1.n[2][0] != m2.n[2][0]) || (m1.n[2][1] != m2.n[2][1]) || (m1.n[2][2] != m2.n[2][2]));
+}
+
+double Determinant(const MatrixDouble3D& m)
+{
+	return (m(0,0) * (m(1,1) * m(2,2) - m(1,2) * m(2,1)) - m(0,1) * (m(1,0) * m(2,2) - m(1,2) * m(2,0)) + m(0,2) * (m(1,0) * m(2,1) - m(1,1) * m(2,0)));
+}
+
+MatrixDouble3D Inverse(const MatrixDouble3D& m)
+{
+	double n00 = m(0,0);
+	double n01 = m(0,1);
+	double n02 = m(0,2);
+	double n10 = m(1,0);
+	double n11 = m(1,1);
+	double n12 = m(1,2);
+	double n20 = m(2,0);
+	double n21 = m(2,1);
+	double n22 = m(2,2);
+	
+	double p00 = n11 * n22 - n12 * n21;
+	double p10 = n12 * n20 - n10 * n22;
+	double p20 = n10 * n21 - n11 * n20;
+	
+	double t = 1.0F / (n00 * p00 + n01 * p10 + n02 * p20);
+	
+	return (MatrixDouble3D(p00 * t, (n02 * n21 - n01 * n22) * t, (n01 * n12 - n02 * n11) * t,
+					 p10 * t, (n00 * n22 - n02 * n20) * t, (n02 * n10 - n00 * n12) * t,
+					 p20 * t, (n01 * n20 - n00 * n21) * t, (n00 * n11 - n01 * n10) * t));
+}
+
+MatrixDouble3D Adjugate(const MatrixDouble3D& m)
+{
+	double n00 = m(0,0);
+	double n01 = m(0,1);
+	double n02 = m(0,2);
+	double n10 = m(1,0);
+	double n11 = m(1,1);
+	double n12 = m(1,2);
+	double n20 = m(2,0);
+	double n21 = m(2,1);
+	double n22 = m(2,2);
+	
+	return (MatrixDouble3D(n11 * n22 - n12 * n21, n02 * n21 - n01 * n22, n01 * n12 - n02 * n11,
+					 n12 * n20 - n10 * n22, n00 * n22 - n02 * n20, n02 * n10 - n00 * n12,
+					 n10 * n21 - n11 * n20, n01 * n20 - n00 * n21, n00 * n11 - n01 * n10));
+}
+
+MatrixDouble3D Transpose(const MatrixDouble3D& m)
+{
+	return (MatrixDouble3D(m(0,0), m(1,0), m(2,0), m(0,1), m(1,1), m(2,1), m(0,2), m(1,2), m(2,2)));
+}
+
+bool MatrixDouble3D::RotationMatrixPreservesAABB() {
+   // Determine whether a rotation matrix rotates every axis through
+   // a multiple of 90 degrees, even allowing reflections, so that AABB
+   // bounds computed after rotation will still be a good fit.
+   // To do so, we multiply the matrix with the vector (1, 1, 1);
+   // if every component of the resulting vector has an absolute value
+   // of 1, the rotation matrix fits the criteria.
+   VectorDouble3D V = (*this) * VectorDouble3D(1.0d, 1.0d, 1.0d);
+   if (AlmostEqual(fabs(V.x), 1.0d) &&
+   AlmostEqual(fabs(V.y), 1.0d) &&
+   AlmostEqual(fabs(V.z), 1.0d))
+       return true;
+   else
+       return false;
+}
