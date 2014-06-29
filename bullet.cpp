@@ -492,18 +492,18 @@ void sreBulletPhysicsApplication::DoPhysics(double previous_time, double current
             Vector4D v(0, 1.0, 0, 1.0f);
             input_velocity = (v * m).GetVector3D() * input_acceleration;
         }
+        Vector3D vel;
         btVector3 delta(input_velocity.x, input_velocity.y, input_velocity.z);
         object_rigid_body[control_object]->applyCentralImpulse(delta);
-        // Limit max velocity in horizontal movement plane.
-        Vector3D vel;
         scene->BulletGetLinearVelocity(control_object, &vel);
+        // Limit max velocity in horizontal movement plane.
         Vector3D vertical_velocity = ProjectOnto(vel, ascend);
         Vector3D horizontal_velocity = vel - vertical_velocity;
         float mag = Magnitude(horizontal_velocity);
         if (mag > max_horizontal_velocity) {
             vel = horizontal_velocity * max_horizontal_velocity / mag + vertical_velocity;
             scene->BulletChangeVelocity(control_object, vel);
-        } 
+        }
         input_acceleration = 0;
     }
     if (flags & SRE_APPLICATION_FLAG_NO_GRAVITY) {
@@ -530,10 +530,11 @@ void sreBulletPhysicsApplication::DoPhysics(double previous_time, double current
         else
         if (height > hovering_height + 1.0f)
             delta = - ascend * pow(height - hovering_height, 1.5f) * dt * 20.0f;
-        object_rigid_body[control_object]->setLinearVelocity(btVector3(rem.x, rem.y, rem.z));
-//        rem += delta;
-//        scene->BulletChangePosition(control_object, pos + rem);
-//        scene->ChangePosition(control_object, pos + rem);
+        object_rigid_body[control_object]->setLinearVelocity(btVector3(rem.x,
+            rem.y, rem.z));
+        rem += delta;
+        scene->BulletChangePosition(control_object, pos + rem);
+        scene->ChangePosition(control_object, pos + rem);
         object_rigid_body[control_object]->applyCentralImpulse(btVector3(delta.x, delta.y, delta.z));
     }
     else if (flags & SRE_APPLICATION_FLAG_DYNAMIC_GRAVITY) {
