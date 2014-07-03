@@ -1135,10 +1135,12 @@ void ShadowVolumeObjectCache::PrintStats() {
                 depth_fail++;
         }
     }
-    printf("Shadow volume cache stats (frame = %d): Use = %3.2f%%, Hit-rate = %3.2f%%\n",
+    sreMessage(SRE_MESSAGE_INFO,
+        "Shadow volume cache stats (frame = %d): Use = %3.2f%%, Hit-rate = %3.2f%%",
         sre_internal_current_frame, (float)count * 100 / (SRE_SHADOW_VOLUME_OBJECT_CACHE_SIZE * 4),
         (float)object_cache_hits * 100 / (object_cache_misses + object_cache_hits));
-    printf("Depth fail (of entries) = %3.2f%%, of hits = %3.2f%%\n", (float)depth_fail * 100 / count,
+    sreMessage(SRE_MESSAGE_INFO,
+        "Depth fail (of entries) = %3.2f%%, of hits = %3.2f%%", (float)depth_fail * 100 / count,
         (float)object_cache_hits_depthfail * 100 / object_cache_hits);
 }
 
@@ -1278,10 +1280,12 @@ void ShadowVolumeModelCache::PrintStats() {
                 depth_fail++;
         }
     }
-    printf("Shadow volume model_cache stats (frame = %d): Use = %3.2f%%, Hit-rate = %3.2f%%\n",
+    sreMessage(SRE_MESSAGE_INFO,
+        "Shadow volume model_cache stats (frame = %d): Use = %3.2f%%, Hit-rate = %3.2f%%",
         sre_internal_current_frame, (float)count * 100 / (SRE_SHADOW_VOLUME_MODEL_CACHE_SIZE  * 4),
         (float)model_cache_hits * 100 / (model_cache_misses + model_cache_hits));
-    printf("Depth fail (of entries) = %3.2f%%, of hits = %3.2f%%\n", (float)depth_fail * 100 / count,
+    sreMessage(SRE_MESSAGE_INFO,
+        "Depth fail (of entries) = %3.2f%%, of hits = %3.2f%%", (float)depth_fail * 100 / count,
         (float)model_cache_hits_depthfail * 100 / model_cache_hits);
     model_cache_hits = 0;
     model_cache_misses = 0;
@@ -2177,10 +2181,10 @@ void sreRenderShadowVolumes(sreScene *scene, sreLight *light, sreFrustum &frustu
     glDisable(GL_CULL_FACE);
 
 #ifdef SHADOW_COLOR_DEBUG
-     // Visualize shadow volumes for debugging
-     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE); // DEBUG
-     glDisable(GL_STENCIL_TEST);
-     glDepthMask(GL_TRUE);
+    // Visualize shadow volumes for debugging
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE); // DEBUG
+    glDisable(GL_STENCIL_TEST);
+    glDepthMask(GL_TRUE);
 #endif
 
     // There are two possible modes of operation: either we precompiled the list of guaranteed

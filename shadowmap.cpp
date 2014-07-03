@@ -362,7 +362,8 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
     if (zmax <= 0) {
         // This shouldn't happen due to earlier checks on the shadow caster and
         // receiver volumes.
-        printf("RenderSpotOrBeamLightShadowMap: Unexpect zmax <= 0 for light %d (zmax = %f).\n",
+        sreMessage(SRE_MESSAGE_WARNING,
+            "RenderSpotOrBeamLightShadowMap: Unexpect zmax <= 0 for light %d (zmax = %f).",
             light.id, zmax);
 //        light.shadow_map_required = false;
         return;
@@ -605,9 +606,8 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
                 return false;
             }
             // No objects cast shadow, but there are light receivers.
-            if (sre_internal_debug_message_level >= 3)
-                printf("Note: no shadow casters for point/spot/beam light %d, "
-                    "can use non-shadow map shaders.\n", light.id);
+            sreMessage(SRE_MESSAGE_LOG, "Note: no shadow casters for point/spot/beam light %d, "
+                "can use non-shadow map shaders.", light.id);
             // With non shadow-map shaders being properly selected for this case,
             // there should be no need to initialize the shadow map matrix/segments
             // to empty.
@@ -828,7 +828,8 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
         }
     }
     if (max_dist == 0) {
-        printf("Warning: Max distance from camera for directional light shadow map is invalid.\n");
+        sreMessage(SRE_MESSAGE_WARNING,
+            "Warning: Max distance from camera for directional light shadow map is invalid.");
     }
 // printf("max distance = %f, K = (%f, %f, %f, %f)\n", max_dist, K.x, K.y, K.z, K.w);
 #endif
