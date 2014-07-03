@@ -689,6 +689,10 @@ default :
 	return false;
     }
 
+    width = header.pixelWidth;
+    height = header.pixelHeight;
+    format = supported_format;
+
     switch (supported_format) {
     case TEXTURE_FORMAT_BPTC :
     case TEXTURE_FORMAT_SRGB_BPTC :
@@ -724,10 +728,6 @@ default :
     khronos_uint32_t level;
     khronos_uint32_t face;
     khronos_uint32_t dataSize = 0;
-
-    width = header.pixelWidth;
-    height = header.pixelHeight;
-    format = supported_format;
 
     data = NULL;
     for (level = 0; level < nu_mipmaps_used + nu_levels_skipped; level++) {
