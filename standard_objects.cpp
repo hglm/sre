@@ -1335,7 +1335,7 @@ sreModel *sreCreateCapsuleModel(sreScene *scene, float cap_radius, float length,
 
 // Compound objects. Note: no support for multi-color. LOD level 0 only.
 
-sreModel *sreCreateCompoundModel(sreScene *scene, bool has_texcoords, bool has_tangents, int flags) {
+sreModel *sreCreateCompoundModel(sreScene *scene, bool has_texcoords, bool has_tangents, int lod_flags) {
     sreModel *m = new sreModel;
     sreLODModel *lm = m->lod_model[0] = sreNewLODModel();
     m->nu_lod_levels = 1;
@@ -1346,7 +1346,7 @@ sreModel *sreCreateCompoundModel(sreScene *scene, bool has_texcoords, bool has_t
         lm->flags |= SRE_TEXCOORDS_MASK;
     if (has_tangents)
         lm->flags |= SRE_TANGENT_MASK;
-    lm->flags |= flags;
+    lm->flags |= lod_flags;
     return m;
 }
 

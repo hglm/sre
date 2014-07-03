@@ -1872,7 +1872,8 @@ SRE_API sreModel *sreCreateCylinderModel(sreScene *scene, float zdim, bool inclu
 SRE_API sreModel *sreCreateEllipsoidModel(sreScene *scene, float radius_y, float radius_z);
 SRE_API sreModel *sreCreateCapsuleModel(sreScene *scene, float cap_radius, float length,
     float radius_y, float radius_z);
-SRE_API sreModel *sreCreateCompoundModel(sreScene *scene, bool has_texcoords, bool has_tangents, int flags);
+SRE_API sreModel *sreCreateCompoundModel(sreScene *scene, bool has_texcoords, bool has_tangents,
+    int lod_flags);
 SRE_API void sreAddToCompoundModel(sreModel *compound_model, sreModel *o, Point3D position,
     Vector3D rotation, float scaling);
 SRE_API void sreFinalizeCompoundModel(sreScene *scene, sreModel *compound_model);

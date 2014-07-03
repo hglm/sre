@@ -77,7 +77,7 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_NO_PHYSICS);
     scene->AddObject(ground_model, - 16 * 10, - 16 * 10, 0, 0, 0, 0, 1.0);
 #endif
-    // Add block objects.
+    // Create block objects.
     sreModel *block_model = sreCreateBlockModel(scene, 1.0, 1.0, 1.0, 0);
     // Blocks with no bottom are only safe for shadow volumes if they are on the ground (since we never look up from below).
     sreModel *block_model_no_bottom = sreCreateBlockModel(scene, 1.0, 1.0, 1.0, SRE_BLOCK_NO_BOTTOM);
@@ -103,22 +103,27 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     sreTexture *wall_normals = new sreTexture("tijolo_normal_map", TEXTURE_TYPE_NORMAL_MAP);
     scene->SetNormalMap(wall_normals);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP | SRE_OBJECT_CAST_SHADOWS);
+
+// #define COMPOUND_OPEN_WALL_OBJECT
+
+#ifdef COMPOUND_OPEN_WALL_OBJECT
     // Create open wall.
-    sreModel *open_wall = sreCreateCompoundModel(scene, true, true,
-        SRE_LOD_MODEL_CONTAINS_HOLES);
+    sreModel *open_wall = sreCreateCompoundModel(scene, true, true, SRE_LOD_MODEL_CONTAINS_HOLES |
+        SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT);
     // Bottom left corner.
-    sreAddToCompoundModel(open_wall, block_model_no_top_no_right, Point3D(0, 0, 0), Vector3D(0, 0, 0), 5.0);
+    sreAddToCompoundModel(open_wall, block_model_no_bottom_no_top_no_right, Point3D(0, 0, 0),
+        Vector3D(0, 0, 0), 5.0);
     // Top left corner.
     sreAddToCompoundModel(open_wall, block_model_no_bottom_no_right, Point3D(0, 0, 4 * 5.0), Vector3D(0, 0, 0), 5.0);
     // Bottom and top bars.
     for (int i = 0; i < 18; i++) {
-        sreAddToCompoundModel(open_wall, block_model_no_left_no_right, Point3D(i * 5 + 5.0, 0, 0),
+        sreAddToCompoundModel(open_wall, block_model_no_bottom_no_left_no_right, Point3D(i * 5 + 5.0, 0, 0),
             Vector3D(0, 0, 0), 5.0);
         sreAddToCompoundModel(open_wall, block_model_no_left_no_right, Point3D(i * 5 + 5.0, 0, 4 * 5.0),
             Vector3D(0, 0, 0), 5.0);
     }
     // Bottom right corner.
-    sreAddToCompoundModel(open_wall, block_model_no_top_no_left, Point3D(19 * 5.0, 0, 0),
+    sreAddToCompoundModel(open_wall, block_model_no_bottom_no_top_no_left, Point3D(19 * 5.0, 0, 0),
         Vector3D(0, 0, 0), 5.0);
     // Top right corner.
     sreAddToCompoundModel(open_wall, block_model_no_bottom_no_left, Point3D(19 * 5.0, 0, 4 * 5.0),
@@ -132,14 +137,34 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     }
     sreFinalizeCompoundModel(scene, open_wall);
     scene->AddObject(open_wall, 0, 10.0, 0, 0, 0, 0, 1.0);
-#if 0
-    for (int i = 0; i < 20; i++) {
-        scene->AddObject(block_model_no_bottom, i * 5, 10, 0, 0, 0, 0, 5);
-        scene->AddObject(block_model, i * 5, 10, 4 * 5, 0, 0, 0, 5);
-    }
+#else
+    // Create open wall uses individual block objects. For objects on the ground, the bottom is ommitted.
+    block_model_no_bottom->SetLODModelFlags(SRE_LOD_MODEL_NOT_CLOSED |
+        SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT);
+    // Bottom left corner.
+    scene->AddObject(block_model_no_bottom, Point3D(0, 0, 0), Vector3D(0, 0, 0), 5.0);
+    // Top left corner.
+    scene->AddObject(block_model, Point3D(0, 0, 4 * 5.0), Vector3D(0, 0, 0), 5.0);
+    // Bottom bar.
+    for (int i = 0; i < 18; i++)
+        scene->AddObject(block_model_no_bottom, Point3D(i * 5 + 5.0, 0, 0),
+            Vector3D(0, 0, 0), 5.0);
+    // Top bar.
+    for (int i = 0; i < 18; i++)
+        scene->AddObject(block_model, Point3D(i * 5 + 5.0, 0, 4 * 5.0),
+            Vector3D(0, 0, 0), 5.0);
+    // Bottom right corner.
+    scene->AddObject(block_model_no_bottom, Point3D(19 * 5.0, 0, 0),
+        Vector3D(0, 0, 0), 5.0);
+    // Top right corner.
+    scene->AddObject(block_model, Point3D(19 * 5.0, 0, 4 * 5.0),
+        Vector3D(0, 0, 0), 5.0);
+    // Interior left and right pillars.
     for (int i = 0; i < 3; i++) {
-        scene->AddObject(block_model, 0, 10, 5 + i * 5, 0, 0, 0, 5);
-        scene->AddObject(block_model, 19 * 5, 10, 5 + i * 5, 0, 0, 0, 5);
+        scene->AddObject(block_model, Point3D(0, 0, 5.0 + i * 5.0), Vector3D(0, 0, 0),
+            5.0);
+        scene->AddObject(block_model, Point3D(19.0 * 5.0, 0, 5.0 + i * 5.0),
+            Vector3D(0, 0, 0), 5.0);
     }
 #endif
     // Create pillars on the edges.
@@ -258,7 +283,7 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     scene->SetMass(1.0);
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_DYNAMIC_POSITION);
     scene->AddObject(block_model, -20.0f, -20.0f, 0, 0, 0, 0, 8.0f);
-    scene->AddObject(block_model, 20.0f, 0.0, 0, 0, 0, 0, 5.0f);
+    scene->AddObject(block_model, 20.0f, - 7.0f, 0, 0, 0, 0, 5.0f);
 }
 
 static double demo1_previous_time = 0;

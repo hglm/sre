@@ -250,6 +250,25 @@ pipeline.
   disabling the the test fixes it. This has been worked around by
   disabling the darkcap visibility test by default.
 
+Bugs as of July 2014:
+
+- Geometry scissors produces shadow errors (areas incorrectly in shadow
+  delimited by a scissors boundary). Shows up in multiple demos, both with
+  shadow volumes and shadow mapping.
+
+- Shadow errors for spotlights in demo1 (incorrect shadow bands) with
+  shadow volumes around the central open wall, irrespective of scissors
+  settings. The problem is caused by incorrect shadow volume generation
+  for compound objects consistent of multiple blocks (which may have
+  missing sides).
+
+- Shadow are absent for moving light in demo7 with shadow mapping.
+
+- Demo7 often does not start up (no window is created).
+
+- Switching between no scissors and geometry scissors in demo1 can cause
+  a crash.
+
 3. Potential improvements that are not yet implemented.
 
 - There is no real scene graph except for an optimized octree. A

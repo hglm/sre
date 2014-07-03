@@ -1788,7 +1788,7 @@ enum {
 
 #if 0
 
-static void RenderShadowVolumesForsreFastOctree(const sreFastOctree& fast_oct, int array_index,
+static void RenderShadowVolumesForFastOctree(const sreFastOctree& fast_oct, int array_index,
 sreScene *scene, sreLight *light, sreFrustum &frustum, int intersection_flags) {
     octree_count++;
 
@@ -1917,7 +1917,7 @@ static void CheckShadowCasterCapacity(sreScene *scene) {
 // objects could be reused from the previous frame if the frustum hasn't changed (similar to
 // the way visible object lists are reused in this scenario).
 
-static void DetermineShadowCastersFromsreFastOctreeRootNode(const sreFastOctree& fast_oct,
+static void DetermineShadowCastersFromFastOctreeRootNode(const sreFastOctree& fast_oct,
 sreScene *scene, sreLight *light, sreFrustum &frustum, int intersection_flags) {
     octree_count++;
     // Render all objects in this node.
@@ -1961,7 +1961,7 @@ sreScene *scene, sreLight *light, sreFrustum &frustum, int intersection_flags) {
 // shadow volumes will be rendered later on together with those determined the dynamic
 // object octree.
 
-static void DetermineShadowCastersFromsreFastOctree(const sreFastOctree& fast_oct, int array_index,
+static void DetermineShadowCastersFromFastOctree(const sreFastOctree& fast_oct, int array_index,
 sreScene *scene, sreLight *light, sreFrustum &frustum, int intersection_flags) {
         // Update whether the intersection of the light volume and
         // the shadow caster volume intersect with the octree.
@@ -2041,7 +2041,7 @@ sreScene *scene, sreLight *light, sreFrustum &frustum, int intersection_flags) {
     // Traverse every non-empty subnode.
     array_index += nu_entities;
     for (int i = 0; i < nu_octants; i++)
-        DetermineShadowCastersFromsreFastOctree(fast_oct, fast_oct.array[array_index + i], scene,
+        DetermineShadowCastersFromFastOctree(fast_oct, fast_oct.array[array_index + i], scene,
             light, frustum, intersection_flags);
 }
 
@@ -2119,17 +2119,17 @@ void sreRenderShadowVolumes(sreScene *scene, sreLight *light, sreFrustum &frustu
         DetermineShadowCastersFromLightStaticCasterArray(scene->fast_octree_dynamic,
             scene, light, frustum);
         // Add the dynamic object shadow casters from the dynamic objects octree.
-        DetermineShadowCastersFromsreFastOctreeRootNode(scene->fast_octree_dynamic,
+        DetermineShadowCastersFromFastOctreeRootNode(scene->fast_octree_dynamic,
             scene, light, frustum, 0);
     }
     else {
         // When there is no static objects list for the light, we have to walk both
         // the static and dynamic object octrees.
         // Add the static object shadow casters from the static objects octree.
-        DetermineShadowCastersFromsreFastOctree(scene->fast_octree_static, 0,
+        DetermineShadowCastersFromFastOctree(scene->fast_octree_static, 0,
             scene, light, frustum, 0);
         // Add the dynamic object shadow casters from the dynamic objects octree.
-        DetermineShadowCastersFromsreFastOctreeRootNode(scene->fast_octree_dynamic,
+        DetermineShadowCastersFromFastOctreeRootNode(scene->fast_octree_dynamic,
             scene, light, frustum, 0);
     }
 
@@ -2204,9 +2204,9 @@ void sreRenderShadowVolumes(sreScene *scene, sreLight *light, sreFrustum &frustu
             flags = OCTREE_IS_INSIDE_LIGHT_VOLUME;
         else
             flags = 0;
-        RenderShadowVolumesForsreFastOctree(scene->fast_octree_static, 0, scene, light,
+        RenderShadowVolumesForFastOctree(scene->fast_octree_static, 0, scene, light,
             frustum, flags);
-        RenderShadowVolumesForsreFastOctree(scene->fast_octree_dynamic, 0, scene, light,
+        RenderShadowVolumesForFastOctree(scene->fast_octree_dynamic, 0, scene, light,
             frustum, flags | OCTREE_HAS_NO_BOUNDS);
     }
 #endif
