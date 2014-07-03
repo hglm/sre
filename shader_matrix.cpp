@@ -141,12 +141,12 @@ Vector3D y_direction, Vector3D dim_min, Vector3D dim_max) {
     MatrixTransform T;
     T.AssignTranslation(- viewp);
     // Set orthographic projection matrix.
-    MatrixTransform shadow_map_projection_matrix;
-    shadow_map_projection_matrix.Set(
+    MatrixTransform orthographic_shadow_map_projection_matrix;
+    orthographic_shadow_map_projection_matrix.Set(
         2.0 / (dim_max.x - dim_min.x), 0.0f, 0.0f, - (dim_max.x + dim_min.x) / (dim_max.x - dim_min.x),
         0.0f, 2.0 / (dim_max.y - dim_min.y), 0.0f, - (dim_max.y + dim_min.y) / (dim_max.y - dim_min.y),
         0.0f, 0.0f, - 2.0 / dim_max.z, - 1.0f);
-    shadow_map_matrix = shadow_map_projection_matrix * (M * T);
+    shadow_map_matrix = orthographic_shadow_map_projection_matrix * (M * T);
     // Calculate viewport matrix for lighting pass with shadow map.
     MatrixTransform shadow_map_viewport_matrix;
     shadow_map_viewport_matrix.Set(
@@ -223,7 +223,6 @@ Vector3D x_direction, Vector3D y_direction, float zmax) {
     projection_shadow_map_matrix = projection_matrix * (M * T);
     // For spot lights, the shadow map viewport transformation is done in the
     // object lighting pass shaders.
-    shadow_map_lighting_pass_matrix = shadow_map_matrix;
 }
 
 void GL3CalculateShadowMapMatrixAlwaysLight() {

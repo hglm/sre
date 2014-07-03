@@ -386,11 +386,11 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
     Vector3D y_dir = Cross(light.spotlight.GetVector3D(), x_dir);
     y_dir.Normalize();
 
-//    printf("x_dir = (%f, %f, %f) y_dir = (%f, %f, %f) zmax = %f\n",
-//    x_dir.x, x_dir.y, x_dir.z, y_dir.x, y_dir.y, y_dir.z, zmax);
+//    printf("Light %d, x_dir = (%f, %f, %f) y_dir = (%f, %f, %f) zmax = %f\n", light.id,
+//       x_dir.x, x_dir.y, x_dir.z, y_dir.x, y_dir.y, y_dir.z, zmax);
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_small_shadow_map_framebuffer);
-    // For performance reasons, and because spotlight don't need the full size of the shadow map
+    // For performance reasons, and because spotlights don't need the full size of the shadow map
     // that is required for directional lights, use a seperate smaller shadow buffer.
     glViewport(0, 0, SRE_SMALL_SHADOW_BUFFER_SIZE, SRE_SMALL_SHADOW_BUFFER_SIZE);
     glDisable(GL_CULL_FACE);

@@ -443,6 +443,14 @@ static void GL3InitializeShaderWithShadowMapTransformationMatrix(int loc, const 
 #endif
 }
 
+static void GL3InitializeShaderWithProjectionShadowMapTransformationMatrix(int loc, const sreObject& so) {
+    // For spot lights, the shadow map viewport transformation is done in the
+    // object lighting pass shaders, so the projection matrix used in light passes
+    // is identical to the one used to generate the shadow map.
+    Matrix4D transformation_matrix = projection_shadow_map_matrix * so.model_matrix;
+    glUniformMatrix4fv(loc, 1, GL_FALSE, (float *)&transformation_matrix);
+}
+
 // Setting up before drawing objects for a light with shadow map support.
 
 static void GL3InitializeShaderWithShadowMapTexture() {
@@ -1503,7 +1511,7 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
             SRE_OBJECT_USE_SPECULARITY_MAP))
                GL3InitializeShaderWithUVTransform(
                    lighting_pass_shader[16].uniform_location[UNIFORM_UV_TRANSFORM], so);
-            GL3InitializeShaderWithShadowMapTransformationMatrix(
+            GL3InitializeShaderWithProjectionShadowMapTransformationMatrix(
                 lighting_pass_shader[16].uniform_location[UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX], so);
             break;
         case SHADER17 : // Shadow map, spot/beam light, micro-facet.
@@ -2179,7 +2187,7 @@ void GL3InitializeShadowMapShader(const sreObject& so) {
 void GL3InitializeProjectionShadowMapShader(const sreObject& so) {
     if (so.render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE) {
         glUseProgram(misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_TRANSPARENT].program);
-        GL3InitializeShadowMapShaderWithShadowMapMVP(
+        GL3InitializeShadowMapShaderWithProjectionShadowMapMVP(
             misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_TRANSPARENT].uniform_location[UNIFORM_MISC_MVP], so);
         GL3InitializeShaderWithUVTransform(
             misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_TRANSPARENT].
@@ -2193,7 +2201,7 @@ void GL3InitializeProjectionShadowMapShader(const sreObject& so) {
     }
     else {
         glUseProgram(misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP].program);
-        GL3InitializeShadowMapShaderWithShadowMapMVP(
+        GL3InitializeShadowMapShaderWithProjectionShadowMapMVP(
             misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP].uniform_location[UNIFORM_MISC_MVP], so);
     }
 }
