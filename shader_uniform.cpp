@@ -1547,7 +1547,7 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
                 lighting_pass_shader[17].uniform_location[UNIFORM_ROUGHNESS_WEIGHTS], so);
             GL3InitializeShaderWithAnisotropic(
                 lighting_pass_shader[17].uniform_location[UNIFORM_ANISOTROPIC], so);
-            GL3InitializeShaderWithShadowMapTransformationMatrix(
+            GL3InitializeShaderWithProjectionShadowMapTransformationMatrix(
                 lighting_pass_shader[17].uniform_location[UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX], so);
             break;
         case SHADER18 : // Earth shadow map, directional light.
