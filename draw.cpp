@@ -1490,7 +1490,8 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
             // First the render objects that are partially inside the light volume; the
             // geometry scissors are likely to be applied on a per-object basis.
             if (sre_internal_current_frame > frustum.most_recent_frame_changed + 1 &&
-            !sre_internal_invalidate_geometry_scissors_cache) {
+            !sre_internal_invalidate_geometry_scissors_cache &&
+            (sre_internal_rendering_flags & SRE_RENDERING_FLAG_GEOMETRY_SCISSORS_CACHE_ENABLED)) {
                 // If the frustum has not changed, we can reuse previously calculated scissors.
                 // Note that we wait one extra frame after the frustum stops changing before
                 // starting to store cached geometry scissors; in the common case of a
@@ -1592,6 +1593,13 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
                     if (so->most_recent_frame_visible < frustum.most_recent_frame_changed)
                         // Object is not visible, skip it.
                         continue;
+
+                    if (!(sre_internal_rendering_flags &
+                    SRE_RENDERING_FLAG_GEOMETRY_SCISSORS_CACHE_ENABLED)) {
+                        RenderVisibleObjectLightingPassGeometryScissors(*so, light, frustum);
+                        continue;
+                    }
+
                     // Prepare an entry in the object's geometry scissors cache.
                     if (so->geometry_scissors_cache_timestamp < sre_internal_current_frame) {
                         // First static light rendered for the object; reset the light order

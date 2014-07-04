@@ -1570,7 +1570,9 @@ enum {
     // Enable geometrical visibility test for shadow volume darkcap (infinite
     // projection of shadow volume) when using with depth-fail rendering.
     // stencil shadows.
-    SRE_RENDERING_FLAG_SHADOW_VOLUME_DARKCAP_VISIBILITY_TEST = 0x2000
+    SRE_RENDERING_FLAG_SHADOW_VOLUME_DARKCAP_VISIBILITY_TEST = 0x2000,
+    // Enable caching of geometry scissors regions when the frustum does not change.
+    SRE_RENDERING_FLAG_GEOMETRY_SCISSORS_CACHE_ENABLED = 0x4000
 };
 
 class SRE_API sreEngineSettingsInfo {
@@ -1673,6 +1675,7 @@ SRE_API void sreSetTriangleFanUseForShadowVolumes(bool enabled);
 SRE_API void sreSetShadowVolumeCache(bool enabled);
 SRE_API void sreSetForceDepthFailRendering(bool enabled);
 SRE_API void sreSetShadowVolumeSupport(bool enabled);
+SRE_API void sreSetGeometryScissorsCache(bool enabled);
 // Global texture detail settings.
 enum {
     // Use original texture size.

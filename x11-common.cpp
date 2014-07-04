@@ -168,6 +168,8 @@ static const unsigned int X11_key_translation_table[] = {
     XK_equal, '=',
     XK_BackSpace, SRE_KEY_BACKSPACE,
     XK_Escape, SRE_KEY_ESC,
+    XK_Insert, SRE_KEY_INSERT,
+    XK_Delete, SRE_KEY_DELETE,
     SRE_TRANSLATION_TABLE_END
 };
 

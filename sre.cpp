@@ -238,6 +238,16 @@ void sreSetShadowVolumeSupport(bool enabled) {
    }
 }
 
+void sreSetGeometryScissorsCache(bool enabled) {
+   if (enabled) {
+       sre_internal_rendering_flags |= SRE_RENDERING_FLAG_GEOMETRY_SCISSORS_CACHE_ENABLED;
+       sre_internal_invalidate_geometry_scissors_cache = true;
+   }
+   else {
+       sre_internal_rendering_flags &= ~SRE_RENDERING_FLAG_GEOMETRY_SCISSORS_CACHE_ENABLED;
+   }
+}
+
 void sreSetShadowMapRegion(Point3D dim_min, Point3D dim_max) {
     sre_internal_shadow_map_AABB.dim_min = dim_min;
     sre_internal_shadow_map_AABB.dim_max = dim_max;
@@ -842,6 +852,7 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     }
 #endif
 
+    // Set default rendering flags.
     sre_internal_rendering_flags |= SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES;
     sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_CACHE_ENABLED;
     sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_VOLUME_VISIBILITY_TEST;
@@ -849,6 +860,7 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
 //    sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_VOLUME_DARKCAP_VISIBILITY_TEST;
     // Provide shadow volume support by default.
     sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_VOLUME_SUPPORT;
+    sre_internal_rendering_flags |= SRE_RENDERING_FLAG_GEOMETRY_SCISSORS_CACHE_ENABLED;
 
     const char *texture_detail_str;
 #ifdef OPENGL_ES2

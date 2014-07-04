@@ -165,7 +165,17 @@ static void SetEngineSettingsInfo(sreEngineSettingsInfo *info) {
     if (info->shadows_method == SRE_SHADOWS_SHADOW_VOLUMES)
         sprintf(strend(scene_info_text_line[5]), ", Shadow cache: %s",
             disabled_enabled_str[(info->rendering_flags & SRE_RENDERING_FLAG_SHADOW_CACHE_ENABLED) != 0]);
-    sprintf(scene_info_text_line[6], "Scissors optimization mode: %s (D S G)", info->scissors_description);
+    const char *scissors_cache_description;
+    if (info->scissors_method == SRE_SCISSORS_GEOMETRY) {
+        if (info->rendering_flags & SRE_RENDERING_FLAG_GEOMETRY_SCISSORS_CACHE_ENABLED)
+            scissors_cache_description = " Scissors cache enabled";
+        else
+            scissors_cache_description = " Scissors cache disabled";
+    }
+    else
+        scissors_cache_description = "";
+    sprintf(scene_info_text_line[6], "Scissors optimization mode: %s (D S G)%s",
+        info->scissors_description, scissors_cache_description);
     sprintf(scene_info_text_line[7], "");
     sprintf(scene_info_text_line[8], "Max texture filtering anisotropy level: %.1f", info->max_anisotropy);
     sprintf(scene_info_text_line[9], "");
@@ -375,11 +385,10 @@ void GUIKeyPressCallback(unsigned int key) {
         sre_internal_application->text_message[6] = "5 -- Microfacet reflection model";
         sre_internal_application->text_message[7] = "6 -- Single-pass rendering (only one light)";
         sre_internal_application->text_message[8] = "7 -- Multi-pass rendering";
-        sre_internal_application->text_message[9] = "s -- Enable scissors optimization (light only)";
-        sre_internal_application->text_message[10] = "g -- Enable scissors optimization with geometry scissors";
-//        sre_internal_application->text_message[11] = "o -- Enable scissors optimization with matrix geometry scissors";
-        sre_internal_application->text_message[11] = "d -- Disable scissors optimization";
-        sre_internal_application->text_message[12] = "Enabled/disable shadow volume settings: F9/F10 - strip/fans, F11/F12 - Cache";
+        sre_internal_application->text_message[9] = "Scissors settings: d/s/g -- Disabled/light scissors/geometry scissors";
+        sre_internal_application->text_message[10] = "[/] Enable/disable geometry scissors cache";
+        sre_internal_application->text_message[11] = "";
+        sre_internal_application->text_message[12] = "Enable/disable shadow volume settings: F9/F10 - strip/fans, F11/F12 - Cache";
         sre_internal_application->text_message[13] = "v/b x/c - visibility tests, =/Backspace -- Force depth-fail stencil rendering";
         sre_internal_application->text_message[14] = "l/k -- Enable/disable light attenuation";
         sre_internal_application->text_message[15] = "8/9 -- Enable/disable light object list rendering";
@@ -573,6 +582,16 @@ void GUIKeyPressCallback(unsigned int key) {
             sre_internal_application->text_message[line_number] = "Force stencil shadow volume depth-fail rendering disabled";
             break;
             }
+        case SRE_KEY_INSERT : {
+            sreSetGeometryScissorsCache(true);
+            sre_internal_application->text_message[line_number] = "Geometry scissors cache enabled";
+            break;
+        }
+        case SRE_KEY_DELETE : {
+            sreSetGeometryScissorsCache(false);
+            sre_internal_application->text_message[line_number] = "Geometry scissors cache disabled";
+            break;
+        }
         default :
             menu_message = false;
             break;

@@ -243,14 +243,13 @@ pipeline.
   already be fixed because of bug fixes in octree smallest dimension
   displacement algorithm during octree creation.
 
+Bugs as of July 2014:
+
 - Stencil shadows errors show up related to the grating in demo8. A
   large grating shadow overlaying the window probably as a result of a
   missing darkcap from the shadow volume cast by a corner light. This
-  is a problem with the shadow volume darkcap visibility test, and
-  disabling the the test fixes it. This has been worked around by
-  disabling the darkcap visibility test by default.
-
-Bugs as of July 2014:
+  may be related to shadow volume darkcap visibility test, but
+  disabling the the test does not fix it.
 
 - Geometry scissors produces shadow errors (areas incorrectly in shadow
   delimited by a scissors boundary). Shows up in multiple demos, both with
@@ -260,7 +259,7 @@ Bugs as of July 2014:
   shadow volumes around the central open wall, irrespective of scissors
   settings. The problem is caused by incorrect shadow volume generation
   for compound objects consisting of multiple blocks (which may have
-  missing sides). Worked aroud by avoiding compound objects casting
+  missing sides). Worked around by avoiding compound objects casting
   shadows.
 
 - Switching between no scissors and geometry scissors in demo1 can cause
