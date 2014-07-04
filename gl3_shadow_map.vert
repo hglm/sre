@@ -55,7 +55,7 @@ void main() {
 #ifdef CUBE_MAP
 	position_world_var = (model_matrix * position_in).xyz;
 #endif
-#ifdef PROJECTION
+#if defined(PROJECTION) || defined(CUBE_MAP)
 	gl_Position = MVP * position_in;
 #else
 	gl_Position = vec4((MVP * position_in).xyz, 1.0);

@@ -550,7 +550,7 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
             dist_squared = SquaredMag(Vector3D(xmax, ymax, zmax));
             distmax_squared = maxf(distmax_squared, dist_squared);
             distmax_squared *= 1.001f; // Avoid precision problems at the end of the range.
-            // Scale to [0, 1.0].
+            // Scale [0, 1.0].
             shadow_cube_segment_distance_scaling[i] = 1.0f / sqrtf(distmax_squared);
             GL3CalculateCubeShadowMapMatrix(light.vector.GetVector3D(), cube_map_zdir[i],
                 cube_map_up_vector[i], zmax);

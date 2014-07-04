@@ -534,7 +534,8 @@ void main() {
 			t = 0.5 + 0.5 * stp.y / stp.z;
 			break;
 		}
-		float d = distance(position_world_var.xyz, light_position_in.xyz) * segment_distance_scaling_in[face];
+		float d = distance(position_world_var.xyz, light_position_in.xyz) *
+			segment_distance_scaling_in[face];
 		// If d > 1.0, the fragment is within the light volume but outside the shadow caster volume for the light.
 		if (d <= 1.0) {
 			float bias = 0.001 * tan(acos(clamp(dot(normal, L), 0.0, 1.0)));

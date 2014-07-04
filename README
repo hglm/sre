@@ -252,8 +252,6 @@ Bugs as of July 2014:
   disabling the the test does not fix it, although there is a change in
   shadows. 
 
-- In demo8, shadow mapping does not show any shadows.
-
 - Shadow errors for spotlights in demo1 (incorrect shadow bands) with
   shadow volumes around the central open wall, irrespective of scissors
   settings. The problem is caused by incorrect shadow volume generation
