@@ -178,7 +178,7 @@ static bool Intersects(const sreBoundingVolumeBox& box, const sreBoundingVolumeC
 
 // Intersection of AABB against convex hull. It can miss some cases of non-intersection.
 
-static bool Intersects(const sreBoundingVolumeAABB& AABB, const sreBoundingVolumeConvexHull &ch) {
+bool Intersects(const sreBoundingVolumeAABB& AABB, const sreBoundingVolumeConvexHull &ch) {
     Point3D center = (AABB.dim_min + AABB.dim_max) * 0.5f;
     Vector3D dim = AABB.dim_max - AABB.dim_min;
     for (int i = 0; i < ch.nu_planes; i++) {

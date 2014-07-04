@@ -245,11 +245,14 @@ pipeline.
 
 Bugs as of July 2014:
 
-- Stencil shadows errors show up related to the grating in demo8. A
-  large grating shadow overlaying the window probably as a result of a
-  missing darkcap from the shadow volume cast by a corner light. This
+- Stencil shadow errors show up related to the grating in demo8. A
+  large grating shadow overlaying the window possibly as a result of a
+  missing darkcap from the shadow volume cast by a lightpole. This
   may be related to shadow volume darkcap visibility test, but
-  disabling the the test does not fix it.
+  disabling the the test does not fix it, although there is a change in
+  shadows. 
+
+- In demo8, shadow mapping does not show any shadows.
 
 - Shadow errors for spotlights in demo1 (incorrect shadow bands) with
   shadow volumes around the central open wall, irrespective of scissors

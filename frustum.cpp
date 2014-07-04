@@ -1089,7 +1089,13 @@ bool sreFrustum::ShadowVolumeIsOutsideFrustum(sreShadowVolume& sv) const {
 #endif
         return r;
     }
+    else if (sv.type == SRE_BOUNDING_VOLUME_SPHERICAL_SECTOR) {
+        bool r = !Intersects(*sv.spherical_sector, frustum_world);
+        return r;
+    }
     // Unknown bounding volume type.
+    sreMessage(SRE_MESSAGE_WARNING, "ShadowVolumeIsOutsideFrustum: Unknown bounding volume type %d",
+        sv.type);
     return false;
 }
 

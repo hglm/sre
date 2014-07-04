@@ -596,9 +596,9 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
         AABB_generation_info.GetReceivers(AABB_shadow_receiver);
         if (AABB_shadow_caster.dim_min.x == POSITIVE_INFINITY_FLOAT ||
         AABB_shadow_receiver.dim_min.x == POSITIVE_INFINITY_FLOAT ||
-        !Intersects(AABB_shadow_caster, AABB_shadow_receiver)) {
+        !Intersects(AABB_shadow_receiver, frustum.frustum_world)) {
             // No objects cast or no objects receive shadows for this light,
-            // or the shadow caster and shadow receiver volumes do not intersect.
+            // or the shadow receiver volume does not intersect the frustum.
             light.shadow_map_required = false;
             if (AABB_shadow_receiver.dim_min.x == POSITIVE_INFINITY_FLOAT) {
                 // If no objects receive shadows (or light), we can skip the light entirely.
@@ -613,6 +613,8 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
             // to empty.
             return true;
         }
+        sreMessage(SRE_MESSAGE_LOG, "Rendering shadow map for light %d.", light.id);
+
         // Adjust the shadow receiver volume by the light volume (approximated by a bounding box).
         // Note: For spot and beam lights, this should use the bounding box of the spherical sector
         // or cylinder.
@@ -645,7 +647,7 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
     AABB_generation_info.GetReceivers(AABB_shadow_receiver);
     if (AABB_shadow_caster.dim_min.x == POSITIVE_INFINITY_FLOAT ||
     AABB_shadow_receiver.dim_min.x == POSITIVE_INFINITY_FLOAT ||
-    !Intersects(AABB_shadow_caster, AABB_shadow_receiver)) {
+    !Intersects(AABB_shadow_receiver, frustum.frustum_world)) {
         // No objects cast or no objects receive shadows for this light.
         light.shadow_map_required = false;
         if (AABB_shadow_receiver.dim_min.x == POSITIVE_INFINITY_FLOAT) {

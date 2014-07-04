@@ -226,6 +226,8 @@ const sreBoundingVolumeConvexHull& ch2) {
      return Intersects(ch1.hull, ch2);
 }
 
+bool Intersects(const sreBoundingVolumeAABB& AABB, const sreBoundingVolumeConvexHull &ch);
+
 bool Intersects(const sreBoundingVolumeSphericalSector &spherical_sector,
 const sreBoundingVolumeConvexHull &ch);
 
