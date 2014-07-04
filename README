@@ -247,9 +247,6 @@ Bugs as of July 2014:
   missing sides). Worked around by avoiding compound objects casting
   shadows.
 
-- Switching between no scissors and geometry scissors in demo1 can cause
-  a crash.
-
 3. Potential improvements that are not yet implemented.
 
 - There is no real scene graph except for an optimized octree. A

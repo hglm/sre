@@ -45,7 +45,6 @@ extern bool sre_internal_aspect_changed;
 extern int sre_internal_reflection_model;
 extern int sre_internal_shader_mask;
 extern bool sre_internal_reselect_shaders;
-extern bool sre_internal_invalidate_geometry_scissors_cache;
 extern bool sre_internal_use_depth_clamping;
 extern void (*sreDrawTextOverlayFunc)();
 extern SRE_GLUINT sre_internal_depth_texture;

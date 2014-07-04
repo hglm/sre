@@ -386,7 +386,7 @@ void GUIKeyPressCallback(unsigned int key) {
         sre_internal_application->text_message[7] = "6 -- Single-pass rendering (only one light)";
         sre_internal_application->text_message[8] = "7 -- Multi-pass rendering";
         sre_internal_application->text_message[9] = "Scissors settings: d/s/g -- Disabled/light scissors/geometry scissors";
-        sre_internal_application->text_message[10] = "[/] Enable/disable geometry scissors cache";
+        sre_internal_application->text_message[10] = "Insert/Delete Enable/disable geometry scissors cache";
         sre_internal_application->text_message[11] = "";
         sre_internal_application->text_message[12] = "Enable/disable shadow volume settings: F9/F10 - strip/fans, F11/F12 - Cache";
         sre_internal_application->text_message[13] = "v/b x/c - visibility tests, =/Backspace -- Force depth-fail stencil rendering";

@@ -51,7 +51,6 @@ int sre_internal_shader_mask = 0xFF;
 // Whether object shader selection should be re-evaluated (for example after a
 // global rendering settings change).
 bool sre_internal_reselect_shaders;
-bool sre_internal_invalidate_geometry_scissors_cache;
 bool sre_internal_use_depth_clamping;
 int sre_internal_shadow_volume_count;
 int sre_internal_silhouette_count;
@@ -198,8 +197,6 @@ void sreSetLightAttenuation(bool enabled) {
 }
 
 void sreSetLightScissors(int mode) {
-    if (mode == SRE_SCISSORS_GEOMETRY && sre_internal_scissors != SRE_SCISSORS_GEOMETRY)
-        sre_internal_invalidate_geometry_scissors_cache = true;
     sre_internal_scissors = mode;
 }
 
@@ -241,7 +238,6 @@ void sreSetShadowVolumeSupport(bool enabled) {
 void sreSetGeometryScissorsCache(bool enabled) {
    if (enabled) {
        sre_internal_rendering_flags |= SRE_RENDERING_FLAG_GEOMETRY_SCISSORS_CACHE_ENABLED;
-       sre_internal_invalidate_geometry_scissors_cache = true;
    }
    else {
        sre_internal_rendering_flags &= ~SRE_RENDERING_FLAG_GEOMETRY_SCISSORS_CACHE_ENABLED;
@@ -895,8 +891,6 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
            & SRE_TEXTURE_DETAIL_NPOT_MIPMAPS) != 0]);
     // Make sure all objects have their shader selected when first drawn.
     sre_internal_reselect_shaders = true;
-    // Invalidate geometry scissors cache (not strictly required).
-    sre_internal_invalidate_geometry_scissors_cache = true;
 }
 
 void sreResize(sreView *view, int window_width, int window_height) {

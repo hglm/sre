@@ -349,8 +349,6 @@ void sreScene::Render(sreView *view) {
     sre_internal_reselect_shaders = false;
     // Any aspect ratio change will have been applied to loaded shaders.
     sre_internal_aspect_changed = false;
-    // Any cached geometry scissors will have been recalculated.
-    sre_internal_invalidate_geometry_scissors_cache = false;
 
     sre_internal_current_frame++;
 }
@@ -1490,7 +1488,6 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
             // First the render objects that are partially inside the light volume; the
             // geometry scissors are likely to be applied on a per-object basis.
             if (sre_internal_current_frame > frustum.most_recent_frame_changed + 1 &&
-            !sre_internal_invalidate_geometry_scissors_cache &&
             (sre_internal_rendering_flags & SRE_RENDERING_FLAG_GEOMETRY_SCISSORS_CACHE_ENABLED)) {
                 // If the frustum has not changed, we can reuse previously calculated scissors.
                 // Note that we wait one extra frame after the frustum stops changing before
