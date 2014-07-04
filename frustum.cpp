@@ -422,7 +422,7 @@ void sreScissors::UpdateWithWorldSpaceBoundingHull(Point3D *P, int n) {
         UpdateWithProjectedPoint(
             simd128_get_float(simd128_shift_right_float(m_xy_2233, 2)),
             simd128_get_float(simd128_shift_right_float(m_xy_2233, 3)),
-            z[2]);
+            z[3]);
     }
 #endif
     for (; i < n; i++) {

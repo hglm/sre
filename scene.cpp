@@ -248,6 +248,8 @@ void sreScene::SetAmbientColor(Color color) {
 
 // Object instantiation.
 
+#define EPSILON 0.00001
+
 void sreScene::FinishObjectInstantiation(sreObject& so, bool rotated) const {
     so.inverted_model_matrix = Inverse(so.model_matrix);
     // Update attached light.
@@ -278,7 +280,7 @@ void sreScene::FinishObjectInstantiation(sreObject& so, bool rotated) const {
     so.box.PCA[1].vector = (so.rotation_matrix * so.model->PCA[1].vector) * so.model->PCA[1].size * so.scaling;
     so.box.PCA[0].scale_factor = 1.0f / (so.model->PCA[0].size * so.scaling);
     so.box.PCA[1].scale_factor = 1.0f / (so.model->PCA[1].size * so.scaling);
-    if (so.model->PCA[2].size == 0.0) {
+    if (so.model->PCA[2].size <= EPSILON) {
         so.box.PCA[2].SetSizeZero();
         so.box.T_normal = (so.rotation_matrix * so.model->PCA[2].vector);
     }

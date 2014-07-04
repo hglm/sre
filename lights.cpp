@@ -802,7 +802,8 @@ sreScissors& scissors) {
     // Initialize scissors with a negative (non-existent) region.
     scissors.SetEmptyRegion();
     // Calculate the intersection of the light's bounding sphere with the object's bounding sphere.
-    // First handle point source lights that have a sphere as preferred bounding volume.
+    // First handle point source lights in combination with objects that have a sphere as
+    // preferred bounding volume.
     if ((light.type & SRE_LIGHT_POINT_SOURCE) && (model->bounds_flags & SRE_BOUNDS_PREFER_SPHERE)) {
         if (sphere.radius >= light.sphere.radius && dist_squared <= sqrf(light.sphere.radius - sphere.radius)) {
             // The light volume is completely contained inside the object.
@@ -868,7 +869,8 @@ sreScissors& scissors) {
             return SRE_COMPLETELY_OUTSIDE;
         return SRE_PARTIALLY_INSIDE;
     }
-    // Handle point source lights that have a box as preferred bounding volume.
+    // Handle the intersection of point source lights with objects that have a box
+    // as preferred bounding volume.
     if (light.type & SRE_LIGHT_POINT_SOURCE) {
         // Model has SRE_BOUNDS_PREFER_BOX or SRE_BOUNDS_PREFER_LINE_SEGMENT.
         float dist[6];
@@ -892,10 +894,12 @@ sreScissors& scissors) {
         dist[5] = Dot(box.plane[5], light.sphere.center);
         if (dist[5] <= - light.sphere.radius)
             return SRE_COMPLETELY_OUTSIDE;
-        if (!box.PCA[2].SizeIsZero())
-            n_planes = 6;
-        else
+        if (box.PCA[2].SizeIsZero()) {
             n_planes = 4;
+//            printf("Calculating geometry scissors for light %d and flat object %d.\n", light.id, id);
+        }
+        else
+            n_planes = 6;
         Point3D P[8];
         int n_vertices;
         bool changed = false;
@@ -922,6 +926,15 @@ sreScissors& scissors) {
         if (!changed) {
             return SRE_COMPLETELY_INSIDE;
         }
+#if 0
+        sreMessageNoNewline(SRE_MESSAGE_INFO, "Intersection of light %d and object %d: ", light.id, id);
+        for (int i = 0; i < n_vertices; i++) {
+            char *s = P[i].GetString();
+            sreMessageNoNewline(SRE_MESSAGE_INFO, " %s", s);
+            delete [] s;
+        }
+        sreMessage(SRE_MESSAGE_INFO, "");
+#endif
         bool result = scissors.UpdateWithWorldSpaceBoundingBox(P, n_vertices, frustum);
         if (!result)
             return SRE_COMPLETELY_OUTSIDE;
