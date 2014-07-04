@@ -2,7 +2,7 @@
 
 include Makefile.conf
 
-VERSION = 0.2
+VERSION = 0.3
 VERSION_MAJOR = 0
 
 DEMO_PROGRAM = sre-demo
