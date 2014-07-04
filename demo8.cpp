@@ -219,7 +219,7 @@ void Demo8CreateScene(sreScene *scene, sreView *view) {
     // Although unphysical except with HDR rendering, the lights are extra bright.
     scene->AddPointSourceLight(0, P1 + Vector3D(0, 0, grating_light_pedestal_height + 2.0f),
         55.0f, Color(1.5f, 1.5f, 1.5f));
-    scene->AddPointSourceLight(0, P2 + Vector3D(0, 0, grating_light_pedestal_height+ 2.0f),
+    scene->AddPointSourceLight(0, P2 + Vector3D(0, 0, grating_light_pedestal_height + 2.0f),
         55.0f, Color(1.5f, 1.5f, 1.5f));
 
     // Add beam light in the middle of the area.

@@ -836,27 +836,24 @@ add_light_cap_not_closed_int :
 static void AddDarkCap(EdgeArray *ea, int array_buffer_flags) {
     sreLODModelShadowVolume *m = ea->m;
     // A dark cap may be required for point or spot lights for depth-fail rendering.
-    // Since vertices are extruded to infinity, we can use the same vertices
-    // as the light cap, but extruded to infinity (w == 0), and their order reversed
-    // within the triangles.
     if (m->flags & SRE_LOD_MODEL_NOT_CLOSED)
         goto add_dark_cap_not_closed;
     if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
         goto add_dark_cap_int;
     for (int i = 0; i < m->nu_triangles; i++)
         if (!ea->IsLightFacing(i)) {
-            EmitVertexShort(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
-            EmitVertexShort(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
             EmitVertexShort(m->triangle[i].vertex_index[0] + m->vertex_index_shadow_offset);
+            EmitVertexShort(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
+            EmitVertexShort(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
         }
     return;
 
 add_dark_cap_int :
     for (int i = 0; i < m->nu_triangles; i++)
         if (!ea->IsLightFacing(i)) {
-            EmitVertexInt(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
-            EmitVertexInt(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
             EmitVertexInt(m->triangle[i].vertex_index[0] + m->vertex_index_shadow_offset);
+            EmitVertexInt(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
+            EmitVertexInt(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
         }
     return;
 
@@ -865,9 +862,9 @@ add_dark_cap_not_closed :
         goto add_dark_cap_not_closed_int;
     for (int i = 0; i < m->nu_triangles; i++)
         if (!ea->IsLightFacing(i)) {
-            EmitVertexShort(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
-            EmitVertexShort(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
             EmitVertexShort(m->triangle[i].vertex_index[0] + m->vertex_index_shadow_offset);
+            EmitVertexShort(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
+            EmitVertexShort(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
         }
 #if 0
         else {
@@ -881,9 +878,9 @@ add_dark_cap_not_closed :
 add_dark_cap_not_closed_int :
     for (int i = 0; i < m->nu_triangles; i++)
         if (!ea->IsLightFacing(i)) {
-            EmitVertexInt(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
-            EmitVertexInt(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
             EmitVertexInt(m->triangle[i].vertex_index[0] + m->vertex_index_shadow_offset);
+            EmitVertexInt(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
+            EmitVertexInt(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
         }
 #if 0
         else {
@@ -1395,7 +1392,8 @@ static void DrawShadowVolume(sreObject *so, sreLight *light, sreFrustum &frustum
             // For directional lights or beam lights no dark cap is needed.
             if (light->type & (SRE_LIGHT_DIRECTIONAL | SRE_LIGHT_BEAM))
                  type |= TYPE_SKIP_DARKCAP;
-            else if (sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_VOLUME_DARKCAP_VISIBILITY_TEST) {
+            else if (sre_internal_rendering_flags &
+            SRE_RENDERING_FLAG_SHADOW_VOLUME_DARKCAP_VISIBILITY_TEST) {
                 // Otherwise, when enabled do a geometrical test to see whether the dark cap
                 // is outside the frustum.
                 // If the object is not visible, the shadow volume was already calculated;

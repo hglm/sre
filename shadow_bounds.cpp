@@ -222,7 +222,7 @@ float& cos_half_angular_size) const {
                 n_convex_hull++;
             }
         }
-        if (min_cos_angle > 0) {
+        if (min_cos_angle > 0.0f) {
             // The maximum angle between the axis and any edge is smaller than 90 degrees,
             // which means the pyramid cone can be used.
             cos_half_angular_size = min_cos_angle;

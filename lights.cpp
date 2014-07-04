@@ -1246,8 +1246,12 @@ void sreScene::CalculateStaticLightObjectLists() {
                         sv->SetEverywhere();
                     else if (t == SRE_BOUNDING_VOLUME_PYRAMID_CONE)
                         sv->SetPyramidCone(Q, n_convex_hull, axis, radius, cos_half_angular_size);
-                    else
+                    else {
+//                        sreMessage(SRE_MESSAGE_LOG,
+//                            "Object %d has spherical sector shadow volume for light %d",
+//                              so->id, light[i]->id);
                         sv->SetSphericalSector(axis, radius, cos_half_angular_size);
+                    }
 #endif
                     sv->light = i;
                     so->AddShadowVolume(sv);
@@ -1288,9 +1292,8 @@ void sreScene::CalculateStaticLightObjectLists() {
                     memcpy(light[i]->shadow_caster_object, shadow_caster_object,
                         nu_shadow_caster_objects * sizeof(int));
                 }
-                if (sre_internal_debug_message_level >= 2)
-                    printf("Light %d: %d shadow casters within light volume.\n", i,
-                        nu_shadow_caster_objects);
+                sreMessage(SRE_MESSAGE_LOG, "Light %d: %d shadow casters within light volume.",
+                    i, nu_shadow_caster_objects);
                 // Set the flag indicating there is a list containing all static shadow casters
                 // for the light.
                 light[i]->type |= SRE_LIGHT_STATIC_SHADOW_CASTER_LIST;
@@ -1345,8 +1348,9 @@ void sreScene::CalculateStaticLightObjectLists() {
                 if (sre_internal_debug_message_level >= 2)
                     if (r == SRE_PARTIALLY_INSIDE &&
                     QueryIntersection(*so, *light[i]) == SRE_COMPLETELY_INSIDE)
-                        printf("Object bounding volumes completely inside light volume, "
-                            "but at least one LOD model vertex is actually outside the light volume.\n");
+                        sreMessage(SRE_MESSAGE_LOG,
+                            "Object bounding volumes completely inside light volume, "
+                            "but at least one LOD model vertex is actually outside the light volume.");
                 // Only store objects partially inside the light volume for now.
                 if (r != SRE_PARTIALLY_INSIDE)
                     continue;
@@ -1376,8 +1380,9 @@ void sreScene::CalculateStaticLightObjectLists() {
                 if (sre_internal_debug_message_level >= 2)
                     if (r == SRE_COMPLETELY_INSIDE &&
                     QueryIntersection(*so, *light[i]) == SRE_PARTIALLY_INSIDE)
-                        printf("Object bounding volumes partially inside light volume, "
-                            "but every LOD model vertex is actually inside the light volume.\n");
+                        sreMessage(SRE_MESSAGE_LOG,
+                            "Object bounding volumes partially inside light volume, "
+                            "but every LOD model vertex is actually inside the light volume.");
                 if (r != SRE_COMPLETELY_INSIDE)
                     continue;
                 visible_object[nu_visible_objects] = j;
@@ -1389,9 +1394,9 @@ void sreScene::CalculateStaticLightObjectLists() {
                 light[i]->light_volume_object = new int[nu_visible_objects];
                 memcpy(light[i]->light_volume_object, visible_object, nu_visible_objects * sizeof(int));
             }
-            if (sre_internal_debug_message_level >= 2)
-                printf("Light %d: %d objects within light volume, %d partially inside.\n", i,
-                    nu_visible_objects, light[i]->nu_light_volume_objects_partially_inside);
+            sreMessage(SRE_MESSAGE_LOG,
+                "Light %d: %d objects within light volume, %d partially inside.", i,
+                nu_visible_objects, light[i]->nu_light_volume_objects_partially_inside);
         }
         else
             light[i]->nu_light_volume_objects = 0;
