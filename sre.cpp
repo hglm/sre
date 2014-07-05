@@ -601,10 +601,10 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
             sre_internal_splash_screen_custom_function();
         sreSwapBuffers();
     }
-    // Initialize the other shaders. Note with demand-loading, most shaders may not
-    // actually be loaded yet. Shadow map shaders are initialized later.
-    sreInitializeShaders(sre_internal_shader_loading_mask & (~(SRE_SHADER_MASK_TEXT
-        | SRE_SHADER_MASK_IMAGE | SRE_SHADER_MASK_SHADOW_MAP | SRE_SHADER_MASK_CUBE_SHADOW_MAP)));
+    // Initialize some other shaders. Note with demand-loading, most shaders may not
+    // actually be loaded yet. Shadow map and lighting shaders are initialized later.
+    sreInitializeShaders(sre_internal_shader_loading_mask & (SRE_SHADER_MASK_EFFECTS 
+        | SRE_SHADER_MASK_HDR | SRE_SHADER_MASK_SHADOW_VOLUME));
 
     glDepthFunc(GL_LEQUAL);
     glEnable(GL_DEPTH_TEST);
@@ -842,6 +842,10 @@ skip_shadow_map:
 
     // Switch back to window-system-provided framebuffer.
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Initialize lighting shaders.
+    sreInitializeShaders(sre_internal_shader_loading_mask & (SRE_SHADER_MASK_LIGHTING_SINGLE_PASS |
+        SRE_SHADER_MASK_LIGHTING_MULTI_PASS));
 
     // Depth clamping is mainly useful for shadow volumes, but we still try to enable it for
     // all cases.

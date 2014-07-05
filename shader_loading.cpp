@@ -1370,6 +1370,15 @@ static void sreInitializeHDRShaders() {
 static void sreInitializeMultiPassLightingShaders() {
     // New style shader loading for lighting shaders.
     for (int i = 0; i < NU_LIGHTING_PASS_SHADERS; i++) {
+        // Do not load shadow map or cube shadow map lighting shaders when
+        // the shadow map feature is not supported.
+        if (i == 13 || i == 15) {
+            if (!(sre_internal_rendering_flags & SRE_RENDERING_FLAG_CUBE_SHADOW_MAP_SUPPORT))
+                continue;
+        }
+        else if (i >= 12 && i <= 18 &&
+        !(sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_MAP_SUPPORT))
+            continue;
         lighting_pass_shader[i].Initialize(
             lighting_pass_shader_info[i].name,
             SRE_SHADER_MASK_LIGHTING_MULTI_PASS,

@@ -584,6 +584,8 @@ void sreDrawObjectMultiPassLightingPass(sreObject *so, bool shadow_map_required)
     bool new_shader_selected;
     sreObjectAttributeInfo *info;
 #ifndef NO_SHADOW_MAP
+    // Note: when shadow mapping or cube shadow mapping is not supported, shadow_map_required
+    // will be false.
     if (shadow_map_required) {
         // Note: For the same object and light type, a different vertex attribute
         // configuration may be required for the shadow map-enabled shader compared
