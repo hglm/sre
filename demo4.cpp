@@ -1465,15 +1465,15 @@ void Demo4StepBeforePhysics(sreScene *scene, double demo_time) {
 #endif
     // Set the maximum horizontal velocity (over the surface), for the spacecraft it increases as the height increases.
     if (sre_internal_application->control_object == player_object)
-        sre_internal_application->max_horizontal_velocity = 100.0;
+        sre_internal_application->max_horizontal_velocity = 5.0f;
     else {
         float height = Magnitude(ProjectOnto(scene->object[spacecraft_object]->position, ascend_vector));
 #ifdef SPHERE
         height -= 0.5f * X_SCALE;
 #endif
-        sre_internal_application->max_horizontal_velocity = 100.0f + height * 0.5f;
+        sre_internal_application->max_horizontal_velocity = 5.0f + height * 0.005f;
         sre_internal_application->horizontal_acceleration =
-            sre_internal_application->max_horizontal_velocity;
+            sre_internal_application->max_horizontal_velocity * 2.0f;
         // The ascend/descend controls are also sensitive to the height above the surface.
         sre_internal_application->hovering_height_acceleration = 100.0f + height * 0.5f;
     }
