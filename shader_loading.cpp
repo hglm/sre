@@ -1189,7 +1189,7 @@ static const MiscShaderInfo misc_shader_info[] = {
     },
     {
     "Shadow cube-map shader",
-    SRE_SHADER_MASK_SHADOW_MAP,
+    SRE_SHADER_MASK_CUBE_SHADOW_MAP,
     (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_LIGHT_POSITION) |
     (1 << UNIFORM_MISC_MODEL_MATRIX) | (1 << UNIFORM_MISC_SEGMENT_DISTANCE_SCALING),
     (1 << ATTRIBUTE_POSITION),
@@ -1197,7 +1197,7 @@ static const MiscShaderInfo misc_shader_info[] = {
     },
     {
     "Shadow cube-map shader for transparent textures",
-    SRE_SHADER_MASK_SHADOW_MAP,
+    SRE_SHADER_MASK_CUBE_SHADOW_MAP,
     (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_TEXTURE_SAMPLER) | (1 << UNIFORM_MISC_UV_TRANSFORM) |
     (1 << UNIFORM_MISC_LIGHT_POSITION) | (1 << UNIFORM_MISC_MODEL_MATRIX) |
     (1 << UNIFORM_MISC_SEGMENT_DISTANCE_SCALING),
@@ -1335,6 +1335,12 @@ static void sreInitializeShadowMapShaders() {
 #endif
 }
 
+static void sreInitializeCubeShadowMapShaders() {
+#ifndef NO_SHADOW_MAP
+    sreInitializeMiscShaders(SRE_SHADER_MASK_CUBE_SHADOW_MAP);
+#endif
+}
+
 static void sreInitializeEffectsShaders() {
     sreInitializeMiscShaders(SRE_SHADER_MASK_EFFECTS);
 }
@@ -1398,6 +1404,8 @@ void sreInitializeShaders(int shader_mask) {
         sreInitializeShadowVolumeShaders();
     if (shader_mask & SRE_SHADER_MASK_SHADOW_MAP)
         sreInitializeShadowMapShaders();
+    if (shader_mask & SRE_SHADER_MASK_CUBE_SHADOW_MAP)
+        sreInitializeCubeShadowMapShaders();
     if (shader_mask & SRE_SHADER_MASK_EFFECTS)
         sreInitializeEffectsShaders();
     if (shader_mask & SRE_SHADER_MASK_HDR)
@@ -1422,9 +1430,12 @@ void sreValidateShadowMapShaders() {
    misc_shader[SRE_MISC_SHADER_SHADOW_MAP_TRANSPARENT].Validate();
    misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP].Validate();
    misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_TRANSPARENT].Validate();
-   misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP].Validate();
-   misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT].Validate();
 
+}
+
+void sreValidateCubeShadowMapShaders() {
+    misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP].Validate();
+    misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT].Validate();
 }
 
 #endif

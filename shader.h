@@ -242,6 +242,7 @@ extern sreShader HDR_tone_map_shader[SRE_NUMBER_OF_TONE_MAPPING_SHADERS];
 void sreInitializeShaders(int shader_mask);
 void sreValidateShadowVolumeShaders();
 void sreValidateShadowMapShaders();
+void sreValidateCubeShadowMapShaders();
 void sreValidateHDRShaders();
 
 #ifdef SHADERS_BUILTIN

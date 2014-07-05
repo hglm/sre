@@ -602,9 +602,9 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
         sreSwapBuffers();
     }
     // Initialize the other shaders. Note with demand-loading, most shaders may not
-    // actually be loaded yet.
+    // actually be loaded yet. Shadow map shaders are initialized later.
     sreInitializeShaders(sre_internal_shader_loading_mask & (~(SRE_SHADER_MASK_TEXT
-        | SRE_SHADER_MASK_IMAGE)));
+        | SRE_SHADER_MASK_IMAGE | SRE_SHADER_MASK_SHADOW_MAP | SRE_SHADER_MASK_CUBE_SHADOW_MAP)));
 
     glDepthFunc(GL_LEQUAL);
     glEnable(GL_DEPTH_TEST);
@@ -613,33 +613,66 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     if (sre_internal_shadows == SRE_SHADOWS_SHADOW_VOLUMES)
         sreValidateShadowVolumeShaders();
 
+#ifdef OPENGL_ES2
+    // For OpenGL-ES2, we don't use GLEW, so get the extensions string.
+    const char *extensions_str = (const char *)glGetString(GL_EXTENSIONS);
+#endif
+
 #ifndef NO_SHADOW_MAP
     // Set up render-to-texture framebuffer for shadow map.
+#ifdef OPENGL_ES2
+    if (strstr(extensions_str, "GL_OES_depth_texture") == NULL)) {
+        sreMessage(SRE_MESSAGE_INFO, "GL_OES_depth_texture extension to support shadow mapping "
+            "with OpenGL-ES 2.0 not available.");
+        goto skip_shadow_map;
+    }
+#endif
+    sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_MAP_SUPPORT;
+    sreInitializeShaders(SRE_SHADER_MASK_SHADOW_MAP);
+
     glGenTextures(1, &sre_internal_depth_texture);
     glBindTexture(GL_TEXTURE_2D, sre_internal_depth_texture);
     // 24-bit uint (standard) works, float works also, probably better (most likely same
     // buffer size and higher precision).
+#ifdef OPENGL_ES2
+    // "type" argument GL_UNSIGNED_SHORT means 16-bit depth precision,
+    // GL_UNSIGNED_INT means 32-bit depth precision or lower. 
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SRE_SHADOW_BUFFER_SIZE,
+        SRE_SHADOW_BUFFER_SIZE, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, 0);
+#else
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, SRE_SHADOW_BUFFER_SIZE,
         SRE_SHADOW_BUFFER_SIZE, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+#endif
 //    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, SRE_SHADOW_BUFFER_SIZE,
 //         SRE_SHADOW_BUFFER_SIZE, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+#ifndef OPENGL_ES2
     GLfloat border_color[4];
     border_color[0] = 1.0f;
     glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, &border_color[0]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+#endif
 
     glGenFramebuffers(1, &sre_internal_shadow_map_framebuffer);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_shadow_map_framebuffer);
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sre_internal_depth_texture, 0);
+#ifndef OPENGL_ES2
     glDrawBuffer(GL_NONE);
+#endif
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         sreFatalError("Error -- shadow map framebuffer not complete.");
     }
+skip_shadow_map:
+
+#ifndef OPENGL_ES2
+    // Cube shadow maps not supported with OpenGL-ES 2.0 at the moment. The extension
+    // OES_depth_texture_cube_map does exist.
+    sre_internal_rendering_flags |= SRE_RENDERING_FLAG_CUBE_SHADOW_MAP_SUPPORT;
+    sreInitializeShaders(SRE_SHADER_MASK_CUBE_SHADOW_MAP);
 
     // Set up render-to-cubemap framebuffer for shadow map cubemap (texture array).
     glGenTextures(1, &sre_internal_depth_cube_map_texture);
@@ -706,10 +739,11 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         sreFatalError("Error -- small (spot light) shadow map framebuffer not complete.\n");
     }
+#endif // !defined(OPENGL_ES2)
 
     if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING)
         sreValidateShadowMapShaders();
-#endif
+#endif // !defined(NO_SHADOW_MAP)
 
 #ifndef NO_HDR
     // Set up render-to-texture framebuffer for HDR rendering.
@@ -808,11 +842,6 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
 
     // Switch back to window-system-provided framebuffer.
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-#ifdef OPENGL_ES2
-    // For OpenGL-ES2, we don't use GLEW, so get the extensions string.
-    const char *extensions_str = (const char *)glGetString(GL_EXTENSIONS);
-#endif
 
     // Depth clamping is mainly useful for shadow volumes, but we still try to enable it for
     // all cases.

@@ -1572,7 +1572,11 @@ enum {
     // stencil shadows.
     SRE_RENDERING_FLAG_SHADOW_VOLUME_DARKCAP_VISIBILITY_TEST = 0x2000,
     // Enable caching of geometry scissors regions when the frustum does not change.
-    SRE_RENDERING_FLAG_GEOMETRY_SCISSORS_CACHE_ENABLED = 0x4000
+    SRE_RENDERING_FLAG_GEOMETRY_SCISSORS_CACHE_ENABLED = 0x4000,
+    // Whether shadow maps are supported.
+    SRE_RENDERING_FLAG_SHADOW_MAP_SUPPORT = 0x8000,
+    // Whether cube shadow maps (point lights) are supported.
+    SRE_RENDERING_FLAG_CUBE_SHADOW_MAP_SUPPORT = 0x10000,
 };
 
 class SRE_API sreEngineSettingsInfo {
@@ -1793,7 +1797,8 @@ SRE_API void sreDrawTextCentered(const char *text, float x, float y, float w);
 #define SRE_SHADER_MASK_HDR                  64
 #define SRE_SHADER_MASK_IMAGE                128
 #define SRE_SHADER_MASK_LIGHTING             6
-#define SRE_SHADER_MASK_ALL                  255
+#define SRE_SHADER_MASK_CUBE_SHADOW_MAP      0x100
+#define SRE_SHADER_MASK_ALL                  0x1FF
 SRE_API void sreSetShaderLoadingMask(int mask);
 
 // Model loading/creation.

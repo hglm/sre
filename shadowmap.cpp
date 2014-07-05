@@ -575,6 +575,15 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
 }
 
 bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &frustum) {
+    // Check whether the the required shadow map technique is available.
+    if (((light.type & SRE_LIGHT_POINT_SOURCE) &&
+    !(sre_internal_rendering_flags & SRE_RENDERING_FLAG_CUBE_SHADOW_MAP_SUPPORT)) ||
+    (!(light.type & SRE_LIGHT_POINT_SOURCE) &&
+    !(sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_MAP_SUPPORT))) {
+        light.shadow_map_required = false;
+        return false;
+    }
+
     // Calculate shadow caster volume.
     frustum.CalculateShadowCasterVolume(light.vector, 6);
     scene->nu_shadow_caster_objects = 0;
