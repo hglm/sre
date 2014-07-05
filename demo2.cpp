@@ -124,7 +124,7 @@ void Demo2CreateScene(sreScene *scene, sreView *view) {
     sreModel *elephant_model = sreReadModelFromFile(scene, "elephant.obj", SRE_MODEL_FILE_TYPE_OBJ, 0);
     // Marking the model as non-closed does not help reduce stencil shadow errors, while reducing
     // performance, so skip it.
-//    elephant_model->SetLODModelFlags(SRE_LOD_MODEL_NOT_CLOSED);
+    elephant_model->SetLODModelFlags(SRE_LOD_MODEL_NOT_CLOSED);
     Color c = Color(1.0f, 0.5f, 0.5f);
     scene->SetDiffuseReflectionColor(c);
 //    scene->SetFlags(SRE_OBJECT_NO_PHYSICS | SRE_OBJECT_CAST_SHADOWS);
