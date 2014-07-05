@@ -5,7 +5,7 @@ Edit Makefile.conf to edit the configuration. It is possible to
 compile the library and demo program without installing by setting
 the library configuration to STATIC.
 
-The current version as of March 2014 has been tested and works
+The current version as of July 2014 has been tested and works
 correctly with full features with OpenGL on a Linux PC platform,
 although it has not been tested much beyond a discrete NVIDIA GPU.
 On NVIDIA-based devices, installing NVIDIA's optimized Linux drivers
@@ -395,6 +395,15 @@ Bugs as of July 2014:
   also small lightscape lights) in the same node in demo8. This may
   already be fixed because of bug fixes in octree smallest dimension
   displacement algorithm during octree creation.
+
+- On a GeForce 750 Ti (Maxwell architecture), when stencil shadows are
+  enabled some demos are noticeably slower than on earlier architectures
+  such as GeForce 550 Ti, especially demo7 and the central part of demo2.
+  Other demos, such as demo5 and demo8, are much less affected. The
+  difference is probably because the new NVIDIA architecture optimized
+  for more complex shaders rather than the extremely simply shader used
+  to generate shadow volumes (the fragment shader contains only a single
+  line).
 
 --- LICENSE --
 

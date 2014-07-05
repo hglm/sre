@@ -3,7 +3,7 @@ engine using OpenGL or OpenGL-ES 2.0 with several device-specific
 back-ends. It currently runs on different Linux platforms but is
 portable to other platforms.
 
-The current version as of 4 Feb 2014 works correctly with OpenGL on a PC
+The current version as of July 2014 works correctly with OpenGL on a PC
 platform; the OpenGL-ES 2.0 front-end with X11 (EGL) back-end
 also works well although shadow mapping is not supported (stencil shadow
 volumes are supported). Certain framebuffer OpenGL-ES 2.0 back-ends are
