@@ -13,7 +13,7 @@ is highly recommended.
 
 The OpenGL-ES 2.0 X11 back-end compiles and works, although it has
 only been tested on a Mali-400 platform. The framebuffer OpenGL-ES
-2.0 back-end should also work, and have primarily been tested on
+2.0 back-end should also work, and has primarily been tested on
 the Raspberry Pi platform.
 
 Running "make" compiles the library. It might be necessary to run
