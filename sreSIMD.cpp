@@ -25,6 +25,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include "sreSIMDPlatform.h"
 
+#ifdef USE_SIMD
+
 void simd_matrix_multiply_4x4CM_float(const float * __restrict m1,
 const float * __restrict__ m2, float * __restrict m3) {
     simd_inline_matrix_multiply_4x4CM_float(m1, m2, m3);
@@ -94,4 +96,4 @@ int& negative_count) {
         n, f1, f2, dot, negative_count);
 }
 
-
+#endif
