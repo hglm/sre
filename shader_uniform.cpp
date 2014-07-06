@@ -465,7 +465,10 @@ static void GL3InitializeShaderWithSmallShadowMapTexture() {
 
 static void GL3InitializeShaderWithCubeShadowMapTexture() {
     glActiveTexture(GL_TEXTURE4);
+#ifdef OPENGL_ES2
+#else
     glBindTexture(GL_TEXTURE_2D_ARRAY, sre_internal_depth_cube_map_texture);
+#endif
 }
 
 void sreBindShadowMapTexture(sreLight *light) {

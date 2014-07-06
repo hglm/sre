@@ -389,7 +389,11 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
 //    printf("Light %d, x_dir = (%f, %f, %f) y_dir = (%f, %f, %f) zmax = %f\n", light.id,
 //       x_dir.x, x_dir.y, x_dir.z, y_dir.x, y_dir.y, y_dir.z, zmax);
 
+#ifdef OPENGL_ES2
+    glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_small_shadow_map_framebuffer);
+#else
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_small_shadow_map_framebuffer);
+#endif
     // For performance reasons, and because spotlights don't need the full size of the shadow map
     // that is required for directional lights, use a seperate smaller shadow buffer.
     glViewport(0, 0, SRE_SMALL_SHADOW_BUFFER_SIZE, SRE_SMALL_SHADOW_BUFFER_SIZE);
@@ -441,7 +445,11 @@ static Vector3D cube_map_up_vector[6] = {
     };
 
 void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sreFrustum &frustum) {
+#ifdef OPENGL_ES2
+        glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_cube_shadow_map_framebuffer);
+#else
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_cube_shadow_map_framebuffer);
+#endif
         glViewport(0, 0, SRE_CUBE_SHADOW_BUFFER_SIZE, SRE_CUBE_SHADOW_BUFFER_SIZE);
         glDisable(GL_CULL_FACE);
         glDepthFunc(GL_LESS);
@@ -534,8 +542,11 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
                 shadow_cube_segment_distance_scaling[i] = - 1.0f;
                 continue;
             }
+#ifdef OPENGL_ES2
+#else
             glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
                 sre_internal_depth_cube_map_texture, 0, i);
+#endif
             glClear(GL_DEPTH_BUFFER_BIT);
             if (skip) {
                 shadow_cube_segment_distance_scaling[i] = - 1.0f;
@@ -669,7 +680,11 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
 
     // At this point, there will be a shadow map, so we can initialize the shadow map
     // in already.
+#ifdef OPENGL_ES2
+    glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_shadow_map_framebuffer);
+#else
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_shadow_map_framebuffer);
+#endif
     glViewport(0, 0, SRE_SHADOW_BUFFER_SIZE, SRE_SHADOW_BUFFER_SIZE);
     CHECK_GL_ERROR("Error after glBindFramebuffer\n");
     glDisable(GL_CULL_FACE);

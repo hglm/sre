@@ -135,21 +135,25 @@ void sreSetShadowsMethod(int method) {
     if (method == SRE_SHADOWS_SHADOW_VOLUMES &&
     !(sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_VOLUME_SUPPORT)) {
        sreMessage(SRE_MESSAGE_WARNING,
-           "Invalid shadow rendering method requested (shadow volumes are disabled).\n");
+           "Invalid shadow rendering method requested (shadow volumes are disabled).");
        return;
     }
-#ifdef NO_SHADOW_MAP
-    if (method == SRE_SHADOWS_SHADOW_MAPPING) {
+    if (method == SRE_SHADOWS_SHADOW_MAPPING &&
+    !(sre_internal_rendering_flags & (SRE_RENDERING_FLAG_SHADOW_MAP_SUPPORT |
+    SRE_RENDERING_FLAG_CUBE_SHADOW_MAP_SUPPORT))) {
         sreMessage(SRE_MESSAGE_WARNING,
-           "Invalid shadow rendering method requested (shadow mapping is not supported)\n");
-        return;    
+           "Invalid shadow rendering method requested (shadow mapping is not supported)");
+        return;
     }
-#endif
     if (method == SRE_SHADOWS_SHADOW_VOLUMES)
         sreValidateShadowVolumeShaders();
 #ifndef NO_SHADOW_MAP
-    else if (method == SRE_SHADOWS_SHADOW_MAPPING)
-        sreValidateShadowMapShaders();
+    else if (method == SRE_SHADOWS_SHADOW_MAPPING) {
+        if (sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_MAP_SUPPORT)
+            sreValidateShadowMapShaders();
+        if (sre_internal_rendering_flags & SRE_RENDERING_FLAG_CUBE_SHADOW_MAP_SUPPORT)
+            sreValidateCubeShadowMapShaders();
+    }
 #endif
     sre_internal_shadows = method;
     sre_internal_reselect_shaders = true;
@@ -603,7 +607,7 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     }
     // Initialize some other shaders. Note with demand-loading, most shaders may not
     // actually be loaded yet. Shadow map and lighting shaders are initialized later.
-    sreInitializeShaders(sre_internal_shader_loading_mask & (SRE_SHADER_MASK_EFFECTS 
+    sreInitializeShaders(sre_internal_shader_loading_mask & (SRE_SHADER_MASK_EFFECTS
         | SRE_SHADER_MASK_HDR | SRE_SHADER_MASK_SHADOW_VOLUME));
 
     glDepthFunc(GL_LEQUAL);
@@ -616,12 +620,13 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
 #ifdef OPENGL_ES2
     // For OpenGL-ES2, we don't use GLEW, so get the extensions string.
     const char *extensions_str = (const char *)glGetString(GL_EXTENSIONS);
+    sreMessage(SRE_MESSAGE_LOG, "Extensions string: %s", extensions_str);
 #endif
 
 #ifndef NO_SHADOW_MAP
     // Set up render-to-texture framebuffer for shadow map.
 #ifdef OPENGL_ES2
-    if (strstr(extensions_str, "GL_OES_depth_texture") == NULL)) {
+    if (strstr(extensions_str, "GL_OES_depth_texture") == NULL) {
         sreMessage(SRE_MESSAGE_INFO, "GL_OES_depth_texture extension to support shadow mapping "
             "with OpenGL-ES 2.0 not available.");
         goto skip_shadow_map;
@@ -656,7 +661,12 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
 #endif
 
     glGenFramebuffers(1, &sre_internal_shadow_map_framebuffer);
+
+#ifdef OPENGL_ES2
+    glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_shadow_map_framebuffer);
+#else
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_shadow_map_framebuffer);
+#endif
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sre_internal_depth_texture, 0);
 #ifndef OPENGL_ES2
@@ -689,7 +699,11 @@ skip_shadow_map:
         SRE_CUBE_SHADOW_BUFFER_SIZE, 6, 0, GL_DEPTH_COMPONENT, GL_HALF_FLOAT, 0);
 
     glGenFramebuffers(1, &sre_internal_cube_shadow_map_framebuffer);
+#ifdef OPENGL_ES2
+    glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_shadow_map_framebuffer);
+#else
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_cube_shadow_map_framebuffer);
+#endif
 
     for (int i = 0; i < 6; i++) {
         glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
@@ -730,7 +744,11 @@ skip_shadow_map:
 #endif
 
     glGenFramebuffers(1, &sre_internal_small_shadow_map_framebuffer);
+#ifdef OPENGL_ES2
+    glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_shadow_map_framebuffer);
+#else
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_small_shadow_map_framebuffer);
+#endif
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
         sre_internal_small_depth_texture, 0);
