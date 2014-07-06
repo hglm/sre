@@ -247,6 +247,9 @@ Bugs as of July 2014:
   missing sides). Worked around by avoiding compound objects casting
   shadows.
 
+- In demo1, the red spotlight light occasionally disappears (visible
+  on the pool edge).
+
 3. Potential improvements that are not yet implemented.
 
 - There is no real scene graph except for an optimized octree. A
@@ -264,13 +267,11 @@ Bugs as of July 2014:
   to built-in shader language features (the current implementation
   relies on a fair amount of general shader code, which could be
   streamlined by using more of the built-in shadow-map support in
-  GLSL).
-
-- An example of optimization of the shadow map shaders (reducing
+  GLSL). An example of optimization of the shadow map shaders (reducing
   conditional execution) is that for cube maps, perhaps the cube
   segments that are applicable for the object can be forwarded to the
   shader in a uniform (the current implementation does some work to
-  identify for the segment that the fragment is in).
+  identify for the segment that the fragment is in). [work in progress]
 
 - RegisterModel() could be enhanced with a name string to more easily
   identify models.
@@ -353,8 +354,13 @@ Bugs as of July 2014:
   with the frustum is not yet fully implemented. Also, some expensive
   trigonometry operations are used when initializing the spherical sector.
 
+- For spotlights, ideally the spherical sector bounding volume should be
+  used for geometry scissors calculation instead of the much large
+  cylinder.
+
 - Scissors calculation of any shadow volume shape other than PyramidCone
-  (such as a speherical sector or cylinder) has not yet been implemented.
+  (such as a spherical sector or cylinder) has not yet been implemented.
+  [sperical sector implemented, but not fully debugged]
 
 - Demo generating models of trees (plants) would be fun (producing nice
   shadows).
@@ -375,10 +381,6 @@ Bugs as of July 2014:
 
 - Geometry scissors caching and associated overhead could be omitted when
   the frustum is detected to be changing every frame [implemented].
-
-- For spotlights, ideally the spherical sector bounding volume should be
-  used for geometry scissors calculation instead of the much large
-  cylinder.
 
 - Large-scale normal-mapping causes a noticeable slowdown on some
   OpenGL-ES 2.0 platforms (demo5), probably normal mapping is relatively

@@ -51,6 +51,7 @@ extern SRE_GLUINT sre_internal_depth_texture;
 extern SRE_GLUINT sre_internal_depth_cube_map_texture;
 extern SRE_GLUINT sre_internal_shadow_map_framebuffer;
 extern SRE_GLUINT sre_internal_cube_shadow_map_framebuffer;
+extern SRE_GLUINT sre_internal_cube_shadow_map_subframebuffer[6];
 extern SRE_GLUINT sre_internal_small_depth_texture;
 extern SRE_GLUINT sre_internal_small_shadow_map_framebuffer;
 extern SRE_GLUINT sre_internal_HDR_color_texture;

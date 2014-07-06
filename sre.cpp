@@ -61,6 +61,7 @@ SRE_GLUINT sre_internal_depth_texture = 0;
 SRE_GLUINT sre_internal_shadow_map_framebuffer = 0;
 SRE_GLUINT sre_internal_depth_cube_map_texture = 0;
 SRE_GLUINT sre_internal_cube_shadow_map_framebuffer = 0;
+SRE_GLUINT sre_internal_cube_shadow_map_subframebuffer[6];
 SRE_GLUINT sre_internal_small_depth_texture = 0;
 SRE_GLUINT sre_internal_small_shadow_map_framebuffer = 0;
 SRE_GLUINT sre_internal_HDR_multisample_color_renderbuffer = 0;
@@ -676,45 +677,6 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         sreFatalError("Error -- shadow map framebuffer not complete.");
     }
-skip_shadow_map:
-
-#ifndef OPENGL_ES2
-    // Cube shadow maps not supported with OpenGL-ES 2.0 at the moment. The extension
-    // OES_depth_texture_cube_map does exist.
-    sre_internal_rendering_flags |= SRE_RENDERING_FLAG_CUBE_SHADOW_MAP_SUPPORT;
-    sreInitializeShaders(SRE_SHADER_MASK_CUBE_SHADOW_MAP);
-
-    // Set up render-to-cubemap framebuffer for shadow map cubemap (texture array).
-    glGenTextures(1, &sre_internal_depth_cube_map_texture);
-    glBindTexture(GL_TEXTURE_2D_ARRAY, sre_internal_depth_cube_map_texture);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameterfv(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, &border_color[0]);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_DEPTH_TEXTURE_MODE, GL_INTENSITY);
-    // Half-float are probably sufficient for virtually all point lights, and should improve
-    // performance. Cube map resolution is a more important parameter.
-    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT16, SRE_CUBE_SHADOW_BUFFER_SIZE,
-        SRE_CUBE_SHADOW_BUFFER_SIZE, 6, 0, GL_DEPTH_COMPONENT, GL_HALF_FLOAT, 0);
-
-    glGenFramebuffers(1, &sre_internal_cube_shadow_map_framebuffer);
-#ifdef OPENGL_ES2
-    glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_shadow_map_framebuffer);
-#else
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_cube_shadow_map_framebuffer);
-#endif
-
-    for (int i = 0; i < 6; i++) {
-        glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-            sre_internal_depth_cube_map_texture, 0, i);
-    }
-    CHECK_GL_ERROR("Error after glFramebufferTextureLayer\n");
-    glDrawBuffer(GL_NONE);
-
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        sreFatalError("Error -- cube shadow map framebuffer not complete.\n");
-    }
 
     // Set up render-to-texture framebuffer for small shadow map used for spot and beam lights.
     glGenTextures(1, &sre_internal_small_depth_texture);
@@ -757,10 +719,108 @@ skip_shadow_map:
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         sreFatalError("Error -- small (spot light) shadow map framebuffer not complete.\n");
     }
-#endif // !defined(OPENGL_ES2)
-
     if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING)
         sreValidateShadowMapShaders();
+
+skip_shadow_map:
+
+    // Cube shadow maps are only supported with OpenGL-ES 2.0 when the extension
+    // OES_depth_texture_cube_map exists. Older hardware drivers may already support
+    // cube map textures with only OES_depth_texture.
+#ifdef OPENGL_ES2
+    if (strstr(extensions_str, "GL_OES_depth_texture") == NULL) {
+        sreMessage(SRE_MESSAGE_INFO, "GL_OES_depth_texture_cube_map extension to support cube "
+            "shadow mapping with OpenGL-ES 2.0 not available.");
+        goto skip_cube_shadow_map;
+    }
+#endif
+    sre_internal_rendering_flags |= SRE_RENDERING_FLAG_CUBE_SHADOW_MAP_SUPPORT;
+    sreInitializeShaders(SRE_SHADER_MASK_CUBE_SHADOW_MAP);
+
+    // Set up render-to-cubemap framebuffer for shadow map cubemap.
+    // This is a texture array in case of regular OpenGL 3+.
+
+#define NEW_SHADOW_MAP_METHOD
+
+    glGenTextures(1, &sre_internal_depth_cube_map_texture);
+#ifdef OPENGL_ES2
+    glBindTexture(GL_TEXTURE_CUBE_MAP, sre_internal_depth_cube_map_texture);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    for (int i = 0; i < 6; i++) {
+        glTexImage2D(cube_map_target[i], 0, GL_DEPTH_COMPONENT, SRE_CUBE_SHADOW_BUFFER_SIZE,
+            SRE_CUBE_SHADOW_BUFFER_SIZE, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, 0);
+    }
+#else
+#ifdef NEW_SHADOW_MAP_METHOD
+    // Use the built-in cube map format.
+    glBindTexture(GL_TEXTURE_CUBE_MAP, sre_internal_depth_cube_map_texture);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+//    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_DEPTH_TEXTURE_MODE, GL_INTENSITY);
+    for (int i = 0; i < 6; i++) {
+        glTexImage2D(cube_map_target[i], 0, GL_DEPTH_COMPONENT16, SRE_CUBE_SHADOW_BUFFER_SIZE,
+            SRE_CUBE_SHADOW_BUFFER_SIZE, 0, GL_DEPTH_COMPONENT, GL_HALF_FLOAT, 0);
+        CHECK_GL_ERROR("Error after cube map face initialization.\n");
+    }
+#else
+    // Use a generic texture array for the face of the cube map.
+    glBindTexture(GL_TEXTURE_2D_ARRAY, sre_internal_depth_cube_map_texture);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameterfv(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, &border_color[0]);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_DEPTH_TEXTURE_MODE, GL_INTENSITY);
+    // Half-float are probably sufficient for virtually all point lights, and should improve
+    // performance. Cube map resolution is a more important parameter.
+    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT16, SRE_CUBE_SHADOW_BUFFER_SIZE,
+        SRE_CUBE_SHADOW_BUFFER_SIZE, 6, 0, GL_DEPTH_COMPONENT, GL_HALF_FLOAT, 0);
+#endif
+#endif
+
+#if !defined(OPENGL_ES2) && !defined(NEW_SHADOW_MAP_METHOD)
+    glGenFramebuffers(1, &sre_internal_cube_shadow_map_framebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_cube_shadow_map_framebuffer);
+#endif
+
+    for (int i = 0; i < 6; i++) {
+#if defined(OPENGL_ES2) || defined(NEW_SHADOW_MAP_METHOD)
+        glGenFramebuffers(1, &sre_internal_cube_shadow_map_subframebuffer[i]);
+#ifdef OPENGL_ES2
+        glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_cube_shadow_map_subframebuffer[i]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, cube_map_target[i],
+            sre_internal_depth_cube_map_texture, 0);
+#else
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_cube_shadow_map_subframebuffer[i]);
+        glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, cube_map_target[i],
+            sre_internal_depth_cube_map_texture, 0);
+        glDrawBuffer(GL_NONE);
+#endif
+        CHECK_GL_ERROR("Error after glFramebufferTexture2D\n");
+        if (glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            sreFatalError("Error -- cube shadow map framebuffer %d not complete.", i);
+        }
+#else
+        glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+            sre_internal_depth_cube_map_texture, 0, i);
+        CHECK_GL_ERROR("Error after glFramebufferTextureLayer\n");
+#endif
+    }
+#if !defined(OPENGL_ES2) && !defined(NEW_SHADOW_MAP_METHOD)
+    glDrawBuffer(GL_NONE);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        sreFatalError("Error -- cube shadow map framebuffer not complete.\n");
+    }
+#endif
+    if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING)
+        sreValidateCubeShadowMapShaders();
+
+skip_cube_shadow_map:
+
 #endif // !defined(NO_SHADOW_MAP)
 
 #ifndef NO_HDR
