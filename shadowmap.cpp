@@ -45,16 +45,20 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // (the shadow receivers). The frustum shadow caster volume (defined as the extension of the
 // frustum from which an object can potentially cast shadows into the frustum) is used to
 // select potential shadow casters, and for local lights a check against the light volume
-// is performed for both shadow casters and shadow receivers.
+// is performed for both shadow casters and shadow receivers. A list of shadow casters for
+// the light is compiled. For point lights, the cube map segments into which each shadow caster
+// falls is also stored.
 //
 // The shadow map transformation matrix is calculated so that all 3D positions within the
-// shadow caster AABB 
+// shadow caster AABB fall within the shadow map.
 //
-// The shadow map is then generated from 
+// The shadow map is then generated using the predetermined list of shadow casters. 
 
 #ifndef NO_SHADOW_MAP
 
 // Draw object into shadow map. Transparent textures are supported.
+
+// static int object_count;
 
 static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
     // Apply the global object flags mask. Note render_flags will (unnecessarily)
@@ -118,11 +122,26 @@ static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
     glDisableVertexAttribArray(0);
     if (so->render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE)
         glDisableVertexAttribArray(1);
+//    object_count++;
 }
 
 static void RenderShadowMapFromCasterArray(sreScene *scene, const sreLight& light) {
     for (int i = 0; i < scene->nu_shadow_caster_objects; i++)
-        RenderShadowMapObject(scene->object[scene->shadow_caster_object[i]], light);
+        RenderShadowMapObject(scene->object[
+            scene->shadow_caster_object[i]], light);
+}
+
+static void RenderCubeShadowMapFromCasterArray(sreScene *scene, const sreLight& light, int segment) {
+    // For point lights, the cube segments that the object falls into are stored in bits
+    // 26 to 31 of each entry in the shadow caster object array.
+//    object_count = 0;
+    unsigned int segment_bit = (unsigned int)1 << (26 + segment);
+    for (int i = 0; i < scene->nu_shadow_caster_objects; i++)
+        if (scene->shadow_caster_object[i] & segment_bit)
+            RenderShadowMapObject(scene->object[
+                scene->shadow_caster_object[i] & 0x03FFFFFF], light);
+//    sreMessage(SRE_MESSAGE_INFO, "Light %d shadow cube map generation: segment mask = 0x%08X, "
+//          "%d objects rendered.", light.id, segment_bit, object_count);
 }
 
 // The calculated shadow AABBs are stored in a global variable.
@@ -177,7 +196,7 @@ static void UpdateAABBWithObject(SHADOW_AABB_TYPE &AABB, sreObject *so) {
          // Static object, use the precalculated precise AABB.
          // Use inline function from sre_bounds.h that updates an AAAB with the union with
          // another AABB.
-         UpdateAABB(AABB, so->AABB); 
+         UpdateAABB(AABB, so->AABB);
          return;
      }
      // Dynamic object.
@@ -202,6 +221,76 @@ static void UpdateAABBWithObject(SHADOW_AABB_TYPE &AABB, sreObject *so) {
     box_AABB.dim_min = so->box.center - 0.5f * max_extents;
     box_AABB.dim_max = so->box.center + 0.5f * max_extents;
     UpdateAABB(AABB, box_AABB);
+}
+
+#define INV_SQRT_2 (1.0f / sqrtf(2.0f))
+
+static const Vector3D cube_map_plane_normal[6][4] = {
+    // Positive x segment.
+    {
+    Vector3D(INV_SQRT_2, 0.0f, - INV_SQRT_2), // Top
+    Vector3D(INV_SQRT_2, 0.0f, INV_SQRT_2),   // Bottom
+    Vector3D(INV_SQRT_2, - INV_SQRT_2, 0.0f), // Far
+    Vector3D(INV_SQRT_2, INV_SQRT_2, 0.0f)    // Near
+    },
+    // Negative x segment.
+    {
+    Vector3D(- INV_SQRT_2, 0.0f, - INV_SQRT_2), // Top
+    Vector3D(- INV_SQRT_2, 0.0f, INV_SQRT_2),   // Bottom
+    Vector3D(- INV_SQRT_2, - INV_SQRT_2, 0.0f), // Far
+    Vector3D(- INV_SQRT_2, INV_SQRT_2, 0.0f)    // Near
+    },
+    // Positive y segment.
+    {
+    Vector3D(0.0f, INV_SQRT_2, - INV_SQRT_2), // Top
+    Vector3D(0.0f, INV_SQRT_2, INV_SQRT_2),   // Bottom
+    Vector3D(- INV_SQRT_2, INV_SQRT_2, 0.0f), // Right
+    Vector3D(INV_SQRT_2, INV_SQRT_2, 0.0f)    // Left
+    },
+    // Negative y segment.
+    {
+    Vector3D(0.0f, - INV_SQRT_2, - INV_SQRT_2), // Top
+    Vector3D(0.0f, - INV_SQRT_2, INV_SQRT_2),   // Bottom
+    Vector3D(- INV_SQRT_2, - INV_SQRT_2, 0.0f), // Right
+    Vector3D(INV_SQRT_2, - INV_SQRT_2, 0.0f)    // Left
+    },
+    // Positive z segment.
+    {
+    Vector3D(0.0f, - INV_SQRT_2, INV_SQRT_2), // Far
+    Vector3D(0.0f, INV_SQRT_2, INV_SQRT_2),   // Near
+    Vector3D(- INV_SQRT_2, 0.0f, INV_SQRT_2), // Right
+    Vector3D(INV_SQRT_2, 0.0f, INV_SQRT_2)    // Left
+    },
+    // Negative z segment.
+    {
+    Vector3D(0.0f, - INV_SQRT_2, - INV_SQRT_2), // Far
+    Vector3D(0.0f, INV_SQRT_2, - INV_SQRT_2),   // Near
+    Vector3D(- INV_SQRT_2, 0.0f, - INV_SQRT_2), // Right
+    Vector3D(INV_SQRT_2, 0.0f, - INV_SQRT_2)    // Left
+    }
+};
+
+static unsigned int GetSegmentMask(const sreLight& light, const sreObject& so) {
+    // Check whether object is inside each convex hull representing the six
+    // cube segments of the light volume.
+    // This could be optimized because each plane test is identical to one of the plane
+    // tests for another segment. SIMD could be used.
+    sreBoundingVolumeConvexHull ch;
+    Vector4D plane[4];
+    ch.nu_planes = 4;
+    ch.plane = &plane[0];
+    unsigned int mask = 0;
+    for (int i = 5; i >= 0; i--) {
+        mask <<= 1;
+        // Take the plane orientation from the table and make it go through
+        // the light position.
+        for (int j = 0; j < 4; j++)
+            plane[j] = Vector4D(cube_map_plane_normal[i][j], - Dot(cube_map_plane_normal[i][j],
+                light.sphere.center));
+        if (Intersects(so, ch))
+            mask |= 1;
+    }
+    return mask;
 }
 
 static void CheckShadowCasterCapacity(sreScene *scene) {
@@ -277,6 +366,9 @@ sreScene *scene, const sreFrustum& frustum, BoundsCheckResult octree_bounds_chec
 // Find the AABB for all potential shadow casters within the range of a local light.
 // Also keep track of the shadow receivers AABB.
 
+// Keep track whether each segment of a point light cube map remains empty.
+static unsigned int segment_non_empty_mask;
+
 static void FindAABBLocalLight(sreShadowAABBGenerationInfo& AABB_generation_info,
 const sreFastOctree& fast_oct, int array_index, sreScene *scene,
 const sreFrustum& frustum, const sreLight& light, BoundsCheckResult octree_bounds_check_result) {
@@ -309,7 +401,14 @@ const sreFrustum& frustum, const sreLight& light, BoundsCheckResult octree_bound
                     if (Intersects(*so, frustum.shadow_caster_volume)) {
                         UpdateAABBWithObject(AABB_generation_info.casters, so);
                         CheckShadowCasterCapacity(scene);
-                        scene->shadow_caster_object[scene->nu_shadow_caster_objects]= so->id;
+                        if (light.type & SRE_LIGHT_POINT_SOURCE) {
+                            unsigned int segment_mask = GetSegmentMask(light, *so);
+                            scene->shadow_caster_object[scene->nu_shadow_caster_objects] =
+                               so->id | (segment_mask << 26);
+                            segment_non_empty_mask |= segment_mask;
+                        }
+                        else
+                            scene->shadow_caster_object[scene->nu_shadow_caster_objects] = so->id;
                         scene->nu_shadow_caster_objects++;
                     }
                 }
@@ -477,6 +576,9 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
 #define NEW_SHADOW_MAP_METHOD
 
         for (int i = 0; i < 6; i++) {
+            // Immediately skip the segment if no shadow casting objects where found to be inside it.
+            if (!(segment_non_empty_mask & (1 << i)))
+                continue;
 #if defined(OPENGL_ES2) || defined(NEW_SHADOW_MAP_METHOD)
             // In the new shadow map method, the distance scaling is the same for all segments
             // (light volume radius corresponds to [0, 1]).
@@ -602,8 +704,7 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
                 cube_map_up_vector[i], zmax);
             CHECK_GL_ERROR("Error after glFramebufferTextureLayer\n");
             GL3InitializeShadowMapShadersWithSegmentDistanceScaling(shadow_cube_segment_distance_scaling[i]);
-            RenderShadowMapFromCasterArray(scene, light);
-//            RenderShadowMapForOctree(scene->octree, scene, light, frustum, SRE_BOUNDS_UNDEFINED);
+            RenderCubeShadowMapFromCasterArray(scene, light, i);
         }
     if (sre_internal_HDR_enabled)
         glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_HDR_multisample_framebuffer);
@@ -627,7 +728,7 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
     (!(light.type & SRE_LIGHT_POINT_SOURCE) &&
     !(sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_MAP_SUPPORT))) {
         light.shadow_map_required = false;
-        return false;
+        return true;
     }
 
     // Calculate shadow caster volume.
@@ -641,6 +742,7 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
         // Find the AABB for all potential shadow casters and receivers within the range of the light.
         sreShadowAABBGenerationInfo AABB_generation_info;
         AABB_generation_info.Initialize();
+        segment_non_empty_mask = 0;
         // Note: infinite distance objects do not cast shadows, their octrees can be skipped.
         FindAABBLocalLight(AABB_generation_info,
             scene->fast_octree_static, 0, scene, frustum, light, SRE_BOUNDS_UNDEFINED);
@@ -950,7 +1052,6 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
     GL3CalculateShadowMapMatrix(camera_position, - light.vector.GetVector3D(),
         x_dir, y_dir, dim_min, dim_max);
     RenderShadowMapFromCasterArray(scene, light);
-//    RenderShadowMapForOctree(scene->octree, scene, light, frustum, SRE_BOUNDS_UNDEFINED);
 
     // Switch back to default framebuffer.
     if (sre_internal_HDR_enabled)

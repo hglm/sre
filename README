@@ -259,7 +259,7 @@ Bugs as of July 2014:
 - Support for shadow mapping for OpenGL-ES 2.0 would be possible
   after the handling of shadow map buffers and shadow maps in shaders
   is augmented to be compatible with the features present in OpenGL-ES
-  2.0.
+  2.0. [work in progress]
 
 - Currently, the shadow mapping implementation uses features that
   are exclusive to OpenGL 3+ and not present in OpenGL-ES 2.0, and
@@ -406,6 +406,11 @@ Bugs as of July 2014:
   for more complex shaders rather than the extremely simply shader used
   to generate shadow volumes (the fragment shader contains only a single
   line).
+
+- Use a hierarchy of shadow map sizes for local lights (point, spot and
+  beam) and pick a size for each light corresponding to the on-screen
+  projection size of the light volume. This should improve performance
+  when there a lot of local lights in the distance.
 
 --- LICENSE --
 

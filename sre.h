@@ -1293,9 +1293,13 @@ public:
     sreFastOctree fast_octree_dynamic;
     sreFastOctree fast_octree_dynamic_infinite_distance;
     int nu_root_node_objects;
+    // Array of (non-final pass) visible objects, updated each frame.
     int *visible_object;
+    // Array of final-pass visible objects, updated each frame.
     int *final_pass_object;
+    // Array of shadow casters, updated for each light within each frame.
     int *shadow_caster_object;
+    // Array of visible lights, updated each frame.
     int *visible_light;
     int nu_visible_objects;
     int nu_final_pass_objects;
