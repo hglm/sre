@@ -596,6 +596,12 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
 #else
         threshold = SRE_MAX_CUBE_SHADOW_MAP_SIZE_THRESHOLD_OPENGL;
 #endif
+        // Adjust the threshold according to the window resolution (the base tresholds are
+        // calibrated for approximate FullHD resolution).
+        threshold *= 1920.0f / sre_internal_window_width;
+        // When the viewpoint is inside the light volume, use a lower threshold (higher resolution).
+        if (Intersects(sre_internal_viewpoint, light.sphere))
+            threshold *= 0.5f;
         for (int level = 0;; level++) {
             if (light.projected_size >= threshold ||
             level + 1 == sre_internal_nu_cube_shadow_map_size_levels) {

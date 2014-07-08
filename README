@@ -255,7 +255,7 @@ Bugs as of July 2014:
 
 - The octree generation is broken, all objects go into a single node,
   adverse affecting performance.
-
+  
 3. Potential improvements that are not yet implemented.
 
 - There is no real scene graph except for an optimized octree. A
@@ -416,11 +416,20 @@ Bugs as of July 2014:
 - Use a hierarchy of shadow map sizes for local lights (point, spot and
   beam) and pick a size for each light corresponding to the on-screen
   projection size of the light volume. This should improve performance
-  when there a lot of local lights in the distance.
+  when there a lot of local lights in the distance. [Implemented for
+  point lights]
 
 - The determination of whether a potential shadow casting object
   intersects with cube shadow map segment could be optimized in terms of
   code speed.
+
+- The determination of the shadow map resolution should be more
+  sophisticated than just using the projected size of the
+  light volume. For example, when the viewpoint is within the
+  light volume (so shadows may be very close) but some distance away
+  from the light position, a higher shadow map resolution is
+  desirable. The window resolution should also be taken into account.
+  [Initial implementation realized]
 
 --- LICENSE --
 
