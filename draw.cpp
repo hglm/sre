@@ -374,6 +374,16 @@ static float ProjectedSize(const Point3D& V, float bounding_radius) {
     return fabsf(bounding_radius * 2.0f / w);
 }
 
+// Projected size based on distance from the viewpoint, which is not affected by
+// distance to the view plane. This is a often a better indicator of the prominence
+// of an object.
+
+static float NormalizedProjectedSize(const Point3D& P, float bounding_radius) {
+    float d = Magnitude(P - sre_internal_viewpoint);
+    if (d <= 0.0001f)
+        return 2.0f;
+    return bounding_radius * 2.0f / d;
+}
 
 void sreScene::CheckVisibleLightCapacity() {
     if (nu_visible_lights == max_visible_lights) {
@@ -495,7 +505,7 @@ const sreFrustum& frustum, BoundsCheckResult bounds_check_result, int array_inde
             }
             // Check whether the project size of the light volume is too small.
             if (!(l->type & SRE_LIGHT_DIRECTIONAL)) {
-                l->projected_size = ProjectedSize(l->vector.GetPoint3D(),
+                l->projected_size = NormalizedProjectedSize(l->vector.GetPoint3D(),
                     l->sphere.radius);
                 if (l->projected_size < SRE_LIGHT_VOLUME_SIZE_CUTOFF)
                     continue;
@@ -549,7 +559,7 @@ const sreFrustum& frustum, BoundsCheckResult bounds_check_result) {
         // In the case there is no far frustum plane, if the projected size of the octree is too
         // small, skip it. Have to check that octree does not contain the viewpoint.
         if (!Intersects(sre_internal_viewpoint, fast_oct.node_bounds[node_index].AABB)) {
-            float size = ProjectedSize(fast_oct.node_bounds[node_index].sphere.center,
+            float size = NormalizedProjectedSize(fast_oct.node_bounds[node_index].sphere.center,
                 fast_oct.node_bounds[node_index].sphere.radius);
 //            printf("size = %f\n", size);
             if (size < SRE_OCTREE_SIZE_CUTOFF) {
@@ -772,7 +782,7 @@ BoundsCheckResult bounds_check_result) {
         // skip it.
         // Have to check that octree does not contain the viewpoint.
         if (!Intersects(sre_internal_viewpoint, node_bounds.AABB)) {
-            float size = ProjectedSize(node_bounds.sphere.center,
+            float size = NormalizedProjectedSize(node_bounds.sphere.center,
                 node_bounds.sphere.radius);
             if (size < SRE_OCTREE_SIZE_CUTOFF) {
                 octree_culled_count_projected++;
