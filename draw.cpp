@@ -1884,6 +1884,12 @@ void sreScene::RenderLightingPasses(sreFrustum *frustum, sreView *view) {
             }
             // Note: when there are no shadow receivers (but there are light receivers),
             // the light's shadow_map_required field will be set to false.
+            if (!sre_internal_current_light->shadow_map_required)
+                sreMessage(SRE_MESSAGE_LOG, "No shadow map required for light %d.",
+                    sre_internal_current_light->id);
+            else
+                sreMessage(SRE_MESSAGE_LOG, "Shadow map required for light %d.",
+                    sre_internal_current_light->id);
         }
 #endif
 

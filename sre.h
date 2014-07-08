@@ -110,11 +110,20 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define SRE_GEOMETRY_SCISSORS_OBJECT_AREA_THRESHOLD (0.4f * 0.4f)
 #define SRE_GEOMETRY_SCISSORS_LIGHT_AREA_THRESHOLD (0.5f * 0.5f)
 // The size of the shadow buffer in pixels (n x n) for directional lights.
-#define SRE_SHADOW_BUFFER_SIZE 2048
-// The size of the shadow buffers for point source light cube maps (x6).
-#define SRE_CUBE_SHADOW_BUFFER_SIZE 512
+#define SRE_SHADOW_MAP_SIZE 2048
+// The largest size of the shadow maps for point source light cube maps (GL 3+).
+#define SRE_MAX_CUBE_SHADOW_MAP_SIZE_OPENGL 2048
+// The projected size above which the largest cube shadow map is triggered; the threshold is
+// halved for each subsequent level with a cube shadow map half the size.
+#define SRE_MAX_CUBE_SHADOW_MAP_SIZE_THRESHOLD_OPENGL 5.12f
+// The largest size of the shadow maps for point source light cube maps (GL-ES 2.0).
+#define SRE_MAX_CUBE_SHADOW_MAP_SIZE_GLES2 256
+#define SRE_MAX_CUBE_SHADOW_MAP_SIZE_THRESHOLD_GLES2 1.28f
+// The maximum number of cube shadow map levels.
+#define SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL 6
+#define SRE_MAX_CUBE_SHADOW_MAP_LEVELS_GLES2 4
 // The size of the shadow buffer for used for spot and beam lights.
-#define SRE_SMALL_SHADOW_BUFFER_SIZE 512
+#define SRE_SMALL_SHADOW_MAP_SIZE 512
 // The maximum depth for the octrees used for scene entities (objects and lights).
 #define SRE_MAX_OCTREE_DEPTH 12
 

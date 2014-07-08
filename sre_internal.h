@@ -48,10 +48,10 @@ extern bool sre_internal_reselect_shaders;
 extern bool sre_internal_use_depth_clamping;
 extern void (*sreDrawTextOverlayFunc)();
 extern SRE_GLUINT sre_internal_depth_texture;
-extern SRE_GLUINT sre_internal_depth_cube_map_texture;
+extern SRE_GLUINT sre_internal_depth_cube_map_texture[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL];
 extern SRE_GLUINT sre_internal_shadow_map_framebuffer;
 extern SRE_GLUINT sre_internal_cube_shadow_map_framebuffer;
-extern SRE_GLUINT sre_internal_cube_shadow_map_subframebuffer[6];
+extern SRE_GLUINT sre_internal_cube_shadow_map_subframebuffer[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL][6];
 extern SRE_GLUINT sre_internal_small_depth_texture;
 extern SRE_GLUINT sre_internal_small_shadow_map_framebuffer;
 extern SRE_GLUINT sre_internal_HDR_color_texture;
@@ -99,6 +99,9 @@ extern int sre_internal_silhouette_count;
 extern int sre_internal_rendering_flags;
 extern int sre_internal_max_texture_size;
 extern int sre_internal_texture_detail_flags;
+extern int sre_internal_max_cube_shadow_map_size;
+extern int sre_internal_current_cube_shadow_map_index;
+extern int sre_internal_nu_cube_shadow_map_size_levels;
 
 extern Matrix3D *sre_internal_standard_UV_transformation_matrix;
 

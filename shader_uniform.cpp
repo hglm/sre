@@ -468,9 +468,11 @@ static void GL3InitializeShaderWithSmallShadowMapTexture() {
 static void GL3InitializeShaderWithCubeShadowMapTexture() {
     glActiveTexture(GL_TEXTURE4);
 #if defined(OPENGL_ES2) || defined(NEW_SHADOW_METHOD)
-    glBindTexture(GL_TEXTURE_CUBE_MAP, sre_internal_depth_cube_map_texture);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, sre_internal_depth_cube_map_texture[
+        sre_internal_current_cube_shadow_map_index]);
 #else
-    glBindTexture(GL_TEXTURE_2D_ARRAY, sre_internal_depth_cube_map_texture);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, sre_internal_depth_cube_map_texture[
+        sre_internal_current_cube_shadow_map_index]);
 #endif
 }
 

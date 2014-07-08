@@ -250,6 +250,12 @@ Bugs as of July 2014:
 - In demo1, the red spotlight light occasionally disappears (visible
   on the pool edge).
 
+- The shadow map visualization option ('u') does not work for point
+  light cube maps.
+
+- The octree generation is broken, all objects go into a single node,
+  adverse affecting performance.
+
 3. Potential improvements that are not yet implemented.
 
 - There is no real scene graph except for an optimized octree. A
@@ -411,6 +417,10 @@ Bugs as of July 2014:
   beam) and pick a size for each light corresponding to the on-screen
   projection size of the light volume. This should improve performance
   when there a lot of local lights in the distance.
+
+- The determination of whether a potential shadow casting object
+  intersects with cube shadow map segment could be optimized in terms of
+  code speed.
 
 --- LICENSE --
 
