@@ -253,9 +253,6 @@ Bugs as of July 2014:
 - The shadow map visualization option ('u') does not work for point
   light cube maps.
 
-- The octree generation is broken, all objects go into a single node,
-  adverse affecting performance.
-  
 3. Potential improvements that are not yet implemented.
 
 - There is no real scene graph except for an optimized octree. A

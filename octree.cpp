@@ -409,7 +409,8 @@ sreBoundingVolumeAABB *octant_AABB) {
 void Octree::AddEntitiesBalanced(int nu_input_entities, sreSceneEntity *input_entity_array,
 int depth) {
 //    printf("AddEntitiesBalanced (nu_input_entities = %d)\n", nu_input_entities);
-//    printf("Octree dimensions %f, %f, %f.\n", AABB.dim_max.x - AABB.dim_min.x, AABB.dim_max.y - AABB.dim_min.y, AABB.dim_max.z - AABB.dim_min.z);
+//    printf("Octree dimensions %f, %f, %f.\n", AABB.dim_max.x - AABB.dim_min.x, AABB.dim_max.y
+//      - AABB.dim_min.y, AABB.dim_max.z - AABB.dim_min.z);
     if (depth >= SRE_MAX_OCTREE_DEPTH) {
         entity_array = new sreSceneEntity[nu_input_entities];
         nu_entities = 0;
@@ -715,32 +716,32 @@ int depth) {
         default :
             if (k >= 2 && k < 10) {
                 // Try a middle point offset into each of the eight octants.
-                float dx = (((k - 2) & 1) * 2.0 - 1.0) * (AABB.dim_max.x - AABB.dim_min.x) * MIDDLE_OFFSET;
-                float dy = (((k - 2) & 2) * 1.0 - 1.0) * (AABB.dim_max.y - AABB.dim_min.y) * MIDDLE_OFFSET;
-                float dz = (((k - 2) & 4) * 0.5f - 1.0) * (AABB.dim_max.z - AABB.dim_min.z) * MIDDLE_OFFSET;
+                float dx = ((float)((k - 2) & 1) * 2.0f - 1.0f) * (AABB.dim_max.x - AABB.dim_min.x) * MIDDLE_OFFSET;
+                float dy = ((float)((k - 2) & 2) * 1.0f - 1.0f) * (AABB.dim_max.y - AABB.dim_min.y) * MIDDLE_OFFSET;
+                float dz = ((float)((k - 2) & 4) * 0.5f - 1.0f) * (AABB.dim_max.z - AABB.dim_min.z) * MIDDLE_OFFSET;
                 middle_point = Point3D(sphere.center.x + dx, sphere.center.y + dy, sphere.center.z + dz);
                 break;
             }
             if (k >= 16 && k < 20) {
                 // Try a middle point offset into each of the four x/y quadtree quarters.
-                float dx = (((k - 16) & 1) * 2.0 - 1.0) * (AABB.dim_max.x - AABB.dim_min.x) * MIDDLE_OFFSET;
-                float dy = (((k - 16) & 2) * 1.0 - 1.0) * (AABB.dim_max.y - AABB.dim_min.y) * MIDDLE_OFFSET;
+                float dx = ((float)((k - 16) & 1) * 2.0f - 1.0f) * (AABB.dim_max.x - AABB.dim_min.x) * MIDDLE_OFFSET;
+                float dy = ((float)((k - 16) & 2) * 1.0f - 1.0f) * (AABB.dim_max.y - AABB.dim_min.y) * MIDDLE_OFFSET;
                 middle_point = Point3D(sphere.center.x + dx, sphere.center.y + dy, AABB.dim_max.z);
                 nu_octants = 4;
                 break;
             }
             if (k >= 20 && k < 24) {
                 // Try a middle point offset into each of the four y/z quadtree quarters.
-                float dy = (((k - 20) & 1) * 2.0 - 1.0) * (AABB.dim_max.y - AABB.dim_min.y) * MIDDLE_OFFSET;
-                float dz = (((k - 20) & 2) * 1.0 - 1.0) * (AABB.dim_max.z - AABB.dim_min.z) * MIDDLE_OFFSET;
+                float dy = ((float)((k - 20) & 1) * 2.0f - 1.0f) * (AABB.dim_max.y - AABB.dim_min.y) * MIDDLE_OFFSET;
+                float dz = ((float)((k - 20) & 2) * 1.0f - 1.0f) * (AABB.dim_max.z - AABB.dim_min.z) * MIDDLE_OFFSET;
                 middle_point = Point3D(AABB.dim_max.x, sphere.center.y + dy, sphere.center.z + dz);
                 nu_octants = 4;
                 break;
             }
             if (k >= 24 && k < 28) {
                 // Try a middle point offset into each of the four x/z quadtree quarters.
-                float dx = (((k - 24) & 1) * 2.0 - 1.0) * (AABB.dim_max.x - AABB.dim_min.x) * MIDDLE_OFFSET;
-                float dz = (((k - 24) & 2) * 1.0 - 1.0) * (AABB.dim_max.z - AABB.dim_min.z) * MIDDLE_OFFSET;
+                float dx = ((float)((k - 24) & 1) * 2.0f - 1.0f) * (AABB.dim_max.x - AABB.dim_min.x) * MIDDLE_OFFSET;
+                float dz = ((float)((k - 24) & 2) * 1.0f - 1.0f) * (AABB.dim_max.z - AABB.dim_min.z) * MIDDLE_OFFSET;
                 middle_point = Point3D(sphere.center.x + dx, AABB.dim_max.y, sphere.center.z + dz);
                 nu_octants = 4;
                 break;
@@ -748,6 +749,9 @@ int depth) {
         }
         // In the case of a quadtree subdivision four of the octants will be empty.
         CalculateOctantAABBs(nu_octants, AABB, middle_point, octant_AABB);
+        char *middle_point_str = middle_point.GetString();
+//        sreMessage(SRE_MESSAGE_LOG, "Trying middle point %s.", middle_point_str);
+        delete [] middle_point_str;
         // Count the number of entities that do not fit entirely in one subnode.
         int left_over_entities = nu_input_entities;
         for (int i = 0; i < nu_input_entities; i++)
@@ -763,6 +767,8 @@ int depth) {
                     left_over_entities--;
                     break;
                 }
+//        sreMessage(SRE_MESSAGE_LOG, "Octree node split method %d has %d left over entities.",
+//            k, min_left_over_entities);
         if (left_over_entities < min_left_over_entities) {
             min_left_over_entities = left_over_entities;
             best_middle_point = middle_point;
@@ -773,6 +779,8 @@ int depth) {
         }
     }
     CalculateOctantAABBs(best_nu_octants, AABB, best_middle_point, octant_AABB);
+    sreMessage(SRE_MESSAGE_LOG, "Octree node split with %d left over entities.",
+        min_left_over_entities);
 
     // Add entities that fit entirely in one node into the array for that node.
     sreSceneEntity *subnode_entity_array[8];
@@ -1078,7 +1086,39 @@ void sreScene::CreateOctrees() {
         (!(light[i]->type & SRE_LIGHT_DYNAMIC_LIGHT_VOLUME) ||
         (light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE)))
             UpdateAABB(AABB, light[i]->AABB);
-    // Calculate the minimum and maximum extents of all three dimensions combined.
+
+    sreBoundingVolumeAABB root_AABB;
+    if (sre_internal_octree_type == SRE_OCTREE_BALANCED ||
+    sre_internal_octree_type == SRE_QUADTREE_XY_BALANCED) {
+        // Octree is of a type that is dynamically balanced during creation by varying the
+        // middle point of each node.
+        // Calculate the extents in all three dimensions.
+        Vector3D extents = AABB.dim_max - AABB.dim_min;
+        int largest_dim = 0;
+        if (extents.y > extents.x) {
+            largest_dim = 1;
+            if (extents.z > extents.y)
+                largest_dim = 2;
+        }
+        else if (extents.z > extents.x)
+            largest_dim = 2;
+        float max_extents = extents[largest_dim];
+        max_extents += 0.0001f * max_extents;
+        root_AABB.dim_min[largest_dim] = AABB.dim_min[largest_dim];
+        root_AABB.dim_max[largest_dim] = AABB.dim_max[largest_dim];
+        // Put the scene contents for the two non-largest dimensions in the center of the root AABB.
+        // Balancing will make sure this won't be a problem.
+        for (int i = 0; i < 3; i++)
+            if (i != largest_dim) {
+                float space = (max_extents - extents[i]) * 0.5f;
+                root_AABB.dim_min[i] = AABB.dim_min[i] - space;
+                root_AABB.dim_max[i] = AABB.dim_max[i] + space;
+            }
+        goto create_octrees;
+    }
+
+    // The octree is of a more regular type.
+    {
     float minxyz = min3f(AABB.dim_min.x, AABB.dim_min.y, AABB.dim_min.z);
     float maxxyz = max3f(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_max.z);
     float max_dim = maxxyz - minxyz;
@@ -1086,7 +1126,7 @@ void sreScene::CreateOctrees() {
     minxyz -= 0.001f * max_dim;
     maxxyz += 0.001f * max_dim;
     max_dim = maxxyz - minxyz;
-
+    
     // When there is one relatively flat dimension (commonly z in a scene with a objects on the
     // ground), we want to avoid to have the ground level (z = 0) very close to a top-level octree
     // node boundary level because most objects on the ground are likely to have bounding volumes
@@ -1098,7 +1138,6 @@ void sreScene::CreateOctrees() {
     // Note: This only helps for regular power-of-2 octrees like SRE_OCTREE_STRICT; it won't help
     // for the default SRE_OCTREE_BALANCED octrees because the node size is variable. However, the
     // balanced octree should be able for the most part to avoid the problem automatically.
-    sreBoundingVolumeAABB root_AABB;
     for (int i = 0; i < 3; i++) {
         float dim_offset = 0;
         // Calculate the deepest octree depth (smallest octree node size) for which all
@@ -1136,6 +1175,14 @@ void sreScene::CreateOctrees() {
         root_AABB.dim_min[i] = minxyz + dim_offset;
         root_AABB.dim_max[i] = maxxyz + dim_offset;
     }
+    }
+
+create_octrees :
+    char *min_str = root_AABB.dim_min.GetString();
+    char *max_str = root_AABB.dim_max.GetString();
+    sreMessage(SRE_MESSAGE_LOG, "Root octree dimensions: min %s, max %s.", min_str, max_str);
+    delete [] min_str;
+    delete [] max_str;
 
     // Create static octree and set dimensions.
     Octree octree_static;

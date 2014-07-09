@@ -1196,7 +1196,8 @@ bool IsCompletelyInside(const sreBoundingVolumeAABB& AABB1, const sreBoundingVol
          simd128_cmplt_float(m_dim_min1, m_dim_min2),
          simd128_cmpgt_float(m_dim_max1, m_dim_max2)
          );
-     if (simd128_convert_masks_int32_int1(m_comp) != 0)
+     // The fourth element (fourth bit) result is undefined so mask it out.
+     if ((simd128_convert_masks_int32_int1(m_comp) & 0x7) != 0)
          return false;
 #else
     if (AABB1.dim_min.x < AABB2.dim_min.x)
