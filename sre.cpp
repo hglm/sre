@@ -62,6 +62,7 @@ SRE_GLUINT sre_internal_depth_texture[SRE_MAX_SHADOW_MAP_LEVELS_OPENGL];
 SRE_GLUINT sre_internal_shadow_map_framebuffer[SRE_MAX_SHADOW_MAP_LEVELS_OPENGL];
 SRE_GLUINT sre_internal_depth_cube_map_texture[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL];
 SRE_GLUINT sre_internal_cube_shadow_map_framebuffer[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL][6];
+SRE_GLUINT sre_internal_current_depth_cube_map_texture;
 SRE_GLUINT sre_internal_HDR_multisample_color_renderbuffer = 0;
 SRE_GLUINT sre_internal_HDR_multisample_depth_renderbuffer = 0;
 SRE_GLUINT sre_internal_HDR_color_texture = 0;

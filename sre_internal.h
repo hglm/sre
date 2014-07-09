@@ -103,6 +103,7 @@ extern int sre_internal_nu_shadow_map_size_levels;
 extern int sre_internal_max_cube_shadow_map_size;
 extern int sre_internal_current_cube_shadow_map_index;
 extern int sre_internal_nu_cube_shadow_map_size_levels;
+extern SRE_GLUINT sre_internal_current_depth_cube_map_texture;
 
 extern Matrix3D *sre_internal_standard_UV_transformation_matrix;
 

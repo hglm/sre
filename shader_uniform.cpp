@@ -459,8 +459,7 @@ static void GL3InitializeShaderWithShadowMapTexture() {
 
 static void GL3InitializeShaderWithCubeShadowMapTexture() {
     glActiveTexture(GL_TEXTURE4);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, sre_internal_depth_cube_map_texture[
-        sre_internal_current_cube_shadow_map_index]);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, sre_internal_current_depth_cube_map_texture);
 }
 
 void sreBindShadowMapTexture(sreLight *light) {

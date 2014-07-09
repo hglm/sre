@@ -81,6 +81,11 @@ static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
         GL3InitializeShadowMapShader(*so);
     glEnableVertexAttribArray(0);
     sreLODModel *m = sreCalculateLODModel(*so);
+
+    // Disable front-face culling for non-closed models.
+    if (m->flags & SRE_LOD_MODEL_NOT_CLOSED)
+        glDisable(GL_CULL_FACE);
+
     glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
     // XXX Should take interleaved attributes into account.
     glVertexAttribPointer(
@@ -122,6 +127,9 @@ static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
     glDisableVertexAttribArray(0);
     if (so->render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE)
         glDisableVertexAttribArray(1);
+    if (m->flags & SRE_LOD_MODEL_NOT_CLOSED)
+        glEnable(GL_CULL_FACE);
+
 //    object_count++;
 }
 
@@ -530,7 +538,9 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_shadow_map_framebuffer[
         sre_internal_current_shadow_map_index]);
 #endif
-    glDisable(GL_CULL_FACE);
+    glEnable(GL_CULL_FACE);
+    // Using front-face culling (only drawing back faces) reduces shadow map artifacts.
+    glCullFace(GL_FRONT);
     glDepthFunc(GL_LESS);
 #if !defined(NO_DEPTH_CLAMP)
     if (sre_internal_use_depth_clamping)
@@ -558,6 +568,7 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, sre_internal_window_width, sre_internal_window_height);
     glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
 #if !defined(NO_DEPTH_CLAMP)
     // Restore the normal setting.
     if (sre_internal_use_depth_clamping)
@@ -589,7 +600,9 @@ static void BindAndClearCubeMap(int i) {
 
 void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sreFrustum &frustum) {
 //    sreMessage(SRE_MESSAGE_LOG, "Rendering cube shadow map for point light %d.", light.id);
-        glDisable(GL_CULL_FACE);
+        glEnable(GL_CULL_FACE);
+        // Using front-face culling (only drawing back faces) reduces shadow map artifacts.
+        glCullFace(GL_FRONT);
         glDepthFunc(GL_LESS);
 #if !defined(NO_DEPTH_CLAMP)
         if (sre_internal_use_depth_clamping)
@@ -623,16 +636,17 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
         glViewport(0, 0,
             sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index,
             sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index);
+        // In the new shadow map method, the distance scaling is the same for all segments
+        // (light volume radius corresponds to [0, 1]).
+        GL3UpdateCubeShadowMapSegmentDistanceScaling((1.0f / light.sphere.radius) * 0.999f);
+        GL3InitializeShadowMapShadersWithSegmentDistanceScaling();
 
+        int cube_map_mask = 0;
         for (int i = 0; i < 6; i++) {
             // Immediately skip the segment if no shadow casting objects where found to be inside it.
             if (!(segment_non_empty_mask & (1 << i))) {
-                BindAndClearCubeMap(i);
                 continue;
             }
-            // In the new shadow map method, the distance scaling is the same for all segments
-            // (light volume radius corresponds to [0, 1]).
-            GL3UpdateCubeShadowMapSegmentDistanceScaling((1.0f / light.sphere.radius) * 0.999f);
 
             float zmax, xmin, xmax, ymin, ymax;
             float zmax_casters, zmin_casters;
@@ -705,30 +719,38 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
                 // If the segment has no casters or receivers, skip it.
                 // Also skip if the casters bounds are completely beyond the receivers bounds in z.
                 skip = true;
-            // Bind the framebuffer with correct cube face.
-            BindAndClearCubeMap(i);
-            if (skip) {
+            if (skip)
                 continue;
-            }
-#if 0
-            // Determine the maximum distance within the cube segment
-            float distmax_squared = SquaredMag(Vector3D(xmin, ymin, zmax));
-            float dist_squared = SquaredMag(Vector3D(xmax, ymin, zmax));
-            distmax_squared = maxf(distmax_squared, dist_squared);
-            dist_squared = SquaredMag(Vector3D(xmin, ymax, zmax));
-            distmax_squared = maxf(distmax_squared, dist_squared);
-            dist_squared = SquaredMag(Vector3D(xmax, ymax, zmax));
-            distmax_squared = maxf(distmax_squared, dist_squared);
-            distmax_squared *= 1.001f; // Avoid precision problems at the end of the range.
-            // Scale [0, 1.0].
-            shadow_cube_segment_distance_scaling[i] = 1.0f / sqrtf(distmax_squared);
-#endif
+            cube_map_mask |= (1 << i);
+            // Bind the framebuffer with correct cube face and clear the cube map segment.
+            BindAndClearCubeMap(i);
             GL3CalculateCubeShadowMapMatrix(light.vector.GetVector3D(), cube_map_zdir[i],
                 cube_map_up_vector[i], zmax);
             CHECK_GL_ERROR("Error after glFramebufferTextureLayer\n");
-            GL3InitializeShadowMapShadersWithSegmentDistanceScaling();
             RenderCubeShadowMapFromCasterArray(scene, light, i);
         }
+
+    // Set the current cube map texture.
+#if 1
+    sre_internal_current_depth_cube_map_texture = sre_internal_depth_cube_map_texture[
+        sre_internal_current_cube_shadow_map_index];
+#else
+    // When all faces are used, just use the pre-initialized cubemap with all six faces.
+    // Otherwise, only use the non-empty cube-map faces and use a small, light-weight
+    // empty texture for the empty faces.
+    if (cube_map_mask == 0x3F)
+         sre_internal_current_depth_cube_map_texture = sre_internal_depth_cube_map_texture[
+             sre_internal_current_cube_shadow_map_index];
+    else {
+        for (int i = 0; i < 6; i++)
+            if (cube_map_mask & (1 << i))
+                glTexImage2D(cube_map_target[i], 0, GL_DEPTH_COMPONENT, size, size, 0,
+                    GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, 0);
+            // To odo.
+    }
+#endif
+
+    // Restore framebuffer, viewport and other GL state parameters.
     if (sre_internal_HDR_enabled)
         glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_HDR_multisample_framebuffer);
     else
@@ -736,6 +758,7 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
     CHECK_GL_ERROR("Error after glBindFramebuffer(0)\n");
     glViewport(0, 0, sre_internal_window_width, sre_internal_window_height);
     glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
 #if !defined(NO_DEPTH_CLAMP)
     // Restore the normal setting.
     if (sre_internal_use_depth_clamping)
@@ -853,7 +876,9 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
 #endif
     glViewport(0, 0, sre_internal_max_shadow_map_size, sre_internal_max_shadow_map_size);
     CHECK_GL_ERROR("Error after glBindFramebuffer\n");
-    glDisable(GL_CULL_FACE);
+    glEnable(GL_CULL_FACE);
+    // Using front-face culling (only drawing back faces) reduces shadow map artifacts.
+    glCullFace(GL_FRONT);
     glDepthFunc(GL_LESS);
 #if !defined(NO_DEPTH_CLAMP)
     if (sre_internal_use_depth_clamping)
@@ -1089,6 +1114,7 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, sre_internal_window_width, sre_internal_window_height);
     glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
 #if !defined(NO_DEPTH_CLAMP)
     // Restore the normal setting.
     if (sre_internal_use_depth_clamping)
