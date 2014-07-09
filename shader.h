@@ -262,8 +262,6 @@ extern const sreBuiltinShaderTable sre_builtin_shader_table[];
 
 // shader_uniform.cpp
 
-extern float shadow_cube_segment_distance_scaling[6];
-
 // void sreInitializeShader(const sreObject& so);
 void sreInitializeLightingShaderUniformWithDefaultValue(int uniform_id, int loc);
 void sreInitializeMiscShaderUniformWithDefaultValue(int uniform_id, int loc);

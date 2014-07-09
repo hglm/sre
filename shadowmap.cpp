@@ -632,7 +632,7 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
             }
             // In the new shadow map method, the distance scaling is the same for all segments
             // (light volume radius corresponds to [0, 1]).
-            shadow_cube_segment_distance_scaling[i] = (1.0f / light.sphere.radius) * 0.999f;
+            GL3UpdateCubeShadowMapSegmentDistanceScaling((1.0f / light.sphere.radius) * 0.999f);
 
             float zmax, xmin, xmax, ymin, ymax;
             float zmax_casters, zmin_casters;
@@ -726,7 +726,7 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
             GL3CalculateCubeShadowMapMatrix(light.vector.GetVector3D(), cube_map_zdir[i],
                 cube_map_up_vector[i], zmax);
             CHECK_GL_ERROR("Error after glFramebufferTextureLayer\n");
-            GL3InitializeShadowMapShadersWithSegmentDistanceScaling(shadow_cube_segment_distance_scaling[i]);
+            GL3InitializeShadowMapShadersWithSegmentDistanceScaling();
             RenderCubeShadowMapFromCasterArray(scene, light, i);
         }
     if (sre_internal_HDR_enabled)
@@ -1295,8 +1295,6 @@ void sreVisualizeCubeMap(int light_index) {
     sreSetImageParameters(SRE_IMAGE_SET_COLORS | SRE_IMAGE_SET_TRANSFORM,
         cube_visualization_colors, NULL);
     for (int i = 0; i < 3; i++) {
-        if (shadow_cube_segment_distance_scaling[order[i]] < 0)
-            continue;
         // Update the scratch texture.
         glBindFramebuffer(GL_READ_FRAMEBUFFER,
             sre_internal_cube_shadow_map_framebuffer[sre_internal_current_cube_shadow_map_index]
@@ -1311,8 +1309,6 @@ void sreVisualizeCubeMap(int light_index) {
         sreDrawImage(i * w_step, 0, w, h);
     }
     for (int i = 0; i < 3; i++) {
-        if (shadow_cube_segment_distance_scaling[order[i + 3]] < 0)
-            continue;
         // Update the scratch texture.
         glBindFramebuffer(GL_READ_FRAMEBUFFER,
             sre_internal_cube_shadow_map_framebuffer[sre_internal_current_cube_shadow_map_index]
@@ -1327,31 +1323,6 @@ void sreVisualizeCubeMap(int light_index) {
         sreDrawImage(i * w_step, h * 1.04, w, h);
     }
     glDeleteTextures(1, &scratch_texture);
-#if 0
-    // This code is no longer used.
-    // Set the source to the cube depth texture array.
-    sreSetImageSource(SRE_IMAGE_SET_TEXTURE_ARRAY | SRE_IMAGE_SET_ONE_COMPONENT_SOURCE,
-        sre_internal_depth_cube_map_texture[sre_internal_current_cube_shadow_map_index], 0);
-    // Set the colors and the default texture coordinate transform (NULL).
-    sreSetImageParameters(SRE_IMAGE_SET_COLORS | SRE_IMAGE_SET_TRANSFORM,
-        cube_visualization_colors, NULL);
-    for (int i = 0; i < 3; i++) {
-        if (shadow_cube_segment_distance_scaling[order[i]] < 0)
-            continue;
-        // Update only the array index.
-        sreSetImageSource(SRE_IMAGE_SET_TEXTURE_ARRAY_INDEX, 0, order[i]);
-        // Set the uv transformation so that the cube-map is oriented conviently.
-        sreSetImageParameters(SRE_IMAGE_SET_TRANSFORM, NULL, &cube_uv_transform[i]);
-        sreDrawImage(i * w_step, 0, w, h);
-    }
-    for (int i = 0; i < 3; i++) {
-        if (shadow_cube_segment_distance_scaling[order[i + 3]] < 0)
-            continue;
-        sreSetImageSource(SRE_IMAGE_SET_TEXTURE_ARRAY_INDEX, 0, order[i + 3]);
-        sreSetImageParameters(SRE_IMAGE_SET_TRANSFORM, NULL, &cube_uv_transform[i + 3]);
-        sreDrawImage(i * w_step, h * 1.04, w, h);
-    }
-#endif
 
     // Draw labels.
     sreSetTextParameters(SRE_IMAGE_SET_COLORS, NULL, NULL); // Set default text colors.
@@ -1359,17 +1330,20 @@ void sreVisualizeCubeMap(int light_index) {
     for (int i = 0; i < 3; i++) {
         sreSetTextParameters(SRE_TEXT_SET_FONT_SIZE, NULL, &font_size1);
         sreDrawText(cube_map_name[i], i * w_step + w * 0.40, h - 0.06);
-        if (shadow_cube_segment_distance_scaling[order[i]] < 0)
+#if 0
+        if (shadow_cube_segment_distance_scaling < 0)
             sreDrawText("(Empty)", i * w_step + centered_x_offset, h * 0.5 - 0.015);
         else {
-            sprintf(s, "(Range %.1f)", 1.0f / shadow_cube_segment_distance_scaling[order[i]]);
+            sprintf(s, "(Range %.1f)", 1.0f / shadow_cube_segment_distance_scaling);
             sreSetTextParameters(SRE_TEXT_SET_FONT_SIZE, NULL, &font_size2);
             sreDrawTextCentered(s, i * w_step, h - 0.025, w);
         }
+#endif
     }
     for (int i = 0; i < 3; i++) {
         sreSetTextParameters(SRE_TEXT_SET_FONT_SIZE, NULL, &font_size1);
         sreDrawText(cube_map_name[i + 3], i * w_step + w * 0.40, h * 1.04 + h - 0.06);
+#if 0
         if (shadow_cube_segment_distance_scaling[order[i + 3]] < 0)
             sreDrawText("(Empty)", i * w_step + centered_x_offset, h * 1.04 + h * 0.5 - 0.015);
         else {
@@ -1377,6 +1351,7 @@ void sreVisualizeCubeMap(int light_index) {
             sreSetTextParameters(SRE_TEXT_SET_FONT_SIZE, NULL, &font_size2);
             sreDrawTextCentered(s, i * w_step, h * 1.04 + h - 0.025, w);
         }
+#endif
     }
 }
 

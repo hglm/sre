@@ -253,8 +253,6 @@ Bugs as of July 2014:
 - The shadow map visualization option ('u') does not work correctly
   for point light cube shadow maps and spot light shadow maps.
 
-- The point light shadow in demo7 only shows up after a few seconds.
-
 - The shadow of the second spotlight in demo1 disappears sometimes.
 
 3. Potential improvements that are not yet implemented.

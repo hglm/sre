@@ -22,8 +22,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 //
 // It has been written to be compatible with both OpenGL 2.0+ and OpenGL ES 2.0.
 
-#define NEW_SHADOW_MAP_METHOD
-
 #ifdef GL_ES
 // On architectures that support high precision floats in the fragment shader,
 // colors might be more accurate when the default float precision is high.
@@ -101,12 +99,8 @@ uniform mat4 shadow_map_transformation_matrix;
 uniform sampler2D shadow_map_in;
 #endif
 #ifdef SHADOW_CUBE_MAP
-#ifdef NEW_SHADOW_MAP_METHOD
 uniform samplerCube cube_shadow_map_in;
-#else
-uniform sampler2DArray cube_shadow_map_in;
-#endif
-uniform float segment_distance_scaling_in[6];
+uniform float segment_distance_scaling_in;
 #endif
 #if !defined(MULTI_COLOR_OPTION) && !defined(MULTI_COLOR_FIXED)
 uniform vec3 diffuse_reflection_color_in;
@@ -494,7 +488,6 @@ void main() {
 #endif
 
 #ifdef SHADOW_CUBE_MAP
-#ifdef NEW_SHADOW_MAP_METHOD
 	// Use an optimized method using built-in cube map texture look up functions.
 	vec3 cube_space_vector = position_world_var.xyz - light_position_in.xyz;
 	// Look up radial distance where shadow begins from the cube map.
@@ -502,82 +495,13 @@ void main() {
         // Calculate the radial distance of the world position from the light position,
         // and scale it so that the range [0, 1] corresponds to the values stored in the
         // shadow map segments.
-	float radial_dist = length(cube_space_vector) * segment_distance_scaling_in[0];
+	float radial_dist = length(cube_space_vector) * segment_distance_scaling_in;
 
 	float bias = 0.001 * tan(acos(clamp(dot(normal, L), 0.0, 1.0)));
         bias = clamp(bias, 0.0, 0.002);
 	// The distances are scaled to [0, 1.0].
 	if (shadow_radial_dist < radial_dist - bias)
 		discard;
-#else
-	const vec3 face_axis[6] = vec3[](
-		vec3(1.0, 0.0, 0.0),
-		vec3(- 1.0, 0.0, 0.0),
-		vec3(0.0, 1.0, 0.0),
-		vec3(0.0, - 1.0, 0.0),
-		vec3(0.0, 0.0, 1.0),
-		vec3(0.0, 0.0, -1.0)
-	);
-	// Note: It should be possible to optimize this by reducing the amount
-        // of conditionals.
-	int face;
-        float max_dot = - 1.0;
-	vec3 stp = position_world_var.xyz - light_position_in.xyz;
-	for (int i = 0; i < 6; i++) {
-		float v = dot(face_axis[i], stp);
-		if (v > max_dot) {
-			max_dot = v;
-			face = i;
-		}
-	}
-	if (segment_distance_scaling_in[face] >= 0.0) {
-		// Segment is not empty.
-#ifndef GL_ES
-		float s, t;
-		switch (face) {
-		case 0 :
-			s = 0.5 - 0.5 * stp.z / stp.x;
-			t = 0.5 - 0.5 * stp.y / stp.x;
-			break;
-		case 1 :
-			s = 0.5 - 0.5 * stp.z / stp.x;
-			t = 0.5 + 0.5 * stp.y / stp.x;
-			break;
-		case 2 :
-			s = 0.5 + 0.5 * stp.x / stp.y;
-			t = 0.5 + 0.5 * stp.z / stp.y;
-			break;
-		case 3 :
-			s = 0.5 - 0.5 * stp.x / stp.y;
-			t = 0.5 + 0.5 * stp.z / stp.y;
-			break;
-		case 4 :
-			s = 0.5 + 0.5 * stp.x / stp.z;
-			t = 0.5 - 0.5 * stp.y / stp.z;
-			break;
-		case 5 :
-			s = 0.5 + 0.5 * stp.x / stp.z;
-			t = 0.5 + 0.5 * stp.y / stp.z;
-			break;
-		}
-#endif
-		float d = distance(position_world_var.xyz, light_position_in.xyz) *
-			segment_distance_scaling_in[face];
-		// If d > 1.0, the fragment is within the light volume but outside the shadow caster volume for the light.
-		if (d <= 1.0) {
-			float bias = 0.001 * tan(acos(clamp(dot(normal, L), 0.0, 1.0)));
-		        bias = clamp(bias, 0.0, 0.002);
-#ifdef GL_ES
-			float z = texture(cube_shadow_map_in, stp).z;
-#else
-			float z = texture(cube_shadow_map_in, vec3(s, t, face)).z;
-#endif
-        	        // The distances are scaled to [0, 1.0].
-			if (z < d - bias)
-				discard;
-		}
-	}
-#endif
 #endif
 
 	LOWP vec3 light_color = light_color_in;

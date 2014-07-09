@@ -38,11 +38,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // Shadow cube map parameters.
 
-float shadow_cube_segment_distance_scaling[6];
+static float sre_internal_shadow_cube_segment_distance_scaling;
 
-void GL3UpdateCubeShadowMapSegmentDistanceScaling(float *segment_distance_scaling) {
-    for (int i = 0; i < 6; i++)
-        shadow_cube_segment_distance_scaling[i] = segment_distance_scaling[i];
+void GL3UpdateCubeShadowMapSegmentDistanceScaling(float segment_distance_scaling) {
+    sre_internal_shadow_cube_segment_distance_scaling = segment_distance_scaling;
 }
 
 // Functions to update shader uniforms are defined below. This includes functions
@@ -476,7 +475,7 @@ void sreBindShadowMapTexture(sreLight *light) {
 }
 
 static void GL3InitializeShaderWithCubeSegmentDistanceScaling(int loc) {
-    glUniform1fv(loc, 6, (GLfloat *)&shadow_cube_segment_distance_scaling[0]);
+    glUniform1f(loc, sre_internal_shadow_cube_segment_distance_scaling);
 }
 
 #endif
@@ -909,16 +908,18 @@ void GL3InitializeShadowMapShadersBeforeLight() {
     }
 }
 
-void GL3InitializeShadowMapShadersWithSegmentDistanceScaling(float scaling) {
+void GL3InitializeShadowMapShadersWithSegmentDistanceScaling() {
     if (misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP].status == SRE_SHADER_STATUS_LOADED) {
         glUseProgram(misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP].program);
         glUniform1f(misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP].
-            uniform_location[UNIFORM_MISC_SEGMENT_DISTANCE_SCALING], scaling);
+            uniform_location[UNIFORM_MISC_SEGMENT_DISTANCE_SCALING],
+            sre_internal_shadow_cube_segment_distance_scaling);
     }
     if (misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT].status == SRE_SHADER_STATUS_LOADED) {
         glUseProgram(misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT].program);
         glUniform1f(misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT].
-            uniform_location[UNIFORM_MISC_SEGMENT_DISTANCE_SCALING], scaling);
+            uniform_location[UNIFORM_MISC_SEGMENT_DISTANCE_SCALING],
+            sre_internal_shadow_cube_segment_distance_scaling);
     }
 }
 

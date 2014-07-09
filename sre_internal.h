@@ -144,8 +144,8 @@ SRE_LOCAL void GL3InitializeShadowVolumeShader(const sreObject& so, const Vector
 SRE_LOCAL void GL3InitializeShadowMapShader(const sreObject& so);
 SRE_LOCAL void GL3InitializeProjectionShadowMapShader(const sreObject& so);
 SRE_LOCAL void GL3InitializeCubeShadowMapShader(const sreObject& so);
-SRE_LOCAL void GL3UpdateCubeShadowMapSegmentDistanceScaling(float *segment_distance_scaling);
-SRE_LOCAL void GL3InitializeShadowMapShadersWithSegmentDistanceScaling(float scaling);
+SRE_LOCAL void GL3UpdateCubeShadowMapSegmentDistanceScaling(float segment_distance_scaling);
+SRE_LOCAL void GL3InitializeShadowMapShadersWithSegmentDistanceScaling();
 SRE_LOCAL void sreBindShadowMapTexture(sreLight *light);
 SRE_LOCAL void GL3InitializeHDRLogLuminanceShader();
 SRE_LOCAL void GL3InitializeHDRAverageLuminanceShader();
