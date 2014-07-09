@@ -694,6 +694,15 @@ void sreScene::InvalidateLightingShaders(int soi) const {
             object[soi]->current_shader_shadow_map[i] = - 1;
 }
 
+void sreScene::InvalidateGeometryScissorsCache() const {
+    for (int i = 0; i < nu_objects; i++) {
+        if (object[i] == NULL)
+            continue;
+        object[i]->most_recent_frame_visible = - 1;
+        object[i]->geometry_scissors_cache_timestamp = - 1;
+    }
+}
+
 // Implementation of sreObjectList (actually a general linked list
 // for integers).
 

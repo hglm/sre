@@ -490,14 +490,46 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
 //    printf("Light %d, x_dir = (%f, %f, %f) y_dir = (%f, %f, %f) zmax = %f\n", light.id,
 //       x_dir.x, x_dir.y, x_dir.z, y_dir.x, y_dir.y, y_dir.z, zmax);
 
+    // Pick a shadow map size appropriate for the projected size of the light volume.
+    float threshold;
 #ifdef OPENGL_ES2
-    glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_small_shadow_map_framebuffer);
+    threshold = SRE_MAX_SHADOW_MAP_SIZE_THRESHOLD_GLES2;
 #else
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_small_shadow_map_framebuffer);
+    threshold = SRE_MAX_SHADOW_MAP_SIZE_THRESHOLD_OPENGL;
 #endif
-    // For performance reasons, and because spotlights don't need the full size of the shadow map
-    // that is required for directional lights, use a seperate smaller shadow buffer.
-    glViewport(0, 0, SRE_SMALL_SHADOW_MAP_SIZE, SRE_SMALL_SHADOW_MAP_SIZE);
+    // Adjust the threshold according to the window resolution (the base tresholds are
+    // calibrated for approximate FullHD resolution).
+    threshold *= 1920.0f / sre_internal_window_width;
+    // When the viewpoint is inside the light volume, use a lower threshold (higher resolution).
+    bool inside = false;
+    if (light.type & SRE_LIGHT_BEAM) {
+        if (Intersects(sre_internal_viewpoint, light.cylinder))
+            inside = true;
+    }
+    else
+        if (Intersects(sre_internal_viewpoint, light.spherical_sector))
+            inside = true;
+    if (inside)
+        threshold *= 0.5f;
+    for (int level = 0;; level++) {
+        if (light.projected_size >= threshold ||
+        level + 1 == sre_internal_nu_shadow_map_size_levels) {
+           sre_internal_current_shadow_map_index = level;
+           break;
+        }
+        threshold *= 0.5f;
+    }
+    glViewport(0, 0,
+        sre_internal_max_shadow_map_size >> sre_internal_current_shadow_map_index,
+        sre_internal_max_shadow_map_size >> sre_internal_current_shadow_map_index);
+
+#ifdef OPENGL_ES2
+    glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_shadow_map_framebuffer[
+        sre_internal_current_shadow_map_index);
+#else
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_shadow_map_framebuffer[
+        sre_internal_current_shadow_map_index]);
+#endif
     glDisable(GL_CULL_FACE);
     glDepthFunc(GL_LESS);
 #if !defined(NO_DEPTH_CLAMP)
@@ -534,15 +566,6 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
     return;
 }
 
-static GLint cube_map_target[6] = {
-    GL_TEXTURE_CUBE_MAP_POSITIVE_X,
-    GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
-    GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
-    GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
-    GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
-    GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
-};
-
 static Vector3D cube_map_zdir[6] = {
     Vector3D(1.0f, 0, 0), Vector3D(- 1.0f, 0, 0), Vector3D(0, 1.0f, 0),
     Vector3D(0, - 1.0f, 0), Vector3D(0, 0, 1.0f), Vector3D(0, 0, - 1.0f)
@@ -553,14 +576,12 @@ static Vector3D cube_map_up_vector[6] = {
     Vector3D(0, 0, - 1.0f), Vector3D(0, - 1.0f, 0), Vector3D(0, - 1.0f, 0)
     };
 
-#define NEW_SHADOM_MAP_METHOD
-
 static void BindAndClearCubeMap(int i) {
 #ifdef OPENGL_ES2
-    glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_cube_shadow_map_subframebuffer[
+    glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_cube_shadow_map_framebuffer[
         sre_internal_current_cube_shadow_map_index][i]);
 #else
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_cube_shadow_map_subframebuffer[
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_cube_shadow_map_framebuffer[
          sre_internal_current_cube_shadow_map_index][i]);
 #endif
     glClear(GL_DEPTH_BUFFER_BIT);
@@ -568,15 +589,6 @@ static void BindAndClearCubeMap(int i) {
 
 void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sreFrustum &frustum) {
 //    sreMessage(SRE_MESSAGE_LOG, "Rendering cube shadow map for point light %d.", light.id);
-
-#if !defined(OPENGL_ES2) && !defined(NEW_SHADOW_MAP_METHOD)
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_cube_shadow_map_framebuffer);
-#else
-#if 0
-    glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_cube_shadow_map_framebuffer);
-#endif
-#endif
-
         glDisable(GL_CULL_FACE);
         glDepthFunc(GL_LESS);
 #if !defined(NO_DEPTH_CLAMP)
@@ -586,8 +598,6 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
         CHECK_GL_ERROR("Error before shadow map shaders initialization before light.\n");
         GL3InitializeShadowMapShadersBeforeLight();
         CHECK_GL_ERROR("Error after shadow map shaders initialization before light.\n");
-
-#define NEW_SHADOW_MAP_METHOD
 
         // Pick the a cube shadow map size appropriate for the projected size of the light volume.
         float threshold;
@@ -620,11 +630,10 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
                 BindAndClearCubeMap(i);
                 continue;
             }
-#if defined(OPENGL_ES2) || defined(NEW_SHADOW_MAP_METHOD)
             // In the new shadow map method, the distance scaling is the same for all segments
             // (light volume radius corresponds to [0, 1]).
             shadow_cube_segment_distance_scaling[i] = (1.0f / light.sphere.radius) * 0.999f;
-#endif
+
             float zmax, xmin, xmax, ymin, ymax;
             float zmax_casters, zmin_casters;
             // Calculate the extents within the segment.
@@ -696,30 +705,12 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
                 // If the segment has no casters or receivers, skip it.
                 // Also skip if the casters bounds are completely beyond the receivers bounds in z.
                 skip = true;
-#ifndef NEW_SHADOW_MAP_METHOD
-            // In normal circumstances, continue with the next segment if we can skip the current
-            // one.
-            // If optimization is disabled (shader_mask == 0x01), we do clear the cube map segment.
-            if (skip && sre_internal_shader_mask != 0x01) {
-                shadow_cube_segment_distance_scaling[i] = - 1.0f;
-                continue;
-            }
-#endif
-#if defined(OPENGL_ES2) || defined(NEW_SHADOW_MAP_METHOD)
             // Bind the framebuffer with correct cube face.
             BindAndClearCubeMap(i);
-#else
-            glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                sre_internal_depth_cube_map_texture, 0, i);
-            glClear(GL_DEPTH_BUFFER_BIT);
-#endif
             if (skip) {
-#ifndef NEW_SHADOW_MAP_METHOD
-                shadow_cube_segment_distance_scaling[i] = - 1.0f;
-#endif
                 continue;
             }
-#ifndef NEW_SHADOW_MAP_METHOD
+#if 0
             // Determine the maximum distance within the cube segment
             float distmax_squared = SquaredMag(Vector3D(xmin, ymin, zmax));
             float dist_squared = SquaredMag(Vector3D(xmax, ymin, zmax));
@@ -848,13 +839,19 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
     }
 
     // At this point, there will be a shadow map, so we can initialize the shadow map
-    // in already.
+    // in already. Always use the largest shadow map (level 0) for directional lights.
+    sre_internal_current_shadow_map_index = 0;
+    glViewport(0, 0,
+        sre_internal_max_shadow_map_size >> sre_internal_current_shadow_map_index,
+        sre_internal_max_shadow_map_size >> sre_internal_current_shadow_map_index);
 #ifdef OPENGL_ES2
-    glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_shadow_map_framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_shadow_map_framebuffer[
+        sre_internal_current_shadow_map_index]);
 #else
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_shadow_map_framebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_shadow_map_framebuffer[
+        sre_internal_current_shadow_map_index]);
 #endif
-    glViewport(0, 0, SRE_SHADOW_MAP_SIZE, SRE_SHADOW_MAP_SIZE);
+    glViewport(0, 0, sre_internal_max_shadow_map_size, sre_internal_max_shadow_map_size);
     CHECK_GL_ERROR("Error after glBindFramebuffer\n");
     glDisable(GL_CULL_FACE);
     glDepthFunc(GL_LESS);
@@ -1113,10 +1110,9 @@ void sreScene::sreVisualizeShadowMap(int light_index, sreFrustum *frustum) {
     if (light_index >= nu_lights)
         return;
     // At least one shadow map shader uniform setting function uses sre_internal_current_light.
+    sre_internal_current_light_index = light_index;
     sre_internal_current_light = light[light_index];
-    // Before a regular lighting pass, the appropriate shadow map texture is bound,
-    // so we have to do it explicitly.
-    sreBindShadowMapTexture(sre_internal_current_light);
+    sre_internal_current_light->shadow_map_required = false;
 
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
@@ -1131,8 +1127,21 @@ void sreScene::sreVisualizeShadowMap(int light_index, sreFrustum *frustum) {
     glDisable(GL_DEPTH_TEST);
 
     sreSetImageBlendingMode(SRE_IMAGE_BLEND_ADDITIVE);
+    int size;
+    if (light[light_index]->type & SRE_LIGHT_POINT_SOURCE)
+        size = sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index;
+    else if (light[light_index]->type & SRE_LIGHT_DIRECTIONAL)
+        size = sre_internal_max_shadow_map_size >> sre_internal_current_shadow_map_index;
+    else if (light[light_index]->type & (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM))
+        size = sre_internal_max_shadow_map_size >> sre_internal_current_shadow_map_index;
     char s[64];
-    sprintf(s, "Light %d shadow map visualization", light_index);
+    if (!r || !light[light_index]->shadow_map_required)
+        sprintf(s, "Light %d shadow map visualization", light_index);
+    else {
+        sprintf(s, "Light %d shadow map visualization (%dx%d)", light_index, size, size);
+        if (light[light_index]->type & SRE_LIGHT_POINT_SOURCE)
+            sprintf(&s[strlen(s)], " x6");
+    }
     sreSetFont(NULL);
     // Set font size and default colors (white).
     sreSetTextParameters(SRE_TEXT_SET_FONT_SIZE | SRE_IMAGE_SET_COLORS, NULL, &font_size1);
@@ -1168,7 +1177,7 @@ static Vector4D shadow_map_visualization_colors[2] = {
 void sreVisualizeDirectionalLightShadowMap(int light_index) {
     // Set the source to the shadow map texture.
     sreSetImageSource(SRE_IMAGE_SET_TEXTURE | SRE_IMAGE_SET_ONE_COMPONENT_SOURCE,
-        sre_internal_depth_texture, 0);
+        sre_internal_depth_texture[sre_internal_current_shadow_map_index], 0);
     // Set the colors and the default texture coordinate transform (NULL).
     sreSetImageParameters(SRE_IMAGE_SET_COLORS | SRE_IMAGE_SET_TRANSFORM,
         shadow_map_visualization_colors, NULL);
@@ -1184,7 +1193,7 @@ static Vector4D spotlight_shadow_map_visualization_colors[2] = {
 void sreVisualizeBeamOrSpotLightShadowMap(int light_index) {
     // Set the source to the shadow map texture.
     sreSetImageSource(SRE_IMAGE_SET_TEXTURE | SRE_IMAGE_SET_ONE_COMPONENT_SOURCE,
-        sre_internal_small_depth_texture, 0);
+        sre_internal_depth_texture[sre_internal_current_shadow_map_index], 0);
     // Set the colors and the default texture coordinate transform (NULL).
     sreSetImageParameters(SRE_IMAGE_SET_COLORS | SRE_IMAGE_SET_TRANSFORM,
         spotlight_shadow_map_visualization_colors, NULL);
@@ -1264,20 +1273,21 @@ void sreVisualizeCubeMap(int light_index) {
         h_step *= factor;
     }
 
-#define NEW_SHADOW_MAP_METHOD
-
-#if defined(OPENGL_ES2) || defined(NEW_SHADOW_MAP_METHOD)
     // Set the source to a scratch texture. Rather than having the image drawing functions
     // explicitly support cube textures, just copy the cube texture faces into a scratch texture.
     GLuint scratch_texture;
     glGenTextures(1, &scratch_texture);
     glBindTexture(GL_TEXTURE_2D, scratch_texture);
 #ifdef OPENGL_ES2
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, sre_internal_max_cube_shadow_map_size,
-        sre_internal_max_cube_shadow_map_size, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+        sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index,
+        sre_internal_max_cube_shadow_map_size  >> sre_internal_current_cube_shadow_map_index,
+        0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, 0);
 #else
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, sre_internal_max_cube_shadow_map_size,
-        sre_internal_max_cube_shadow_map_size, 0, GL_DEPTH_COMPONENT, GL_HALF_FLOAT, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16,
+        sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index,
+        sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index,
+        0, GL_DEPTH_COMPONENT, GL_HALF_FLOAT, 0);
 #endif
     sreSetImageSource(SRE_IMAGE_SET_TEXTURE | SRE_IMAGE_SET_ONE_COMPONENT_SOURCE,
         scratch_texture, 0);
@@ -1289,12 +1299,13 @@ void sreVisualizeCubeMap(int light_index) {
             continue;
         // Update the scratch texture.
         glBindFramebuffer(GL_READ_FRAMEBUFFER,
-            sre_internal_cube_shadow_map_subframebuffer[sre_internal_current_cube_shadow_map_index]
+            sre_internal_cube_shadow_map_framebuffer[sre_internal_current_cube_shadow_map_index]
                 [order[i]]);
         glBindTexture(GL_TEXTURE_2D, scratch_texture);
         glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_HALF_FLOAT, 0, 0,
             sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index,
             sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index, 0);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
         // Set the uv transformation so that the cube-map is oriented conviently.
         sreSetImageParameters(SRE_IMAGE_SET_TRANSFORM, NULL, &cube_uv_transform[i]);
         sreDrawImage(i * w_step, 0, w, h);
@@ -1304,19 +1315,20 @@ void sreVisualizeCubeMap(int light_index) {
             continue;
         // Update the scratch texture.
         glBindFramebuffer(GL_READ_FRAMEBUFFER,
-            sre_internal_cube_shadow_map_subframebuffer[sre_internal_current_cube_shadow_map_index]
+            sre_internal_cube_shadow_map_framebuffer[sre_internal_current_cube_shadow_map_index]
                 [order[i + 3]]);
         glBindTexture(GL_TEXTURE_2D, scratch_texture);
         glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_HALF_FLOAT, 0, 0,
             sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index,
             sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index, 0);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
         // Set the uv transformation so that the cube-map is oriented conviently.
         sreSetImageParameters(SRE_IMAGE_SET_TRANSFORM, NULL, &cube_uv_transform[i + 3]);
         sreDrawImage(i * w_step, h * 1.04, w, h);
     }
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
     glDeleteTextures(1, &scratch_texture);
-#else
+#if 0
+    // This code is no longer used.
     // Set the source to the cube depth texture array.
     sreSetImageSource(SRE_IMAGE_SET_TEXTURE_ARRAY | SRE_IMAGE_SET_ONE_COMPONENT_SOURCE,
         sre_internal_depth_cube_map_texture[sre_internal_current_cube_shadow_map_index], 0);

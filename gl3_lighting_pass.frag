@@ -406,7 +406,8 @@ void main() {
         // transformation for each fragment to handle discontinuities in the coordinate space.
 	// For beam lights, we do that as well but it is not actually necessary.
 	shadow_map_coord = shadow_map_transformation_matrix * model_position_var;
-	poisson_factor = 1.0 / 350.0;
+	// Scale the Poisson factor according to the resolution of the shadow map.
+	poisson_factor = 1.0 / (350.0 * float(textureSize(shadow_map_in, 0) / 512));
 	if (light_att_in.y > 1.5) {
 		// Beam light. The shadow map coordinates already include the viewport transformation.
 		if (shadow_map_coord.z >= 1.0) {
@@ -460,8 +461,8 @@ void main() {
 	}
 #else	// Directional light.
         shadow_map_coord.xyz = shadow_map_coord_var;
-	poisson_factor = 1.0 / 1400.0;
-//	poisson_factor = 0;
+	// Scale the Poisson factor according to the resolution of the shadow map.
+	poisson_factor = 1.0 / (1400.0 * float(textureSize(shadow_map_in, 0) / 2048));
         if (shadow_map_coord.z < 0.0 || shadow_map_coord.z > 1.0 || shadow_map_coord.x < 0.0 ||
 	shadow_map_coord.x > 1.0 || shadow_map_coord.y < 0.0 || shadow_map_coord.y > 1.0) {
 		shadow_light_factor = 1.0;
@@ -473,7 +474,9 @@ void main() {
 		float bias = 0.01 * tan(acos(clamp(dot(normal, L), 0.0001, 1.0)));
         	bias = clamp(bias, 0.002, 0.005);
 #ifdef SPOT_LIGHT_SHADOW_MAP
-		bias *= 0.02;
+		// Adjust bias for 16-bit depth buffers.
+		if (textureSize(shadow_map_in, 0) != 2048)
+			bias *= 0.02;
 #endif
 #endif
 		// Produce slightly soft shadows with the Poisson disk.

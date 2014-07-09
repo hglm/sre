@@ -65,6 +65,11 @@ static void SetFrustum(sreScene *scene, sreFrustum *frustum, sreView *view) {
 void sreScene::Render(sreView *view) {
     sre_internal_scene = this;
 
+    if (sre_internal_invalidate_geometry_scissors_cache) {
+        InvalidateGeometryScissorsCache();
+        sre_internal_invalidate_geometry_scissors_cache = false;
+    }
+
     // Only change the projection matrix if it has changed since the last frame
     // (true when the zoom factor changes).
     if (view->ProjectionHasChangedSinceLastFrame(sre_internal_current_frame))
@@ -1932,8 +1937,11 @@ void sreScene::RenderLightingPasses(sreFrustum *frustum, sreView *view) {
         }
 
 skip_scissors :
-        if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING)
+        if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING) {
+            if (sre_internal_current_light->shadow_map_required)
+                sreBindShadowMapTexture(sre_internal_current_light);
             goto do_lighting_pass;
+        }
 
         // Render shadow volumes into stencil buffer. This function may disable the stencil test
         // if there are no shadows for the light. Therefore, if there were no shadows for the

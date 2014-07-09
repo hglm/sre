@@ -250,8 +250,12 @@ Bugs as of July 2014:
 - In demo1, the red spotlight light occasionally disappears (visible
   on the pool edge).
 
-- The shadow map visualization option ('u') does not work for point
-  light cube maps.
+- The shadow map visualization option ('u') does not work correctly
+  for point light cube shadow maps and spot light shadow maps.
+
+- The point light shadow in demo7 only shows up after a few seconds.
+
+- The shadow of the second spotlight in demo1 disappears sometimes.
 
 3. Potential improvements that are not yet implemented.
 
@@ -399,7 +403,7 @@ Bugs as of July 2014:
 - Investigate why octree creation results in 2500 objects (blue fields,
   also small lightscape lights) in the same node in demo8. This may
   already be fixed because of bug fixes in octree smallest dimension
-  displacement algorithm during octree creation.
+  displacement algorithm during octree creation. [Bug has been fixed]
 
 - On a GeForce 750 Ti (Maxwell architecture), when stencil shadows are
   enabled some demos are noticeably slower than on earlier architectures
@@ -413,8 +417,7 @@ Bugs as of July 2014:
 - Use a hierarchy of shadow map sizes for local lights (point, spot and
   beam) and pick a size for each light corresponding to the on-screen
   projection size of the light volume. This should improve performance
-  when there a lot of local lights in the distance. [Implemented for
-  point lights]
+  when there a lot of local lights in the distance. [Implemented]
 
 - The determination of whether a potential shadow casting object
   intersects with cube shadow map segment could be optimized in terms of

@@ -742,7 +742,7 @@ const sreBoundingVolumeSphere& sphere) {
 
 // Intersection tests against a cylinder.
 
-static bool Intersects(const Point3D& P, const sreBoundingVolumeCylinder& cyl) {
+bool Intersects(const Point3D& P, const sreBoundingVolumeCylinder& cyl) {
     // Calculate the distance from P to the line defined by the cylinder's axis.
     float dist_Q_S_squared = SquaredMag(P - cyl.center);
     float d_squared = dist_Q_S_squared - sqrf(Dot(P - cyl.center, cyl.axis));

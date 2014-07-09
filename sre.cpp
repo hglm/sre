@@ -56,14 +56,12 @@ int sre_internal_shadow_volume_count;
 int sre_internal_silhouette_count;
 void (*sreDrawTextOverlayFunc)();
 Matrix3D *sre_internal_standard_UV_transformation_matrix;
+bool sre_internal_invalidate_geometry_scissors_cache = false;
 
-SRE_GLUINT sre_internal_depth_texture = 0;
-SRE_GLUINT sre_internal_shadow_map_framebuffer = 0;
+SRE_GLUINT sre_internal_depth_texture[SRE_MAX_SHADOW_MAP_LEVELS_OPENGL];
+SRE_GLUINT sre_internal_shadow_map_framebuffer[SRE_MAX_SHADOW_MAP_LEVELS_OPENGL];
 SRE_GLUINT sre_internal_depth_cube_map_texture[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL];
-SRE_GLUINT sre_internal_cube_shadow_map_framebuffer;
-SRE_GLUINT sre_internal_cube_shadow_map_subframebuffer[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL][6];
-SRE_GLUINT sre_internal_small_depth_texture = 0;
-SRE_GLUINT sre_internal_small_shadow_map_framebuffer = 0;
+SRE_GLUINT sre_internal_cube_shadow_map_framebuffer[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL][6];
 SRE_GLUINT sre_internal_HDR_multisample_color_renderbuffer = 0;
 SRE_GLUINT sre_internal_HDR_multisample_depth_renderbuffer = 0;
 SRE_GLUINT sre_internal_HDR_color_texture = 0;
@@ -131,6 +129,9 @@ int sre_internal_object_flags_mask = SRE_OBJECT_FLAGS_MASK_FULL;
 int sre_internal_visualized_shadow_map = - 1;
 int sre_internal_max_texture_size;
 int sre_internal_texture_detail_flags;
+int sre_internal_max_shadow_map_size;
+int sre_internal_current_shadow_map_index;
+int sre_internal_nu_shadow_map_size_levels;
 int sre_internal_max_cube_shadow_map_size;
 int sre_internal_current_cube_shadow_map_index;
 int sre_internal_nu_cube_shadow_map_size_levels;
@@ -205,6 +206,8 @@ void sreSetLightAttenuation(bool enabled) {
 }
 
 void sreSetLightScissors(int mode) {
+    if (mode == SRE_SCISSORS_GEOMETRY && sre_internal_scissors != SRE_SCISSORS_GEOMETRY)
+        sre_internal_invalidate_geometry_scissors_cache = true;
     sre_internal_scissors = mode;
 }
 
@@ -638,90 +641,75 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
 #endif
     sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_MAP_SUPPORT;
     sreInitializeShaders(SRE_SHADER_MASK_SHADOW_MAP);
-
-    glGenTextures(1, &sre_internal_depth_texture);
-    glBindTexture(GL_TEXTURE_2D, sre_internal_depth_texture);
-    // 24-bit uint (standard) works, float works also, probably better (most likely same
-    // buffer size and higher precision).
 #ifdef OPENGL_ES2
-    // "type" argument GL_UNSIGNED_SHORT means 16-bit depth precision,
-    // GL_UNSIGNED_INT means 32-bit depth precision or lower. 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SRE_SHADOW_MAP_SIZE,
-        SRE_SHADOW_MAP_SIZE, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, 0);
+    sre_internal_max_shadow_map_size = SRE_MAX_SHADOW_MAP_SIZE_GLES2;
 #else
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, SRE_SHADOW_MAP_SIZE,
-        SRE_SHADOW_MAP_SIZE, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+    sre_internal_max_shadow_map_size = SRE_MAX_SHADOW_MAP_SIZE_OPENGL;
 #endif
-//    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, SRE_SHADOW_MAP_SIZE,
-//         SRE_SHADOW_MAP_SIZE, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-#ifndef OPENGL_ES2
-    GLfloat border_color[4];
-    border_color[0] = 1.0f;
-    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, &border_color[0]);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-#endif
-
-    glGenFramebuffers(1, &sre_internal_shadow_map_framebuffer);
 
 #ifdef OPENGL_ES2
-    glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_shadow_map_framebuffer);
+    sre_internal_nu_shadow_map_size_levels = SRE_MAX_SHADOW_MAP_LEVELS_GLES2;
 #else
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_shadow_map_framebuffer);
+    sre_internal_nu_shadow_map_size_levels = SRE_MAX_SHADOW_MAP_LEVELS_OPENGL;
 #endif
-
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sre_internal_depth_texture, 0);
-#ifndef OPENGL_ES2
-    glDrawBuffer(GL_NONE);
+    for (int level = 0; level < sre_internal_nu_shadow_map_size_levels; level++) {
+        int size = sre_internal_max_shadow_map_size >> level;
+        glGenTextures(1, &sre_internal_depth_texture[level]);
+#ifdef OPENGL_ES2
+        glBindTexture(GL_TEXTURE_2D, sre_internal_depth_texture[level]);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        // Use 16-bit half-float precision. 32-bit float precision might be an option
+        // on fast hardware.
+        glTexImage2D(GL_TEXTURE_2D,, 0, GL_DEPTH_COMPONENT, size, size, 0,
+            GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, 0);
+#else
+        glBindTexture(GL_TEXTURE_2D, sre_internal_depth_texture[level]);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        // Use 32-bit float precision for largest shadow maps (used for directional
+        // lights).
+        GLenum gl_depth;
+        GLenum gl_type;
+        if (level == 0) {
+            gl_depth = GL_DEPTH_COMPONENT32;
+            gl_type = GL_FLOAT;
+        }
+        else {
+            gl_depth = GL_DEPTH_COMPONENT16;
+            gl_type = GL_HALF_FLOAT;
+        }
+        glTexImage2D(GL_TEXTURE_2D, 0, gl_depth, size, size, 0,
+            GL_DEPTH_COMPONENT, gl_type, 0);
 #endif
+        CHECK_GL_ERROR("Error after shadow map initialization.\n");
 
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        sreFatalError("Error -- shadow map framebuffer not complete.");
+        glGenFramebuffers(1, &sre_internal_shadow_map_framebuffer[level]);
+#ifdef OPENGL_ES2
+        glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_shadow_map_framebuffer[level]);
+#else
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_shadow_map_framebuffer[level]);
+#endif
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
+            sre_internal_depth_texture[level], 0);
+#ifdef OPENGL_ES2
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+#else
+        glReadBuffer(GL_NONE);
+        if (glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+#endif
+            sreFatalError("Error -- shadow map (level %d) framebuffer not complete.", level);
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
+    sreMessage(SRE_MESSAGE_INFO, "Created %d shadow maps of sizes %dx%d to %dx%d.",
+        sre_internal_nu_shadow_map_size_levels,
+        sre_internal_max_shadow_map_size, sre_internal_max_shadow_map_size,
+        sre_internal_max_shadow_map_size >> (sre_internal_nu_shadow_map_size_levels - 1),
+        sre_internal_max_shadow_map_size >> (sre_internal_nu_shadow_map_size_levels - 1));
 
-    // Set up render-to-texture framebuffer for small shadow map used for spot and beam lights.
-    glGenTextures(1, &sre_internal_small_depth_texture);
-    glBindTexture(GL_TEXTURE_2D, sre_internal_small_depth_texture);
-    // Half-float and float both work fine, as does 24-bit uint, although the shadow map
-    // visualization for debugging currently has problems with the spotlight shadow maps.
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, SRE_SMALL_SHADOW_MAP_SIZE,
-          SRE_SMALL_SHADOW_MAP_SIZE, 0, GL_DEPTH_COMPONENT, GL_HALF_FLOAT, 0);
-//    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, SRE_SMALL_SHADOW_MAP_SIZE,
-//        SRE_SMALL_SHADOW_MAP_SIZE, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
-//    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, SRE_SMALL_SHADOW_MAP_SIZE,
-//        SRE_SMALL_SHADOW_MAP_SIZE, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, 0);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    // We don't need a border color because clamping is done in the pixel shader.
-    // Note: Using a border color may be faster by reducing conditional execution
-    // in the shader.
-// #define SPOT_BEAM_SHADOW_MAP_BORDER_COLOR
-#ifdef SPOT_BEAM_SHADOW_MAP_BORDER_COLOR
-    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, &border_color[0]);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-#else
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-#endif
-
-    glGenFramebuffers(1, &sre_internal_small_shadow_map_framebuffer);
-#ifdef OPENGL_ES2
-    glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_shadow_map_framebuffer);
-#else
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_small_shadow_map_framebuffer);
-#endif
-
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
-        sre_internal_small_depth_texture, 0);
-    glDrawBuffer(GL_NONE);
-
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        sreFatalError("Error -- small (spot light) shadow map framebuffer not complete.\n");
-    }
     if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING)
         sreValidateShadowMapShaders();
 
@@ -747,10 +735,6 @@ skip_shadow_map:
 #endif
 
     // Set up render-to-cubemap framebuffer for shadow map cubemap.
-    // This is a texture array in case of regular OpenGL 3+.
-
-#define NEW_SHADOW_MAP_METHOD
-
 #ifdef OPENGL_ES2
     sre_internal_nu_cube_shadow_map_size_levels = SRE_MAX_CUBE_SHADOW_MAP_LEVELS_GLES2;
 #else
@@ -768,7 +752,6 @@ skip_shadow_map:
                 GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, 0);
         }
 #else
-#ifdef NEW_SHADOW_MAP_METHOD
         // Use the built-in cube map format.
         glBindTexture(GL_TEXTURE_CUBE_MAP, sre_internal_depth_cube_map_texture[level]);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -782,58 +765,32 @@ skip_shadow_map:
                 GL_DEPTH_COMPONENT, GL_HALF_FLOAT, 0);
             CHECK_GL_ERROR("Error after cube map face initialization.\n");
         }
-#else
-    // Use a generic texture array for the face of the cube map.
-    glBindTexture(GL_TEXTURE_2D_ARRAY, sre_internal_depth_cube_map_texture);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameterfv(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, &border_color[0]);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_DEPTH_TEXTURE_MODE, GL_INTENSITY);
-    // Half-float are probably sufficient for virtually all point lights, and should improve
-    // performance. Cube map resolution is a more important parameter.
-    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT16, sre_internal_max_cube_shadow_map_size,
-        sre_internal_max_cube_shadow_map_size, 6, 0, GL_DEPTH_COMPONENT, GL_HALF_FLOAT, 0);
-#endif
-#endif
-
-#if !defined(OPENGL_ES2) && !defined(NEW_SHADOW_MAP_METHOD)
-    glGenFramebuffers(1, &sre_internal_cube_shadow_map_framebuffer);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_cube_shadow_map_framebuffer);
 #endif
 
         for (int i = 0; i < 6; i++) {
-#if defined(OPENGL_ES2) || defined(NEW_SHADOW_MAP_METHOD)
-            glGenFramebuffers(1, &sre_internal_cube_shadow_map_subframebuffer[level][i]);
+            glGenFramebuffers(1, &sre_internal_cube_shadow_map_framebuffer[level][i]);
 #ifdef OPENGL_ES2
-            glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_cube_shadow_map_subframebuffer[level][i]);
+            glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_cube_shadow_map_framebuffer[level][i]);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, cube_map_target[i],
                 sre_internal_depth_cube_map_texture[level], 0);
 #else
-            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_cube_shadow_map_subframebuffer[level][i]);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_cube_shadow_map_framebuffer[level][i]);
             glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, cube_map_target[i],
                 sre_internal_depth_cube_map_texture[level], 0);
-            glDrawBuffer(GL_NONE);
+            glReadBuffer(GL_NONE);
 #endif
             CHECK_GL_ERROR("Error after glFramebufferTexture2D\n");
-             if (glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+#ifdef OPENGL_ES2
+            if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+#else
+            if (glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+#endif
                 sreFatalError("Error -- cube shadow map framebuffer %d not complete.", i);
             }
-#else
-            glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                sre_internal_depth_cube_map_texture, 0, i);
-            CHECK_GL_ERROR("Error after glFramebufferTextureLayer\n");
-#endif
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
-#if !defined(OPENGL_ES2) && !defined(NEW_SHADOW_MAP_METHOD)
-        glDrawBuffer(GL_NONE);
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-             sreFatalError("Error -- cube shadow map framebuffer not complete.\n");
-        }
-#endif
     }
-    sreMessage(SRE_MESSAGE_INFO, "Created %d shadow maps of sizes %dx%d to %dx%d.",
+    sreMessage(SRE_MESSAGE_INFO, "Created %d shadow cube maps of sizes %dx%d to %dx%d.",
         sre_internal_nu_cube_shadow_map_size_levels,
         sre_internal_max_cube_shadow_map_size, sre_internal_max_cube_shadow_map_size,
         sre_internal_max_cube_shadow_map_size >> (sre_internal_nu_cube_shadow_map_size_levels - 1),

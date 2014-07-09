@@ -455,25 +455,13 @@ static void GL3InitializeShaderWithProjectionShadowMapTransformationMatrix(int l
 
 static void GL3InitializeShaderWithShadowMapTexture() {
     glActiveTexture(GL_TEXTURE4);
-    glBindTexture(GL_TEXTURE_2D, sre_internal_depth_texture);
+    glBindTexture(GL_TEXTURE_2D, sre_internal_depth_texture[sre_internal_current_shadow_map_index]);
 }
-
-static void GL3InitializeShaderWithSmallShadowMapTexture() {
-    glActiveTexture(GL_TEXTURE4);
-    glBindTexture(GL_TEXTURE_2D, sre_internal_small_depth_texture);
-}
-
-#define NEW_SHADOW_METHOD
 
 static void GL3InitializeShaderWithCubeShadowMapTexture() {
     glActiveTexture(GL_TEXTURE4);
-#if defined(OPENGL_ES2) || defined(NEW_SHADOW_METHOD)
     glBindTexture(GL_TEXTURE_CUBE_MAP, sre_internal_depth_cube_map_texture[
         sre_internal_current_cube_shadow_map_index]);
-#else
-    glBindTexture(GL_TEXTURE_2D_ARRAY, sre_internal_depth_cube_map_texture[
-        sre_internal_current_cube_shadow_map_index]);
-#endif
 }
 
 void sreBindShadowMapTexture(sreLight *light) {
@@ -482,7 +470,7 @@ void sreBindShadowMapTexture(sreLight *light) {
     if (light->type & SRE_LIGHT_DIRECTIONAL)
         GL3InitializeShaderWithShadowMapTexture();
     else if (light->type & (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM))
-        GL3InitializeShaderWithSmallShadowMapTexture();
+        GL3InitializeShaderWithShadowMapTexture();
     else
         GL3InitializeShaderWithCubeShadowMapTexture();
 }
@@ -899,10 +887,6 @@ void GL3InitializeShadersBeforeLight() {
                 lighting_pass_shader[j].uniform_location[UNIFORM_SEGMENT_DISTANCE_SCALING]);
 #endif
     }
-#ifndef NO_SHADOW_MAP
-    if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING)
-        sreBindShadowMapTexture(sre_internal_current_light);
-#endif
 }
 
 #ifndef NO_SHADOW_MAP

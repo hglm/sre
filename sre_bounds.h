@@ -205,6 +205,8 @@ bool Intersects(const Point3D& P, const sreBoundingVolumeBox& box);
 
 bool Intersects(const sreBoundingVolumeBox& box, const sreBoundingVolumeSphere& sphere);
 
+bool Intersects(const Point3D& P, const sreBoundingVolumeCylinder& cyl);
+
 bool Intersects(const sreBoundingVolumeBox& box, const sreBoundingVolumeCylinder& cyl);
 
 BoundsCheckResult QueryIntersection(const sreBoundingVolumeSphere& sphere,
