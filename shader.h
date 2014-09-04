@@ -97,7 +97,9 @@ extern bool sre_shader_load_on_demand;
 #define UNIFORM_DIFFUSE_REFLECTION_COLOR 3
 #define UNIFORM_MULTI_COLOR 4
 #define UNIFORM_USE_TEXTURE 5
-#define UNIFORM_CURRENT_LIGHT 6
+// #define UNIFORM_CURRENT_LIGHT 6
+// Reuse unused uniform index.
+#define UNIFORM_SHADOW_MAP_DIMENSIONS 6
 #define UNIFORM_AMBIENT_COLOR 7
 #define UNIFORM_VIEWPOINT 8
 #define UNIFORM_LIGHT_POSITION 9
@@ -125,13 +127,13 @@ extern bool sre_shader_load_on_demand;
 #define UNIFORM_UV_TRANSFORM 31
 #define UNIFORM_LIGHT_PARAMETERS_MASK ((1 << 9) | (1 << 10) | (1 << 11) | (1 << 12) | (1 << 13))
 // The mask defines a set of commonly used uniforms, but does not include all uniforms.
-#define UNIFORM_MASK_COMMON 0x803FFFFF
+#define UNIFORM_MASK_COMMON 0x803FFFBF
 
 // It would be better to treat the miscellaneous shaders in a more efficient in terms of storing
 // the uniform locations. Combining the uniform mask has no great advantage, except for initialization
 // (which can still take advantage of).
 
-#define MAX_MISC_UNIFORMS 21
+#define MAX_MISC_UNIFORMS 22
 
 #define UNIFORM_MISC_MVP 0
 #define UNIFORM_MISC_LIGHT_MODEL_SPACE 1
@@ -154,6 +156,7 @@ extern bool sre_shader_load_on_demand;
 #define UNIFORM_MISC_SCREEN_SIZE_IN_CHARS 18
 #define UNIFORM_MISC_STRING 19
 #define UNIFORM_MISC_USE_EMISSION_MAP 20
+#define UNIFORM_MISC_SHADOW_MAP_DIMENSIONS 21
 
 // The misc shader-specific uniforms are packed in the order they appear in the generic misc
 // uniforms list above. The indices do not correspond, the real uniform indices for each shader
@@ -189,7 +192,7 @@ enum { UNIFORM_HDR_LUMINANCE_HISTORY_TEXTURE_SAMPLER = 0, UNIFORM_HDR_LUMINANCE_
 #ifdef NO_SHADOW_MAP
 #define SRE_NU_MISC_SHADERS_SHADOW_MAP 0
 #else
-#define SRE_NU_MISC_SHADERS_SHADOW_MAP 6
+#define SRE_NU_MISC_SHADERS_SHADOW_MAP 8
 #endif
 #ifdef NO_HDR
 #define SRE_NU_MISC_SHADERS_HDR 0
@@ -216,8 +219,10 @@ enum {
     SRE_MISC_SHADER_SHADOW_VOLUME,
 #ifndef NO_SHADOW_MAP
     SRE_MISC_SHADER_SHADOW_MAP,
+    SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT,
     SRE_MISC_SHADER_SHADOW_MAP_TRANSPARENT,
     SRE_MISC_SHADER_PROJECTION_SHADOW_MAP,
+    SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_NON_CLOSED_OBJECT,
     SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_TRANSPARENT,
     SRE_MISC_SHADER_CUBE_SHADOW_MAP,
     SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT,

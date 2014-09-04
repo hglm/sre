@@ -322,12 +322,12 @@ void GUIKeyPressCallback(unsigned int key) {
     }
     switch (key) {
     case SRE_KEY_F5 :
-        sreSetShaderMask(0xFF);
+        sreSetShaderSelection(SRE_SHADER_SELECTION_ALL);
         sre_internal_application->text_message[0] = "All optimized shaders enabled";
         sre_internal_application->text_message_time = sre_internal_backend->GetCurrentTime();
         break;
     case SRE_KEY_F6 :
-        sreSetShaderMask(0x01);
+        sreSetShaderSelection(SRE_SHADER_SELECTION_UNOPTIMIZED);
         sre_internal_application->text_message[0] = "All optimized shaders disabled";
         sre_internal_application->text_message_time = sre_internal_backend->GetCurrentTime();
         break;

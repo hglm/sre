@@ -612,7 +612,8 @@ Color color1, Color color2) {
             i += 3;
         }
     delete [] mesh;
-    m->flags |= SRE_POSITION_MASK | SRE_COLOR_MASK | SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT;
+    m->flags |= SRE_POSITION_MASK | SRE_COLOR_MASK | SRE_LOD_MODEL_NOT_CLOSED |
+        SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT;
     m->SortVertices(0); // Sort on x-coordinate.
     m->MergeIdenticalVertices();
     m->vertex_normal = new Vector3D[m->nu_vertices];

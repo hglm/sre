@@ -1662,7 +1662,12 @@ SRE_API void sreSetMultiPassMaxActiveLights(int n);
     SRE_OBJECT_MULTI_COLOR | 0xFFFFF000)
 #define SRE_OBJECT_FLAGS_MASK_FULL 0xFFFFFFFF
 SRE_API void sreSetObjectFlagsMask(int mask);
-SRE_API void sreSetShaderMask(int mask);
+SRE_API void sreSetShaderMask(int mask); // Obsolete; maintained for compatibility.
+enum {
+    SRE_SHADER_SELECTION_UNOPTIMIZED = 0x01,
+    SRE_SHADER_SELECTION_ALL = 0xFF
+};
+SRE_API void sreSetShaderSelection(int value);
 enum { SRE_REFLECTION_MODEL_STANDARD, SRE_REFLECTION_MODEL_MICROFACET };
 SRE_API void sreSetReflectionModel(int model);
 SRE_API void sreSetLightAttenuation(bool enabled);

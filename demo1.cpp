@@ -243,12 +243,12 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     scene->AddObject(block_model, - 12.0, -22.0, 20.0, 0, 0, 0, 4.0);
 //    scene->AddObject(block_model, - 12.0, -22.0, 0, 0, 0, 0, 4.0);
 
-    Vector3D spot_dir = Vector3D(- 1.0, 0.8, - 1.2).Normalize();
+    Vector3D spot_dir = Vector3D(1.0f, - 0.8f, - 1.2f).Normalize();
     int l = scene->AddSpotLight(0,
-        Point3D(20.0, 0, 40.0), spot_dir, 20.0f, 80.0, Color(3.0, 1.5, 1.5));
+        Point3D(- 60.0, - 60.0f, 20.0), spot_dir, 20.0f, 80.0, Color(3.0, 1.5, 1.5));
     scene->SetEmissionColor(Color(1.0, 0.7, 0.7));
     scene->SetDiffuseReflectionColor(Color(1.0, 0.5, 0.5));
-    j = scene->AddObject(sphere_model, 20.0, 0, 40.0, 0, 0, 0, 3.0);
+    j = scene->AddObject(sphere_model, - 60.0, - 60.0f, 20.0, 0, 0, 0, 3.0);
     // This overrides the original direction of the light.
     scene->AttachLight(j, l, Vector3D(0, 0, 0), spot_dir);
     scene->SetEmissionColor(Color(0, 0, 0));

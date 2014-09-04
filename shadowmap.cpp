@@ -73,29 +73,55 @@ static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
     // version), the MVP matrix uniform is set, and when a transparent texture is used it is
     // bound to GL_TEXTURE0 and the UV transformation matrix is set.
     // the UV transformation.
-    if (light.type & SRE_LIGHT_POINT_SOURCE)
-        GL3InitializeCubeShadowMapShader(*so);
-    else if (light.type & SRE_LIGHT_SPOT)
-        GL3InitializeProjectionShadowMapShader(*so);
-    else
-        GL3InitializeShadowMapShader(*so);
-    glEnableVertexAttribArray(0);
     sreLODModel *m = sreCalculateLODModel(*so);
-
-    // Disable front-face culling for non-closed models.
     if (m->flags & SRE_LOD_MODEL_NOT_CLOSED)
+        // Disable front-face culling for non-closed models.
         glDisable(GL_CULL_FACE);
 
+    bool non_closed_add_bias = false;
+    if (light.type & SRE_LIGHT_POINT_SOURCE)
+        GL3InitializeCubeShadowMapShader(*so);
+    else {
+        // Directional, beam or spotlight.
+        if (m->flags & SRE_LOD_MODEL_NOT_CLOSED) {
+            non_closed_add_bias = true;
+            if (light.type & SRE_LIGHT_SPOT)
+                GL3InitializeProjectionShadowMapShaderNonClosedObject(*so);
+            else
+                GL3InitializeShadowMapShaderNonClosedObject(*so);
+        }
+        else {
+            if (light.type & SRE_LIGHT_SPOT)
+                GL3InitializeProjectionShadowMapShader(*so);
+            else
+                GL3InitializeShadowMapShader(*so);
+        }
+    }
+
+    glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
     // XXX Should take interleaved attributes into account.
     glVertexAttribPointer(
-        0,                  // attribute 0 (positions)
+        0,                  // attribute 0 (position)
         4,                  // size
         GL_FLOAT,           // type
         GL_FALSE,           // normalized?
         0,                  // stride
         (void *)0	    // array buffer offset in bytes
         );
+    if (non_closed_add_bias) {
+        glEnableVertexAttribArray(2);
+        glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_NORMAL]);
+        // XXX Should take interleaved attributes into account.
+        glVertexAttribPointer(
+            2,                  // attribute 2 (normal)
+            3,                  // size
+            GL_FLOAT,           // type
+            GL_FALSE,           // normalized?
+            0,                  // stride
+            (void *)0	        // array buffer offset in bytes
+            );
+    }
     // Support for multi-mesh transparent textures is missing, should be easy to add.
     if (so->render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE) {
         glEnableVertexAttribArray(1);
@@ -125,11 +151,12 @@ static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
             glDrawElements(GL_TRIANGLES, nu_vertices, GL_UNSIGNED_INT, (void *)(vertex_offset * 4));
     }
     glDisableVertexAttribArray(0);
+    if (non_closed_add_bias)
+        glDisableVertexAttribArray(2);
     if (so->render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE)
         glDisableVertexAttribArray(1);
     if (m->flags & SRE_LOD_MODEL_NOT_CLOSED)
         glEnable(GL_CULL_FACE);
-
 //    object_count++;
 }
 
@@ -452,6 +479,7 @@ static const Vector3D signs_table[8] = {
 };
 
 void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, const sreFrustum &frustum) {
+#if 0
     sreBoundingVolumeAABB relative_AABB;
     relative_AABB.dim_min = AABB_shadow_caster.dim_min - light.vector.GetVector3D();
     relative_AABB.dim_max = AABB_shadow_caster.dim_max - light.vector.GetVector3D();
@@ -467,6 +495,13 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
         (relative_AABB.dim_max & (Vector3D(1.0f, 1.0f, 1.0f) - signs_table[signs]));
     // Now calculate the distance to this vertex.
     float zmax = Dot(light.spotlight.GetVector3D(), V);
+#else
+    float zmax;
+    if (light.type & SRE_LIGHT_BEAM)
+        zmax = light.cylinder.length;
+    else
+        zmax = light.sphere.radius;
+#endif
 
     if (zmax <= 0) {
         // This shouldn't happen due to earlier checks on the shadow caster and
@@ -538,9 +573,9 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_shadow_map_framebuffer[
         sre_internal_current_shadow_map_index]);
 #endif
-    glEnable(GL_CULL_FACE);
     // Using front-face culling (only drawing back faces) reduces shadow map artifacts.
     glCullFace(GL_FRONT);
+    glEnable(GL_CULL_FACE);
     glDepthFunc(GL_LESS);
 #if !defined(NO_DEPTH_CLAMP)
     if (sre_internal_use_depth_clamping)
@@ -554,11 +589,20 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
         dim_max.Set(light.cylinder.radius, light.cylinder.radius, zmax);
         GL3CalculateShadowMapMatrix(light.vector.GetPoint3D(), light.spotlight.GetVector3D(),
             x_dir, y_dir, dim_min, dim_max);
+        sre_internal_current_shadow_map_dimensions = Vector4D(light.cylinder.radius,
+            light.cylinder.radius, zmax,
+            sre_internal_max_shadow_map_size >>
+            sre_internal_current_shadow_map_index);
+        GL3InitializeShadowMapShadersBeforeLight(sre_internal_current_shadow_map_dimensions);
     }
-    else
+    else {
         // Spotlight. Use a projection shadow map matrix.
         GL3CalculateProjectionShadowMapMatrix(light.vector.GetPoint3D(),
             light.spotlight.GetVector3D(), x_dir, y_dir, zmax);
+        GL3InitializeShadowMapShadersBeforeLight(Vector4D(zmax, zmax, zmax,
+            sre_internal_max_shadow_map_size >>
+            sre_internal_current_shadow_map_index));
+    }
 
     RenderShadowMapFromCasterArray(scene, light);
 
@@ -567,8 +611,8 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
     else
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, sre_internal_window_width, sre_internal_window_height);
-    glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
+    glEnable(GL_CULL_FACE);
 #if !defined(NO_DEPTH_CLAMP)
     // Restore the normal setting.
     if (sre_internal_use_depth_clamping)
@@ -600,16 +644,16 @@ static void BindAndClearCubeMap(int i) {
 
 void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sreFrustum &frustum) {
 //    sreMessage(SRE_MESSAGE_LOG, "Rendering cube shadow map for point light %d.", light.id);
-        glEnable(GL_CULL_FACE);
         // Using front-face culling (only drawing back faces) reduces shadow map artifacts.
         glCullFace(GL_FRONT);
+        glEnable(GL_CULL_FACE);
         glDepthFunc(GL_LESS);
 #if !defined(NO_DEPTH_CLAMP)
         if (sre_internal_use_depth_clamping)
             glDisable(GL_DEPTH_CLAMP);
 #endif
         CHECK_GL_ERROR("Error before shadow map shaders initialization before light.\n");
-        GL3InitializeShadowMapShadersBeforeLight();
+        GL3InitializeCubeShadowMapShadersBeforeLight();
         CHECK_GL_ERROR("Error after shadow map shaders initialization before light.\n");
 
         // Pick the a cube shadow map size appropriate for the projected size of the light volume.
@@ -726,7 +770,9 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
             BindAndClearCubeMap(i);
             GL3CalculateCubeShadowMapMatrix(light.vector.GetVector3D(), cube_map_zdir[i],
                 cube_map_up_vector[i], zmax);
-            CHECK_GL_ERROR("Error after glFramebufferTextureLayer\n");
+            GL3InitializeShadowMapShadersBeforeLight(Vector4D(zmax, zmax, zmax,
+                sre_internal_max_cube_shadow_map_size >>
+                sre_internal_current_cube_shadow_map_index));
             RenderCubeShadowMapFromCasterArray(scene, light, i);
         }
 
@@ -746,7 +792,7 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
             if (cube_map_mask & (1 << i))
                 glTexImage2D(cube_map_target[i], 0, GL_DEPTH_COMPONENT, size, size, 0,
                     GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, 0);
-            // To odo.
+            // To do.
     }
 #endif
 
@@ -757,8 +803,8 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     CHECK_GL_ERROR("Error after glBindFramebuffer(0)\n");
     glViewport(0, 0, sre_internal_window_width, sre_internal_window_height);
-    glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
+    glEnable(GL_CULL_FACE);
 #if !defined(NO_DEPTH_CLAMP)
     // Restore the normal setting.
     if (sre_internal_use_depth_clamping)
@@ -876,9 +922,9 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
 #endif
     glViewport(0, 0, sre_internal_max_shadow_map_size, sre_internal_max_shadow_map_size);
     CHECK_GL_ERROR("Error after glBindFramebuffer\n");
-    glEnable(GL_CULL_FACE);
     // Using front-face culling (only drawing back faces) reduces shadow map artifacts.
     glCullFace(GL_FRONT);
+    glEnable(GL_CULL_FACE);
     glDepthFunc(GL_LESS);
 #if !defined(NO_DEPTH_CLAMP)
     if (sre_internal_use_depth_clamping)
@@ -1105,6 +1151,10 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
 
     GL3CalculateShadowMapMatrix(camera_position, - light.vector.GetVector3D(),
         x_dir, y_dir, dim_min, dim_max);
+    float dim_xy = maxf(dim_max.x - dim_min.x, dim_max.y - dim_min.y);
+    sre_internal_current_shadow_map_dimensions = Vector4D(dim_xy, dim_xy, dim_max.z,
+        sre_internal_max_shadow_map_size);
+    GL3InitializeShadowMapShadersBeforeLight(sre_internal_current_shadow_map_dimensions);
     RenderShadowMapFromCasterArray(scene, light);
 
     // Switch back to default framebuffer.
@@ -1113,8 +1163,8 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
     else
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, sre_internal_window_width, sre_internal_window_height);
-    glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
+    glEnable(GL_CULL_FACE);
 #if !defined(NO_DEPTH_CLAMP)
     // Restore the normal setting.
     if (sre_internal_use_depth_clamping)

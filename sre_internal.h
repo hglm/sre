@@ -43,7 +43,7 @@ extern int sre_internal_window_width;
 extern int sre_internal_window_height;
 extern bool sre_internal_aspect_changed;
 extern int sre_internal_reflection_model;
-extern int sre_internal_shader_mask;
+extern int sre_internal_shader_selection;
 extern bool sre_internal_reselect_shaders;
 extern bool sre_internal_use_depth_clamping;
 extern void (*sreDrawTextOverlayFunc)();
@@ -104,6 +104,7 @@ extern int sre_internal_max_cube_shadow_map_size;
 extern int sre_internal_current_cube_shadow_map_index;
 extern int sre_internal_nu_cube_shadow_map_size_levels;
 extern SRE_GLUINT sre_internal_current_depth_cube_map_texture;
+extern Vector4D sre_internal_current_shadow_map_dimensions;
 
 extern Matrix3D *sre_internal_standard_UV_transformation_matrix;
 
@@ -140,10 +141,13 @@ SRE_LOCAL void sreDrawObjectMultiPassLightingPass(sreObject *so, bool shadow_map
 
 SRE_LOCAL void GL3InitializeShadersBeforeFrame();
 SRE_LOCAL void GL3InitializeShadersBeforeLight();
-SRE_LOCAL void GL3InitializeShadowMapShadersBeforeLight();
+SRE_LOCAL void GL3InitializeCubeShadowMapShadersBeforeLight();
+SRE_LOCAL void GL3InitializeShadowMapShadersBeforeLight(const Vector4D& dim);
 SRE_LOCAL void GL3InitializeShadowVolumeShader(const sreObject& so, const Vector4D& light_position_object);
 SRE_LOCAL void GL3InitializeShadowMapShader(const sreObject& so);
+SRE_LOCAL void GL3InitializeShadowMapShaderNonClosedObject(const sreObject& so);
 SRE_LOCAL void GL3InitializeProjectionShadowMapShader(const sreObject& so);
+SRE_LOCAL void GL3InitializeProjectionShadowMapShaderNonClosedObject(const sreObject& so);
 SRE_LOCAL void GL3InitializeCubeShadowMapShader(const sreObject& so);
 SRE_LOCAL void GL3UpdateCubeShadowMapSegmentDistanceScaling(float segment_distance_scaling);
 SRE_LOCAL void GL3InitializeShadowMapShadersWithSegmentDistanceScaling();

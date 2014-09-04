@@ -44,10 +44,14 @@ const char *attribute_str[5] = { "position_in", "texcoord_in", "normal_in", "tan
 // Multi-pass lighting shader definition.
 
 const char *uniform_str[MAX_UNIFORMS] = {  "MVP", "model_matrix", "model_rotation_matrix", "diffuse_reflection_color_in",
-    "multi_color_in", "use_texture_in", "current_light_in", "ambient_color_in", "viewpoint_in", "light_position_in",
-    "light_att_in", "light_color_in", "specular_reflection_color_in", "specular_exponent_in", "texture_in",
-    "use_normal_map_in", "normal_map_in", "use_specular_map_in", "specular_map_in", "emission_color_in",
-    "use_emission_map_in", "emission_map_in", "diffuse_fraction_in", "roughness_in", "roughness_weights_in",
+    "multi_color_in", "use_texture_in", "shadow_map_dimensions_in", "ambient_color_in",
+    "viewpoint_in", "light_position_in",
+    "light_att_in", "light_color_in", "specular_reflection_color_in", "specular_exponent_in",
+    "texture_in",
+    "use_normal_map_in", "normal_map_in", "use_specular_map_in", "specular_map_in",
+    "emission_color_in",
+    "use_emission_map_in", "emission_map_in", "diffuse_fraction_in", "roughness_in",
+    "roughness_weights_in",
     "anisotropic_in", "shadow_map_transformation_matrix", "shadow_map_in", "cube_shadow_map_in",
     "segment_distance_scaling_in", "spotlight_in", "uv_transform_in" };
 
@@ -66,8 +70,9 @@ public :
 #define ATTRIBUTE_COLOR SRE_ATTRIBUTE_COLOR
 
 static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
-    { "Complete multi-pass lighting shader", UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_CURRENT_LIGHT) |
-    (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER)),
+    { "Complete multi-pass lighting shader", UNIFORM_MASK_COMMON ^ (
+    (1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_EMISSION_COLOR) |
+    (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER)),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
     (1 << ATTRIBUTE_COLOR) },
     { "Ambient multi-pass lighting shader", (1 << UNIFORM_MVP) | (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) |
@@ -85,7 +90,7 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     UNIFORM_LIGHT_PARAMETERS_MASK | (1 << UNIFORM_TEXTURE_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) },
     { "Complete multi-pass lighting shader for directional lights", UNIFORM_MASK_COMMON ^ (
-    (1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_CURRENT_LIGHT) | (1 << UNIFORM_LIGHT_ATT) |
+    (1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_LIGHT_ATT) |
     (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER)),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
@@ -96,12 +101,12 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     (1 << UNIFORM_TEXTURE_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) },
     { "Complete multi-pass lighting shader for point source lights", UNIFORM_MASK_COMMON ^
-    ((1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_CURRENT_LIGHT) |
+    ((1 << UNIFORM_AMBIENT_COLOR) |
     (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER)),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
     { "Complete multi-pass lighting shader for point/spot/beam lights with a linear attenuation range",
-    (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_CURRENT_LIGHT) |
+    (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) | 
     (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER))) |
     (1 << UNIFORM_SPOTLIGHT),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
@@ -116,30 +121,31 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     (1 << UNIFORM_SPOTLIGHT),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_NORMAL) },
     { "Complete microfacet multi-pass lighting shader", (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) |
-    (1 << UNIFORM_CURRENT_LIGHT) | (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) |
+    (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) |
     (1 << UNIFORM_EMISSION_MAP_SAMPLER) | (1 << UNIFORM_SPECULAR_EXPONENT))) | (1 << UNIFORM_DIFFUSE_FRACTION) |
     (1 << UNIFORM_ROUGHNESS) | (1 << UNIFORM_ROUGHNESS_WEIGHTS) | (1 << UNIFORM_ANISOTROPIC),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
     (1 << ATTRIBUTE_COLOR) },
     { "Complete microfacet multi-pass lighting shader for point/spot/beam lights with a linear attenuation range",
     (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) |
-    (1 << UNIFORM_CURRENT_LIGHT) | (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) |
+    (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) |
     (1 << UNIFORM_EMISSION_MAP_SAMPLER) | (1 << UNIFORM_SPECULAR_EXPONENT))) | (1 << UNIFORM_SPOTLIGHT) |
     (1 << UNIFORM_DIFFUSE_FRACTION) |
     (1 << UNIFORM_ROUGHNESS) | (1 << UNIFORM_ROUGHNESS_WEIGHTS) | (1 << UNIFORM_ANISOTROPIC),
-    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
-    (1 << ATTRIBUTE_COLOR) },
+    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
+    (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
 #ifndef NO_SHADOW_MAP
     { "Complete shadow map multi-pass lighting shader for directional lights", (UNIFORM_MASK_COMMON ^ (
     (1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_LIGHT_ATT) |
-    (1 << UNIFORM_CURRENT_LIGHT) | (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) |
+    (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) |
     (1 << UNIFORM_EMISSION_MAP_SAMPLER))) | (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) |
-    (1 << UNIFORM_SHADOW_MAP_SAMPLER),
-    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
-    (1 << ATTRIBUTE_COLOR) },
+    (1 << UNIFORM_SHADOW_MAP_SAMPLER) | (1 << UNIFORM_SHADOW_MAP_DIMENSIONS),
+    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
+    (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
     { "Complete shadow map multi-pass lighting shader for point lights with a linear attenuation range",
     (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) |
-    (1 << UNIFORM_CURRENT_LIGHT) | (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) |
+    (1 << UNIFORM_EMISSION_COLOR) |
+    (1 << UNIFORM_USE_EMISSION_MAP) |
     (1 << UNIFORM_EMISSION_MAP_SAMPLER))) | (1 << UNIFORM_SPOTLIGHT) |
     (1 << UNIFORM_CUBE_SHADOW_MAP_SAMPLER) | (1 << UNIFORM_SEGMENT_DISTANCE_SCALING),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
@@ -147,51 +153,63 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     { "Complete microfacet shadow map multi-pass lighting shader for directional lights",
     (UNIFORM_MASK_COMMON ^ (
     (1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_LIGHT_ATT) |
-    (1 << UNIFORM_CURRENT_LIGHT) | (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) |
-    (1 << UNIFORM_EMISSION_MAP_SAMPLER) | (1 << UNIFORM_SPECULAR_EXPONENT))) | (1 << UNIFORM_DIFFUSE_FRACTION) |
+    (1 << UNIFORM_EMISSION_COLOR) |
+    (1 << UNIFORM_USE_EMISSION_MAP) |
+    (1 << UNIFORM_EMISSION_MAP_SAMPLER) | (1 << UNIFORM_SPECULAR_EXPONENT)))
+  | (1 << UNIFORM_DIFFUSE_FRACTION) |
     (1 << UNIFORM_ROUGHNESS) | (1 << UNIFORM_ROUGHNESS_WEIGHTS) | (1 << UNIFORM_ANISOTROPIC) |
-    (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER),
-    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
-    (1 << ATTRIBUTE_COLOR) },
+    (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER) |
+    (1 << UNIFORM_SHADOW_MAP_DIMENSIONS),
+    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
+    (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
     { "Complete microfacet shadow map multi-pass lighting shader for point light with a linear attenuation range",
     (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) |
-    (1 << UNIFORM_CURRENT_LIGHT) | (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) |
-    (1 << UNIFORM_EMISSION_MAP_SAMPLER) | (1 << UNIFORM_SPECULAR_EXPONENT))) | (1 << UNIFORM_SPOTLIGHT) |
+    (1 << UNIFORM_EMISSION_COLOR) |
+    (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER) |
+    (1 << UNIFORM_SPECULAR_EXPONENT))) | (1 << UNIFORM_SPOTLIGHT) |
     (1 << UNIFORM_DIFFUSE_FRACTION) |
     (1 << UNIFORM_ROUGHNESS) | (1 << UNIFORM_ROUGHNESS_WEIGHTS) | (1 << UNIFORM_ANISOTROPIC) |
     (1 << UNIFORM_CUBE_SHADOW_MAP_SAMPLER) | (1 << UNIFORM_SEGMENT_DISTANCE_SCALING),
-    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
-    (1 << ATTRIBUTE_COLOR) },
+    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
+    (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
     { "Complete shadow map multi-pass lighting shader for spot or beam light with a linear attenuation range",
     (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) |
-    (1 << UNIFORM_CURRENT_LIGHT) | (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) |
+    (1 << UNIFORM_EMISSION_COLOR) |
+    (1 << UNIFORM_USE_EMISSION_MAP) |
     (1 << UNIFORM_EMISSION_MAP_SAMPLER))) | (1 << UNIFORM_SPOTLIGHT) |
-    (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER),
-    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
-    (1 << ATTRIBUTE_COLOR) },
+    (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER) |
+    (1 << UNIFORM_SHADOW_MAP_DIMENSIONS),
+    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
+    (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
     { "Complete microfacet shadow map multi-pass lighting shader for spot or beam light with a linear attenuation range",
     (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_SPECULAR_EXPONENT) |
-    (1 << UNIFORM_CURRENT_LIGHT) | (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) |
+    (1 << UNIFORM_EMISSION_COLOR) |
+    (1 << UNIFORM_USE_EMISSION_MAP) |
     (1 << UNIFORM_EMISSION_MAP_SAMPLER))) |
     (1 << UNIFORM_SPOTLIGHT) | (1 << UNIFORM_DIFFUSE_FRACTION) |
-    (1 << UNIFORM_ROUGHNESS) | (1 << UNIFORM_ROUGHNESS_WEIGHTS) | (1 << UNIFORM_ANISOTROPIC)  |
-    (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER),
-    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
-    (1 << ATTRIBUTE_COLOR) },
+    (1 << UNIFORM_ROUGHNESS) | (1 << UNIFORM_ROUGHNESS_WEIGHTS) | (1 << UNIFORM_ANISOTROPIC) |
+    (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER) |
+    (1 << UNIFORM_SHADOW_MAP_DIMENSIONS),
+    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
+    (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
     { "Earth shadow map multi-pass lighting shader for directional light", (1 << UNIFORM_MVP) |
     (1 << UNIFORM_MODEL_MATRIX) | (1 << UNIFORM_MODEL_ROTATION_MATRIX) |
-    (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) | (1 << UNIFORM_LIGHT_POSITION) |
+    (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) |
+    (1 << UNIFORM_LIGHT_POSITION) |
     (1 << UNIFORM_LIGHT_COLOR) | (1 << UNIFORM_SPECULAR_REFLECTION_COLOR) |
     (1 << UNIFORM_SPECULAR_EXPONENT) | (1 << UNIFORM_TEXTURE_SAMPLER) |
     (1 << UNIFORM_SPECULARITY_MAP_SAMPLER) | (1 << UNIFORM_EMISSION_MAP_SAMPLER) |
-    (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER),
+    (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER) |
+    (1 << UNIFORM_SHADOW_MAP_DIMENSIONS),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) },
 #endif
-    { "Earth multi-pass lighting shader for directional light", (1 << UNIFORM_MVP) | (1 << UNIFORM_MODEL_MATRIX) |
-    (1 << UNIFORM_MODEL_ROTATION_MATRIX) | (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) |
-    (1 << UNIFORM_LIGHT_POSITION) | (1 << UNIFORM_LIGHT_COLOR) | (1 << UNIFORM_SPECULAR_REFLECTION_COLOR) |
-    (1 << UNIFORM_SPECULAR_EXPONENT) | (1 << UNIFORM_TEXTURE_SAMPLER) | (1 << UNIFORM_SPECULARITY_MAP_SAMPLER) |
-    (1 << UNIFORM_EMISSION_MAP_SAMPLER),
+    { "Earth multi-pass lighting shader for directional light", (1 << UNIFORM_MVP) |
+    (1 << UNIFORM_MODEL_MATRIX) |
+    (1 << UNIFORM_MODEL_ROTATION_MATRIX) | (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) |
+    (1 << UNIFORM_VIEWPOINT) | (1 << UNIFORM_LIGHT_POSITION) | (1 << UNIFORM_LIGHT_COLOR) |
+    (1 << UNIFORM_SPECULAR_REFLECTION_COLOR) |
+    (1 << UNIFORM_SPECULAR_EXPONENT) | (1 << UNIFORM_TEXTURE_SAMPLER) |
+    (1 << UNIFORM_SPECULARITY_MAP_SAMPLER) | (1 << UNIFORM_EMISSION_MAP_SAMPLER),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) }
 };
 
@@ -567,11 +585,11 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
 // Single pass lighting shader definition.
 
 static ShaderInfo single_pass_shader_info[NU_SINGLE_PASS_SHADERS] = {
-    { "Complete single pass shader", UNIFORM_MASK_COMMON ^ (1 << UNIFORM_CURRENT_LIGHT),
+    { "Complete single pass shader", UNIFORM_MASK_COMMON,
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
     { "Complete single pass shader for directional light", UNIFORM_MASK_COMMON ^
-    ((1 << UNIFORM_CURRENT_LIGHT) | (1 << UNIFORM_LIGHT_ATT)),
+    ((1 << UNIFORM_LIGHT_ATT)),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
     (1 << ATTRIBUTE_COLOR) },
     { "Single-pass phong-only shader for directional light", (1 << UNIFORM_MVP) |
@@ -598,7 +616,7 @@ static ShaderInfo single_pass_shader_info[NU_SINGLE_PASS_SHADERS] = {
     (1 << UNIFORM_EMISSION_COLOR),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) },
     { "Complete single pass shader for point lights with a linear attenuation range",
-    (UNIFORM_MASK_COMMON ^ (1 << UNIFORM_CURRENT_LIGHT)) | (1 << UNIFORM_SPOTLIGHT),
+    UNIFORM_MASK_COMMON | (1 << UNIFORM_SPOTLIGHT),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) |
     (1 << ATTRIBUTE_COLOR) },
@@ -1027,7 +1045,8 @@ void sreShader::SetDefaultUniformValues() {
     for (int i = 0; i < n; i++)
         // Only uniforms that need only one-time initialization will actually be set.    
         if (uniform_mask & (1 << i)) {
-            if (type & (SRE_SHADER_MASK_LIGHTING_SINGLE_PASS | SRE_SHADER_MASK_LIGHTING_MULTI_PASS))
+            if (type & (SRE_SHADER_MASK_LIGHTING_SINGLE_PASS |
+            SRE_SHADER_MASK_LIGHTING_MULTI_PASS))
                 sreInitializeLightingShaderUniformWithDefaultValue(i, uniform_location[i]);
             else
                 // Misc shader.
@@ -1038,12 +1057,14 @@ void sreShader::SetDefaultUniformValues() {
 
 // Array of uniform identifiers for miscellaneous shaders.
 
-static const char *uniform_misc_str[] = {
+static const char *uniform_misc_str[MAX_MISC_UNIFORMS] = {
     "MVP", "light_pos_model_space_in", "view_projection_matrix",
     "base_color_in", "aspect_ratio_in", "halo_size_in", "texture_in", "light_position_in",
     "model_matrix", "segment_distance_scaling_in", "average_lum_in", "slot_in",
     "key_value_in", "array_in", "rectangle_in", "uv_transform_in", "mult_color_in",
-    "add_color_in", "screen_size_in_chars_in", "string_in", "use_emission_map_in"};
+    "add_color_in", "screen_size_in_chars_in", "string_in", "use_emission_map_in",
+    "shadow_map_dimensions_in"
+};
 
 class MiscShaderInfo {
 public :
@@ -1166,9 +1187,17 @@ static const MiscShaderInfo misc_shader_info[] = {
     "gl3_shadow_map.vert", "gl3_shadow_map.frag", ""
     },
     {
+    "Shadow map shader (non-closed object)",
+    SRE_SHADER_MASK_SHADOW_MAP,
+    (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_SHADOW_MAP_DIMENSIONS),
+    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_NORMAL),
+    "gl3_shadow_map.vert", "gl3_shadow_map.frag", "#define ADD_BIAS\n"
+    },
+    {
     "Shadow map shader for transparent textures",
     SRE_SHADER_MASK_SHADOW_MAP,
-    (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_TEXTURE_SAMPLER) | (1 << UNIFORM_MISC_UV_TRANSFORM),
+    (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_TEXTURE_SAMPLER) |
+    (1 << UNIFORM_MISC_UV_TRANSFORM),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS),
     "gl3_shadow_map.vert", "gl3_shadow_map.frag", "#define TEXTURE_ALPHA\n#define UV_TRANSFORM\n"
     },
@@ -1180,9 +1209,17 @@ static const MiscShaderInfo misc_shader_info[] = {
     "gl3_shadow_map.vert", "gl3_shadow_map.frag",  "#define PROJECTION\n"
     },
     {
+    "Shadow map shader (spotlights) (non-closed objects)",
+    SRE_SHADER_MASK_SHADOW_MAP,
+    (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_SHADOW_MAP_DIMENSIONS),
+    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_NORMAL),
+    "gl3_shadow_map.vert", "gl3_shadow_map.frag",  "#define PROJECTION\n#define ADD_BIAS\n"
+    },
+    {
     "Shadow map shader for transparent textures (spotlights)",
     SRE_SHADER_MASK_SHADOW_MAP,
-    (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_TEXTURE_SAMPLER) | (1 << UNIFORM_MISC_UV_TRANSFORM),
+    (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_TEXTURE_SAMPLER) |
+    (1 << UNIFORM_MISC_UV_TRANSFORM),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS),
     "gl3_shadow_map.vert", "gl3_shadow_map.frag",
     "#define PROJECTION\n#define TEXTURE_ALPHA\n#define UV_TRANSFORM\n"
@@ -1436,10 +1473,11 @@ void sreValidateShadowVolumeShaders() {
 
 void sreValidateShadowMapShaders() {
    misc_shader[SRE_MISC_SHADER_SHADOW_MAP].Validate();
+   misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT].Validate();
    misc_shader[SRE_MISC_SHADER_SHADOW_MAP_TRANSPARENT].Validate();
    misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP].Validate();
+   misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_NON_CLOSED_OBJECT].Validate();
    misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_TRANSPARENT].Validate();
-
 }
 
 void sreValidateCubeShadowMapShaders() {

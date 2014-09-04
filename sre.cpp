@@ -47,7 +47,7 @@ int sre_internal_window_width;
 int sre_internal_window_height;
 bool sre_internal_aspect_changed;
 sreFrustum *sre_internal_frustum;
-int sre_internal_shader_mask = 0xFF;
+int sre_internal_shader_selection = SRE_SHADER_SELECTION_ALL;
 // Whether object shader selection should be re-evaluated (for example after a
 // global rendering settings change).
 bool sre_internal_reselect_shaders;
@@ -136,6 +136,7 @@ int sre_internal_nu_shadow_map_size_levels;
 int sre_internal_max_cube_shadow_map_size;
 int sre_internal_current_cube_shadow_map_index;
 int sre_internal_nu_cube_shadow_map_size_levels;
+Vector4D sre_internal_current_shadow_map_dimensions;
 
 void sreSetShadowsMethod(int method) {
     if (method == SRE_SHADOWS_SHADOW_VOLUMES &&
@@ -188,9 +189,14 @@ void sreSetObjectFlagsMask(int mask) {
     sre_internal_reselect_shaders = true;
 }
 
-void sreSetShaderMask(int mask) {
-    sre_internal_shader_mask = mask;
+void sreSetShaderSelection(int value) {
+    sre_internal_shader_selection = value;
     sre_internal_reselect_shaders = true;
+}
+
+// Obsolete.
+void sreSetShaderMask(int mask) {
+    sreSetShaderSelection(mask);
 }
 
 void sreSetReflectionModel(int model) {

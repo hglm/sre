@@ -132,20 +132,21 @@ float upx, float upy, float upz) {
 
 void GL3CalculateShadowMapMatrix(Vector3D viewp, Vector3D light_direction, Vector3D x_direction,
 Vector3D y_direction, Vector3D dim_min, Vector3D dim_max) {
-    // Look at.
     MatrixTransform M;
+    // Note that the y direction has to be negated in order to preserve the handedness of
+    // triangles when rendering the shadow map.
     M.Set(
         x_direction.x, x_direction.y, x_direction.z, 0.0f,
-        y_direction.x, y_direction.y, y_direction.z, 0.0f,
+        - y_direction.x, - y_direction.y, - y_direction.z, 0.0f,
         - light_direction.x, - light_direction.y, - light_direction.z, 0.0f);
     MatrixTransform T;
     T.AssignTranslation(- viewp);
     // Set orthographic projection matrix.
     MatrixTransform orthographic_shadow_map_projection_matrix;
     orthographic_shadow_map_projection_matrix.Set(
-        2.0 / (dim_max.x - dim_min.x), 0.0f, 0.0f, - (dim_max.x + dim_min.x) / (dim_max.x - dim_min.x),
-        0.0f, 2.0 / (dim_max.y - dim_min.y), 0.0f, - (dim_max.y + dim_min.y) / (dim_max.y - dim_min.y),
-        0.0f, 0.0f, - 2.0 / dim_max.z, - 1.0f);
+        2.0f / (dim_max.x - dim_min.x), 0.0f, 0.0f, - (dim_max.x + dim_min.x) / (dim_max.x - dim_min.x),
+        0.0f, 2.0f / (dim_max.y - dim_min.y), 0.0f, - (dim_max.y + dim_min.y) / (dim_max.y - dim_min.y),
+        0.0f, 0.0f, - 2.0f / dim_max.z, - 1.0f);
     shadow_map_matrix = orthographic_shadow_map_projection_matrix * (M * T);
     // Calculate viewport matrix for lighting pass with shadow map.
     MatrixTransform shadow_map_viewport_matrix;

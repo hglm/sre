@@ -148,6 +148,22 @@ static void GL3InitializeShadowMapShaderWithLightPosition(int loc) {
     glUniform3fv(loc, 1, (GLfloat *)&sre_internal_current_light->vector);
 }
 
+static void GL3InitializeShadowMapShaderWithSpotLightDirection(int loc) {
+    // Calculate the inverted spotlight direction.
+    Vector3D dir = - sre_internal_current_light->spotlight.GetVector3D();
+    glUniform3fv(loc, 1, (GLfloat *)&dir);
+}
+
+static void GL3InitializeShadowMapShaderWithDirectionalLightDirection(int loc) {
+    // Use the inverted directional light direction (equal to the vector field in sreLight).
+    Vector3D dir = sre_internal_current_light->vector.GetVector3D();
+    glUniform3fv(loc, 1, (GLfloat *)&dir);
+}
+
+static void GL3InitializeShadowMapShaderWithShadowMapDimensions(int loc, const Vector4D& dim) {
+    glUniform4fv(loc, 1, (GLfloat *)&dim);
+}
+
 #endif
 
 // Lighting-related uniforms.
@@ -454,7 +470,8 @@ static void GL3InitializeShaderWithProjectionShadowMapTransformationMatrix(int l
 
 static void GL3InitializeShaderWithShadowMapTexture() {
     glActiveTexture(GL_TEXTURE4);
-    glBindTexture(GL_TEXTURE_2D, sre_internal_depth_texture[sre_internal_current_shadow_map_index]);
+    glBindTexture(GL_TEXTURE_2D,
+        sre_internal_depth_texture[sre_internal_current_shadow_map_index]);
 }
 
 static void GL3InitializeShaderWithCubeShadowMapTexture() {
@@ -475,6 +492,10 @@ void sreBindShadowMapTexture(sreLight *light) {
 
 static void GL3InitializeShaderWithCubeSegmentDistanceScaling(int loc) {
     glUniform1f(loc, sre_internal_shadow_cube_segment_distance_scaling);
+}
+
+static void GL3InitializeShaderWithShadowMapDimensions(int loc) {
+    glUniform4fv(loc, 1, (GLfloat *)&sre_internal_current_shadow_map_dimensions);
 }
 
 #endif
@@ -874,15 +895,21 @@ void GL3InitializeShadersBeforeLight() {
             GL3InitializeMultiPassShaderWithLightPosition(
                 lighting_pass_shader[j].uniform_location[UNIFORM_LIGHT_POSITION]);
         if (lighting_pass_shader[j].uniform_mask & (1 << UNIFORM_LIGHT_ATT))
-            GL3InitializeMultiPassShaderWithLightAttenuation(lighting_pass_shader[j].uniform_location[UNIFORM_LIGHT_ATT]);
+            GL3InitializeMultiPassShaderWithLightAttenuation(
+                lighting_pass_shader[j].uniform_location[UNIFORM_LIGHT_ATT]);
         if (lighting_pass_shader[j].uniform_mask & (1 << UNIFORM_LIGHT_COLOR))
-            GL3InitializeMultiPassShaderWithLightColor(lighting_pass_shader[j].uniform_location[UNIFORM_LIGHT_COLOR]);
+            GL3InitializeMultiPassShaderWithLightColor(
+                lighting_pass_shader[j].uniform_location[UNIFORM_LIGHT_COLOR]);
         if (lighting_pass_shader[j].uniform_mask & (1 << UNIFORM_SPOTLIGHT))
-            GL3InitializeMultiPassShaderWithSpotlight(lighting_pass_shader[j].uniform_location[UNIFORM_SPOTLIGHT]);
+            GL3InitializeMultiPassShaderWithSpotlight(
+                lighting_pass_shader[j].uniform_location[UNIFORM_SPOTLIGHT]);
 #ifndef NO_SHADOW_MAP
         if (lighting_pass_shader[j].uniform_mask & (1 << UNIFORM_SEGMENT_DISTANCE_SCALING))
             GL3InitializeShaderWithCubeSegmentDistanceScaling(
                 lighting_pass_shader[j].uniform_location[UNIFORM_SEGMENT_DISTANCE_SCALING]);
+        if (lighting_pass_shader[j].uniform_mask & (1 << UNIFORM_SHADOW_MAP_DIMENSIONS))
+            GL3InitializeShaderWithShadowMapDimensions(
+                lighting_pass_shader[j].uniform_location[UNIFORM_SHADOW_MAP_DIMENSIONS]);
 #endif
     }
 }
@@ -892,12 +919,53 @@ void GL3InitializeShadersBeforeLight() {
 // Initialization of shaders used to create shadow maps before each new shadow map is created.
 // Note the checks whether the shaders are loaded should be unnecessary if the status of the
 // shaders is properly checked when shadow mapping is enabled (just load them).
+//
+// dim.xyz is world space dimensions, dim.w is shadow map size in pixels.
 
-void GL3InitializeShadowMapShadersBeforeLight() {
+void GL3InitializeShadowMapShadersBeforeLight(const Vector4D& dim) {
+    if (misc_shader[SRE_MISC_SHADER_SHADOW_MAP].status == SRE_SHADER_STATUS_LOADED) {
+        // No uniforms to initialize.
+    }
+    if (misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT].status ==
+    SRE_SHADER_STATUS_LOADED) {
+        glUseProgram(misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT].program);
+        GL3InitializeShadowMapShaderWithShadowMapDimensions(
+            misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT].
+            uniform_location[UNIFORM_MISC_SHADOW_MAP_DIMENSIONS], dim);
+        GL3InitializeShadowMapShaderWithDirectionalLightDirection(
+            misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT].
+                uniform_location[UNIFORM_MISC_LIGHT_POSITION]);
+    }
+    if (misc_shader[SRE_MISC_SHADER_SHADOW_MAP_TRANSPARENT].status ==
+    SRE_SHADER_STATUS_LOADED) {
+        // No uniforms to initialize.
+    }
+    if (misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP].status == SRE_SHADER_STATUS_LOADED) {
+        // No uniforms to initialize.
+    }
+    if (misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_NON_CLOSED_OBJECT].status ==
+    SRE_SHADER_STATUS_LOADED) {
+        glUseProgram(misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_NON_CLOSED_OBJECT].
+            program);
+        GL3InitializeShadowMapShaderWithShadowMapDimensions(
+            misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_NON_CLOSED_OBJECT].
+            uniform_location[UNIFORM_MISC_SHADOW_MAP_DIMENSIONS], dim);
+        GL3InitializeShadowMapShaderWithSpotLightDirection(
+            misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_NON_CLOSED_OBJECT].
+                uniform_location[UNIFORM_MISC_LIGHT_POSITION]);
+    }
+    if (misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_TRANSPARENT].status ==
+    SRE_SHADER_STATUS_LOADED) {
+        // No uniforms to initialize.
+    }
+}
+
+void GL3InitializeCubeShadowMapShadersBeforeLight() {
     if (misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP].status == SRE_SHADER_STATUS_LOADED) {
         glUseProgram(misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP].program);
         GL3InitializeShadowMapShaderWithLightPosition(
-            misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP].uniform_location[UNIFORM_MISC_LIGHT_POSITION]);
+            misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP].
+                uniform_location[UNIFORM_MISC_LIGHT_POSITION]);
     }
     if (misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT].status == SRE_SHADER_STATUS_LOADED) {
         glUseProgram(misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT].program);
@@ -995,7 +1063,7 @@ static MultiPassShaderSelection sreSelectMultiPassShader(const sreObject& so) {
             else
                 shader = SHADER10;
         else // Not micro-facet.
-        if (sre_internal_shader_mask == 0x01 || (flags & SRE_OBJECT_TRANSPARENT_TEXTURE))
+        if (sre_internal_shader_selection == 0x01 || (flags & SRE_OBJECT_TRANSPARENT_TEXTURE))
             // Optimized shaders have been disabled, or object has a transparent punchthrough texture.
             if (sre_internal_current_light->type & SRE_LIGHT_LINEAR_ATTENUATION_RANGE)
                 shader = SHADER7;
@@ -1597,7 +1665,7 @@ static SinglePassShaderSelection sreSelectSinglePassShader(const sreObject& so) 
             shader = SINGLE_PASS_SHADER3;
     else
 #endif
-    if (sre_internal_shader_mask == 0x01 || (flags & SRE_OBJECT_TRANSPARENT_TEXTURE))
+    if (sre_internal_shader_selection == 0x01 || (flags & SRE_OBJECT_TRANSPARENT_TEXTURE))
         if (sre_internal_current_light->type & SRE_LIGHT_LINEAR_ATTENUATION_RANGE)
             shader = SINGLE_PASS_SHADER6;
         else
@@ -2176,11 +2244,24 @@ void GL3InitializeShadowMapShader(const sreObject& so) {
     }
 }
 
+
+// This function does not yet support transparent textures.
+void GL3InitializeShadowMapShaderNonClosedObject(const sreObject& so) {
+    if (so.render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE)
+        sreMessage(SRE_MESSAGE_WARNING,
+            "Transparent textures for non-closed object shadow mapping not yet supported.");
+    glUseProgram(misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT].program);
+    GL3InitializeShadowMapShaderWithShadowMapMVP(
+        misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT].
+            uniform_location[UNIFORM_MISC_MVP], so);
+}
+
 void GL3InitializeProjectionShadowMapShader(const sreObject& so) {
     if (so.render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE) {
         glUseProgram(misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_TRANSPARENT].program);
         GL3InitializeShadowMapShaderWithProjectionShadowMapMVP(
-            misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_TRANSPARENT].uniform_location[UNIFORM_MISC_MVP], so);
+            misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_TRANSPARENT].
+                uniform_location[UNIFORM_MISC_MVP], so);
         GL3InitializeShaderWithUVTransform(
             misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_TRANSPARENT].
             uniform_location[UNIFORM_MISC_UV_TRANSFORM], so);
@@ -2194,8 +2275,20 @@ void GL3InitializeProjectionShadowMapShader(const sreObject& so) {
     else {
         glUseProgram(misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP].program);
         GL3InitializeShadowMapShaderWithProjectionShadowMapMVP(
-            misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP].uniform_location[UNIFORM_MISC_MVP], so);
+            misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP].\
+                uniform_location[UNIFORM_MISC_MVP], so);
     }
+}
+
+// This function does not yet support transparent textures.
+void GL3InitializeProjectionShadowMapShaderNonClosedObject(const sreObject& so) {
+    if (so.render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE)
+        sreMessage(SRE_MESSAGE_WARNING,
+            "Transparent textures for non-closed object shadow mapping not yet supported.");
+    glUseProgram(misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_NON_CLOSED_OBJECT].program);
+    GL3InitializeShadowMapShaderWithProjectionShadowMapMVP(
+        misc_shader[SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_NON_CLOSED_OBJECT].
+            uniform_location[UNIFORM_MISC_MVP], so);
 }
 
 void GL3InitializeCubeShadowMapShader(const sreObject& so) {

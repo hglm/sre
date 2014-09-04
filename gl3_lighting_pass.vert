@@ -26,7 +26,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // the highest precision. These are preceded by the macro MEDIUMP, which expands to
 // nothing when using OpenGL.
 #ifndef GL_ES
-#version 120
+#version 130
 #define MEDIUMP
 #else
 #define MEDIUMP mediump
@@ -65,6 +65,15 @@ uniform vec3 diffuse_reflection_color_in;
 uniform mat4 shadow_map_transformation_matrix;
 #else
 uniform mat4x3 shadow_map_transformation_matrix;
+#endif
+#endif
+#ifdef SHADOW_MAP
+// For use with shadow map parameter precalculation.
+uniform vec4 shadow_map_dimensions_in;
+uniform sampler2D shadow_map_in;
+uniform vec4 light_position_in;
+#ifdef LINEAR_ATTENUATION_RANGE
+uniform vec4 spotlight_in;
 #endif
 #endif
 attribute vec4 position_in;
@@ -106,6 +115,12 @@ varying vec4 model_position_var;
 #else
 varying vec3 shadow_map_coord_var;
 #endif
+#endif
+#ifdef SHADOW_MAP
+varying float reprocical_shadow_map_size_var;
+varying float slope_var;
+varying float shadow_map_depth_precision_var;
+varying vec3 shadow_map_dimensions_var;
 #endif
 
 void main() {
@@ -170,6 +185,34 @@ void main() {
 	shadow_map_coord_var = (shadow_map_transformation_matrix * position_in).xyz;
 #endif
 #endif
+
+	// Precalculate shadow map parameters.
+#ifdef SHADOW_MAP
+	reprocical_shadow_map_size_var = 1.0 / shadow_map_dimensions_in.w;
+	vec3 L_bias;
+#ifdef SPOT_LIGHT_SHADOW_MAP
+        // The direction of the spotlight remains the z axis even for points away from the
+        // central axis.
+	L_bias = - spotlight_in.xyz;
+#else
+	L_bias = light_position_in.xyz;
+#endif
+	// Calculate the slope of the triangle relative to direction of the light
+	// (direction of increasing depth in shadow map).
+	// Use the vertex normal.
+	slope_var = tan(acos(clamp(dot(normal, L_bias), 0.001, 1.0)));
+        // Limit slope to 100.0.
+	slope_var = min(slope_var, 100.0);
+
+	// Set depth buffer precision.
+	if (shadow_map_dimensions_in.w >= 2047.0)
+		// Float depth buffer.
+		shadow_map_depth_precision_var = 0.5 / pow(2.0, 23.0);
+	else
+		// Half-float depth buffer.
+	        shadow_map_depth_precision_var = 0.5 / pow(2.0, 11.0);
+	shadow_map_dimensions_var = shadow_map_dimensions_in.xyz;
+#endif // defined(SHADOW_MAP)
 
 	gl_Position = MVP * position_in;
 }
