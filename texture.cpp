@@ -850,9 +850,17 @@ void sreTexture::LoadDDS(const char *filename) {
        format = TEXTURE_FORMAT_RGTC1;
        internal_format = GL_COMPRESSED_RED_RGTC1;
     }
-    else if (dx10_format == 83) {
+    else if (dx10_format == 81) {
+       format = TEXTURE_FORMAT_SIGNED_RGTC1;
+       internal_format = GL_COMPRESSED_SIGNED_RED_RGTC1;
+    }
+    else if (dx10_format == 82 || dx10_format == 83) {
        format = TEXTURE_FORMAT_RGTC2;
        internal_format = GL_COMPRESSED_RG_RGTC2;
+    }
+    else if (dx10_format == 84) {
+       format = TEXTURE_FORMAT_SIGNED_RGTC2;
+       internal_format = GL_COMPRESSED_SIGNED_RG_RGTC2;
     }
     else
         sreFatalError("Unsupported DX10 format %d in .dds file.", dx10_format);
@@ -884,7 +892,9 @@ void sreTexture::LoadDDS(const char *filename) {
     || (format == TEXTURE_FORMAT_DXT1A && DXT1A_internal_format < 0)
     || (format == TEXTURE_FORMAT_SRGB_DXT1A && SRGB_DXT1A_internal_format < 0)
     || (format == TEXTURE_FORMAT_RGTC1 && RGTC1_internal_format < 0)
-    || (format == TEXTURE_FORMAT_RGTC2 && RGTC2_internal_format < 0))
+    || (format == TEXTURE_FORMAT_RGTC2 && RGTC2_internal_format < 0)
+    || (format == TEXTURE_FORMAT_SIGNED_RGTC1 && RGTC1_internal_format < 0)
+    || (format == TEXTURE_FORMAT_SIGNED_RGTC2 && RGTC2_internal_format < 0))
         sreFatalError("Compressed texture format 0x%04X not supported by GPU.",
             internal_format);
 #endif
@@ -897,9 +907,11 @@ void sreTexture::LoadDDS(const char *filename) {
          nu_components = 4;
          break;
     case TEXTURE_FORMAT_RGTC1 :
+    case TEXTURE_FORMAT_SIGNED_RGTC1 :
          nu_components = 1;
          break;
     case TEXTURE_FORMAT_RGTC2 :
+    case TEXTURE_FORMAT_SIGNED_RGTC2 :
          nu_components = 2;
          break;
     default :
@@ -934,7 +946,8 @@ void sreTexture::LoadDDS(const char *filename) {
     unsigned char *buffer;
     unsigned int bufsize;
     // Only RGTC2 (BC5) has a 16-byte block size.
-    unsigned int blockSize = (format == TEXTURE_FORMAT_RGTC2) ? 16 : 8;
+    unsigned int blockSize =
+        (format == TEXTURE_FORMAT_RGTC2 || format == TEXTURE_FORMAT_SIGNED_RGTC2) ? 16 : 8;
     unsigned int size = ((width + 3) / 4) * ((height + 3) / 4) * blockSize;
     // Allocate a buffer of sufficient size to hold all the mipmaps.
     bufsize = mipMapCount > 1 ? size * 2 : size;

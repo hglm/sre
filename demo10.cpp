@@ -32,6 +32,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // devices.
 #ifndef OPENGL_ES2
 #define SHADOWS
+#define BUMP_MAPPED_SPHERE
 #endif
 
 void Demo10CreateScene(sreScene *scene, sreView *view) {
@@ -74,10 +75,24 @@ void Demo10CreateScene(sreScene *scene, sreView *view) {
             scene->AddObject(checkerboard_model, - 100.0 + x * 200.0, y * 200.0, 0, 0, 0, 0, 1);
 
     // Add sphere
+    // With OpenGL, show two bump-mapped spheres with different texture compression formats.
+#ifdef BUMP_MAPPED_SPHERE
+    scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_DYNAMIC_POSITION |
+        SRE_OBJECT_USE_NORMAL_MAP);
+    scene->SetNormalMap(new sreTexture(
+    "bump_map_512",
+    TEXTURE_TYPE_NORMAL_MAP));
+#else
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_DYNAMIC_POSITION);
+#endif 
     scene->SetDiffuseReflectionColor(Color(0.75, 0.75, 1.0));
     scene->SetMass(0.3);
-    int soi = scene->AddObject(sphere_model, 40, 30, 7.0, 0, 0, 0, 7.0);
+    scene->AddObject(sphere_model, 40, 30, 7.0, 0, 0, 0, 7.0);
+#ifdef BUMP_MAPPED_SPHERE
+    scene->SetNormalMap(new sreTexture("bump_map_512_rgtc2",
+        TEXTURE_TYPE_NORMAL_MAP));
+    scene->AddObject(sphere_model, 60, 30, 7.0, 0, 0, 0, 7.0);
+#endif
     scene->SetMass(0);
 
     // Add movable ellipsoids.
