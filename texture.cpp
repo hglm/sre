@@ -609,7 +609,7 @@ bool sreTexture::LoadKTX(const char *filename) {
     KTX_header header;
     fread(&header, 1, KTX_HEADER_SIZE, f);
     if (header.endianness != 0x04030201) {
-        printf("Endianness wrong way around in .ktx file.\n");
+        sreMessage(SRE_MESSAGE_INFO, "Endianness wrong way around in .ktx file.");
 	for (int i = 12; i < sizeof(KTX_header); i += 4) {
             unsigned char *h = (unsigned char *)&header;
             unsigned char temp = h[i];
@@ -1028,15 +1028,18 @@ sreTexture::sreTexture(const char *pathname_without_ext, int _type) {
 void sreTexture::Load(const char *basefilename, int _type) {
     if (!checked_texture_formats)
         CheckTextureFormats();
-    char s[80];
+    char *s;
+    s = new char[strlen(basefilename) + 5];
     sprintf(s, "%s.ktx", basefilename);
     bool success = false;
     bool keep_data = false;
     if (_type & SRE_TEXTURE_TYPE_FLAG_KEEP_DATA)
         keep_data = true;
     type = _type & (~SRE_TEXTURE_TYPE_FLAGS_MASK);
-    if (type != TEXTURE_TYPE_USE_RAW_TEXTURE && FileExists(s))
+    if (type != TEXTURE_TYPE_USE_RAW_TEXTURE && FileExists(s)) {
+
         success = LoadKTX(s);
+    }
     if (!success) {
         sprintf(s, "%s.dds", basefilename);
         if (DXT1_internal_format != -1 && type != TEXTURE_TYPE_USE_RAW_TEXTURE && FileExists(s)) {
@@ -1067,6 +1070,7 @@ void sreTexture::Load(const char *basefilename, int _type) {
             opengl_id = tex->opengl_id;
         }
     }
+    delete [] s;
 }
 
 void sreTexture::ChangeParameters(int flags, int filtering, float anisotropy) {

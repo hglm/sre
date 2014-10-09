@@ -40,8 +40,6 @@ void Demo5CreateScene(sreScene *scene, sreView *view) {
     // isotropic.
     scene->SetMicrofacetParameters(0.6, 0.1, 0.4, 0.25, 0.6, false);
 
-    sreTexture *tex = new sreTexture("beachball", TEXTURE_TYPE_NORMAL);
-
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);
     // Add player sphere as scene object 0
     scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS | 
@@ -149,6 +147,9 @@ void Demo5CreateScene(sreScene *scene, sreView *view) {
 
 #if 1
     // Add a beachball that can be pushed
+    sreTexture *tex = new sreTexture("beachball", TEXTURE_TYPE_NORMAL);
+//    sreTexture *tex = new sreTexture("beachball_bptc", TEXTURE_TYPE_NORMAL);
+
     scene->SetTexture(tex);
     scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_CAST_SHADOWS);
     c.r = 0.75;
