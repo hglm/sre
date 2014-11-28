@@ -563,7 +563,7 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
 
 #ifdef OPENGL_ES2
     glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_shadow_map_framebuffer[
-        sre_internal_current_shadow_map_index);
+        sre_internal_current_shadow_map_index]);
 #else
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_shadow_map_framebuffer[
         sre_internal_current_shadow_map_index]);
@@ -1348,6 +1348,8 @@ void sreVisualizeCubeMap(int light_index) {
 
     // Set the source to a scratch texture. Rather than having the image drawing functions
     // explicitly support cube textures, just copy the cube texture faces into a scratch texture.
+#ifndef OPENGL_ES2
+    // Not supported with OpenGL ES2, non-functional with OpenGL.
     GLuint scratch_texture;
     glGenTextures(1, &scratch_texture);
     glBindTexture(GL_TEXTURE_2D, scratch_texture);
@@ -1396,6 +1398,7 @@ void sreVisualizeCubeMap(int light_index) {
         sreDrawImage(i * w_step, h * 1.04, w, h);
     }
     glDeleteTextures(1, &scratch_texture);
+#endif
 
     // Draw labels.
     sreSetTextParameters(SRE_IMAGE_SET_COLORS, NULL, NULL); // Set default text colors.

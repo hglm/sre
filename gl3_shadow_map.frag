@@ -22,6 +22,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #ifndef GL_ES
 #version 330
+#else
+precision mediump float;
 #endif
 
 #ifndef CUBE_MAP
@@ -38,6 +40,21 @@ varying vec3 position_world_var;
 #endif
 #if defined(ADD_BIAS) && !defined(CUBE_MAP) && !defined(SPOTLIGHT)
 varying float bias_var;
+#endif
+
+
+#ifdef GL_ES
+
+void WriteDepth(float z) {
+    gl_FragColor.z = z;
+}
+
+#else
+
+void WriteDepth(float z) {
+    gl_FragDepth = z;
+}
+
 #endif
 
 void main() {
@@ -57,13 +74,13 @@ void main() {
 #endif
 
 #if defined(CUBE_MAP) || defined(SPOTLIGHT)
-	gl_FragDepth = distance(position_world_var, light_position_in) *
-		segment_distance_scaling_in;
+        WriteDepth(distance(position_world_var, light_position_in) *
+		segment_distance_scaling_in);
 #else
 #ifdef ADD_BIAS
-	gl_FragDepth = gl_FragCoord.z + bias;
+	WriteDepth(gl_FragCoord.z + bias);
 #else
-	gl_FragDepth = gl_FragCoord.z;
+	WriteDepth(gl_FragCoord.z);
 #endif
 #endif
 }

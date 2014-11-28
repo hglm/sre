@@ -38,7 +38,11 @@ varying vec2 texcoord_var;
 uniform mat3 uv_transform_in;
 #endif
 #if defined(CUBE_MAP) || defined(SPOTLIGHT)
+#ifdef GL_ES
+uniform mat4 model_matrix;
+#else
 uniform mat4x3 model_matrix;
+#endif
 varying vec3 position_world_var;
 #endif
 #if defined(ADD_BIAS) && !defined(CUBE_MAP) && !defined(SPOTLIGHT)

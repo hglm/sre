@@ -29,6 +29,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #version 130
 #define MEDIUMP
 #else
+// When using OpenGL ES 2.0, the maximum precision in the fragment shader may be only
+// "mediump", so that uniforms or varying variables must be limited in precision.
 #define MEDIUMP mediump
 #endif
 uniform mat4 MVP;
@@ -61,7 +63,7 @@ uniform bool use_emission_map_in;
 uniform vec3 diffuse_reflection_color_in;
 #endif
 #if defined(SHADOW_MAP) 
-#if defined(GL_ES) || defined (SPOT_LIGHT_SHADOW_MAP)
+#if defined(GL_ES)
 uniform mat4 shadow_map_transformation_matrix;
 #else
 uniform mat4x3 shadow_map_transformation_matrix;
@@ -71,8 +73,8 @@ uniform mat4x3 shadow_map_transformation_matrix;
 // For use with shadow map parameter precalculation (directional/beam lights).
 uniform vec4 shadow_map_dimensions_in;
 uniform sampler2D shadow_map_in;
-uniform vec4 light_position_in;
-uniform vec4 spotlight_in;
+uniform MEDIUMP vec4 light_position_in;
+uniform MEDIUMP vec4 spotlight_in;
 #endif
 attribute vec4 position_in;
 #ifdef TEXCOORD_IN
@@ -109,10 +111,10 @@ varying vec3 tangent_var;
 #endif
 #ifdef SHADOW_MAP
 varying vec3 shadow_map_coord_var;
-varying float reprocical_shadow_map_size_var;
+invariant varying float reprocical_shadow_map_size_var;
 varying float slope_var;
-varying float shadow_map_depth_precision_var;
-varying vec3 shadow_map_dimensions_var;
+invariant varying float shadow_map_depth_precision_var;
+invariant varying vec3 shadow_map_dimensions_var;
 #endif
 
 void main() {

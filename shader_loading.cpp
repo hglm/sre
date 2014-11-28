@@ -178,7 +178,7 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     (1 << UNIFORM_USE_EMISSION_MAP) |
     (1 << UNIFORM_EMISSION_MAP_SAMPLER))) | (1 << UNIFORM_SPOTLIGHT) |
     (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER) |
-    (1 << UNIFORM_SHADOW_MAP_DIMENSIONS) | (1 << UNIFORM_SEGMENT_DISTANCE_SCALING),
+    /* (1 << UNIFORM_SHADOW_MAP_DIMENSIONS) | */ (1 << UNIFORM_SEGMENT_DISTANCE_SCALING),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
     { "Complete microfacet shadow map multi-pass lighting shader for spot light with a linear attenuation range",
@@ -189,7 +189,7 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     (1 << UNIFORM_SPOTLIGHT) | (1 << UNIFORM_DIFFUSE_FRACTION) |
     (1 << UNIFORM_ROUGHNESS) | (1 << UNIFORM_ROUGHNESS_WEIGHTS) | (1 << UNIFORM_ANISOTROPIC) |
     (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER) |
-    (1 << UNIFORM_SHADOW_MAP_DIMENSIONS) | (1 << UNIFORM_SEGMENT_DISTANCE_SCALING),
+    /* (1 << UNIFORM_SHADOW_MAP_DIMENSIONS) | */ (1 << UNIFORM_SEGMENT_DISTANCE_SCALING),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
     { "Complete shadow map multi-pass lighting shader for beam light with a linear attenuation range",
@@ -545,7 +545,7 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define LOCAL_LIGHT\n"
     "#define SPOT_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n" 
-    "#define SHADOW_MAP\n"
+//    "#define SHADOW_MAP\n"
     "#define SPOT_LIGHT_SHADOW_MAP\n",
     // Complete microfacet shadow map lighting pass shader for spot lights with a linear attenuation range
     "#define TEXCOORD_IN\n"
@@ -571,7 +571,7 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define SPOT_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n"
     "#define MICROFACET\n" 
-    "#define SHADOW_MAP\n"
+//    "#define SHADOW_MAP\n"
     "#define SPOT_LIGHT_SHADOW_MAP\n",
     // Complete shadow map multi-pass lighting shader for beam light with a linear attenuation range
     "#define TEXCOORD_IN\n"

@@ -94,7 +94,7 @@ uniform sampler2D emission_map_in;
 #ifdef SPOT_LIGHT_SHADOW_MAP
 uniform mat4 shadow_map_transformation_matrix;
 #endif
-#ifdef SHADOW_MAP
+#if defined(SHADOW_MAP) || defined(SPOT_LIGHT_SHADOW_MAP)
 uniform sampler2D shadow_map_in;
 #endif
 #ifdef SHADOW_CUBE_MAP
@@ -127,10 +127,10 @@ varying vec3 tangent_var;
 varying vec3 shadow_map_coord_var;
 #endif
 #ifdef SHADOW_MAP
-varying float reprocical_shadow_map_size_var;
+invariant varying float reprocical_shadow_map_size_var;
 varying float slope_var;
-varying float shadow_map_depth_precision_var;
-varying vec3 shadow_map_dimensions_var;
+invariant varying float shadow_map_depth_precision_var;
+invariant varying vec3 shadow_map_dimensions_var;
 #endif
 
 #ifdef MICROFACET
@@ -199,6 +199,8 @@ vec3 AnisotropicMicrofacetTextureValue(float NdotH, float LdotH, float TdotP) {
 
 #if defined(SHADOW_MAP) || defined(CUBE_SHADOW_MAP)
 
+#ifndef GL_ES
+
 float SampleShadowPoisson(sampler2D shadow_map, vec3 coords, float bias, float factor) {
 	const vec2 poisson_disk[4] = vec2[](
   		vec2(-0.94201624, -0.39906216),
@@ -213,6 +215,8 @@ float SampleShadowPoisson(sampler2D shadow_map, vec3 coords, float bias, float f
 			light_factor -= 0.25;
 	return light_factor;
 }
+
+#endif
 
 float SampleShadowSimple(sampler2D shadow_map, vec3 coords, float bias, float factor) {
 	// When rendering closed models in the shadow map, only back faces are rendered
@@ -242,10 +246,10 @@ float CalculateShadow() {
 	float shadow_map_world_depth_range;
 	float shadow_map_world_width;
 //	shadow_map_world_width = d_light_direction;
-	// Direction light. The dimensions of the shadow map were precalculated in the
+	// Directional light. The dimensions of the shadow map were precalculated in the
 	// vertex shader.
 	shadow_map_world_depth_range = shadow_map_dimensions_var.z;
-	shadow_map_world_width = shadow_map_dimensions_var;
+	shadow_map_world_width = shadow_map_dimensions_var.x;
 
 	float slope = slope_var;
         // Set bias corresponding to the world space depth difference of adjacent pixels
@@ -498,7 +502,7 @@ void main() {
 	// Point source light shadow cube map (six sides).
 	// Use an optimized method using built-in cube map texture look up functions.
 	// Look up radial distance where shadow begins from the cube map.
-	float shadow_radial_dist = texture(cube_shadow_map_in, space_vector_from_light).z;
+	float shadow_radial_dist = textureCube(cube_shadow_map_in, space_vector_from_light).z;
 #else
 	// Spotlight shadow map. Only one shadow map is used.
 	// shadow_map_transformation_matrix is expected to be the projection transformation
