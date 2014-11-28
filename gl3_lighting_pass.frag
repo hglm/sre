@@ -133,6 +133,13 @@ invariant varying float shadow_map_depth_precision_var;
 invariant varying vec3 shadow_map_dimensions_var;
 #endif
 
+#ifdef GL_ES
+#define TEXTURE_CUBE_FUNC textureCube
+#else
+// With recent versions of GLSL, textureCube is not allowed.
+#define TEXTURE_CUBE_FUNC texture
+#endif
+
 #ifdef MICROFACET
 
 float sqr(float value) {
@@ -502,7 +509,7 @@ void main() {
 	// Point source light shadow cube map (six sides).
 	// Use an optimized method using built-in cube map texture look up functions.
 	// Look up radial distance where shadow begins from the cube map.
-	float shadow_radial_dist = textureCube(cube_shadow_map_in, space_vector_from_light).z;
+	float shadow_radial_dist = TEXTURE_CUBE_FUNC(cube_shadow_map_in, space_vector_from_light).z;
 #else
 	// Spotlight shadow map. Only one shadow map is used.
 	// shadow_map_transformation_matrix is expected to be the projection transformation
