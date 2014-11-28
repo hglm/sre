@@ -60,21 +60,19 @@ uniform bool use_emission_map_in;
 #ifdef MULTI_COLOR_OPTION
 uniform vec3 diffuse_reflection_color_in;
 #endif
-#if defined(SHADOW_MAP) && !defined(SPOT_LIGHT_SHADOW_MAP)
-#ifdef GL_ES
+#if defined(SHADOW_MAP) 
+#if defined(GL_ES) || defined (SPOT_LIGHT_SHADOW_MAP)
 uniform mat4 shadow_map_transformation_matrix;
 #else
 uniform mat4x3 shadow_map_transformation_matrix;
 #endif
 #endif
 #ifdef SHADOW_MAP
-// For use with shadow map parameter precalculation.
+// For use with shadow map parameter precalculation (directional/beam lights).
 uniform vec4 shadow_map_dimensions_in;
 uniform sampler2D shadow_map_in;
 uniform vec4 light_position_in;
-#ifdef LINEAR_ATTENUATION_RANGE
 uniform vec4 spotlight_in;
-#endif
 #endif
 attribute vec4 position_in;
 #ifdef TEXCOORD_IN
@@ -110,13 +108,7 @@ varying vec2 texcoord_var;
 varying vec3 tangent_var;
 #endif
 #ifdef SHADOW_MAP
-#ifdef SPOT_LIGHT_SHADOW_MAP
-varying vec4 model_position_var;
-#else
 varying vec3 shadow_map_coord_var;
-#endif
-#endif
-#ifdef SHADOW_MAP
 varying float reprocical_shadow_map_size_var;
 varying float slope_var;
 varying float shadow_map_depth_precision_var;
@@ -179,24 +171,19 @@ void main() {
 #endif
 
 #ifdef SHADOW_MAP 
-#ifdef SPOT_LIGHT_SHADOW_MAP
-	model_position_var = position_in;
-#else
 	shadow_map_coord_var = (shadow_map_transformation_matrix * position_in).xyz;
 #endif
-#endif
 
-	// Precalculate shadow map parameters.
+	// Precalculate shadow map parameters for directional and beam lights.
 #ifdef SHADOW_MAP
 	reprocical_shadow_map_size_var = 1.0 / shadow_map_dimensions_in.w;
 	vec3 L_bias;
-#ifdef SPOT_LIGHT_SHADOW_MAP
-        // The direction of the spotlight remains the z axis even for points away from the
-        // central axis.
-	L_bias = - spotlight_in.xyz;
-#else
-	L_bias = light_position_in.xyz;
-#endif
+	if (light_position_in.w > 0.5)
+	        // For a beam light, the direction of light remains the z axis even for points away
+		// from the central axis.
+		L_bias = - spotlight_in.xyz;
+	else
+		L_bias = light_position_in.xyz;
 	// Calculate the slope of the triangle relative to direction of the light
 	// (direction of increasing depth in shadow map).
 	// Use the vertex normal.

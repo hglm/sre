@@ -91,22 +91,16 @@ uniform sampler2D specular_map_in;
 #ifdef EMISSION_MAP_SAMPLER
 uniform sampler2D emission_map_in;
 #endif
-#ifdef SHADOW_MAP
 #ifdef SPOT_LIGHT_SHADOW_MAP
 uniform mat4 shadow_map_transformation_matrix;
-#else
-// Directional light. Shadow map matrix is only used to 
-// look up dimension in fragment shader.
-#ifdef GL_ES
-uniform mat4 shadow_map_transformation_matrix;
-#else
-uniform mat4x3 shadow_map_transformation_matrix;
 #endif
-#endif
+#ifdef SHADOW_MAP
 uniform sampler2D shadow_map_in;
 #endif
 #ifdef SHADOW_CUBE_MAP
 uniform samplerCube cube_shadow_map_in;
+#endif
+#if defined(SHADOW_CUBE_MAP) || defined (SPOT_LIGHT_SHADOW_MAP)
 uniform float segment_distance_scaling_in;
 #endif
 #if !defined(MULTI_COLOR_OPTION) && !defined(MULTI_COLOR_FIXED)
@@ -130,11 +124,7 @@ varying vec2 texcoord_var;
 varying vec3 tangent_var;
 #endif
 #ifdef SHADOW_MAP
-#ifdef SPOT_LIGHT_SHADOW_MAP
-varying vec4 model_position_var;
-#else
 varying vec3 shadow_map_coord_var;
-#endif
 #endif
 #ifdef SHADOW_MAP
 varying float reprocical_shadow_map_size_var;
@@ -209,7 +199,7 @@ vec3 AnisotropicMicrofacetTextureValue(float NdotH, float LdotH, float TdotP) {
 
 #if defined(SHADOW_MAP) || defined(CUBE_SHADOW_MAP)
 
-float SampleShadowPoisson(sampler2D shadow_map, vec4 coords, float bias, float factor) {
+float SampleShadowPoisson(sampler2D shadow_map, vec3 coords, float bias, float factor) {
 	const vec2 poisson_disk[4] = vec2[](
   		vec2(-0.94201624, -0.39906216),
 		vec2(0.94558609, -0.76890725),
@@ -224,7 +214,7 @@ float SampleShadowPoisson(sampler2D shadow_map, vec4 coords, float bias, float f
 	return light_factor;
 }
 
-float SampleShadowSimple(sampler2D shadow_map, vec4 coords, float bias, float factor) {
+float SampleShadowSimple(sampler2D shadow_map, vec3 coords, float bias, float factor) {
 	// When rendering closed models in the shadow map, only back faces are rendered
 	// so the bias has to be subtracted from the calculated depth coordinate.
 	//
@@ -237,6 +227,42 @@ float SampleShadowSimple(sampler2D shadow_map, vec4 coords, float bias, float fa
 		return 0.0;
 	else
 		return 1.0;
+}
+
+#endif
+
+#ifdef SHADOW_MAP
+
+float CalculateShadow() {
+	// Scale the Poisson factor according to the resolution of the shadow map.
+	float poisson_factor = 1.3 * reprocical_shadow_map_size_var;
+	vec3 L_bias;
+        // z / xy in shadow map in real world coordinates at the fragment position, in terms
+        // of shadow map u,v and z coordinates (normalized to [0, 1]).
+	float shadow_map_world_depth_range;
+	float shadow_map_world_width;
+//	shadow_map_world_width = d_light_direction;
+	// Direction light. The dimensions of the shadow map were precalculated in the
+	// vertex shader.
+	shadow_map_world_depth_range = shadow_map_dimensions_var.z;
+	shadow_map_world_width = shadow_map_dimensions_var;
+
+	float slope = slope_var;
+        // Set bias corresponding to the world space depth difference of adjacent pixels
+	// in shadow map.
+	float bias = slope * shadow_map_world_width * reprocical_shadow_map_size_var;
+	// Normalize bias from world space coordinates to depth buffer coordinates.
+	bias *= 1.0 / shadow_map_world_depth_range;
+	// Example bias calculation for directional light, slope = 1.0:
+	// bias = 1.0 * 400.0 * (1.0 / 2048.0) / 400.0 = 1.0 / 2048.0 = 0.000488
+	// Add one unit of shadow map depth precision (0.00024 for 16-bit depth buffer).
+	bias += shadow_map_depth_precision_var;
+
+	// Produce slightly soft shadows with the Poisson disk.
+//	return SampleShadowPoisson(shadow_map_in, shadow_map_coord_var, bias,
+//		poisson_factor);
+	return SampleShadowSimple(shadow_map_in, shadow_map_coord_var, bias,
+		poisson_factor);
 }
 
 #endif
@@ -387,12 +413,13 @@ void main() {
 	LOWP float light_att = 1.0;
 #ifndef DIRECTIONAL_LIGHT
 	MEDIUMP float d_light_direction;
-#ifndef POINT_SOURCE_LIGHT
+#ifndef LOCAL_LIGHT
 	if (light_position_in.w > 0.5) {
 #endif
         	MEDIUMP float dist = distance(position_world_var, light_position_in.xyz);
 #ifdef LINEAR_ATTENUATION_RANGE
 		light_att = clamp((light_att_in.x - dist) / light_att_in.x, 0.0, 1.0);
+#ifndef POINT_SOURCE_LIGHT
 		if (light_att_in.y > 0.0) {
 			// Spot or beam light with a linear attenuation range.
 			// Construct the plane going through the light position perpendicular to the light
@@ -401,7 +428,10 @@ void main() {
 				light_position_in.xyz));
 			// Calculate the distance of the world position to the plane.
 			d_light_direction = dot(plane, vec4(position_world_var, 1.0));
+#ifndef SPOT_LIGHT
+#ifndef BEAM_LIGHT
 			if (light_att_in.y > 1.5) {
+#endif
 				// Beam light.
 				if (d_light_direction < 0.0 || d_light_direction >= light_att_in.z)
 					light_att = 0.0;
@@ -417,16 +447,24 @@ void main() {
 					if (d_light_direction_axis >= spotlight_in.w)
 						light_att = 0.0;
 				}
+#ifndef BEAM_LIGHT
 			}
+#endif
+#endif
+#if !defined(BEAM_LIGHT) && !defined(SPOT_LIGHT)
 			else
+#endif
+#if !defined(BEAM_LIGHT)
 				// Spot light.
 				light_att *= pow(max(- dot(spotlight_in.xyz, L_orig), 0.0), spotlight_in.w);
+#endif
                 }
-#else
+#endif	// !defined(POINT_SOURCE_LIGHT)
+#else 	// !defined(LINEAR_ATTENUATION_RANGE)
 		light_att = 1.0 / (light_att_in.x + light_att_in.y * dist +
 			light_att_in.z * dist * dist);
 #endif
-#ifndef POINT_SOURCE_LIGHT
+#ifndef LOCAL_LIGHT
 	}
 #endif
 #endif
@@ -435,96 +473,51 @@ void main() {
 	c = vec3(0.0, 0.0, 0.0);
 #endif
 
-#if defined(SHADOW_MAP)
-	float poisson_factor;
-#endif
 #ifdef SHADOW_MAP
-        // The following variable holds the amount of shadow received by the fragment ([0, 1.0]).
-        float shadow_light_factor = 0.0;
-	bool out_of_bounds = false;
-	vec4 shadow_map_coord;
-#ifdef SPOT_LIGHT_SHADOW_MAP
-	// For spot lights, which use a projection matrix, we have to compute the shadow map
-        // transformation for each fragment to handle discontinuities in the coordinate space.
-	// For beam lights, we do that as well but it is not actually necessary.
-	shadow_map_coord = shadow_map_transformation_matrix * model_position_var;
-	if (light_att_in.y > 1.5) {
-		// Beam light. The shadow map coordinates already include the viewport transformation.
-	}
-	else
-	// Spot light.
-	// The near plane of the spotlight shadow map projection is at 0.001.
-        if (shadow_map_coord.w >= 0.001) {
-		shadow_map_coord.x = 0.5 * shadow_map_coord.x / shadow_map_coord.w + 0.5;
-		shadow_map_coord.y = 0.5 * shadow_map_coord.y / shadow_map_coord.w + 0.5;
-		shadow_map_coord.z = 0.5 * shadow_map_coord.z / shadow_map_coord.w + 0.5;
-	}
-	else {
-		shadow_map_coord.xyz = vec3(0.0, 0.0, - 1.0);
-		// On the opposite side of the spotlight, there is no light.
-//		shadow_light_factor = 0.0;
-	}
-#else	// Directional light.
-        shadow_map_coord.xyz = shadow_map_coord_var;
-#endif
-	// Scale the Poisson factor according to the resolution of the shadow map.
-	poisson_factor = 1.3 * reprocical_shadow_map_size_var;
-	vec3 L_bias;
-        // z / xy in shadow map in real world coordinates at the fragment position, in terms
-        // of shadow map u,v and z coordinates (normalized to [0, 1]).
-	float shadow_map_world_depth_range;
-	float shadow_map_world_width;
-#ifdef SPOT_LIGHT_SHADOW_MAP
-	// Calculate real-world coordinate ratio within shadow map for the fragment position.
-	shadow_map_world_depth_range = shadow_map_dimensions_var.z;
-	// The shadow map width in world space units at the z of the world space position is
-	// equal to the distance to the light in the direction of the light.
-	shadow_map_world_width = d_light_direction;
-#else
-	// Direction light. The dimensions of the shadow map were precalculated in the
-	// vertex shader.
-	shadow_map_world_depth_range = shadow_map_dimensions_var.z;
-	shadow_map_world_width = shadow_map_dimensions_var.x;
-#endif
-	float bias;
-	float slope = slope_var;
-        // Set bias corresponding to the world space depth difference of adjacent pixels
-	// in shadow map.
-	bias = slope * shadow_map_world_width * reprocical_shadow_map_size_var;
-	// Normalize bias from world space coordinates to depth buffer coordinates.
-	bias *= 1.0 / shadow_map_world_depth_range;
-	// Example bias calculation for directional light, slope = 1.0:
-	// bias = 1.0 * 400.0 * (1.0 / 2048.0) / 400.0 = 1.0 / 2048.0 = 0.000488
-	// Add one unit of shadow map depth precision (0.00024 for 16-bit depth buffer).
-	bias += shadow_map_depth_precision_var;
-
-	// Produce slightly soft shadows with the Poisson disk.
-//	shadow_light_factor = SampleShadowPoisson(shadow_map_in, shadow_map_coord, bias,
-//		poisson_factor);
-	shadow_light_factor = SampleShadowSimple(shadow_map_in, shadow_map_coord, bias,
-		poisson_factor);
+	// Directional or beam light, orthogonal transformation shadow map.
+	bool out_of_shadow_bounds = any(lessThan(shadow_map_coord_var.xy, vec2(0.0, 0.0))) ||
+            any(greaterThan(shadow_map_coord_var.xy, vec2(1.0, 1.0)));
+        // The following variable holds the amount of shadow received by the fragment ([0, 1.0]
+        float shadow_light_factor = 1.0;
+	if (!out_of_shadow_bounds)
+		shadow_light_factor = CalculateShadow();
 
 #ifndef EARTH_SHADER
 	// For the earth shader, there is atmospheric illumination, so don't discard the fragment.
+	// For all other cases of no-cube shadow map, discard the fragment if it is fully in shadow.
 	if (shadow_light_factor == 0.0)
 		discard;
 #endif
         light_att *= shadow_light_factor;
 #endif
 
+#if defined(SHADOW_CUBE_MAP) || defined (SPOT_LIGHT_SHADOW_MAP)
+	vec3 space_vector_from_light = position_world_var - light_position_in.xyz;
+
 #ifdef SHADOW_CUBE_MAP
+	// Point source light shadow cube map (six sides).
 	// Use an optimized method using built-in cube map texture look up functions.
-	vec3 cube_space_vector = position_world_var.xyz - light_position_in.xyz;
 	// Look up radial distance where shadow begins from the cube map.
-	float shadow_radial_dist = texture(cube_shadow_map_in, cube_space_vector).z;
+	float shadow_radial_dist = texture(cube_shadow_map_in, space_vector_from_light).z;
+#else
+	// Spotlight shadow map. Only one shadow map is used.
+	// shadow_map_transformation_matrix is expected to be the projection transformation
+	// for the spot light.
+	vec4 P_trans = shadow_map_transformation_matrix * vec4(position_world_var, 1.0);
+	// If the fragment is outside of the spot light volume, just discard it.
+	vec3 P_proj = P_trans.xyz / P_trans.w;
+	bool out_of_spotlight_bounds = any(lessThan(P_proj.xy, vec2(- 1.0, - 1.0))) ||
+            any(greaterThan(P_proj.xy, vec2(1.0, 1.0))) || (P_proj.z < -1.0) || (P_proj.z > 1.0);
+	if (out_of_spotlight_bounds)
+		discard;
+	float shadow_radial_dist = texture2D(shadow_map_in, P_proj.xy).z;
+#endif
         // Calculate the radial distance of the world position from the light position,
         // and scale it so that the range [0, 1] corresponds to the values stored in the
         // shadow map segments.
-	float radial_dist = length(cube_space_vector) * segment_distance_scaling_in;
-
+	float radial_dist = length(space_vector_from_light) * segment_distance_scaling_in;
 	float bias = 0.001 * tan(acos(clamp(dot(normal, L), 0.0, 1.0)));
         bias = clamp(bias, 0.0, 0.002);
-	// The distances are scaled to [0, 1.0].
 	if (shadow_radial_dist < radial_dist - bias)
 		discard;
 #endif

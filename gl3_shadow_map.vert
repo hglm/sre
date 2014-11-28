@@ -23,7 +23,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #ifndef GL_ES
 #version 330
 #endif
-#if defined(CUBE_MAP) || defined(PROJECTION) || defined(GL_ES)
+#if defined(CUBE_MAP) || defined(SPOTLIGHT) || defined(GL_ES)
 uniform mat4 MVP;
 #else
 uniform mat4x3 MVP;
@@ -37,23 +37,17 @@ varying vec2 texcoord_var;
 // 3D transformation matrix to apply to the texcoords.
 uniform mat3 uv_transform_in;
 #endif
-#ifdef CUBE_MAP
+#if defined(CUBE_MAP) || defined(SPOTLIGHT)
 uniform mat4x3 model_matrix;
 varying vec3 position_world_var;
 #endif
-#if defined(ADD_BIAS) && !defined(CUBE_MAP)
-attribute vec3 normal_in;
-// In the case of directional, beam and spot lights, light_position_in is in fact
+#if defined(ADD_BIAS) && !defined(CUBE_MAP) && !defined(SPOTLIGHT)
+// In the case of directional and beam lights, light_position_in is in fact
 // the inverted light direction, not position.
 uniform vec3 light_position_in;
+attribute vec3 normal_in;
 uniform vec4 shadow_map_dimensions_in;
-#ifdef PROJECTION
-varying float reprocical_shadow_map_size_var;
-varying float slope_var;
-varying float shadow_map_depth_precision_var;
-#else
 varying float bias_var;
-#endif
 #endif
 
 void main() {
@@ -70,20 +64,14 @@ void main() {
 #endif
 #endif
 
-#if defined(ADD_BIAS) && !defined(CUBE_MAP)
+#if defined(ADD_BIAS) && !defined(CUBE_MAP) && !defined(SPOTLIGHT)
 	// Caculate slope for bias adjustment for light-facing triangles of non-closed models.
 	// Since light-facing triangles of closed models are not rendered, every
 	// front-facing triangle encountered is part of a non-closed model.
 	float slope;
 	vec3 L_bias;
 	// Note: light_position_in is the inverted light direction, not position.
-#ifdef PROJECTION
-        // The direction of the spotlight remains the z axis even for points away
-	// from the central axis.
 	L_bias = light_position_in.xyz;
-#else
-	L_bias = light_position_in.xyz;
-#endif
 	// Calculate the slope of the triangle relative to direction of the light
 	// (direction of increasing depth in shadow map).
 	// Use the vertex normal.
@@ -99,12 +87,6 @@ void main() {
 		// Half-float depth buffer.
 	        shadow_map_depth_precision = 0.5 / pow(2.0, 11.0);
 	float reprocical_shadow_map_size = 1.0 / shadow_map_dimensions_in.w;
-#ifdef PROJECTION
-	// Spotlight. Bias is calculated in the fragment shader.
-	slope_var = slope;
-	shadow_map_depth_precision_var = shadow_map_depth_precision;
-	reprocical_shadow_map_size_var = reprocical_shadow_map_size;
-#else
 	// Directional or beam light. Calculate bias.
 	// Apply bias to all triangles of non-closed-objects.
         // Set bias corresponding to the world space depth difference of adjacent pixels
@@ -119,17 +101,12 @@ void main() {
 	bias += shadow_map_depth_precision * 2.0;
 	bias_var = bias;	
 #endif
-#endif // !defined(CUBE_MAP)
 
-#ifdef CUBE_MAP
+#if defined(CUBE_MAP) || defined (SPOTLIGHT)
 	position_world_var = (model_matrix * position_in).xyz;
 	gl_Position = MVP * position_in;
 #else
-#ifdef PROJECTION
-        gl_Position = MVP * position_in;
-#else
 	gl_Position = vec4((MVP * position_in).xyz, 1.0);
-#endif
 #endif
 }
 

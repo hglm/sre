@@ -232,7 +232,7 @@ Color color) {
     CheckLightCapacity();
     sreLight *l = new sreLight;
     l->type = type | SRE_LIGHT_SPOT | SRE_LIGHT_LINEAR_ATTENUATION_RANGE;
-    l->shader_light_type = SRE_SHADER_LIGHT_TYPE_SPOT_OR_BEAM;
+    l->shader_light_type = SRE_SHADER_LIGHT_TYPE_SPOT;
     if (l->type & (SRE_LIGHT_DYNAMIC_ATTENUATION | SRE_LIGHT_DYNAMIC_DIRECTION |
     SRE_LIGHT_DYNAMIC_SPOT_EXPONENT | SRE_LIGHT_DYNAMIC_POSITION)) {
         // If the attenuation changes, the light volume changes size and the shadow
@@ -268,7 +268,7 @@ radial_linear_range, float cutoff_distance, float linear_range, Color color) {
     CheckLightCapacity();
     sreLight *l = new sreLight;
     l->type = type | SRE_LIGHT_BEAM | SRE_LIGHT_LINEAR_ATTENUATION_RANGE;
-    l->shader_light_type = SRE_SHADER_LIGHT_TYPE_SPOT_OR_BEAM;
+    l->shader_light_type = SRE_SHADER_LIGHT_TYPE_BEAM;
     if (l->type & (SRE_LIGHT_DYNAMIC_ATTENUATION | SRE_LIGHT_DYNAMIC_DIRECTION |
     SRE_LIGHT_DYNAMIC_POSITION)) {
         // If the attenuation changes, the light volume changes (shorter or longer cylinder)

@@ -366,6 +366,8 @@ void sreScene::Render(sreView *view) {
 //
 
 // Quick estimation of the projected screen size of an object (or bounding volume).
+// The size returned is a length in screen space units (which range from -1.0 to 1.0),
+// not an area.
 
 static float ProjectedSize(const Point3D& V, float bounding_radius) {
     float w = Dot(sre_internal_view_projection_matrix.GetRow(3), V);
@@ -379,6 +381,8 @@ static float ProjectedSize(const Point3D& V, float bounding_radius) {
     return fabsf(bounding_radius * 2.0f / w);
 }
 
+#if 0
+
 // Projected size based on distance from the viewpoint, which is not affected by
 // distance to the view plane. This is a often a better indicator of the prominence
 // of an object.
@@ -389,6 +393,69 @@ static float NormalizedProjectedSize(const Point3D& P, float bounding_radius) {
         return 2.0f;
     return bounding_radius * 2.0f / d;
 }
+
+#endif
+
+// More accurate determination of projected size on the screen.
+
+static float AccurateProjectedSize(const sreFrustum& f, const Point3D& P, float bounding_radius) {
+    float z = Dot(sre_internal_view_matrix.GetRow(2), P);
+    // z is the distance from the viewpoint in the view direction.
+    float r = bounding_radius;
+    Point3D Q;
+    if (z < f.nearD) {
+        // If the center of the object is in front of the near plane, then adjust
+        // the bounding radius to the size at the near plane.
+        r = bounding_radius * (bounding_radius + z - f.nearD);
+        Q.x = P.x;
+        Q.y = P.y;
+        Q.z = f.nearD;
+    }
+    else if (z < f.nearD + bounding_radius) {
+        // When the center of the object is beyond the near plane but the bounding radius
+	// intersects it, calculate the z' for which the projected size is greatest.
+        // Maximize r / w
+        // <-> Maximize r / z' for f.nearD <= z - bounding_radius <= z' <= z + bounding_radius
+        // where r = bounding_radius * sin(frustum_slope * (z' - z) / bounding_radius * PI / 2)
+        // and frustum_slope = f.e.
+        // <-> Maximize sin(frustum_slope * (z' - z) / bounding_radius * PI / 2) / z'
+        // Let c = (frustum_slope * 0.5 * PI / bounding_radius), f = sin(c * (z' - z)) and
+        // g = 1 / z' = z' ^ (-1)
+        // Derivative is f' * g + f * g' =
+        // cos(c * (z' - z)) * c / z' + sin(c * (z' - z)) * (-1) * z' ^ (-2)
+        // = cos(c * (z' - z)) * c / z' - sin(c * (z' - z)) / z'^2 = 0
+        // <-> cos(c * (z' - z)) * c / z' - cos(c * (z' - z) - 0.5 * PI) / z'^2 = 0 
+        // <-> cos(c * (z' - z)) * c / z' = cos(c * (z' - z) - 0.5 * PI) / z'^2
+        // <-> cos(c * (z' - z)) * c = cos(c * (z' - z) - 0.5 * PI) / z'
+        // <-> cos(c * (z' - z)) * c = cos(c * (z' - z)) * cos(0.5 * PI) +
+        //     sin(c * (z' - z)) * sin(0.5 * PI)
+        // <-> cos(c * (z' - z)) * c = sin (c * (z' - z) <->
+        // <-> c * (z' - z)) = 0.25 * PI or c * (z' - z) = - 0.75 * PI
+        // <-> z' = (0.25 * PI + c * z) / c = 0.25 * PI / c + z
+        //     or z' = z - 0.75 * PI / c
+        // <-> z' = 0.5 / (frustum_slope / bounding_radius) + z
+        //     or z' = z - 1.5 / (frustum_slope / bounding_radius) + z
+        // <-> z' = 0.5 * bounding_radius / f.e + z.
+        // z1 is valid (z1 < z + bounding_radius) if frustum.e > 0.5
+        float z1 = 0.5f * bounding_radius / f.e + z;
+        // z2 is valid (z2 > z - bounding_radius) if frustum.e > 1.5 (unusually wide view)
+        float z2 = z - 1.5f * bounding_radius / f.e;
+        Q.x = P.x;
+        Q.y = P.y;
+        Q.z = z1;
+        r = bounding_radius * sinf(f.e * (z1 - z) / bounding_radius * M_PI / 2);
+    }
+    else
+	Q = P;
+    float w = Dot(sre_internal_view_projection_matrix.GetRow(3), Q);
+    // w is the division factor to obtain the projected size of a hypothetical
+    // flat object in the same plane as the view plane. Since 2.0 * bounding_radius
+    // is a max bound on the real size, 2.0 bounding_radius / w will bound the
+    // projected x or y size in screen space, which has coordinates ranging from
+    // [-1.0, 1.0].
+    return bounding_radius * 2.0f / w;
+}
+
 
 void sreScene::CheckVisibleLightCapacity() {
     if (nu_visible_lights == max_visible_lights) {
@@ -510,7 +577,7 @@ const sreFrustum& frustum, BoundsCheckResult bounds_check_result, int array_inde
             }
             // Check whether the project size of the light volume is too small.
             if (!(l->type & SRE_LIGHT_DIRECTIONAL)) {
-                l->projected_size = NormalizedProjectedSize(l->vector.GetPoint3D(),
+                l->projected_size = AccurateProjectedSize(frustum, l->vector.GetPoint3D(),
                     l->sphere.radius);
                 if (l->projected_size < SRE_LIGHT_VOLUME_SIZE_CUTOFF)
                     continue;
@@ -564,7 +631,7 @@ const sreFrustum& frustum, BoundsCheckResult bounds_check_result) {
         // In the case there is no far frustum plane, if the projected size of the octree is too
         // small, skip it. Have to check that octree does not contain the viewpoint.
         if (!Intersects(sre_internal_viewpoint, fast_oct.node_bounds[node_index].AABB)) {
-            float size = NormalizedProjectedSize(fast_oct.node_bounds[node_index].sphere.center,
+            float size = AccurateProjectedSize(fast_oct.node_bounds[node_index].sphere.center,
                 fast_oct.node_bounds[node_index].sphere.radius);
 //            printf("size = %f\n", size);
             if (size < SRE_OCTREE_SIZE_CUTOFF) {
@@ -787,7 +854,7 @@ BoundsCheckResult bounds_check_result) {
         // skip it.
         // Have to check that octree does not contain the viewpoint.
         if (!Intersects(sre_internal_viewpoint, node_bounds.AABB)) {
-            float size = NormalizedProjectedSize(node_bounds.sphere.center,
+            float size = AccurateProjectedSize(node_bounds.sphere.center,
                 node_bounds.sphere.radius);
             if (size < SRE_OCTREE_SIZE_CUTOFF) {
                 octree_culled_count_projected++;

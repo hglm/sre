@@ -130,6 +130,9 @@ float upx, float upy, float upz) {
 //    printf("\n");
 }
 
+// Calculated othographic shadow map transformation based on light direction,
+// range within that direction, and a local x and y coordinate system.
+
 void GL3CalculateShadowMapMatrix(Vector3D viewp, Vector3D light_direction, Vector3D x_direction,
 Vector3D y_direction, Vector3D dim_min, Vector3D dim_max) {
     MatrixTransform M;
@@ -187,8 +190,7 @@ Vector3D up_vector, float zmax) {
     cube_shadow_map_matrix = shadow_map_projection_matrix * (M * T);
 }
 
-// Calculate projection shadow map matrix, used for generating spotlight shadow
-// maps.
+// Calculate projection shadow map matrix, used for generating spotlight shadow maps.
 
 void GL3CalculateProjectionShadowMapMatrix(Vector3D viewp, Vector3D light_direction,
 Vector3D x_direction, Vector3D y_direction, float zmax) {
@@ -222,8 +224,12 @@ Vector3D x_direction, Vector3D y_direction, float zmax) {
         0.0f, 0.0f, - (f + n) / (f - n), - 2 * n * f / (f - n),
         0.0f, 0.0f, - 1.0f, 0.0f);
     projection_shadow_map_matrix = projection_matrix * (M * T);
-    // For spot lights, the shadow map viewport transformation is done in the
-    // object lighting pass shaders.
+    MatrixTransform shadow_map_viewport_matrix;
+    shadow_map_viewport_matrix.Set(
+        0.5f, 0.0f, 0.0f, 0.5f,
+        0.0f, 0.5f, 0.0f, 0.5f,
+        0.0f, 0.0f, 0.5f, 0.5f);
+    shadow_map_lighting_pass_matrix = shadow_map_viewport_matrix * shadow_map_matrix;  
 }
 
 void GL3CalculateShadowMapMatrixAlwaysLight() {

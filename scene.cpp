@@ -684,13 +684,13 @@ void sreScene::InvalidateShaders(int soi) const {
 // Invalidate all shaders except ambient.
 
 void sreScene::InvalidateLightingShaders(int soi) const {
-    for (int i = 0; i <= SRE_SHADER_LIGHT_TYPE_SPOT_OR_BEAM; i++)
+    for (int i = 0; i < SRE_NU_SHADER_LIGHT_TYPES - 1; i++)
         object[soi]->current_shader[i] = - 1;
     // Aat the moment when shadow mapping is enabled, all shaders,
     // are invalidated anyway, so we only need to reset the cached
     // shaders when shadow mapping is already enabled.
     if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING)
-        for (int i = 0; i <= SRE_SHADER_LIGHT_TYPE_SPOT_OR_BEAM; i++)
+        for (int i = 0; i < SRE_NU_SHADER_LIGHT_TYPES - 1; i++)
             object[soi]->current_shader_shadow_map[i] = - 1;
 }
 

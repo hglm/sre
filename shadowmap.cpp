@@ -81,21 +81,16 @@ static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
     bool non_closed_add_bias = false;
     if (light.type & SRE_LIGHT_POINT_SOURCE)
         GL3InitializeCubeShadowMapShader(*so);
+    else if (light.type & SRE_LIGHT_SPOT)
+        GL3InitializeSpotlightShadowMapShader(*so);
     else {
-        // Directional, beam or spotlight.
+        // Directional or beam light.
         if (m->flags & SRE_LOD_MODEL_NOT_CLOSED) {
             non_closed_add_bias = true;
-            if (light.type & SRE_LIGHT_SPOT)
-                GL3InitializeProjectionShadowMapShaderNonClosedObject(*so);
-            else
-                GL3InitializeShadowMapShaderNonClosedObject(*so);
+            GL3InitializeShadowMapShaderNonClosedObject(*so);
         }
-        else {
-            if (light.type & SRE_LIGHT_SPOT)
-                GL3InitializeProjectionShadowMapShader(*so);
-            else
-                GL3InitializeShadowMapShader(*so);
-        }
+        else
+            GL3InitializeShadowMapShader(*so);
     }
 
     glEnableVertexAttribArray(0);
@@ -553,7 +548,7 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
         if (Intersects(sre_internal_viewpoint, light.spherical_sector))
             inside = true;
     if (inside)
-        threshold *= 0.5f;
+        threshold *= 0.75f;
     for (int level = 0;; level++) {
         if (light.projected_size >= threshold ||
         level + 1 == sre_internal_nu_shadow_map_size_levels) {
@@ -582,11 +577,13 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
         glDisable(GL_DEPTH_CLAMP);
 #endif
     glClear(GL_DEPTH_BUFFER_BIT);
+    Vector3D dim_min, dim_max;
+    // For both beam lights and spot lights the x and y extents of the shadow map area
+    // are defined by the cylinder radius.
+    dim_min.Set(- light.cylinder.radius, - light.cylinder.radius, 0);
+    dim_max.Set(light.cylinder.radius, light.cylinder.radius, zmax);
+    // Use an orthogonal transformation matrix for beam lights.
     if (light.type & SRE_LIGHT_BEAM) {
-        Vector3D dim_min, dim_max;
-        // For a beam light the x and y extents are defined by the cylinder radius.
-        dim_min.Set(- light.cylinder.radius, - light.cylinder.radius, 0);
-        dim_max.Set(light.cylinder.radius, light.cylinder.radius, zmax);
         GL3CalculateShadowMapMatrix(light.vector.GetPoint3D(), light.spotlight.GetVector3D(),
             x_dir, y_dir, dim_min, dim_max);
         sre_internal_current_shadow_map_dimensions = Vector4D(light.cylinder.radius,
@@ -599,9 +596,9 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
         // Spotlight. Use a projection shadow map matrix.
         GL3CalculateProjectionShadowMapMatrix(light.vector.GetPoint3D(),
             light.spotlight.GetVector3D(), x_dir, y_dir, zmax);
-        GL3InitializeShadowMapShadersBeforeLight(Vector4D(zmax, zmax, zmax,
-            sre_internal_max_shadow_map_size >>
-            sre_internal_current_shadow_map_index));
+        GL3InitializeSpotlightShadowMapShadersBeforeLight();
+        GL3UpdateShadowMapSegmentDistanceScaling((1.0f / light.spherical_sector.radius) * 0.999f);
+        GL3InitializeSpotlightShadowMapShadersWithSegmentDistanceScaling();
     }
 
     RenderShadowMapFromCasterArray(scene, light);
@@ -682,8 +679,8 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
             sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index);
         // In the new shadow map method, the distance scaling is the same for all segments
         // (light volume radius corresponds to [0, 1]).
-        GL3UpdateCubeShadowMapSegmentDistanceScaling((1.0f / light.sphere.radius) * 0.999f);
-        GL3InitializeShadowMapShadersWithSegmentDistanceScaling();
+        GL3UpdateShadowMapSegmentDistanceScaling((1.0f / light.sphere.radius) * 0.999f);
+        GL3InitializeCubeShadowMapShadersWithSegmentDistanceScaling();
 
         int cube_map_mask = 0;
         for (int i = 0; i < 6; i++) {

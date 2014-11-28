@@ -156,8 +156,10 @@ void sreSetShadowsMethod(int method) {
         sreValidateShadowVolumeShaders();
 #ifndef NO_SHADOW_MAP
     else if (method == SRE_SHADOWS_SHADOW_MAPPING) {
-        if (sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_MAP_SUPPORT)
+        if (sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_MAP_SUPPORT) {
             sreValidateShadowMapShaders();
+            sreValidateSpotlightShadowMapShaders();
+        }
         if (sre_internal_rendering_flags & SRE_RENDERING_FLAG_CUBE_SHADOW_MAP_SUPPORT)
             sreValidateCubeShadowMapShaders();
     }
@@ -668,7 +670,7 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         // Use 16-bit half-float precision. 32-bit float precision might be an option
         // on fast hardware.
-        glTexImage2D(GL_TEXTURE_2D,, 0, GL_DEPTH_COMPONENT, size, size, 0,
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, size, size, 0,
             GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, 0);
 #else
         glBindTexture(GL_TEXTURE_2D, sre_internal_depth_texture[level]);
@@ -717,8 +719,10 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
         sre_internal_max_shadow_map_size >> (sre_internal_nu_shadow_map_size_levels - 1),
         sre_internal_max_shadow_map_size >> (sre_internal_nu_shadow_map_size_levels - 1));
 
-    if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING)
+    if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING) {
         sreValidateShadowMapShaders();
+        sreValidateSpotlightShadowMapShaders();
+    }
 
 skip_shadow_map:
 
