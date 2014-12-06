@@ -138,7 +138,7 @@ enum { TEXTURE_TYPE_NORMAL = 0, TEXTURE_TYPE_SRGB, TEXTURE_TYPE_LINEAR,
     TEXTURE_TYPE_TRANSPARENT, TEXTURE_TYPE_TRANSPARENT_EXTEND_TO_ALPHA,
     TEXTURE_TYPE_WILL_MERGE_LATER, TEXTURE_TYPE_NORMAL_MAP,
     TEXTURE_TYPE_SPECULARITY_MAP, TEXTURE_TYPE_TABLE,
-    TEXTURE_TYPE_USE_RAW_TEXTURE, TEXTURE_TYPE_WRAP_REPEAT,
+    TEXTURE_TYPE_USE_UNCOMPRESSED_TEXTURE, TEXTURE_TYPE_WRAP_REPEAT,
     SRE_TEXTURE_TYPE_FLAG_KEEP_DATA = 0x1000,
     SRE_TEXTURE_TYPE_FLAG_NO_UPLOAD = 0x2000,
     SRE_TEXTURE_TYPE_FLAGS_MASK = 0x3000 };
@@ -192,6 +192,7 @@ public:
     // Upload a single-level texture to the GPU.
     void UploadGL(int flags);
     unsigned int LookupPixel(int x, int y);
+    void TextureLookupNearest(float u, float v, Color& c); 
     void SetPixel(int x, int y, unsigned int value);
     void MergeTransparencyMap(sreTexture *t);
     void ConvertFrom24BitsTo32Bits();

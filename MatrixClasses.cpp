@@ -1067,6 +1067,14 @@ char *VectorDouble3D::GetString() const {
 
 // Additional color member functions.
 
+Color& Color::SetRGB888(int r8, int g8, int b8) {
+    const float f = 1.0f / 255.0f;
+    r = (float)r8 * f;
+    g = (float)g8 * f;
+    b = (float)b8 * f;
+    return (*this);
+}
+
 Color& Color::SetRandom() {
     sreRNG *rng = sreGetDefaultRNG();
     r = rng->RandomFloat(1.0f);

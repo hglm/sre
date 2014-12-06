@@ -1690,6 +1690,7 @@ class SRE_API Color : public Vector3D
 			return (*this);
 		}
 
+                SRE_API Color& SetRGB888(int r8, int g8, int b8);
 		SRE_API Color& SetRandom(void);
 
 		SRE_API Color GetLinearFromSRGB() const;

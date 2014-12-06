@@ -36,7 +36,7 @@ void TextureMemoryTest(bool compressed) {
         if (compressed)
             tex = new sreTexture("volcanic8", TEXTURE_TYPE_NORMAL);
         else
-            tex = new sreTexture("volcanic8", TEXTURE_TYPE_USE_RAW_TEXTURE);
+            tex = new sreTexture("volcanic8", TEXTURE_TYPE_USE_UNCOMPRESSED_TEXTURE);
         count++;
         printf("%d mipmapped 1024x1024 textures succesfully loaded.\n", count);
     }
@@ -67,9 +67,9 @@ void TextureTestCreateScene(bool compressed) {
         }
         else {
             if ((i & 1) == 0)
-                tex[i] = new sreTexture("water1", TEXTURE_TYPE_USE_RAW_TEXTURE);
+                tex[i] = new sreTexture("water1", TEXTURE_TYPE_USE_UNCOMPRESSED_TEXTURE);
             else
-                tex[i] = new sreTexture("volcanic8", TEXTURE_TYPE_USE_RAW_TEXTURE);
+                tex[i] = new sreTexture("volcanic8", TEXTURE_TYPE_USE_UNCOMPRESSED_TEXTURE);
         }
     }
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_NO_PHYSICS);

@@ -1036,13 +1036,13 @@ void sreTexture::Load(const char *basefilename, int _type) {
     if (_type & SRE_TEXTURE_TYPE_FLAG_KEEP_DATA)
         keep_data = true;
     type = _type & (~SRE_TEXTURE_TYPE_FLAGS_MASK);
-    if (type != TEXTURE_TYPE_USE_RAW_TEXTURE && FileExists(s)) {
-
+    if (type != TEXTURE_TYPE_USE_UNCOMPRESSED_TEXTURE && FileExists(s)) {
         success = LoadKTX(s);
     }
     if (!success) {
         sprintf(s, "%s.dds", basefilename);
-        if (DXT1_internal_format != -1 && type != TEXTURE_TYPE_USE_RAW_TEXTURE && FileExists(s)) {
+        if (DXT1_internal_format != -1 && type != TEXTURE_TYPE_USE_UNCOMPRESSED_TEXTURE
+        && FileExists(s)) {
             LoadDDS(s);
             success = true;
         }
@@ -1161,6 +1161,22 @@ void sreTexture::SetPixel(int x, int y, unsigned int value) {
 }
 
 
+// Simulate GPU texture lookup.
+
+void sreTexture::TextureLookupNearest(float u, float v, Color& c) {
+    int x = floorf(u * width);
+    int y = floorf(v * height);
+    if (x == width)
+        x = width - 1;
+    if (y == height)
+        y = height - 1;
+    unsigned int pixel = LookupPixel(x, y);
+    int r = pixel & 0xFF;
+    int g = (pixel >> 8) & 0xFF;
+    int b = (pixel >> 16) & 0xFF;
+    c.SetRGB888(r, g, b);
+}
+
 sreTexture *sreCreateCheckerboardTexture(int type, int w, int h, int bw, int bh,
 Color color0, Color color1) {
     sreTexture *tex = new sreTexture(w, h);
@@ -1264,7 +1280,7 @@ void sreScene::ApplyGlobalTextureParameters(int flags, int filter, float anisotr
         case TEXTURE_TYPE_SRGB :
         case TEXTURE_TYPE_LINEAR :
         case TEXTURE_TYPE_WRAP_REPEAT :
-        case TEXTURE_TYPE_USE_RAW_TEXTURE :
+        case TEXTURE_TYPE_USE_UNCOMPRESSED_TEXTURE :
             registered_textures[i]->ChangeParameters(flags, filter, anisotropy);
             break;
         }

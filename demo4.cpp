@@ -97,7 +97,9 @@ class Demo4Application : public sreBulletPhysicsApplication {
 // ranges from 0 to 1 (usually normalized from a byte value from 0 to 255). This
 // normalized value to scaled so that the maximum possible height is bounded by Z_SCALE.
 // #define Z_SCALE (200.0f * ZOOM)
-#define Z_SCALE (150.0f * ZOOM)
+// #define Z_SCALE (150.0f * ZOOM)
+// Changed to reduce relief.
+#define Z_SCALE (50.0f * ZOOM)
 
 // Whether to show the user-controlled spacecraft in the center of the window.
 // #define SHOW_SPACECRAFT
