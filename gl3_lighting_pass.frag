@@ -397,18 +397,19 @@ void main() {
 #endif
 		// When the z component is non-zero, it is assumed to be the z component of
 		// the normal vector, and the components are scaled from [0, 1] to [-1, 1].
-		// When the z component is non-zero (which happens with two-component signed
-		// or unsigned formats like RGTC2, calculate the component from the x and y
+		// When the z component is zero (which happens with two-component signed
+		// or unsigned formats like RGTC2), calculate the component from the x and y
 		// components.
 		MEDIUMP vec3 n = texture2D(normal_map_in, texcoord_var).rgb;
 		// Note: In the future, OpenGL ES 3.0+ might be supported and support
 		// two-component textures using formats like SIGNED_RG11_EAC.
 		if (n.z != 0.0)
 			// Move range from [0,1] to  [-1, 1].
-			n.xy = n.xy * 2.0 - vec2(1.0, 1.0);
-		// Calculate z from x and y based on the fact that the magnitude of
-		// a normal vector is 1.0.
-		normal = vec3(n.x, n.y, sqrt(1.0 - n.x * n.x - n.y * n.y));
+			n = n * 2.0 - vec3(1.0, 1.0, 1.0);
+                else
+			// Calculate z from x and y based on the fact that the magnitude of
+			// a normal vector is 1.0.
+			normal = vec3(n.x, n.y, sqrt(1.0 - n.x * n.x - n.y * n.y));
 		// Light calculations will be performed in tangent space.
 #endif
 #ifdef NORMAL_MAP_OPTION
