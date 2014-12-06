@@ -43,7 +43,8 @@ const char *attribute_str[5] = { "position_in", "texcoord_in", "normal_in", "tan
 
 // Multi-pass lighting shader definition.
 
-const char *uniform_str[MAX_UNIFORMS] = {  "MVP", "model_matrix", "model_rotation_matrix", "diffuse_reflection_color_in",
+const char *uniform_str[MAX_UNIFORMS] = {
+    "MVP", "model_matrix", "model_rotation_matrix", "diffuse_reflection_color_in",
     "multi_color_in", "use_texture_in", "shadow_map_dimensions_in", "ambient_color_in",
     "viewpoint_in", "light_position_in",
     "light_att_in", "light_color_in", "specular_reflection_color_in", "specular_exponent_in",
@@ -155,8 +156,8 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     (1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_LIGHT_ATT) |
     (1 << UNIFORM_EMISSION_COLOR) |
     (1 << UNIFORM_USE_EMISSION_MAP) |
-    (1 << UNIFORM_EMISSION_MAP_SAMPLER) | (1 << UNIFORM_SPECULAR_EXPONENT)))
-  | (1 << UNIFORM_DIFFUSE_FRACTION) |
+    (1 << UNIFORM_EMISSION_MAP_SAMPLER) | (1 << UNIFORM_SPECULAR_EXPONENT))) |
+    (1 << UNIFORM_DIFFUSE_FRACTION) |
     (1 << UNIFORM_ROUGHNESS) | (1 << UNIFORM_ROUGHNESS_WEIGHTS) | (1 << UNIFORM_ANISOTROPIC) |
     (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER) |
     (1 << UNIFORM_SHADOW_MAP_DIMENSIONS),
@@ -1484,6 +1485,13 @@ static void sreInitializeHDRShaders() {
 #endif 
 }
 
+static char *newstrcat(const char *s1, const char *s2) {
+    char *s = new char[strlen(s1) + strlen(s2) + 1];
+    strcpy(s, s1);
+    strcat(s, s2);
+    return s;
+}
+
 static void sreInitializeMultiPassLightingShaders() {
     // New style shader loading for lighting shaders.
     for (int i = 0; i < NU_LIGHTING_PASS_SHADERS; i++) {
@@ -1496,25 +1504,43 @@ static void sreInitializeMultiPassLightingShaders() {
         else if (i >= 12 && i <= 18 &&
         !(sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_MAP_SUPPORT))
             continue;
+#ifdef COMPRESS_COLOR_ATTRIBUTE
+        const char *color_attribute_definition = "#define COMPRESS_COLOR_ATTRIBUTE\n";
+        char *prologue = newstrcat(color_attribute_definition, lighting_pass_shader_prologue[i]);
+#else
+        const char *prologue = lighting_pass_shader_prologue[i];
+#endif
         lighting_pass_shader[i].Initialize(
             lighting_pass_shader_info[i].name,
             SRE_SHADER_MASK_LIGHTING_MULTI_PASS,
             lighting_pass_shader_info[i].uniform_mask,
             lighting_pass_shader_info[i].attribute_mask,
             "gl3_lighting_pass.vert", "gl3_lighting_pass.frag",
-            lighting_pass_shader_prologue[i]);
+            prologue);
+#ifdef COMPRESS_COLOR_ATTRIBUTE
+        delete [] prologue;
+#endif
     }
 }
 
 static void sreInitializeSinglePassLightingShaders() {
     for (int i = 0; i < NU_SINGLE_PASS_SHADERS; i++) {
+#ifdef COMPRESS_COLOR_ATTRIBUTE
+        const char *color_attribute_definition = "#define COMPRESS_COLOR_ATTRIBUTE\n";
+        char *prologue = newstrcat(color_attribute_definition, single_pass_shader_prologue[i]);
+#else
+        const char *prologue = single_pass_shader_prologue[i];
+#endif
         single_pass_shader[i].Initialize(
             single_pass_shader_info[i].name,
             SRE_SHADER_MASK_LIGHTING_SINGLE_PASS,
             single_pass_shader_info[i].uniform_mask,
             single_pass_shader_info[i].attribute_mask,
             "gl3_lighting_pass.vert", "gl3_lighting_pass.frag",
-            single_pass_shader_prologue[i]);
+            prologue);
+#ifdef COMPRESS_COLOR_ATTRIBUTE
+        delete [] prologue;
+#endif
     }
 }
 

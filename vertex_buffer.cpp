@@ -41,7 +41,11 @@ const int sre_internal_attribute_size[SRE_NU_VERTEX_ATTRIBUTES] = {
     8,     // Texcoords (2D float)
     12,    // Normal (3D float)
     16,    // Tangent (4D float)
+#ifdef COMPRESS_COLOR_ATTRIBUTE
+    4,     // Compressed color (float)
+#else
     12     // Color (3D float)
+#endif
 };
 
 static GLenum GetAttributeUsage(int attribute_index, int dynamic_flags) {
@@ -115,7 +119,17 @@ bool shadow) {
     attribute_data[SRE_ATTRIBUTE_TEXCOORDS] = &texcoords[0];
     attribute_data[SRE_ATTRIBUTE_NORMAL] = &vertex_normal[0];
     attribute_data[SRE_ATTRIBUTE_TANGENT] = &vertex_tangent[0];
+#ifdef COMPRESS_COLOR_ATTRIBUTE
+    float *compressed_colors;
+    if (attribute_mask & SRE_COLOR_MASK) {
+        compressed_colors = new float[nu_vertices];
+        for (int i = 0; i < nu_vertices; i++)
+            compressed_colors[i] = colors[i].GetCompressed();
+        attribute_data[SRE_ATTRIBUTE_COLOR] = &compressed_colors[0];
+    }
+#else
     attribute_data[SRE_ATTRIBUTE_COLOR] = &colors[0];
+#endif
     for (int i = 0; i < SRE_NU_VERTEX_ATTRIBUTES; i++)
         if (attribute_mask & (1 << i)) {
             glGenBuffers(1, &GL_attribute_buffer[i]);
@@ -130,6 +144,10 @@ bool shadow) {
             if (glGetError() != GL_NO_ERROR)
                 sreFatalError("Error executing glBufferData.");
        }
+#ifdef COMPRESS_COLOR_ATTRIBUTE
+    if (attribute_mask & SRE_COLOR_MASK)
+        delete [] compressed_colors;
+#endif
 }
 
 // Create one new interleaved vertex buffer. The usage is always GL_STATIC_DRAW.
@@ -143,7 +161,17 @@ Vector4D *positions, bool shadow) {
     attribute_data[SRE_ATTRIBUTE_TEXCOORDS] = &texcoords[0];
     attribute_data[SRE_ATTRIBUTE_NORMAL] = &vertex_normal[0];
     attribute_data[SRE_ATTRIBUTE_TANGENT] = &vertex_tangent[0];
+#ifdef COMPRESS_COLOR_ATTRIBUTE
+    float *compressed_colors;
+    if (attribute_mask & SRE_COLOR_MASK) {
+        compressed_colors = new float[nu_vertices];
+        for (int i = 0; i < nu_vertices; i++)
+            compressed_colors[i] = colors[i].GetCompressed();
+        attribute_data[SRE_ATTRIBUTE_COLOR] = &compressed_colors[0];
+    }
+#else
     attribute_data[SRE_ATTRIBUTE_COLOR] = &colors[0];
+#endif
     // Interleaving position data with shadow volumes enabled is not yet supported
     // and wouldn't really make sense (the buffer would have unused space), but
     // be ready for it.
@@ -175,6 +203,10 @@ Vector4D *positions, bool shadow) {
                 buffer_pointer += SRE_GET_INTERLEAVED_STRIDE(attribute_mask);
             }
         }
+#ifdef COMPRESS_COLOR_ATTRIBUTE
+    if (attribute_mask & SRE_COLOR_MASK)
+        delete [] compressed_colors;
+#endif
     SRE_GLUINT GL_interleaved_buffer;
     glGenBuffers(1, &GL_interleaved_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, GL_interleaved_buffer);

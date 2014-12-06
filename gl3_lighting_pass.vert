@@ -91,7 +91,12 @@ attribute vec3 normal_in;
 attribute vec4 tangent_in;
 #endif
 #ifdef COLOR_IN
-attribute vec3 color_in;		// For multi-color objects
+// Vertex attribute for multi-color objects.
+#ifdef COMPRESS_COLOR_ATTRIBUTE
+attribute float color_in;
+#else
+attribute vec3 color_in;
+#endif
 varying MEDIUMP vec3 diffuse_reflection_color_var;
 #endif
 #ifdef NORMAL_VAR
@@ -117,6 +122,25 @@ invariant varying float shadow_map_depth_precision_var;
 invariant varying vec3 shadow_map_dimensions_var;
 #endif
 
+
+#ifdef COMPRESS_COLOR_ATTRIBUTE
+
+vec3 DecompressColor(float cc) {
+	const float f1 = 256.0f;
+        const float f2 = 65536.0f;
+        const float f3 = 16777216.0f;
+	vec3 c;
+	c.r = floor(cc * f1);
+	cc -= c.r / f1;
+	c.g = floor(cc * f2);
+	cc -= c.g / f2;
+	c.b = floor(cc * f3);
+        c = c * (1.0f / 255.0f);
+        return c;
+}
+
+#endif
+
 void main() {
 #ifdef POSITION_WORLD_VAR
 	// The vertex position is specified in model space. Convert to world space.
@@ -135,7 +159,11 @@ void main() {
 	else
 #endif
 #if defined(MULTI_COLOR_OPTION) || defined(MULTI_COLOR_FIXED)
-            diffuse_reflection_color_var = color_in;
+#ifdef COMPRESS_COLOR_ATTRIBUTE
+		diffuse_reflection_color_var = DecompressColor(color_in);
+#else
+		diffuse_reflection_color_var = color_in;
+#endif
 #endif
 
 #ifdef NORMAL_MAP_OPTION

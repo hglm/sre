@@ -1138,6 +1138,28 @@ unsigned int Color::GetRGBX8() const {
     return pixel;
 }
 
+float Color::GetCompressed() const {
+    // Return compressed representation of color stored in a single float.
+    const float f1 = 1.0f / 256.0f; 
+    const float f2 = 1.0f / 65536.0f;
+    const float f3 = 1.0f / 16777216.0f;
+    float r8 = floorf(r * 255.0f + 0.5f);
+    float g8 = floorf(g * 255.0f + 0.5f);
+    float b8 = floorf(b * 255.0f + 0.5f);
+    return r8 * f1 + g8 * f2 + b8 * f3;
+    // The value can be decompressed as follows:
+/*
+    float r8 = floorf(cc * 256.0f);
+    cc -= r8 * (1.0f / 16.0f);
+    float g8 = floorf(cc * 65536.0f);
+    cc -= g8 * (1.0f / 65536.0f);
+    float b8 = floorf(cc * 16777216.0f);
+    Color c;
+    c.SetRGB888(r8, g8, b8);
+*/
+}
+
+
 // Calculate an array of dot products.
 
 void CalculateDotProducts(int n, const Vector3D *v1, const Vector3D *v2,

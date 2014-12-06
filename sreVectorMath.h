@@ -1698,6 +1698,7 @@ class SRE_API Color : public Vector3D
 		SRE_API float LinearIntensity() const;
                 SRE_API float SRGBIntensity() const;
                 SRE_API unsigned int GetRGBX8() const;
+                SRE_API float GetCompressed() const;
 };
 
 #endif
