@@ -230,19 +230,20 @@ void main() {
 	int font_column = ch0;
 	mediump float column_offset = float(ch1 - font_row * 2) * 16.0;
 #endif
-#else
-	// No array indexing.
+#else   
+	// No array indexing, but sufficient integer precision.
 	// Calculate the row and column of the character in the font texture.
 	lowp int font_row = ch / FONT_TEXTURE_COLUMNS;
 	lowp int font_column = ch - (font_row * FONT_TEXTURE_COLUMNS);
 #endif
 #else
-	// No array indexing, but sufficient integer precision.
+	// Array indexing is available.
 	mediump int ch = string_in[char_index];
 	// Calculate the row and column of the character in the font texture.
 	lowp int font_row = ch / FONT_TEXTURE_COLUMNS;
 	lowp int font_column = ch - (font_row * FONT_TEXTURE_COLUMNS);
 #endif
+
 #else	// Not GLES2.
  	_uintmediump ch = (string_in[char_index >> 2u] >> ((char_index & 3u)
 		<< 3u)) & uint(0xFF);
