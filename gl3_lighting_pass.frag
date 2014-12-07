@@ -390,8 +390,13 @@ void main() {
 #endif
 #if defined(NORMAL_MAP_OPTION) || defined(NORMAL_MAP_FIXED)
 		// Convert vectors for the light calculation into tangent space.
+#if GL_ES
+		L = tbn_matrix_var * L;
+                H = tbn_matrix_var * H;
+#else
 		L = normalize(tbn_matrix_var * L);
 		H = normalize(tbn_matrix_var * H);
+#endif
 #ifdef MICROFACET
 		V = normalize(tbn_matrix_var * V);
 #endif
@@ -401,14 +406,23 @@ void main() {
 		// or unsigned formats like RGTC2), calculate the component from the x and y
 		// components.
 		MEDIUMP vec3 n = texture2D(normal_map_in, texcoord_var).rgb;
+#ifdef GL_ES
+		// Under OpenGL ES 2.0, normal maps have three components so there is no need
+		// to calculate z.
 		// Note: In the future, OpenGL ES 3.0+ might be supported and support
 		// two-component textures using formats like SIGNED_RG11_EAC.
+		// Move range from [0,1] to [-1, 1].
+		n.xy = n.xy * 2.0 - vec2(1.0, 1.0);
+                // Calculating z with accuracy is important for correct highlights.
+		normal = vec3(n.x, n.y, sqrt(1.0 - n.x * n.x - n.y * n.y));;
+#else
 		if (n.z != 0.0)
 			// Move range from [0,1] to  [-1, 1].
-			n = n * 2.0 - vec3(1.0, 1.0, 1.0);
-                // Calculate z from x and y based on the fact that the magnitude of
+			n.xy = n.xy * 2.0 - vec2(1.0, 1.0);
+		// Calculate z from x and y based on the fact that the magnitude of
 		// a normal vector is 1.0.
 		normal = vec3(n.x, n.y, sqrt(1.0 - n.x * n.x - n.y * n.y));
+#endif
 		// Light calculations will be performed in tangent space.
 #endif
 #ifdef NORMAL_MAP_OPTION
