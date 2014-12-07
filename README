@@ -435,6 +435,13 @@ Bugs as of July 2014:
   desirable. The window resolution should also be taken into account.
   [Initial implementation realized]
 
+- A heuristic can be used to determine whether an object is likely to
+  receive significant specular illumination. If not, a shader without
+  specular lighting can be used. This is especially likely to be beneficial
+  for OpenGL ES 2.0-based devices in conjunction with the use of the
+  single-pass shaders.
+ 
+
 --- LICENSE --
 
 The code is licensed under the ISC license, except for the Linux console

@@ -1492,6 +1492,13 @@ static char *newstrcat(const char *s1, const char *s2) {
     return s;
 }
 
+static char *AddPrologueDefinition(const char *definition, char *prologue) {
+        char *old_prologue = prologue;
+        char *new_prologue = newstrcat(prologue, definition);
+        delete [] old_prologue;
+        return new_prologue;
+}
+
 static void sreInitializeMultiPassLightingShaders() {
     // New style shader loading for lighting shaders.
     for (int i = 0; i < NU_LIGHTING_PASS_SHADERS; i++) {
@@ -1504,11 +1511,15 @@ static void sreInitializeMultiPassLightingShaders() {
         else if (i >= 12 && i <= 18 &&
         !(sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_MAP_SUPPORT))
             continue;
+        char *prologue = new char[strlen(lighting_pass_shader_prologue[i]) + 1];
+        strcpy(prologue, lighting_pass_shader_prologue[i]);
 #ifdef COMPRESS_COLOR_ATTRIBUTE
         const char *color_attribute_definition = "#define COMPRESS_COLOR_ATTRIBUTE\n";
-        char *prologue = newstrcat(color_attribute_definition, lighting_pass_shader_prologue[i]);
-#else
-        const char *prologue = lighting_pass_shader_prologue[i];
+        prologue = AddPrologueDefinition(color_attribute_definition, prologue);
+#endif
+#if defined(OPENGL_ES2) && defined(USE_REFLECTION_VECTOR_GLES2)
+        const char *reflection_vector_definition = "#define USE_REFLECTION_VECTOR_GLES2\n";
+        prologue = AddPrologueDefinition(reflection_vector_definition, prologue);
 #endif
         lighting_pass_shader[i].Initialize(
             lighting_pass_shader_info[i].name,
@@ -1517,19 +1528,21 @@ static void sreInitializeMultiPassLightingShaders() {
             lighting_pass_shader_info[i].attribute_mask,
             "gl3_lighting_pass.vert", "gl3_lighting_pass.frag",
             prologue);
-#ifdef COMPRESS_COLOR_ATTRIBUTE
         delete [] prologue;
-#endif
     }
 }
 
 static void sreInitializeSinglePassLightingShaders() {
     for (int i = 0; i < NU_SINGLE_PASS_SHADERS; i++) {
+        char *prologue = new char[strlen(single_pass_shader_prologue[i]) + 1];
+        strcpy(prologue, single_pass_shader_prologue[i]);
 #ifdef COMPRESS_COLOR_ATTRIBUTE
         const char *color_attribute_definition = "#define COMPRESS_COLOR_ATTRIBUTE\n";
-        char *prologue = newstrcat(color_attribute_definition, single_pass_shader_prologue[i]);
-#else
-        const char *prologue = single_pass_shader_prologue[i];
+        prologue = AddPrologueDefinition(color_attribute_definition, prologue);
+#endif
+#if defined(OPENGL_ES2) && defined(USE_REFLECTION_VECTOR_GLES2)
+        const char *reflection_vector_definition = "#define USE_REFLECTION_VECTOR_GLES2\n";
+        prologue = AddPrologueDefinition(reflection_vector_definition, prologue);
 #endif
         single_pass_shader[i].Initialize(
             single_pass_shader_info[i].name,
@@ -1538,9 +1551,7 @@ static void sreInitializeSinglePassLightingShaders() {
             single_pass_shader_info[i].attribute_mask,
             "gl3_lighting_pass.vert", "gl3_lighting_pass.frag",
             prologue);
-#ifdef COMPRESS_COLOR_ATTRIBUTE
         delete [] prologue;
-#endif
     }
 }
 

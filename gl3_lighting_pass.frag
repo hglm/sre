@@ -279,9 +279,23 @@ float CalculateShadow() {
 #endif
 
 // When USE_REFLECTION_VECTOR is defined, the reflect() function is used for specular
-// light calculation instead of calculating the halfway vector.
-#ifndef MICROFACET
+// light calculation instead of calculating the halfway vector. The use of the reflection
+// vector produces better, more varied specular highlights.
+#if (!defined(GL_ES) || defined(USE_REFLECTION_VECTOR_GLES2)) && !defined(MICROFACET)
 #define USE_REFLECTION_VECTOR
+#endif
+
+#if !defined(GL_ES) || defined(USE_REFLECTION_VECTOR)
+// When using the reflection vector, normalizing all tangent space vectors seems to
+// be significantly faster for some reason.
+#define NORMALIZE_TANGENT_SPACE_VECTORS
+#endif
+
+#if !defined(GL_ES) || defined(USE_REFLECTION_VECTOR)
+// When using the halway vector with OpenGL ES 2.0 (with no normalization of light vectors for
+// normal mapping), skipping the normalization of the interpolated normal for regular shading
+// improves performance, but with noticeably more irregular specular highlights.
+#define NORMALIZE_INTERPOLATED_NORMAL
 #endif
 
 void main() {
@@ -390,6 +404,15 @@ void main() {
 	MEDIUMP vec3 H = normalize(V + L);
 #endif
 
+	// Declaring and calculating dot products early and seperately within all if/then
+	// clauses can improve performance. 
+	LOWP float NdotL;
+#ifdef USE_REFLECTION_VECTOR
+	LOWP float RdotV;
+#else
+	LOWP float NdotH;
+#endif
+
 	MEDIUMP vec3 normal;
 	// Save normalized light direction in case it is needed later, before light vectors
 	// are converted to tangent space when a normal map is used.
@@ -426,25 +449,37 @@ void main() {
 		// Light calculations will be performed in tangent space.
 
 		// Convert vectors for the light calculation into tangent space.
-#if GL_ES
 		// Avoid expensive normalization when using OpenGL ES 2.0.
+		// For the L vector (towards the light source), proper normalization
+		// is virtually required when USE_REFLECTION_VECTOR is defined because
+		// otherwise exaggerated highlights appear and performance is worse on
+		// OpenGL ES 2.0 (maybe because of the power function involved in the
+		// specular light calculation).
 		L = tbn_matrix_var * L;
-#else
-		L = normalize(tbn_matrix_var * L);
+#if defined(NORMALIZE_TANGENT_SPACE_VECTORS) || defined(USE_REFLECTION_VECTOR)
+		L = normalize(L);
 #endif
 #if defined(MICROFACET) || defined(USE_REFLECTION_VECTOR)
-		V = normalize(tbn_matrix_var * V);
+		V = tbn_matrix_var * V;
+#ifdef NORMALIZE_TANGENT_SPACE_VECTORS
+		V = normalize(V);
+#endif
 #endif
 #ifdef USE_REFLECTION_VECTOR
 		// Calculate the reflection vector.
         	R = - reflect(L, normal);
 		// R is already in tangent space
 #else
-#ifdef GL_ES
                 H = tbn_matrix_var * H;
-#else
-		H = normalize(tbn_matrix_var * H);
+#ifdef NORMALIZE_TANGENT_SPACE_VECTORS
+		H = normalize(H);
 #endif
+#endif
+		NdotL = dot(normal, L);
+#ifdef USE_REFLECTION_VECTOR
+		RdotV = max(dot(R, V), 0.0);
+#else
+		NdotH = max(dot(normal, H), 0.0);
 #endif
 #endif	// defined(NORMAL_MAP_OPTION) || defined(NORMAL_MAP_FIXED)
 
@@ -454,12 +489,22 @@ void main() {
 #endif
 #ifndef NORMAL_MAP_FIXED
 	{
+		normal = normal_var;
+#ifdef NORMALIZE_INTERPOLATED_NORMAL
 		// Normalize the normal vector.
-		normal = normalize(normal_var);
+		normal = normalize(normal);
+#endif
 #ifdef USE_REFLECTION_VECTOR
 		// Calculate the reflection vector.
         	R = - reflect(L, normal);
 #endif
+		NdotL = dot(normal, L);
+#ifdef USE_REFLECTION_VECTOR
+		RdotV = max(dot(R, V), 0.0);
+#else
+		NdotH = max(dot(normal, H), 0.0);
+#endif
+
 	}
 #endif
 
@@ -608,7 +653,6 @@ void main() {
 		adjusted_atmospheric_illumination;
 #endif
 
-	LOWP float NdotL = dot(normal, L);
 #ifdef EARTH_SHADER
 	// If the sun is below the horizon, avoid diffuse and specular reflection.
 	// Do allow other lights to contribute even on the night side.
@@ -630,11 +674,6 @@ void main() {
 		c += diffuse_fraction_in * light_att * light_color * diffuse_base_color * NdotL;
 #else
 		c += light_att * light_color * diffuse_base_color * NdotL;
-#endif
-#ifdef USE_REFLECTION_VECTOR
-		LOWP float RdotV = max(dot(R, V), 0.0);
-#else
-		LOWP float NdotH = max(dot(normal, H), 0.0);
 #endif
 		LOWP vec3 specular_map_color;
 #ifdef SPECULARITY_MAP_FIXED
