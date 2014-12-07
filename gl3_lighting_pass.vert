@@ -126,16 +126,16 @@ invariant varying vec3 shadow_map_dimensions_var;
 #ifdef COMPRESS_COLOR_ATTRIBUTE
 
 vec3 DecompressColor(float cc) {
-	const float f1 = 256.0f;
-        const float f2 = 65536.0f;
-        const float f3 = 16777216.0f;
+	const float f1 = 256.0;
+        const float f2 = 65536.0;
+        const float f3 = 16777216.0;
 	vec3 c;
 	c.r = floor(cc * f1);
 	cc -= c.r / f1;
 	c.g = floor(cc * f2);
 	cc -= c.g / f2;
 	c.b = floor(cc * f3);
-        c = c * (1.0f / 255.0f);
+        c = c * (1.0 / 255.0);
         return c;
 }
 
