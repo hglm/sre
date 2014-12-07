@@ -47,10 +47,9 @@ void Demo5CreateScene(sreScene *scene, sreView *view) {
     scene->SetTexture(sreCreateStripesTexture(TEXTURE_TYPE_LINEAR,
         256, 256, 32, Color(1.0f, 1.0f, 0), Color(0.6f, 0.6f, 0)));
     scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
-    scene->SetSpecularReflectionColor(Color(0.9f, 0.9f, 0.6f));
+    scene->SetSpecularReflectionColor(Color(1.0f, 1.0f, 1.0f));
     scene->AddObject(sphere_model, - 15.0f, - 100.0f, 3.0f, 0, 0, 0, 3.0f);
     scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
-    scene->SetSpecularReflectionColor(Color(1.0f, 1.0f, 1.0f));
     int i;
 
     sreModel *ground_model = sreCreateRepeatingRectangleModel(scene, 1000.0, 20.0);
@@ -227,7 +226,7 @@ void Demo5CreateScene(sreScene *scene, sreView *view) {
 #endif
 
     // Directional light
-    scene->AddDirectionalLight(0, Vector3D(- 0.2, - 0.1, - 1.0), Color(0.3, 0.3, 0.3));
+    scene->AddDirectionalLight(0, Vector3D(- 0.2, - 0.1, - 1.0).Normalize(), Color(0.3, 0.3, 0.3));
     // Add halo objects
     scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_EMISSION_ONLY |
         SRE_OBJECT_LIGHT_HALO | SRE_OBJECT_NO_PHYSICS);

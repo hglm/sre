@@ -105,7 +105,7 @@ void Demo7CreateScene(sreScene *scene, sreView *view) {
 
     // Add lightsources
     // Directional light
-    scene->AddDirectionalLight(0, Vector3D(0.1, 0.1, - 1.0), Color(0.4, 0.4, 0.4));
+    scene->AddDirectionalLight(0, Vector3D(0.1, 0.1, - 1.0).Normalize(), Color(0.4, 0.4, 0.4));
 #ifdef HALO
     // Halo light.
     scene->SetFlags(

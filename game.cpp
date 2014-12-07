@@ -176,7 +176,7 @@ void LevelOneCreateScene() {
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_CAST_SHADOWS);
     i = scene->AddObject(block_30x30x30_model, - 50, 120, 0, 0, 0, 0, 1);
     // Directional light
-    scene->AddDirectionalLight(0, Vector3D(0.2, 0.3, - 1.0), Color(0.8, 0.8, 0.8));
+    scene->AddDirectionalLight(0, Vector3D(0.2, 0.3, - 1.0).Normalize(), Color(0.8, 0.8, 0.8));
 }
 
 void LevelTwoCreateScene() {
@@ -207,7 +207,7 @@ void LevelTwoCreateScene() {
     i = scene->AddObject(ramp_towards_right_100x30x30_model, - 150, 120, 0, 0, 0, 0, 1);
     i = scene->AddObject(ramp_towards_left_100x30x30_model, - 20, 120, 0, 0, 0, 0, 1);
     // Directional light
-    scene->AddDirectionalLight(0, Vector3D(0.2, 0.3, - 0.5), Color(0.8, 0.8, 0.8));
+    scene->AddDirectionalLight(0, Vector3D(0.2, 0.3, - 0.5).Normalize(), Color(0.8, 0.8, 0.8));
 }
 
 void LevelThreeCreateScene() {
@@ -277,7 +277,7 @@ void LevelThreeCreateScene() {
     i = scene->AddObject(block_30x30x30_model, - 150, 120, 0, 0, 0, 0, 1);
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
     // Directional light
-    scene->AddDirectionalLight(0, Vector3D(0.2, - 0.1, - 1.0), Color(0.8, 0.8, 0.8));
+    scene->AddDirectionalLight(0, Vector3D(0.2, - 0.1, - 1.0).Normalize(), Color(0.8, 0.8, 0.8));
 }
 
 void LevelFourCreateScene() {
@@ -312,7 +312,7 @@ void LevelFourCreateScene() {
     i = scene->AddObject(block_30x30x30_model, - 50, 200, 30, 0, 0, 0, 1);
     i = scene->AddObject(block_30x30x30_model, - 50, 200, 0, 0, 0, 0, 1);
     // Directional light
-    scene->AddDirectionalLight(0, Vector3D(- 0.5, - 0.3, - 1.0), Color(0.8, 0.8, 0.8));
+    scene->AddDirectionalLight(0, Vector3D(- 0.5, - 0.3, - 1.0).Normalize(), Color(0.8, 0.8, 0.8));
 }
 
 void LevelFiveCreateScene() {
@@ -359,7 +359,7 @@ void EndLevelCreateScene() {
     // Add block after ramp.
     i = scene->AddObject(block_100x30x30_model, - 50, 120, 0, 0, 0, 0, 1);
     // Directional light
-    scene->AddDirectionalLight(0, Vector3D(- 0.2, - 0.3, - 1.0), Color(0.8, 0.8, 0.8));
+    scene->AddDirectionalLight(0, Vector3D(- 0.2, - 0.3, - 1.0).Normalize(), Color(0.8, 0.8, 0.8));
 }
 
 void GameApplication::StepBeforeRender(double demo_time) {

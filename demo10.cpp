@@ -46,11 +46,20 @@ void Demo10CreateScene(sreScene *scene, sreView *view) {
     // are enabled.
     scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 2.0, 0);
 #endif
+
+    // Set diffuse fraction to 0.6 and two roughness values of 0.1 and 0.25 with weight 0.4 and 0.6,
+    // isotropic.
+    scene->SetMicrofacetParameters(0.6, 0.1, 0.4, 0.25, 0.6, false);
+    scene->SetSpecularExponent(40.0f);
+
     scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS |
         SRE_OBJECT_USE_TEXTURE);
     scene->SetTexture(sreCreateStripesTexture(TEXTURE_TYPE_LINEAR,
         256, 256, 32, Color(0, 0.5f, 0.8f), Color(0.9f, 0.9f, 1.0f)));
     scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
+    // Since the light color is (0.5, 0.5, 0.5), set the specular reflection color to
+    // above (1.0, 1.0, 1.0) to allow bright highlights.
+    scene->SetSpecularReflectionColor(Color(1.5f, 1.5f, 1.5f));
     scene->AddObject(sphere_model, Point3D(0, - 40.0f, 3.0f), Vector3D(0, 0, 0), 3.0f);
 
     // Add ground
@@ -79,9 +88,7 @@ void Demo10CreateScene(sreScene *scene, sreView *view) {
 #ifdef BUMP_MAPPED_SPHERE
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_DYNAMIC_POSITION |
         SRE_OBJECT_USE_NORMAL_MAP);
-    scene->SetNormalMap(new sreTexture(
-    "bump_map_512",
-    TEXTURE_TYPE_NORMAL_MAP));
+    scene->SetNormalMap(new sreTexture("bump_map_512", TEXTURE_TYPE_NORMAL_MAP));
 #else
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_DYNAMIC_POSITION);
 #endif 
@@ -126,8 +133,9 @@ void Demo10CreateScene(sreScene *scene, sreView *view) {
     scene->SetFlags(SRE_OBJECT_EMISSION_ONLY | SRE_OBJECT_INFINITE_DISTANCE);
     scene->SetEmissionColor(Color(1.0, 1.0, 1.0));
     scene->AddObject(sphere_model, 50000.0, - 60000.0, 50000.0, 0, 0, 0, 1000.0);
-    scene->AddDirectionalLight(0, Vector3D(- 0.5, 0.6, - 0.5),
+    scene->AddDirectionalLight(0, Vector3D(- 0.5, 0.6, - 0.5).Normalize(),
        Color(0.5, 0.5, 0.5));
 }
+
 void Demo10Step(sreScene *scene, double demo_time) {
 }

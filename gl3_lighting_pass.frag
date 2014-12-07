@@ -707,7 +707,15 @@ void main() {
 		specular_component = specular_reflection_color_in * pow(NdotH, specular_exponent_in);
 #endif
 #endif
-		c += light_att * light_color * specular_map_color * specular_component;
+		// The specular color contribution should not depend on the color of the
+		// light, but only its intrinsic intensity.
+		const vec3 Crgb = vec3(
+		    0.212655f, // Red factor
+		    0.715158f, // Green factor
+		    0.072187f  // Blue factor
+		    );
+		float light_intensity = dot(light_color_in, Crgb);
+		c += light_att * light_intensity * specular_map_color * specular_component;
 	}
 #endif
 

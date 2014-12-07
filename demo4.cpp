@@ -1231,7 +1231,7 @@ skip_spacecraft :
 
     // Lights.
 #ifndef NIGHT
-    Vector3D lightdir = Vector3D(- 0.6, - 0.8, - 0.5);
+    Vector3D lightdir = Vector3D(- 0.6, - 0.8, - 0.5).Normalize();
     lightdir.Normalize();
     directional_light = scene->AddDirectionalLight(SRE_LIGHT_DYNAMIC_DIRECTION,
         lightdir, Color(0.7f, 0.7f, 0.7f) * sun_light_factor);

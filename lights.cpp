@@ -190,6 +190,8 @@ void sreScene::RegisterLight(sreLight *l) {
     nu_lights++;
 }
 
+// Add a directional light. The direction is expected to be already normalized.
+
 int sreScene::AddDirectionalLight(int type, Vector3D direction, Color color) {
     CheckLightCapacity();
     sreLight *l = new sreLight;

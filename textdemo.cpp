@@ -425,18 +425,7 @@ static void DrawTextOverlay() {
 
 void TextDemoCreateScene(sreScene *scene, sreView *view) {
     // Scene doesn't matter.
-#if 0
-    sreModel *sphere_model = sreCreateSphereModel(scene, 0);
-    // Add player sphere as scene object 0.
-    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_NO_PHYSICS);
-    Color c;
-    c.r = 0.00;
-    c.g = 0.75;
-    c.b = 1.0;
-    scene->SetColor(c);
-    scene->AddObject(sphere_model, 0, 0, 3.0, 0, 0, 0, 3.0);
-    scene->AddDirectionalLight(0, Vector3D(0.1, - 0.5, 1.0), Color(1.0, 1.0, 1.0));
-#endif
+    scene->AddDirectionalLight(0, Vector3D(1.0f, 0, 0), Color(1.0f, 1.0f, 1.0f));
 
     // Frame-indepedent test initialization
 

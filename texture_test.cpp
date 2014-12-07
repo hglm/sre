@@ -78,7 +78,7 @@ void TextureTestCreateScene(bool compressed) {
             scene->SetTexture(tex[(x + y) % 10]);
             scene->AddObject(block_model, - 50 + x * 10, 5 + y * 10, 0, 0, 0, 0, 9.0);
         }
-    scene->AddDirectionalLight(0, Vector3D(0.1, - 0.5, 1.0), Color(1.0, 1.0, 1.0));
+    scene->AddDirectionalLight(0, Vector3D(0.1, - 0.5, 1.0).Normalize(), Color(1.0, 1.0, 1.0));
     // View mode already set in main.cpp.
 //    view->SetViewModeFollowObject(oid, 40.0, Vector3D(0, 0, 10.0));
 }

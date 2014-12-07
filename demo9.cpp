@@ -101,7 +101,7 @@ void Demo9CreateScene(sreScene *scene, sreView *view) {
     scene->SetFlags(SRE_OBJECT_EMISSION_ONLY | SRE_OBJECT_INFINITE_DISTANCE);
     scene->SetEmissionColor(Color(1.0, 1.0, 1.0));
     scene->AddObject(sphere_model, 50000.0, - 60000.0, 50000.0, 0, 0, 0, 1000.0);
-    scene->AddDirectionalLight(0, Vector3D(- 0.5, 0.6, - 0.5),
+    scene->AddDirectionalLight(0, Vector3D(- 0.5, 0.6, - 0.5).Normalize(),
        Color(0.5, 0.5, 0.5));
 
 }
