@@ -54,7 +54,8 @@ void Demo5CreateScene(sreScene *scene, sreView *view) {
     int i;
 
     sreModel *ground_model = sreCreateRepeatingRectangleModel(scene, 1000.0, 20.0);
-    sreTexture *ground_texture = new sreTexture("MossAndGrass4", TEXTURE_TYPE_WRAP_REPEAT);
+    sreTexture *ground_texture = new sreTexture("MossAndGrass4", TEXTURE_TYPE_NORMAL |
+        SRE_TEXTURE_TYPE_FLAG_WRAP_REPEAT);
     scene->SetTexture(ground_texture);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_NO_PHYSICS);
     scene->AddObject(ground_model, - 500, - 500, 0, 0, 0, 0, 1);
@@ -73,8 +74,15 @@ void Demo5CreateScene(sreScene *scene, sreView *view) {
 #if 1
     // Torus landscape.
     sreModel *torus_model = sreCreateTorusModel(scene);
-    sreTexture *donut_normalmap[3];
-    donut_normalmap[0] = new sreTexture("normal_map_bump_pattern", TEXTURE_TYPE_NORMAL_MAP);
+    // Define the UV transform so that the normal map is repeated 20 times in the main
+    // circumference.
+    Matrix3D *UV_transform_mul_20 = new Matrix3D(
+        20.0f, 0.0f, 0.0f,
+        0.0f, 20.0f * TORUS_RADIUS2 / TORUS_RADIUS, 0.0f,
+        0.0f, 0.0f, 1.0f);
+    scene->SetUVTransform(UV_transform_mul_20);
+    sreTexture *normal_map_64 = new sreTexture("normal_map_bump_pattern_64",
+        TEXTURE_TYPE_NORMAL_MAP | SRE_TEXTURE_TYPE_FLAG_WRAP_REPEAT);
     scene->SetFlags(SRE_OBJECT_USE_NORMAL_MAP /* | SRE_OBJECT_DYNAMIC_POSITION */ | SRE_OBJECT_CAST_SHADOWS);
     // Set diffuse fraction to 0.6 and roughness values of 0.1 and 0.15, anisotropic.
     scene->SetMicrofacetParameters(0.6, 0.1, 1.0, 0.15, 1.0, true);
@@ -95,13 +103,14 @@ void Demo5CreateScene(sreScene *scene, sreView *view) {
                 c.g = rng->RandomFloat(1.0f);
                 c.b = rng->RandomFloat(1.0f);
                 scene->SetColor(c);
-		scene->SetNormalMap(donut_normalmap[rand() & 0]);
+		scene->SetNormalMap(normal_map_64);
                 i = scene->AddObject(torus_model, wx, wy, wz + z * TORUS_RADIUS2 * 2, 0, 0, 0, 1);
                 // Because the object are movable and can change orientation, use the so shadow cache.
 //                scene->object[i]->use_so_shadow_cache = true;
             }
         }
     scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 1.0, 0);
+    scene->SetUVTransform(NULL);
     // Add two "copper" torusses, one anisotropic, the other isotropic.
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
     scene->SetDiffuseReflectionColor(Color(0.8, 0.6, 0.1));

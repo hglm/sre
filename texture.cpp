@@ -172,7 +172,7 @@ static int CountPowersOfTwo(int w, int h) {
     return count;
 }
 
-static void SetGLTextureParameters(int type, int nu_components, int nu_mipmaps_used,
+static void SetGLTextureParameters(int type, int flags, int nu_components, int nu_mipmaps_used,
 int power_of_two_count) {
 #ifndef OPENGL_ES2
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
@@ -189,7 +189,7 @@ int power_of_two_count) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
-    if (type == TEXTURE_TYPE_WRAP_REPEAT) {
+    if (flags & SRE_TEXTURE_TYPE_FLAG_WRAP_REPEAT) {
         if (power_of_two_count != 2) {
             sreFatalError("Repeating textures require power of two texture dimensions.\n");
         }
@@ -243,7 +243,7 @@ int& target_width, int& target_height, int& nu_levels_skipped, int flags) {
            "using single mipmap.");
         nu_mipmaps_used = 1;
     }
-    else if (type == TEXTURE_TYPE_WRAP_REPEAT &&
+    else if ((flags & SRE_TEXTURE_TYPE_FLAG_WRAP_REPEAT) &&
     !(sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_NPOT_WRAP)
     && power_of_two_count != 2) {
          sreMessage(SRE_MESSAGE_WARNING,
@@ -291,7 +291,7 @@ void sreTexture::UploadGL(int flags) {
 #ifndef NO_SRGB
     if (format == TEXTURE_FORMAT_RAW) {
         // Regular (image) textures should be handled as SRGB.
-        if (type == TEXTURE_TYPE_NORMAL || type == TEXTURE_TYPE_SRGB || type == TEXTURE_TYPE_WRAP_REPEAT)
+        if (type == TEXTURE_TYPE_NORMAL || type == TEXTURE_TYPE_SRGB)
             if (bytes_per_pixel == 4)
                 format = TEXTURE_FORMAT_RAW_SRGBA8;
             else if (bytes_per_pixel == 3)
@@ -324,7 +324,7 @@ void sreTexture::UploadGL(int flags) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         generate_mipmaps = true;
     }
-    if (type == TEXTURE_TYPE_WRAP_REPEAT) {
+    if (flags & SRE_TEXTURE_TYPE_FLAG_WRAP_REPEAT) {
         if (count != 2) {
             sreFatalError("Repeating textures require power of two texture dimensions.");
         }
@@ -603,7 +603,7 @@ typedef struct KTX_header_t {
 	khronos_uint32_t bytesOfKeyValueData;
 } KTX_header;
 
-bool sreTexture::LoadKTX(const char *filename) {
+bool sreTexture::LoadKTX(const char *filename, int flags) {
     FILE *f = fopen(filename, "rb");
     // Read header.
     KTX_header header;
@@ -639,8 +639,7 @@ bool sreTexture::LoadKTX(const char *filename) {
 #ifndef OPENGL_ES2
     case GL_COMPRESSED_RGB_S3TC_DXT1_EXT :
 #ifndef NO_SRGB
-        if (type == TEXTURE_TYPE_NORMAL || type == TEXTURE_TYPE_SRGB ||
-        type == TEXTURE_TYPE_WRAP_REPEAT) {
+        if (type == TEXTURE_TYPE_NORMAL || type == TEXTURE_TYPE_SRGB) {
     	    if (SRGB_DXT1_internal_format != - 1) {
                 supported_format = TEXTURE_FORMAT_SRGB_DXT1;
                 glInternalFormat = GL_COMPRESSED_SRGB_S3TC_DXT1_EXT;
@@ -659,7 +658,7 @@ bool sreTexture::LoadKTX(const char *filename) {
         break;
     case GL_COMPRESSED_RGBA_BPTC_UNORM_ARB :
 #ifndef NO_SRGB
-        if (type == TEXTURE_TYPE_NORMAL || type == TEXTURE_TYPE_SRGB || type == TEXTURE_TYPE_WRAP_REPEAT) {
+        if (type == TEXTURE_TYPE_NORMAL || type == TEXTURE_TYPE_SRGB) {
             if (SRGB_BPTC_internal_format != - 1) {
                 supported_format = TEXTURE_FORMAT_SRGB_BPTC;
                 glInternalFormat = GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM_ARB;
@@ -705,7 +704,7 @@ default :
 
     int power_of_two_count, nu_mipmaps_used, target_width, target_height, nu_levels_skipped;
     SelectMipmaps(header.numberOfMipmapLevels, power_of_two_count, nu_mipmaps_used,
-        target_width, target_height, nu_levels_skipped, 0);
+        target_width, target_height, nu_levels_skipped, flags);
 
     sreMessage(SRE_MESSAGE_INFO,
         "Loading KTX texture with size (%d x %d), using %d mipmap levels starting at %d.",
@@ -721,7 +720,7 @@ default :
     glGenTextures(1, &texid);
     opengl_id = texid;
     glBindTexture(GL_TEXTURE_2D, opengl_id);
-    SetGLTextureParameters(type, nu_components, nu_mipmaps_used, power_of_two_count);
+    SetGLTextureParameters(type, flags, nu_components, nu_mipmaps_used, power_of_two_count);
 
     khronos_uint32_t faceLodSize;
     khronos_uint32_t faceLodSizeRounded;
@@ -768,7 +767,7 @@ default :
     return true;
 }
 
-void sreTexture::LoadDDS(const char *filename) {
+void sreTexture::LoadDDS(const char *filename, int flags) {
     unsigned char header[124];
  
     FILE *fp; 
@@ -876,7 +875,7 @@ void sreTexture::LoadDDS(const char *filename) {
     }
 #ifndef NO_SRGB
     // Force SRGB mode for color textures.
-    if (type == TEXTURE_TYPE_NORMAL || type == TEXTURE_TYPE_SRGB || type == TEXTURE_TYPE_WRAP_REPEAT) {
+    if (type == TEXTURE_TYPE_NORMAL || type == TEXTURE_TYPE_SRGB) {
         if (format == TEXTURE_FORMAT_DXT1) {
             internal_format = GL_COMPRESSED_SRGB_S3TC_DXT1_EXT;
             format = TEXTURE_FORMAT_SRGB_DXT1;
@@ -936,7 +935,7 @@ void sreTexture::LoadDDS(const char *filename) {
 
     int power_of_two_count, nu_mipmaps_used, target_width, target_height, nu_levels_skipped;
     SelectMipmaps(mipMapCount, power_of_two_count, nu_mipmaps_used, target_width, target_height,
-       nu_levels_skipped, 0);
+       nu_levels_skipped, flags);
 
     sreMessage(SRE_MESSAGE_INFO,
         "Loading DDS texture with size (%d x %d), %d mipmap levels starting at %d.",
@@ -964,7 +963,7 @@ void sreTexture::LoadDDS(const char *filename) {
     // "Bind" the newly created texture : all future texture functions will modify this texture
     glBindTexture(GL_TEXTURE_2D, textureID);
 
-    SetGLTextureParameters(type, nu_components, nu_mipmaps_used, power_of_two_count);
+    SetGLTextureParameters(type, flags, nu_components, nu_mipmaps_used, power_of_two_count);
     sreAbortOnGLError("Error after setting texture parameters.\n");
 
     /* Load the mipmaps. */
@@ -1036,14 +1035,14 @@ void sreTexture::Load(const char *basefilename, int _type) {
     if (_type & SRE_TEXTURE_TYPE_FLAG_KEEP_DATA)
         keep_data = true;
     type = _type & (~SRE_TEXTURE_TYPE_FLAGS_MASK);
-    if (type != TEXTURE_TYPE_USE_UNCOMPRESSED_TEXTURE && FileExists(s)) {
-        success = LoadKTX(s);
+    if (!(_type & SRE_TEXTURE_TYPE_FLAG_USE_UNCOMPRESSED_TEXTURE) && FileExists(s)) {
+        success = LoadKTX(s, _type & SRE_TEXTURE_TYPE_FLAGS_MASK);
     }
     if (!success) {
         sprintf(s, "%s.dds", basefilename);
-        if (DXT1_internal_format != -1 && type != TEXTURE_TYPE_USE_UNCOMPRESSED_TEXTURE
+        if (DXT1_internal_format != -1 && !(_type & SRE_TEXTURE_TYPE_FLAG_USE_UNCOMPRESSED_TEXTURE)
         && FileExists(s)) {
-            LoadDDS(s);
+            LoadDDS(s, _type & SRE_TEXTURE_TYPE_FLAGS_MASK);
             success = true;
         }
     }
@@ -1056,7 +1055,7 @@ void sreTexture::Load(const char *basefilename, int _type) {
                 "Texture file %s(.png, .ktx, .dds) not found or not supported. "
                 "Replacing with internal standard texture.", basefilename);
             sreTexture *tex;
-            if (type == TEXTURE_TYPE_WRAP_REPEAT)
+            if (_type & SRE_TEXTURE_TYPE_FLAG_WRAP_REPEAT)
                 tex = sreGetStandardTextureWrapRepeat();
             else
                 tex = sreGetStandardTexture();
@@ -1233,7 +1232,8 @@ sreTexture *sreGetStandardTexture() {
 
 sreTexture *sreGetStandardTextureWrapRepeat() {
    if (standard_texture_wrap_repeat == NULL)
-        standard_texture_wrap_repeat = sreCreateCheckerboardTexture(TEXTURE_TYPE_WRAP_REPEAT,
+        standard_texture_wrap_repeat = sreCreateCheckerboardTexture(TEXTURE_TYPE_NORMAL |
+            SRE_TEXTURE_TYPE_FLAG_WRAP_REPEAT,
             256, 256, 16, 16, Color(0, 0, 0), Color(1.0f, 1.0f, 1.0f));
     if (standard_texture_wrap_repeat == NULL) {
         sreFatalError("Unable to upload standard texture (OpenGL problem?), giving up.");
@@ -1279,8 +1279,6 @@ void sreScene::ApplyGlobalTextureParameters(int flags, int filter, float anisotr
         case TEXTURE_TYPE_NORMAL :
         case TEXTURE_TYPE_SRGB :
         case TEXTURE_TYPE_LINEAR :
-        case TEXTURE_TYPE_WRAP_REPEAT :
-        case TEXTURE_TYPE_USE_UNCOMPRESSED_TEXTURE :
             registered_textures[i]->ChangeParameters(flags, filter, anisotropy);
             break;
         }
@@ -1329,7 +1327,7 @@ int &nu_levels_to_skip, int flags) {
     bool force_power_of_two = false;
     bool force_one_mipmap_level = false;
     if (!(sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_NPOT)
-    || (type == TEXTURE_TYPE_WRAP_REPEAT &&
+    || ((flags & SRE_TEXTURE_TYPE_FLAG_WRAP_REPEAT) &&
     !(sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_NPOT_WRAP)))
         force_power_of_two = true;
     if (!(sre_internal_texture_detail_flags & SRE_TEXTURE_DETAIL_NPOT_MIPMAPS))

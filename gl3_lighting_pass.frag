@@ -406,10 +406,9 @@ void main() {
 		if (n.z != 0.0)
 			// Move range from [0,1] to  [-1, 1].
 			n = n * 2.0 - vec3(1.0, 1.0, 1.0);
-                else
-			// Calculate z from x and y based on the fact that the magnitude of
-			// a normal vector is 1.0.
-			normal = vec3(n.x, n.y, sqrt(1.0 - n.x * n.x - n.y * n.y));
+                // Calculate z from x and y based on the fact that the magnitude of
+		// a normal vector is 1.0.
+		normal = vec3(n.x, n.y, sqrt(1.0 - n.x * n.x - n.y * n.y));
 		// Light calculations will be performed in tangent space.
 #endif
 #ifdef NORMAL_MAP_OPTION
