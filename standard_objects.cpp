@@ -700,6 +700,16 @@ int TORUS_LATITUDE_SEGMENTS, int TORUS_LONGITUDE_SEGMENTS_PER_TEXTURE, int TORUS
 
 sreModel *sreCreateTorusModel(sreScene *scene) {
     sreModel *m = new sreModel;
+#if 1
+    m->lod_model[0] = sreNewLODModel();
+    sreInitializeTorusModel(m->lod_model[0], 64, 32, 64, 21);
+    m->lod_model[1] = sreNewLODModel();
+    sreInitializeTorusModel(m->lod_model[1], 32, 16, 32, 16);
+    m->lod_model[2] = sreNewLODModel();
+    sreInitializeTorusModel(m->lod_model[2], 16, 8, 16, 8);
+    m->lod_model[3] = sreNewLODModel();
+    sreInitializeTorusModel(m->lod_model[3], 8, 4, 8, 4);
+#else
     m->lod_model[0] = sreNewLODModel();
     sreInitializeTorusModel(m->lod_model[0], 64, 32, 8, 4);
     m->lod_model[1] = sreNewLODModel();
@@ -708,6 +718,7 @@ sreModel *sreCreateTorusModel(sreScene *scene) {
     sreInitializeTorusModel(m->lod_model[2], 16, 8, 2, 1);
     m->lod_model[3] = sreNewLODModel();
     sreInitializeTorusModel(m->lod_model[3], 8, 4, 1, 1);
+#endif
     m->nu_lod_levels = 4;
     m->CalculateBounds();
     m->collision_shape_static = SRE_COLLISION_SHAPE_STATIC;
