@@ -72,7 +72,8 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     scene->object[i]->target_collision_reaction = COLLISION_REACTION_BUMP_REFLECTIVE;
 #else
     sreModel *ground_model = sreCreateRepeatingRectangleModel(scene, 320, 10);
-    sreTexture *ground_texture = new sreTexture("StonesAndBricks5", TEXTURE_TYPE_WRAP_REPEAT);
+    sreTexture *ground_texture = new sreTexture("StonesAndBricks5",
+        TEXTURE_TYPE_NORMAL | SRE_TEXTURE_TYPE_FLAG_WRAP_REPEAT);
     scene->SetTexture(ground_texture);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_NO_PHYSICS);
     scene->AddObject(ground_model, - 16 * 10, - 16 * 10, 0, 0, 0, 0, 1.0);

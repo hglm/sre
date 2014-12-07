@@ -134,14 +134,16 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define SRE_MAX_OCTREE_DEPTH 12
 
 
-enum { TEXTURE_TYPE_NORMAL = 0, TEXTURE_TYPE_SRGB, TEXTURE_TYPE_LINEAR,
+enum {
+     TEXTURE_TYPE_NORMAL = 0, TEXTURE_TYPE_SRGB, TEXTURE_TYPE_LINEAR,
     TEXTURE_TYPE_TRANSPARENT, TEXTURE_TYPE_TRANSPARENT_EXTEND_TO_ALPHA,
     TEXTURE_TYPE_WILL_MERGE_LATER, TEXTURE_TYPE_NORMAL_MAP,
     TEXTURE_TYPE_SPECULARITY_MAP, TEXTURE_TYPE_TABLE,
-    TEXTURE_TYPE_USE_UNCOMPRESSED_TEXTURE, TEXTURE_TYPE_WRAP_REPEAT,
+    SRE_TEXTURE_TYPE_FLAG_USE_UNCOMPRESSED_TEXTURE = 0x400,
+    SRE_TEXTURE_TYPE_FLAG_WRAP_REPEAT = 0x800,
     SRE_TEXTURE_TYPE_FLAG_KEEP_DATA = 0x1000,
     SRE_TEXTURE_TYPE_FLAG_NO_UPLOAD = 0x2000,
-    SRE_TEXTURE_TYPE_FLAGS_MASK = 0x3000 };
+    SRE_TEXTURE_TYPE_FLAGS_MASK = 0x3C00 };
 
 enum {
     TEXTURE_FORMAT_RAW = 0, TEXTURE_FORMAT_RAW_RGBA8, TEXTURE_FORMAT_RAW_RGB8,
@@ -197,8 +199,8 @@ public:
     void MergeTransparencyMap(sreTexture *t);
     void ConvertFrom24BitsTo32Bits();
     void LoadPNG(const char *pathname, int flags);
-    bool LoadKTX(const char *pathname);
-    void LoadDDS(const char *pathname);
+    bool LoadKTX(const char *pathname, int flags);
+    void LoadDDS(const char *pathname, int flags);
     void ChangeParameters(int flags, int filter, float anisotropy);
 private :
     void CalculateTargetSize(int& target_width, int& target_height,

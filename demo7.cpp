@@ -80,7 +80,7 @@ void Demo7CreateScene(sreScene *scene, sreView *view) {
 #ifndef OPENGL_ES2
     // The texture is in BPTC format.
     sreTexture *transparent_texture = new sreTexture("transparent_texture",
-        TEXTURE_TYPE_WRAP_REPEAT | TEXTURE_TYPE_NORMAL);
+        TEXTURE_TYPE_NORMAL | SRE_TEXTURE_TYPE_FLAG_WRAP_REPEAT);
     sreModel *rectangle = sreCreateRepeatingRectangleModel(scene, 20.0, 5.0);
     scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
     scene->SetTexture(transparent_texture);
