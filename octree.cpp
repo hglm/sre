@@ -1086,6 +1086,10 @@ void sreScene::CreateOctrees() {
         (!(light[i]->type & SRE_LIGHT_DYNAMIC_LIGHT_VOLUME) ||
         (light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE)))
             UpdateAABB(AABB, light[i]->AABB);
+    if (AABB.dim_min.x == POSITIVE_INFINITY_FLOAT || AABB.dim_max.x == NEGATIVE_INFINITY_FLOAT) {
+        AABB.dim_min.Set(0, 0, 0);
+        AABB.dim_max.Set(0, 0, 0);
+    }
 
     sreBoundingVolumeAABB root_AABB;
     if (sre_internal_octree_type == SRE_OCTREE_BALANCED ||
