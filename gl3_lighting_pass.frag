@@ -278,6 +278,12 @@ float CalculateShadow() {
 
 #endif
 
+// When USE_REFLECTION_VECTOR is defined, the reflect() function is used for specular
+// light calculation instead of calculating the halfway vector.
+#ifndef MICROFACET
+#define USE_REFLECTION_VECTOR
+#endif
+
 void main() {
         LOWP vec3 diffuse_reflection_color;
 	LOWP vec3 diffuse_base_color;
@@ -377,8 +383,12 @@ void main() {
         // directional).
 	L = normalize(light_position_in.xyz - light_position_in.w * position_world_var);
 #endif
-	// Calculate the half vector.
+#ifdef USE_REFLECTION_VECTOR
+        MEDIUMP vec3 R;
+#else	
+	// Calculate the halfway vector.
 	MEDIUMP vec3 H = normalize(V + L);
+#endif
 
 	MEDIUMP vec3 normal;
 	// Save normalized light direction in case it is needed later, before light vectors
@@ -388,18 +398,8 @@ void main() {
 #ifdef NORMAL_MAP_OPTION
 	if (use_normal_map_in) {
 #endif
+
 #if defined(NORMAL_MAP_OPTION) || defined(NORMAL_MAP_FIXED)
-		// Convert vectors for the light calculation into tangent space.
-#if GL_ES
-		L = tbn_matrix_var * L;
-                H = tbn_matrix_var * H;
-#else
-		L = normalize(tbn_matrix_var * L);
-		H = normalize(tbn_matrix_var * H);
-#endif
-#ifdef MICROFACET
-		V = normalize(tbn_matrix_var * V);
-#endif
 		// When the z component is non-zero, it is assumed to be the z component of
 		// the normal vector, and the components are scaled from [0, 1] to [-1, 1].
 		// When the z component is zero (which happens with two-component signed
@@ -424,14 +424,43 @@ void main() {
 		normal = vec3(n.x, n.y, sqrt(1.0 - n.x * n.x - n.y * n.y));
 #endif
 		// Light calculations will be performed in tangent space.
+
+		// Convert vectors for the light calculation into tangent space.
+#if GL_ES
+		// Avoid expensive normalization when using OpenGL ES 2.0.
+		L = tbn_matrix_var * L;
+#else
+		L = normalize(tbn_matrix_var * L);
 #endif
+#if defined(MICROFACET) || defined(USE_REFLECTION_VECTOR)
+		V = normalize(tbn_matrix_var * V);
+#endif
+#ifdef USE_REFLECTION_VECTOR
+		// Calculate the reflection vector.
+        	R = - reflect(L, normal);
+		// R is already in tangent space
+#else
+#ifdef GL_ES
+                H = tbn_matrix_var * H;
+#else
+		H = normalize(tbn_matrix_var * H);
+#endif
+#endif
+#endif	// defined(NORMAL_MAP_OPTION) || defined(NORMAL_MAP_FIXED)
+
 #ifdef NORMAL_MAP_OPTION
 	}
         else
 #endif
 #ifndef NORMAL_MAP_FIXED
-        // Normalize the normal vector.
+	{
+		// Normalize the normal vector.
 		normal = normalize(normal_var);
+#ifdef USE_REFLECTION_VECTOR
+		// Calculate the reflection vector.
+        	R = - reflect(L, normal);
+#endif
+	}
 #endif
 
 	// Calculate light attenuation.
@@ -578,6 +607,7 @@ void main() {
 	c += light_is_sun * light_color_in * diffuse_base_color *
 		adjusted_atmospheric_illumination;
 #endif
+
 	LOWP float NdotL = dot(normal, L);
 #ifdef EARTH_SHADER
 	// If the sun is below the horizon, avoid diffuse and specular reflection.
@@ -601,7 +631,11 @@ void main() {
 #else
 		c += light_att * light_color * diffuse_base_color * NdotL;
 #endif
+#ifdef USE_REFLECTION_VECTOR
+		LOWP float RdotV = max(dot(R, V), 0.0);
+#else
 		LOWP float NdotH = max(dot(normal, H), 0.0);
+#endif
 		LOWP vec3 specular_map_color;
 #ifdef SPECULARITY_MAP_FIXED
 		specular_map_color = texture2D(specular_map_in, texcoord_var).rgb;
@@ -628,7 +662,11 @@ void main() {
 		specular_component = (1.0 - diffuse_fraction_in) * microfacet_texture_value *
 			GeometricAttenuationFactor(NdotH, LdotH,  dot(normal, V), dot(normal, L)) / NdotV;
 #else
+#ifdef USE_REFLECTION_VECTOR
+		specular_component = specular_reflection_color_in * pow(RdotV, specular_exponent_in);
+#else
 		specular_component = specular_reflection_color_in * pow(NdotH, specular_exponent_in);
+#endif
 #endif
 		c += light_att * light_color * specular_map_color * specular_component;
 	}
