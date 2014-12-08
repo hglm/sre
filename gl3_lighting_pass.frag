@@ -51,7 +51,11 @@ uniform vec3 viewpoint_in;
 #ifdef AMBIENT_COLOR_IN
 uniform vec3 ambient_color_in;
 #endif
+#if defined(POINT_SOURCE_LIGHT) || defined(SPOT_LIGHT) || defined(BEAM_LIGHT) || defined(GENERAL_LOCAL_LIGHT)
+#define LOCAL_LIGHT
+#endif
 #ifdef LIGHT_PARAMETERS
+uniform float light_parameters[NU_LIGHT_PARAMETERS_MAX];
 uniform vec4 light_position_in;
 #ifndef DIRECTIONAL_LIGHT
 uniform vec4 light_att_in;
@@ -66,7 +70,7 @@ uniform bool anisotropic_in;
 #else
 uniform float specular_exponent_in;
 #endif
-#ifdef LINEAR_ATTENUATION_RANGE
+#if defined(GENERAL_LOCAL_LIGHT) || defined(SPOT_LIGHT) || defined(BEAM_LIGHT)
 uniform vec4 spotlight_in;
 #endif
 #endif // defined(LIGHT_PARAMETERS)
@@ -299,6 +303,109 @@ float CalculateShadow() {
 #endif
 
 void main() {
+#ifdef LIGHT_PARAMETERS
+#if false
+	// Decode the light parameter variables.
+	vec4 light_parameters_position;
+        light_parameters_position.xyz = vec3(
+		light_parameters[LIGHT_POSITION_X],
+		light_parameters[LIGHT_POSITION_Y],
+		light_parameters[LIGHT_POSITION_Z]
+		);
+	vec4 light_parameters_color.rgb = vec3(
+		light_parameters[LIGHT_POSITION_R],
+		light_parameters[LIGHT_POSITION_G],
+		light_parameters[LIGHT_POSITION_B]
+		);
+	// The following light types are possible:
+	// DIRECTIONAL_LIGHT
+	// POINT_SOURCE_LIGHT
+	// SPOT_LIGHT
+	// BEAM_LIGHT
+	// GENERAL_LOCAL_LIGHT (point, spot or beam)
+	// Shaders (such as multi-pass light shader 0) currently also exist that support all
+	// kinds of light).
+#ifdef DIRECTIONAL_LIGHT
+	light_parameters_position.w = 0.0f;
+#else
+	light_parameters_position.w = 1.0f;
+	float light_parameters_linear_attenuation_range =
+		light_parameters[LIGHT_LINEAR_ATTENUATION_RANGE];
+#if defined(SPOT_LIGHT) || defined(BEAM_LIGHT) || defined(GENERAL_LOCAL_LIGHT)
+	vec3 light_parameters_axis_direction = vec3(
+		light_parameters[LIGHT_AXIS_DIRECTION_X],
+		light_parameters[LIGHT_AXIS_DIRECTION_Y],
+		light_parameters[LIGHT_AXIS_DIRECTION_Z]
+		);
+#endif
+#ifdef SPOT_LIGHT
+	float light_parameters_spotlight_exponent = light_parameters[SPOT_LIGHT_EXPONENT];
+#elif defined(BEAM_LIGHT)
+	float light_parameters_beam_axis_cut_off_distance =
+		light_parameters[BEAM_LIGHT_AXIS_CUT_OFF_DISTANCE];
+	float light_parameters_beam_radius = light_parameters[BEAM_LIGHT_RADIUS];
+	float light_parameters_beam_radial_linear_attenuation_range =
+		light_parameters[BEAM_LIGHT_RADIAL_LINEAR_ATTENUATION_RANGE];
+#elif defined(POINT_SOURCE_LIGHT)
+	// No extra parameters for point source light.
+#else
+	// GENERAL_LOCAL_LIGHT
+	// Local light that can be any of three types.
+	float light_parameters_type;
+	// Type values:
+	// 1.0 Point source
+	// 2.0 Spot
+	// 3.0 Beam
+	light_parameters_type = light_parameters[LOCAL_LIGHT_TYPE];
+	float light_parameters_spotlight_exponent = light_parameters[LOCAL_LIGHT_SPOT_EXPONENT];
+	float light_parameters_beam_axis_cut_off_distance =
+		light_parameters[LOCAL_LIGHT_BEAM_AXIS_CUT_OFF_DISTANCE];
+	float light_parameters_beam_radius = light_parameters[LOCAL_LIGHT_BEAM_RADIUS];
+	float light_parameters_beam_radial_linear_attenuation_range =
+		light_parameters[LOCAL_LIGHT_BEAM_RADIAL_LINEAR_ATTENUATION_RANGE];
+#endif
+#endif // !defined(DIRECTIONAL_LIGHT)
+
+#else // if !true
+	// Set new light parameters from old uniforms for compatibility.
+	vec4 light_parameters_position = light_position_in;
+	vec3 light_parameters_color = light_color_in;
+#ifdef DIRECTIONAL_LIGHT
+	light_parameters_position.w = 0.0;
+#else
+	light_parameters_position.w = 1.0;
+	float light_parameters_type;
+#ifdef POINT_SOURCE_LIGHT
+	light_parameters_type = 1.0;
+#elif defined(SPOT_LIGHT)
+	light_parameters_type = 2.0;
+#elif defined(BEAM_LIGHT)
+	light_parameters_type = 3.0;
+#else
+	// GENERAL_LOCAL_LIGHT
+	// Local light that can be any of three types.
+	// Type values:
+	// 1.0 Point source
+	// 2.0 Spot
+	// 3.0 Beam
+	light_parameters_type = float(light_att_in.y > 0.0) + float(light_att_in.y > 1.5);
+#endif
+	float light_parameters_linear_attenuation_range = light_att_in.x;
+#if !defined(POINT_SOURCE_LIGHT)
+	vec3 light_parameters_axis_direction = spotlight_in.xyz;
+#if !defined(BEAM_LIGHT)
+        float light_parameters_spotlight_exponent = spotlight_in.w;
+#endif
+#if !defined(SPOT_LIGHT)
+	float light_parameters_beam_axis_cut_off_distance = light_att_in.z;
+	float light_parameters_beam_radius = spotlight_in.w;
+	float light_parameters_beam_radial_linear_attenuation_range = light_att_in.w;
+#endif
+#endif // !defined(POINT_SOURCE_LIGHT)
+#endif // !defined(DIRECTIONAL_LIGHT)
+#endif
+#endif // defined(LIGHT_PARAMETERS)
+
         LOWP vec3 diffuse_reflection_color;
 	LOWP vec3 diffuse_base_color;
 #if defined(MULTI_COLOR_OPTION) || defined(MULTI_COLOR_FIXED)
@@ -349,7 +456,7 @@ void main() {
 	vec3 earth_normal = normalize(position_world_var);
 	// Cities lights are enabled at a certain atmospheric illumination defined by the angle between the sun and
 	// the generalized surface normal.
-        float dot_sun_angle = dot(light_position_in.xyz, earth_normal);
+        float dot_sun_angle = dot(light_parameters_position.xyz, earth_normal);
         float atmospheric_illumination;
 	// Calculate atmospheric illumination between 0 and 1.0
         if (dot_sun_angle > 0.3)
@@ -391,11 +498,12 @@ void main() {
 	// Calculate light direction of point source light or directional light
 	MEDIUMP vec3 L;
 #ifdef DIRECTIONAL_LIGHT
-        L = light_position_in.xyz;
+        L = light_parameters_position.xyz;
 #else
 	// Calculated normalized negative light direction (for all kinds of lights, even
         // directional).
-	L = normalize(light_position_in.xyz - light_position_in.w * position_world_var);
+	L = normalize(light_parameters_position.xyz - light_parameters_position.w *
+		position_world_var);
 #endif
 #ifdef USE_REFLECTION_VECTOR
         MEDIUMP vec3 R;
@@ -508,64 +616,89 @@ void main() {
 	}
 #endif
 
+#ifdef DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR
+	LOWP float directional_light_spill_over_factor;
+#endif
+
 	// Calculate light attenuation.
 	LOWP float light_att = 1.0;
-#ifndef DIRECTIONAL_LIGHT
-	MEDIUMP float d_light_direction;
-#ifndef LOCAL_LIGHT
-	if (light_position_in.w > 0.5) {
+#ifdef DIRECTIONAL_LIGHT
+#ifdef DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR
+	directional_light_spill_over_factor = DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR;
 #endif
-        	MEDIUMP float dist = distance(position_world_var, light_position_in.xyz);
-#ifdef LINEAR_ATTENUATION_RANGE
-		light_att = clamp((light_att_in.x - dist) / light_att_in.x, 0.0, 1.0);
+#else
+	// Calculate light attenuation of a local light.
+	// The code currently assumes that the light is either:
+	// - A point source light (POINT_SOURCE_LIGHT is defined).
+	// - A spot light (SPOT_LIGHT is defined).
+	// - A beam light (BEAM_LIGHT is defined).
+	// - A beam or spot light (none of the above is defined).
+	// The case of the light being either a point source, spot or beam light is
+	// not supported.
+	MEDIUMP float d_light_direction;
+       	MEDIUMP float dist = distance(position_world_var, light_parameters_position.xyz);
+	light_att = clamp((light_parameters_linear_attenuation_range - dist) /
+		light_parameters_linear_attenuation_range, 0.0, 1.0);
 #ifndef POINT_SOURCE_LIGHT
-		if (light_att_in.y > 0.0) {
-			// Spot or beam light with a linear attenuation range.
-			// Construct the plane going through the light position perpendicular to the light
-			// direction.
-			MEDIUMP vec4 plane = vec4(spotlight_in.xyz, - dot(spotlight_in.xyz,
-				light_position_in.xyz));
-			// Calculate the distance of the world position to the plane.
-			d_light_direction = dot(plane, vec4(position_world_var, 1.0));
+	// Spot or beam light with a linear attenuation range.
+	// Construct the plane going through the light position perpendicular to the light
+	// direction.
+	MEDIUMP vec4 plane = vec4(light_parameters_axis_direction.xyz, - dot(
+		light_parameters_axis_direction.xyz, light_parameters_position.xyz));
+	// Calculate the distance of the world position to the plane.
+	d_light_direction = dot(plane, vec4(position_world_var, 1.0));
 #ifndef SPOT_LIGHT
 #ifndef BEAM_LIGHT
-			if (light_att_in.y > 1.5) {
+	if (light_parameters_type > 2.5) {
 #endif
-				// Beam light.
-				if (d_light_direction < 0.0 || d_light_direction >= light_att_in.z)
-					light_att = 0.0;
-				else {
-					// Calculate the distance of the world position to the axis.
-					MEDIUMP float dot_proj = dot(position_world_var - light_position_in.xyz,
-						spotlight_in.xyz);
-					MEDIUMP float d_light_direction_axis = sqrt(dist * dist - dot_proj * dot_proj);
-                                        // Apply the radial linear attenuation range.
-					light_att *= clamp((light_att_in.w - d_light_direction_axis)
-						/ light_att_in.w, 0.0, 1.0);
-                                        // Apply the radial cut-off distance.
-					if (d_light_direction_axis >= spotlight_in.w)
-						light_att = 0.0;
-				}
+		// Beam light.
+		if (d_light_direction < 0.0 || d_light_direction >=
+		light_parameters_beam_axis_cut_off_distance)
+			light_att = 0.0;
+		else {
+			// Calculate the distance of the world position to the axis.
+			MEDIUMP float dot_proj = dot(position_world_var -
+				light_parameters_position.xyz,
+				light_parameters_axis_direction);
+			MEDIUMP float d_light_direction_axis = sqrt(dist * dist -
+				dot_proj * dot_proj);
+			// Apply the radial linear attenuation range.
+			light_att *= clamp((light_parameters_beam_radial_linear_attenuation_range -
+				d_light_direction_axis)	/
+				light_parameters_beam_radial_linear_attenuation_range, 0.0, 1.0);
+			// Apply the radial cut-off distance.
+			if (d_light_direction_axis >= light_parameters_beam_radius)
+				light_att = 0.0;
+		}
 #ifndef BEAM_LIGHT
-			}
-#endif
-#endif
-#if !defined(BEAM_LIGHT) && !defined(SPOT_LIGHT)
-			else
-#endif
-#if !defined(BEAM_LIGHT)
-				// Spot light.
-				light_att *= pow(max(- dot(spotlight_in.xyz, L_orig), 0.0), spotlight_in.w);
-#endif
-                }
-#endif	// !defined(POINT_SOURCE_LIGHT)
-#else 	// !defined(LINEAR_ATTENUATION_RANGE)
-		light_att = 1.0 / (light_att_in.x + light_att_in.y * dist +
-			light_att_in.z * dist * dist);
-#endif
-#ifndef LOCAL_LIGHT
 	}
 #endif
+#endif	// !defined(SPOT_LIGHT)
+#if !defined(BEAM_LIGHT) && !defined(SPOT_LIGHT)
+	else
+#endif
+#if !defined(BEAM_LIGHT)
+		// Spot light.
+		light_att *= pow(max(- dot(light_parameters_axis_direction.xyz, L_orig), 0.0),
+			light_parameters_spotlight_exponent);
+#endif
+#endif	// !defined(POINT_SOURCE_LIGHT)
+	// Unused code for classical light attenuation of a local light.
+//	light_att = 1.0 / (light_att_in.x + light_att_in.y * dist +
+//		light_att_in.z * dist * dist);
+#endif	// !defined(DIRECTIONAL_LIGHT)
+
+	float NdotL_diffuse;
+#ifdef DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR
+	// Adjust NdotL so that [0, 1.0] maps to [DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR, 1.0]
+	// and [-1.0, 0] maps to [0, DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR].
+	float negative_NdotL = min(NdotL, 0.0);
+	NdotL_diffuse = NdotL * (1.0 - directional_light_spill_over_factor) +
+		directional_light_spill_over_factor;
+	NdotL_diffuse = max(NdotL_diffuse, directional_light_spill_over_factor);
+	NdotL_diffuse += negative_NdotL * directional_light_spill_over_factor;
+#else
+	NdotL_diffuse = NdotL;
 #endif
 
 #if !defined(SINGLE_PASS) && !defined(EARTH_SHADER)
@@ -591,7 +724,7 @@ void main() {
 #endif
 
 #if defined(SHADOW_CUBE_MAP) || defined (SPOT_LIGHT_SHADOW_MAP)
-	vec3 space_vector_from_light = position_world_var - light_position_in.xyz;
+	vec3 space_vector_from_light = position_world_var - light_parameters_position.xyz;
 
 #ifdef SHADOW_CUBE_MAP
 	// Point source light shadow cube map (six sides).
@@ -621,13 +754,13 @@ void main() {
 		discard;
 #endif
 
-	LOWP vec3 light_color = light_color_in;
+	LOWP vec3 light_color = light_parameters_color;
 	// For the sun, light_position_in.w is zero (directional light).
-        float light_is_sun = 1.0 - light_position_in.w;
+        float light_is_sun = 1.0 - light_parameters_position.w;
 #ifdef EARTH_SHADER
 	// Make the light color yellow/red when the sun sets.
 	// Assumes the components of the base sun light color are equal (white).
-	if (light_position_in.w == 0.0 && atmospheric_illumination >= 0.06) {
+	if (light_parameters_position.w == 0.0 && atmospheric_illumination >= 0.06) {
 		// Sun is just below the horizon or higher.
 		if (atmospheric_illumination < 0.10) {
 			// Red (1to white (below the horizon, moving towards faint white light
@@ -649,7 +782,7 @@ void main() {
 	}
 	// Apply the atmospheric illumination (basically ambient light), for the sun only.
 	// The adjusted atmospheric illumination is used (sqrt-like curve).
-	c += light_is_sun * light_color_in * diffuse_base_color *
+	c += light_is_sun * light_parameters_color * diffuse_base_color *
 		adjusted_atmospheric_illumination;
 #endif
 
@@ -666,14 +799,15 @@ void main() {
 		float sun_light_factor = (atmospheric_illumination - 0.08) / 0.32;
 		// Apply a square root-based correction.
 		sun_light_factor = sqrt(sun_light_factor);
-		light_att *= max(sun_light_factor, light_position_in.w);
+		light_att *= max(sun_light_factor, light_parameters_position.w);
 #else
-	if (NdotL > 0.0) {
+	if (NdotL_diffuse > 0.0) {
 #endif
 #ifdef MICROFACET
-		c += diffuse_fraction_in * light_att * light_color * diffuse_base_color * NdotL;
+		c += diffuse_fraction_in * light_att * light_color * diffuse_base_color *
+			NdotL_diffuse;
 #else
-		c += light_att * light_color * diffuse_base_color * NdotL;
+		c += light_att * light_color * diffuse_base_color * NdotL_diffuse;
 #endif
 		LOWP vec3 specular_map_color;
 #ifdef SPECULARITY_MAP_FIXED
@@ -706,6 +840,7 @@ void main() {
 #else
 		specular_component = specular_reflection_color_in * pow(NdotH, specular_exponent_in);
 #endif
+		specular_component *= step(0.0, NdotL);
 #endif
 		// The specular color contribution should not depend on the color of the
 		// light, but only its intrinsic intensity.
@@ -714,7 +849,7 @@ void main() {
 		    0.715158f, // Green factor
 		    0.072187f  // Blue factor
 		    );
-		float light_intensity = dot(light_color_in, Crgb);
+		float light_intensity = dot(light_parameters_color, Crgb);
 		c += light_att * light_intensity * specular_map_color * specular_component;
 	}
 #endif

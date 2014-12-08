@@ -129,7 +129,7 @@ void Demo10CreateScene(sreScene *scene, sreView *view) {
     scene->SetMass(0);
 
     // Add lightsource
-    scene->SetAmbientColor(Color(0.2, 0.2, 0.2));
+    scene->SetAmbientColor(Color(0.0, 0.0, 0.0));
     scene->SetFlags(SRE_OBJECT_EMISSION_ONLY | SRE_OBJECT_INFINITE_DISTANCE);
     scene->SetEmissionColor(Color(1.0, 1.0, 1.0));
     scene->AddObject(sphere_model, 50000.0, - 60000.0, 50000.0, 0, 0, 0, 1000.0);

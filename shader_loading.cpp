@@ -81,11 +81,13 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     (1 << UNIFORM_TEXTURE_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM) | (1 << UNIFORM_EMISSION_COLOR) |
     (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_COLOR) },
-    { "Plain multi-color object multi-pass lighting shader", (1 << UNIFORM_MVP) |
+    { "Plain multi-color object multi-pass lighting shader for local lights with class attenuation",
+    (1 << UNIFORM_MVP) |
     (1 << UNIFORM_MODEL_MATRIX) | (1 << UNIFORM_MODEL_ROTATION_MATRIX) | (1 << UNIFORM_VIEWPOINT) |
     UNIFORM_LIGHT_PARAMETERS_MASK,
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_COLOR) },
-    { "Plain texture mapped object multi-pass lighting shader", (1 << UNIFORM_MVP) |
+    { "Plain texture mapped object multi-pass lighting shader for local lights "
+    "with classic attenuation", (1 << UNIFORM_MVP) |
     (1 << UNIFORM_MODEL_MATRIX) | (1 << UNIFORM_MODEL_ROTATION_MATRIX) |
     (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) |
     UNIFORM_LIGHT_PARAMETERS_MASK | (1 << UNIFORM_TEXTURE_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM),
@@ -121,7 +123,8 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) | UNIFORM_LIGHT_PARAMETERS_MASK |
     (1 << UNIFORM_SPOTLIGHT),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_NORMAL) },
-    { "Complete microfacet multi-pass lighting shader", (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) |
+    { "Complete microfacet multi-pass lighting shader for directional lights",
+    (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_LIGHT_ATT) |
     (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) |
     (1 << UNIFORM_EMISSION_MAP_SAMPLER) | (1 << UNIFORM_SPECULAR_EXPONENT))) | (1 << UNIFORM_DIFFUSE_FRACTION) |
     (1 << UNIFORM_ROUGHNESS) | (1 << UNIFORM_ROUGHNESS_WEIGHTS) | (1 << UNIFORM_ANISOTROPIC),
@@ -235,7 +238,8 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
 };
 
 const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
-    // Complete versatile lighting pass shader with support for all options except emission color and map.
+    // Complete versatile lighting pass shader for local lights with support for all
+    // options except emission color and map (obsolete)
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
     "#define NORMAL_IN\n"
@@ -254,7 +258,9 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TEXTURE_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n",
+    "#define TEXTURE_ALPHA\n"
+    "#define GENERAL_LOCAL_LIGHT\n"
+    "#define LINEAR_ATTENUATION_RANGE\n",
     // Complete ambient pass shader.
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
@@ -277,7 +283,7 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define MULTI_COLOR_FIXED\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define LOCAL_LIGHT\n",
+    "#define GENERAL_LOCAL_LIGHT\n",
     // Lighting pass shader for plain textured objects for local lights.
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
@@ -289,7 +295,7 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
     "#define TEXTURE_SAMPLER\n"
-    "#define LOCAL_LIGHT\n",
+    "#define GENERAL_LOCAL_LIGHT\n",
     // Complete versatile lighting pass shader for directional lights.
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
@@ -309,6 +315,7 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TEXTURE_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
+    "#define TEXTURE_ALPHA\n"
     "#define DIRECTIONAL_LIGHT\n",
     // Plain texture mapped object lighting pass shader for directional lights.
     "#define TEXCOORD_IN\n"
@@ -342,7 +349,7 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TEXTURE_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define LOCAL_LIGHT\n",
+    "#define GENERAL_LOCAL_LIGHT\n",
     // Complete lighting pass shader with support for all options except emission color and map, for
     // local light sources with a linear attenuation range.
     "#define TEXCOORD_IN\n"
@@ -364,16 +371,16 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
-    "#define LOCAL_LIGHT\n"
+    "#define GENERAL_LOCAL_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n",
-    // Lighting pass shader for plain phong-shaded objects for local lights lights with a traditional
+    // Lighting pass shader for plain phong-shaded objects for local lights with a traditional
     // attenuation range.
     "#define NORMAL_IN\n"
     "#define POSITION_WORLD_VAR\n"
     "#define NORMAL_VAR\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define LOCAL_LIGHT\n",
+    "#define GENERAL_LOCAL_LIGHT\n",
     // Lighting pass shader for plain phong-shaded objects for local lights with a
     // linear attenuation range.
     "#define NORMAL_IN\n"
@@ -381,9 +388,9 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define NORMAL_VAR\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define LOCAL_LIGHT\n"
+    "#define GENERAL_LOCAL_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n",
-    // Complete microfacet lighting pass shader
+    // Complete microfacet lighting pass shader for directional lights
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
     "#define NORMAL_IN\n"
@@ -403,7 +410,8 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
-    "#define MICROFACET\n",
+    "#define MICROFACET\n"
+    "#define DIRECTIONAL_LIGHT\n",
     // Complete microfacet lighting pass shader for local light sources with a linear attenuation range.
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
@@ -424,7 +432,7 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
-    "#define LOCAL_LIGHT\n"
+    "#define GENERAL_LOCAL_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n"
     "#define MICROFACET\n",
 #ifndef NO_SHADOW_MAP
@@ -471,7 +479,6 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
-    "#define LOCAL_LIGHT\n"
     "#define POINT_SOURCE_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n"  
     "#define SHADOW_CUBE_MAP\n",
@@ -518,7 +525,6 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
-    "#define LOCAL_LIGHT\n"
     "#define POINT_SOURCE_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n"  
     "#define MICROFACET\n"
@@ -543,7 +549,6 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
-    "#define LOCAL_LIGHT\n"
     "#define SPOT_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n" 
 //    "#define SHADOW_MAP\n"
@@ -568,7 +573,6 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
-    "#define LOCAL_LIGHT\n"
     "#define SPOT_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n"
     "#define MICROFACET\n" 
@@ -594,7 +598,6 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
-    "#define LOCAL_LIGHT\n"
     "#define BEAM_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n" 
     "#define SHADOW_MAP\n",
@@ -619,7 +622,6 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
-    "#define LOCAL_LIGHT\n"
     "#define BEAM_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n"
     "#define MICROFACET\n" 
@@ -661,7 +663,8 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
 // Single pass lighting shader definition.
 
 static ShaderInfo single_pass_shader_info[NU_SINGLE_PASS_SHADERS] = {
-    { "Complete single pass shader", UNIFORM_MASK_COMMON,
+    { "Complete single pass shader for local lights with a linear attenuation range",
+    UNIFORM_MASK_COMMON,
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
     { "Complete single pass shader for directional light", UNIFORM_MASK_COMMON ^
@@ -691,7 +694,8 @@ static ShaderInfo single_pass_shader_info[NU_SINGLE_PASS_SHADERS] = {
     (1 << UNIFORM_TEXTURE_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM) | (1 << UNIFORM_NORMAL_MAP_SAMPLER) |
     (1 << UNIFORM_EMISSION_COLOR),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) },
-    { "Complete single pass shader for point lights with a linear attenuation range",
+    { "Complete single pass shader for local lights (point, beam, spot) with a linear "
+    "attenuation range",
     UNIFORM_MASK_COMMON | (1 << UNIFORM_SPOTLIGHT),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) |
@@ -703,7 +707,7 @@ static ShaderInfo single_pass_shader_info[NU_SINGLE_PASS_SHADERS] = {
 };
 
 const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
-    // Complete versatile single pass shader with support for all options.
+    // Complete versatile single pass shader for local lights with support for all options.
     "#define SINGLE_PASS\n"
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
@@ -727,7 +731,9 @@ const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     "#define EMISSION_COLOR_IN\n"
     "#define EMISSION_MAP_OPTION\n"
     "#define EMISSION_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n",
+    "#define TEXTURE_ALPHA\n"
+    "#define GENERAL_LOCAL_LIGHT\n"
+    "#define LINEAR_ATTENUATION_RANGE\n",
     // Complete versatile single pass shader for directional lights with support for all options.
     "#define SINGLE_PASS\n"
     "#define TEXCOORD_IN\n"
@@ -835,7 +841,7 @@ const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     "#define EMISSION_MAP_OPTION\n"
     "#define EMISSION_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
-    "#define LOCAL_LIGHT\n"
+    "#define GENERAL_LOCAL_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n",
     // Constant shading-only single pass shader (no lighting or texture)
     // supporting multi-color and emission color. Diffuse reflection color
@@ -1058,15 +1064,20 @@ void sreShader::Load() {
     glGetProgramiv(program, GL_LINK_STATUS, &params);
     if (params == GL_FALSE) {
         sreMessage(SRE_MESSAGE_ERROR,
-            "Shader program link unsuccesful (%s, %s).\n"
-            "Vertex shader log:", vfilename, ffilename);
+            "Shader program link unsuccesful (%s, %s).\n",  vfilename, ffilename);
+	sreMessage(SRE_MESSAGE_ERROR, "Vertex shader code:\n%s", vertex_source_str[0]);
+	sreMessage(SRE_MESSAGE_ERROR, "Fragment shader code:\n%s", fragment_source_str[0]);
+        sreMessage(SRE_MESSAGE_ERROR, "Vertex shader log:");
         printShaderInfoLog(v);
         sreMessage(SRE_MESSAGE_ERROR, "Fragment shader log:\n");
         printShaderInfoLog(f);
         sreMessage(SRE_MESSAGE_ERROR, "Shader program log:\n");
         printProgramInfoLog(program);
-        sreFatalError("Loading of shader failed.");
+        sreFatalError("Loading of shader failed:\n%s", name);
     }
+
+    delete [] vertex_source_str[0];
+    delete [] fragment_source_str[0];
 
     // Also bind uniform locations.
     if (type & (SRE_SHADER_MASK_LIGHTING_SINGLE_PASS | SRE_SHADER_MASK_LIGHTING_MULTI_PASS))
@@ -1499,6 +1510,48 @@ static char *AddPrologueDefinition(const char *definition, char *prologue) {
         return new_prologue;
 }
 
+static void AddDirectionalLightSpillOverDefinition(char* &prologue) {
+#ifdef DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR
+        float spill_over_value = DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR;
+        char *spill_over_definition = new char[64];
+        sprintf(spill_over_definition, "#define DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR %1.3f\n",
+            spill_over_value);
+        prologue = AddPrologueDefinition(spill_over_definition, prologue);
+        delete [] spill_over_definition;
+#endif
+}
+
+static const char *light_parameter_definitions =
+	"#define NU_LIGHT_PARAMETERS_DIRECTIONAL 6\n"
+	"#define NU_LIGHT_PARAMETERS_POINT 7\n"
+	"#define NU_LIGHT_PARAMETERS_SPOT 11\n"
+	"#define NU_LIGHT_PARAMETERS_BEAM 13\n"
+	"#define NU_LIGHT_PARAMETERS_LOCAL 15\n"
+	"#define NU_LIGHT_PARAMETERS_MAX 16\n"
+	"#define LIGHT_POSITION_X 0\n"
+	"#define LIGHT_POSITION_Y 1\n"
+	"#define LIGHT_POSITION_Z 2\n"
+	"#define LIGHT_COLOR_R 3\n"
+	"#define LIGHT_COLOR_G 4\n"
+	"#define LIGHT_COLOR_B 5\n"
+	"#define LIGHT_LINEAR_ATTENUATION_RANGE 6\n"
+	"#define LIGHT_AXIS_DIRECTION_X 7\n"
+	"#define LIGHT_AXIS_DIRECTION_Y 8\n"
+	"#define LIGHT_AXIS_DIRECTION_Z 9\n"
+	"#define SPOT_LIGHT_EXPONENT 10\n"
+	"#define BEAM_LIGHT_AXIS_CUT_OFF_DISTANCE 10\n"
+	"#define BEAM_LIGHT_RADIUS 11\n"
+	"#define BEAM_LIGHT_RADIAL_LINEAR_ATTENUATION_RANGE 12\n"
+	"#define LOCAL_LIGHT_TYPE 10\n"
+	"#define LOCAL_LIGHT_SPOT_EXPONENT 11\n"
+	"#define LOCAL_LIGHT_BEAM_AXIS_CUT_OFF_DISTANCE 12\n"
+	"#define LOCAL_LIGHT_BEAM_RADIUS 13\n"
+	"#define LOCAL_LIGHT_BEAM_RADIAL_LINEAR_ATTENUATION_RANGE 14\n";
+
+static void AddLightParameterDefinitions(char *&prologue) {
+	prologue = AddPrologueDefinition(light_parameter_definitions, prologue);
+}
+
 static void sreInitializeMultiPassLightingShaders() {
     // New style shader loading for lighting shaders.
     for (int i = 0; i < NU_LIGHTING_PASS_SHADERS; i++) {
@@ -1521,6 +1574,9 @@ static void sreInitializeMultiPassLightingShaders() {
         const char *reflection_vector_definition = "#define USE_REFLECTION_VECTOR_GLES2\n";
         prologue = AddPrologueDefinition(reflection_vector_definition, prologue);
 #endif
+        AddDirectionalLightSpillOverDefinition(prologue);
+        AddLightParameterDefinitions(prologue);
+//	sreMessage(SRE_MESSAGE_INFO, "%s", prologue);
         lighting_pass_shader[i].Initialize(
             lighting_pass_shader_info[i].name,
             SRE_SHADER_MASK_LIGHTING_MULTI_PASS,
@@ -1544,6 +1600,8 @@ static void sreInitializeSinglePassLightingShaders() {
         const char *reflection_vector_definition = "#define USE_REFLECTION_VECTOR_GLES2\n";
         prologue = AddPrologueDefinition(reflection_vector_definition, prologue);
 #endif
+        AddDirectionalLightSpillOverDefinition(prologue);
+        AddLightParameterDefinitions(prologue);
         single_pass_shader[i].Initialize(
             single_pass_shader_info[i].name,
             SRE_SHADER_MASK_LIGHTING_SINGLE_PASS,

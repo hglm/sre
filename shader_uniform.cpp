@@ -1074,14 +1074,14 @@ void GL3InitializeCubeShadowMapShadersWithSegmentDistanceScaling() {
 // 13     POINT_SOURCE, LINEAR_ATTENUATION_RANGE      Shadow mapping, not micro-facet
 // -      Not DIRECTIONAL, regular attenuation Shadow mapping (not implemented)
 // 11     LINEAR_ATTENUATION_RANGE                    No shadow mapping, micro-facet
-// 10     DIRECTIONAL or regular attenuation          No shadow mapping, micro-facet
+// 10     DIRECTIONAL                                 No shadow mapping, micro-facet
 // 7      LINEAR_ATTENUATION_RANGE             No shadow mapping, transparent texture, not micro-facet
 // 0      DIRECTIONAL or regular attenuation   No shadow mapping, transparent texture, not micro-facet
 // 5      DIRECTIONAL                          No shadow mapping, no transparent texture, not micro-facet,
 //                                             regular texture only, no multi-color
 // 21     DIRECTIONAL                          No shadow mapping, no transparent texture, not micro-facet,
 //                                             earth shader
-// 4      DIRECTIONAL                          No shadow mapping, no transparent texture, not micro-facet,
+// 4      DIRECTIONAL                          No shadow mapping, transparent texture allowed, not micro-facet,
 //                                             not regular texture only, no earth shader
 // 9      NOT DIRECTIONAL, LINEAR_ATTENUATION_RANGE   No shadow mapping, no transparent texture,
 //                                             not micro-facet, no texture/normal map/specularity map,
@@ -1123,17 +1123,20 @@ static MultiPassShaderSelection sreSelectMultiPassShader(const sreObject& so) {
     // Note: sreSelectMultiPassShadowMapShader should be used when shadow mapping is
     // actually required for the object.
         if (sre_internal_reflection_model == SRE_REFLECTION_MODEL_MICROFACET)
-            if (sre_internal_current_light->type & SRE_LIGHT_LINEAR_ATTENUATION_RANGE)
-                shader = SHADER11;
-            else
+            if (sre_internal_current_light->type & SRE_LIGHT_DIRECTIONAL)
                 shader = SHADER10;
+            else
+                shader = SHADER11;
         else // Not micro-facet.
         if (sre_internal_shader_selection == 0x01 || (flags & SRE_OBJECT_TRANSPARENT_TEXTURE))
             // Optimized shaders have been disabled, or object has a transparent punchthrough texture.
             if (sre_internal_current_light->type & SRE_LIGHT_LINEAR_ATTENUATION_RANGE)
                 shader = SHADER7;
             else
-                shader = SHADER0;
+		if (sre_internal_current_light->type & SRE_LIGHT_DIRECTIONAL)
+                    shader = SHADER4;
+                else
+                    shader = SHADER0;
         else
         if (sre_internal_current_light->type & SRE_LIGHT_DIRECTIONAL) {
             // Directional light.
@@ -1223,6 +1226,7 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
         int flags = so.render_flags;
         switch (shader) {
         case SHADER0 :	// Complete lighting pass shader.
+            sreMessage(SRE_MESSAGE_WARNING, "Using deprecated multi-pass lighting shader");
             glUseProgram(lighting_pass_shader[0].program);
             GL3InitializeShaderWithMVP(lighting_pass_shader[0].uniform_location[UNIFORM_MVP], so);
             GL3InitializeShaderWithModelMatrix(lighting_pass_shader[0].uniform_location[UNIFORM_MODEL_MATRIX], so);
@@ -1799,11 +1803,11 @@ static SinglePassShaderSelection sreSelectSinglePassShader(const sreObject& so) 
             shader = SINGLE_PASS_SHADER3;
     else
 #endif
-    if (sre_internal_shader_selection == 0x01 || (flags & SRE_OBJECT_TRANSPARENT_TEXTURE))
+    if (flags & SRE_OBJECT_TRANSPARENT_TEXTURE)
         if (sre_internal_current_light->type & SRE_LIGHT_LINEAR_ATTENUATION_RANGE)
             shader = SINGLE_PASS_SHADER6;
         else
-            shader = SINGLE_PASS_SHADER0;
+            shader = SINGLE_PASS_SHADER1;
     else
     if (sre_internal_current_light->type & SRE_LIGHT_DIRECTIONAL) {
         int map_flags = flags & (SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
@@ -1838,6 +1842,7 @@ static void sreInitializeSinglePassShader(const sreObject& so, SinglePassShaderS
     int flags = so.render_flags;
     switch (shader) {
     case SINGLE_PASS_SHADER0 :	// Complete single pass pass shader.
+        sreMessage(SRE_MESSAGE_WARNING, "Using deprecated single-pass lighting shader");
         glUseProgram(single_pass_shader[0].program);
         GL3InitializeShaderWithMVP(single_pass_shader[0].uniform_location[UNIFORM_MVP], so);
         GL3InitializeShaderWithModelMatrix(single_pass_shader[0].uniform_location[UNIFORM_MODEL_MATRIX], so);
