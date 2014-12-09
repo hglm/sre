@@ -39,8 +39,8 @@ precision mediump float;
 #version 330
 #endif
 #endif
-#ifdef TEXTURE_OPTION
-uniform bool use_texture_in;
+#ifdef TEXTURE_MAP_OPTION
+uniform bool use_texture_map_in;
 #endif
 #ifdef NORMAL_MAP_OPTION
 uniform bool use_normal_map_in;
@@ -55,12 +55,16 @@ uniform vec3 ambient_color_in;
 #define LOCAL_LIGHT
 #endif
 #ifdef LIGHT_PARAMETERS
-uniform float light_parameters[NU_LIGHT_PARAMETERS_MAX];
-uniform vec4 light_position_in;
+uniform float light_parameters_in[NU_LIGHT_PARAMETERS_MAX];
+//uniform vec4 light_position_in;
 #ifndef DIRECTIONAL_LIGHT
-uniform vec4 light_att_in;
+//uniform vec4 light_att_in;
 #endif
-uniform vec3 light_color_in;
+//uniform vec3 light_color_in;
+#if defined(GENERAL_LOCAL_LIGHT) || defined(SPOT_LIGHT) || defined(BEAM_LIGHT)
+//uniform vec4 spotlight_in;
+#endif
+// Object light parameters.
 uniform vec3 specular_reflection_color_in;
 #ifdef MICROFACET
 uniform float diffuse_fraction_in;
@@ -69,9 +73,6 @@ uniform vec2 roughness_weights_in;
 uniform bool anisotropic_in;
 #else
 uniform float specular_exponent_in;
-#endif
-#if defined(GENERAL_LOCAL_LIGHT) || defined(SPOT_LIGHT) || defined(BEAM_LIGHT)
-uniform vec4 spotlight_in;
 #endif
 #endif // defined(LIGHT_PARAMETERS)
 #ifdef EMISSION_COLOR_IN
@@ -83,8 +84,8 @@ uniform bool use_specular_map_in;
 #ifdef EMISSION_MAP_OPTION
 uniform bool use_emission_map_in;
 #endif
-#ifdef TEXTURE_SAMPLER
-uniform sampler2D texture_in;
+#ifdef TEXTURE_MAP_SAMPLER
+uniform sampler2D texture_map_in;
 #endif
 #ifdef NORMAL_MAP_SAMPLER
 uniform sampler2D normal_map_in;
@@ -304,18 +305,19 @@ float CalculateShadow() {
 
 void main() {
 #ifdef LIGHT_PARAMETERS
-#if false
+#if 1
 	// Decode the light parameter variables.
 	vec4 light_parameters_position;
         light_parameters_position.xyz = vec3(
-		light_parameters[LIGHT_POSITION_X],
-		light_parameters[LIGHT_POSITION_Y],
-		light_parameters[LIGHT_POSITION_Z]
+		light_parameters_in[LIGHT_POSITION_X],
+		light_parameters_in[LIGHT_POSITION_Y],
+		light_parameters_in[LIGHT_POSITION_Z]
 		);
-	vec4 light_parameters_color.rgb = vec3(
-		light_parameters[LIGHT_POSITION_R],
-		light_parameters[LIGHT_POSITION_G],
-		light_parameters[LIGHT_POSITION_B]
+	vec3 light_parameters_color;
+        light_parameters_color = vec3(
+		light_parameters_in[LIGHT_COLOR_R],
+		light_parameters_in[LIGHT_COLOR_G],
+		light_parameters_in[LIGHT_COLOR_B]
 		);
 	// The following light types are possible:
 	// DIRECTIONAL_LIGHT
@@ -327,25 +329,30 @@ void main() {
 	// kinds of light).
 #ifdef DIRECTIONAL_LIGHT
 	light_parameters_position.w = 0.0f;
+#ifdef ENABLE_DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR
+	float light_parameters_spill_over_factor =
+            light_parameters_in[DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR];
+#endif
 #else
 	light_parameters_position.w = 1.0f;
 	float light_parameters_linear_attenuation_range =
-		light_parameters[LIGHT_LINEAR_ATTENUATION_RANGE];
+		light_parameters_in[LIGHT_LINEAR_ATTENUATION_RANGE];
 #if defined(SPOT_LIGHT) || defined(BEAM_LIGHT) || defined(GENERAL_LOCAL_LIGHT)
-	vec3 light_parameters_axis_direction = vec3(
-		light_parameters[LIGHT_AXIS_DIRECTION_X],
-		light_parameters[LIGHT_AXIS_DIRECTION_Y],
-		light_parameters[LIGHT_AXIS_DIRECTION_Z]
+	vec3 light_parameters_axis_direction;
+        light_parameters_axis_direction = vec3(
+		light_parameters_in[LIGHT_AXIS_DIRECTION_X],
+		light_parameters_in[LIGHT_AXIS_DIRECTION_Y],
+		light_parameters_in[LIGHT_AXIS_DIRECTION_Z]
 		);
 #endif
 #ifdef SPOT_LIGHT
-	float light_parameters_spotlight_exponent = light_parameters[SPOT_LIGHT_EXPONENT];
+	float light_parameters_spotlight_exponent = light_parameters_in[SPOT_LIGHT_EXPONENT];
 #elif defined(BEAM_LIGHT)
 	float light_parameters_beam_axis_cut_off_distance =
-		light_parameters[BEAM_LIGHT_AXIS_CUT_OFF_DISTANCE];
-	float light_parameters_beam_radius = light_parameters[BEAM_LIGHT_RADIUS];
+		light_parameters_in[BEAM_LIGHT_AXIS_CUT_OFF_DISTANCE];
+	float light_parameters_beam_radius = light_parameters_in[BEAM_LIGHT_RADIUS];
 	float light_parameters_beam_radial_linear_attenuation_range =
-		light_parameters[BEAM_LIGHT_RADIAL_LINEAR_ATTENUATION_RANGE];
+		light_parameters_in[BEAM_LIGHT_RADIAL_LINEAR_ATTENUATION_RANGE];
 #elif defined(POINT_SOURCE_LIGHT)
 	// No extra parameters for point source light.
 #else
@@ -356,22 +363,25 @@ void main() {
 	// 1.0 Point source
 	// 2.0 Spot
 	// 3.0 Beam
-	light_parameters_type = light_parameters[LOCAL_LIGHT_TYPE];
-	float light_parameters_spotlight_exponent = light_parameters[LOCAL_LIGHT_SPOT_EXPONENT];
+	light_parameters_type = light_parameters_in[LOCAL_LIGHT_TYPE];
+	float light_parameters_spotlight_exponent = light_parameters_in[LOCAL_LIGHT_SPOT_EXPONENT];
 	float light_parameters_beam_axis_cut_off_distance =
-		light_parameters[LOCAL_LIGHT_BEAM_AXIS_CUT_OFF_DISTANCE];
-	float light_parameters_beam_radius = light_parameters[LOCAL_LIGHT_BEAM_RADIUS];
+		light_parameters_in[LOCAL_LIGHT_BEAM_AXIS_CUT_OFF_DISTANCE];
+	float light_parameters_beam_radius = light_parameters_in[LOCAL_LIGHT_BEAM_RADIUS];
 	float light_parameters_beam_radial_linear_attenuation_range =
-		light_parameters[LOCAL_LIGHT_BEAM_RADIAL_LINEAR_ATTENUATION_RANGE];
+		light_parameters_in[LOCAL_LIGHT_BEAM_RADIAL_LINEAR_ATTENUATION_RANGE];
 #endif
 #endif // !defined(DIRECTIONAL_LIGHT)
 
-#else // if !true
+#else // if !1
 	// Set new light parameters from old uniforms for compatibility.
 	vec4 light_parameters_position = light_position_in;
 	vec3 light_parameters_color = light_color_in;
 #ifdef DIRECTIONAL_LIGHT
 	light_parameters_position.w = 0.0;
+#ifdef ENABLE_DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR
+	LOWP light_parameters_spill_over_factor = 0.1;
+#endif
 #else
 	light_parameters_position.w = 1.0;
 	float light_parameters_type;
@@ -414,21 +424,21 @@ void main() {
 	diffuse_reflection_color = diffuse_reflection_color_in;
 #endif
 
-#if defined(TEXTURE_OPTION) || defined(TEXTURE_FIXED)
+#if defined(TEXTURE_MAP_OPTION) || defined(TEXTURE_MAP_FIXED)
 	LOWP vec4 tex_color = vec4(0, 0, 0, 1.0);
 #endif
-#ifdef TEXTURE_OPTION
-	if (use_texture_in) {
+#ifdef TEXTURE_MAP_OPTION
+	if (use_texture_map_in) {
 #endif
-#if defined(TEXTURE_OPTION) || defined(TEXTURE_FIXED)
-		tex_color = texture2D(texture_in, texcoord_var);
+#if defined(TEXTURE_MAP_OPTION) || defined(TEXTURE_MAP_FIXED)
+		tex_color = texture2D(texture_map_in, texcoord_var);
 		diffuse_base_color = diffuse_reflection_color * tex_color.rgb;
 #endif
-#ifdef TEXTURE_OPTION
+#ifdef TEXTURE_MAP_OPTION
         }
 	else
 #endif
-#ifndef TEXTURE_FIXED
+#ifndef TEXTURE_MAP_FIXED
 		diffuse_base_color = diffuse_reflection_color;
 #endif
 	LOWP vec3 c;
@@ -616,16 +626,9 @@ void main() {
 	}
 #endif
 
-#ifdef DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR
-	LOWP float directional_light_spill_over_factor;
-#endif
-
 	// Calculate light attenuation.
 	LOWP float light_att = 1.0;
 #ifdef DIRECTIONAL_LIGHT
-#ifdef DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR
-	directional_light_spill_over_factor = DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR;
-#endif
 #else
 	// Calculate light attenuation of a local light.
 	// The code currently assumes that the light is either:
@@ -689,14 +692,14 @@ void main() {
 #endif	// !defined(DIRECTIONAL_LIGHT)
 
 	float NdotL_diffuse;
-#ifdef DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR
+#ifdef ENABLE_DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR
 	// Adjust NdotL so that [0, 1.0] maps to [DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR, 1.0]
 	// and [-1.0, 0] maps to [0, DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR].
 	float negative_NdotL = min(NdotL, 0.0);
-	NdotL_diffuse = NdotL * (1.0 - directional_light_spill_over_factor) +
-		directional_light_spill_over_factor;
-	NdotL_diffuse = max(NdotL_diffuse, directional_light_spill_over_factor);
-	NdotL_diffuse += negative_NdotL * directional_light_spill_over_factor;
+	NdotL_diffuse = NdotL * (1.0 - light_parameters_spill_over_factor) +
+		light_parameters__spill_over_factor;
+	NdotL_diffuse = max(NdotL_diffuse, light_parameters_spill_over_factor);
+	NdotL_diffuse += negative_NdotL * light_parameters_spill_over_factor;
 #else
 	NdotL_diffuse = NdotL;
 #endif
@@ -872,14 +875,14 @@ void main() {
 	else
 #endif
 #endif
-#ifdef TEXTURE_ALPHA
+#ifdef TEXTURE_MAP_ALPHA
 		gl_FragColor = vec4(c, tex_color.a);
 #else
 		gl_FragColor = vec4(c, 1.0);
 #endif
 #else
 	// Not single pass.
-#ifdef TEXTURE_ALPHA
+#ifdef TEXTURE_MAP_ALPHA
 	// In a multi-pass lighting pass, allow for transparent textures with "punchthrough" (on or off) alpha.
 	// This requires the use of glAphaFunc() and glEnable(GL_ALPHA_TEST).
 	gl_FragColor = vec4(c, tex_color.a);

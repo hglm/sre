@@ -196,12 +196,14 @@ int sreScene::AddDirectionalLight(int type, Vector3D direction, Color color) {
     CheckLightCapacity();
     sreLight *l = new sreLight;
     l->type = type | SRE_LIGHT_DIRECTIONAL;
+    l->type_index = SRE_LIGHT_TYPE_DIRECTIONAL;
     l->shader_light_type = SRE_SHADER_LIGHT_TYPE_DIRECTIONAL;
     if (l->type & SRE_LIGHT_DYNAMIC_DIRECTION)
         // If the direction changes, the shadow volume for an object changes.
         l->type |= SRE_LIGHT_DYNAMIC_SHADOW_VOLUME;
-    l->vector = Vector4D(- direction, 0.0);
+    l->vector = Vector4D(- direction, 0.0f);
     l->color = color;
+    l->spill_over_factor = 0.0f;
     RegisterLight(l);
     return nu_lights - 1;
 }
@@ -212,6 +214,7 @@ int sreScene::AddPointSourceLight(int type, Point3D position, float linear_range
     // Linear attenuation is forced, even though some of the shaders support the classical
     // type of attenuation.
     l->type = type | SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_LINEAR_ATTENUATION_RANGE;
+    l->type_index = SRE_LIGHT_TYPE_POINT_SOURCE;
     l->shader_light_type = SRE_SHADER_LIGHT_TYPE_POINT_SOURCE_LINEAR_ATTENUATION;
     if (l->type & (SRE_LIGHT_DYNAMIC_ATTENUATION | SRE_LIGHT_DYNAMIC_POSITION))
         // If the attenuation changes, the light volume changes size and the geometrical
@@ -234,6 +237,7 @@ Color color) {
     CheckLightCapacity();
     sreLight *l = new sreLight;
     l->type = type | SRE_LIGHT_SPOT | SRE_LIGHT_LINEAR_ATTENUATION_RANGE;
+    l->type_index = SRE_LIGHT_TYPE_SPOT;
     l->shader_light_type = SRE_SHADER_LIGHT_TYPE_SPOT;
     if (l->type & (SRE_LIGHT_DYNAMIC_ATTENUATION | SRE_LIGHT_DYNAMIC_DIRECTION |
     SRE_LIGHT_DYNAMIC_SPOT_EXPONENT | SRE_LIGHT_DYNAMIC_POSITION)) {
@@ -270,6 +274,7 @@ radial_linear_range, float cutoff_distance, float linear_range, Color color) {
     CheckLightCapacity();
     sreLight *l = new sreLight;
     l->type = type | SRE_LIGHT_BEAM | SRE_LIGHT_LINEAR_ATTENUATION_RANGE;
+    l->type_index = SRE_LIGHT_TYPE_BEAM;
     l->shader_light_type = SRE_SHADER_LIGHT_TYPE_BEAM;
     if (l->type & (SRE_LIGHT_DYNAMIC_ATTENUATION | SRE_LIGHT_DYNAMIC_DIRECTION |
     SRE_LIGHT_DYNAMIC_POSITION)) {
@@ -414,6 +419,15 @@ void sreLight::CalculateWorstCaseLightVolumeAABB(sreBoundingVolumeAABB& AABB_out
         // Calculate the light's AABB based on current light parameters.
         CalculateLightVolumeAABB(AABB_out);
 }
+
+// Set scene light parameters.
+
+void sreScene::SetDirectionalLightSpillOverFactor(int i, float factor) const {
+    sreLight *l = light[i];
+    l->spill_over_factor = factor;
+}
+
+
 
 void sreScene::SetLightWorstCaseBounds(int i, const sreBoundingVolumeSphere& sphere) {
     sreLight *l = light[i];

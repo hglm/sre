@@ -45,10 +45,16 @@ const char *attribute_str[5] = { "position_in", "texcoord_in", "normal_in", "tan
 
 const char *uniform_str[MAX_UNIFORMS] = {
     "MVP", "model_matrix", "model_rotation_matrix", "diffuse_reflection_color_in",
-    "multi_color_in", "use_texture_in", "shadow_map_dimensions_in", "ambient_color_in",
-    "viewpoint_in", "light_position_in",
-    "light_att_in", "light_color_in", "specular_reflection_color_in", "specular_exponent_in",
-    "texture_in",
+    "use_multi_color_in", "use_texture_map_in", "shadow_map_dimensions_in", "ambient_color_in",
+    "viewpoint_in",
+#if 1
+    "light_parameters_in", "", "",
+#else
+    "light_position_in",
+    "light_att_in", "light_color_in",
+#endif
+    "specular_reflection_color_in", "specular_exponent_in",
+    "texture_map_in",
     "use_normal_map_in", "normal_map_in", "use_specular_map_in", "specular_map_in",
     "emission_color_in",
     "use_emission_map_in", "emission_map_in", "diffuse_fraction_in", "roughness_in",
@@ -70,15 +76,15 @@ public :
 #define ATTRIBUTE_TANGENT SRE_ATTRIBUTE_TANGENT
 #define ATTRIBUTE_COLOR SRE_ATTRIBUTE_COLOR
 
-static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
+static ShaderInfo multi_pass_shader_info[NU_MULTI_PASS_SHADERS] = {
     { "Complete multi-pass lighting shader", UNIFORM_MASK_COMMON ^ (
     (1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_EMISSION_COLOR) |
     (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER)),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
     (1 << ATTRIBUTE_COLOR) },
     { "Ambient multi-pass lighting shader", (1 << UNIFORM_MVP) | (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) |
-    (1 << UNIFORM_MULTI_COLOR) | (1 << UNIFORM_USE_TEXTURE) | (1 << UNIFORM_AMBIENT_COLOR) |
-    (1 << UNIFORM_TEXTURE_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM) | (1 << UNIFORM_EMISSION_COLOR) |
+    (1 << UNIFORM_USE_MULTI_COLOR) | (1 << UNIFORM_USE_TEXTURE_MAP) | (1 << UNIFORM_AMBIENT_COLOR) |
+    (1 << UNIFORM_TEXTURE_MAP_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM) | (1 << UNIFORM_EMISSION_COLOR) |
     (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_COLOR) },
     { "Plain multi-color object multi-pass lighting shader for local lights with class attenuation",
@@ -90,18 +96,18 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     "with classic attenuation", (1 << UNIFORM_MVP) |
     (1 << UNIFORM_MODEL_MATRIX) | (1 << UNIFORM_MODEL_ROTATION_MATRIX) |
     (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) |
-    UNIFORM_LIGHT_PARAMETERS_MASK | (1 << UNIFORM_TEXTURE_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM),
+    UNIFORM_LIGHT_PARAMETERS_MASK | (1 << UNIFORM_TEXTURE_MAP_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) },
     { "Complete multi-pass lighting shader for directional lights", UNIFORM_MASK_COMMON ^ (
-    (1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_LIGHT_ATT) |
+    (1 << UNIFORM_AMBIENT_COLOR) |
     (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER)),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
     { "Plain texture mapped object multi-pass lighting shader for directional lights", (1 << UNIFORM_MVP) |
     (1 << UNIFORM_MODEL_MATRIX) | (1 << UNIFORM_MODEL_ROTATION_MATRIX) |
     (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) |
-    (UNIFORM_LIGHT_PARAMETERS_MASK ^ (1 << UNIFORM_LIGHT_ATT)) |
-    (1 << UNIFORM_TEXTURE_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM),
+    (UNIFORM_LIGHT_PARAMETERS_MASK) |
+    (1 << UNIFORM_TEXTURE_MAP_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) },
     { "Complete multi-pass lighting shader for point source lights", UNIFORM_MASK_COMMON ^
     ((1 << UNIFORM_AMBIENT_COLOR) |
@@ -110,8 +116,7 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
     { "Complete multi-pass lighting shader for point/spot/beam lights with a linear attenuation range",
     (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) | 
-    (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER))) |
-    (1 << UNIFORM_SPOTLIGHT),
+    (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER))),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
     (1 << ATTRIBUTE_COLOR) },
     { "Plain Phong-shaded object multi-pass lighting shader for point lights", (1 << UNIFORM_MVP) |
@@ -120,11 +125,10 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_NORMAL) },
     { "Plain Phong-shaded object multi-pass lighting shader for point/spot/beam lights with a linear attenuation range",
     (1 << UNIFORM_MVP) | (1 << UNIFORM_MODEL_MATRIX) | (1 << UNIFORM_MODEL_ROTATION_MATRIX) |
-    (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) | UNIFORM_LIGHT_PARAMETERS_MASK |
-    (1 << UNIFORM_SPOTLIGHT),
+    (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) | UNIFORM_LIGHT_PARAMETERS_MASK ,
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_NORMAL) },
     { "Complete microfacet multi-pass lighting shader for directional lights",
-    (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_LIGHT_ATT) |
+    (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) |
     (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) |
     (1 << UNIFORM_EMISSION_MAP_SAMPLER) | (1 << UNIFORM_SPECULAR_EXPONENT))) | (1 << UNIFORM_DIFFUSE_FRACTION) |
     (1 << UNIFORM_ROUGHNESS) | (1 << UNIFORM_ROUGHNESS_WEIGHTS) | (1 << UNIFORM_ANISOTROPIC),
@@ -133,14 +137,14 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     { "Complete microfacet multi-pass lighting shader for point/spot/beam lights with a linear attenuation range",
     (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) |
     (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) |
-    (1 << UNIFORM_EMISSION_MAP_SAMPLER) | (1 << UNIFORM_SPECULAR_EXPONENT))) | (1 << UNIFORM_SPOTLIGHT) |
+    (1 << UNIFORM_EMISSION_MAP_SAMPLER) | (1 << UNIFORM_SPECULAR_EXPONENT))) |
     (1 << UNIFORM_DIFFUSE_FRACTION) |
     (1 << UNIFORM_ROUGHNESS) | (1 << UNIFORM_ROUGHNESS_WEIGHTS) | (1 << UNIFORM_ANISOTROPIC),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
 #ifndef NO_SHADOW_MAP
     { "Complete shadow map multi-pass lighting shader for directional lights", (UNIFORM_MASK_COMMON ^ (
-    (1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_LIGHT_ATT) |
+    (1 << UNIFORM_AMBIENT_COLOR) |
     (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) |
     (1 << UNIFORM_EMISSION_MAP_SAMPLER))) | (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) |
     (1 << UNIFORM_SHADOW_MAP_SAMPLER) | (1 << UNIFORM_SHADOW_MAP_DIMENSIONS),
@@ -156,7 +160,7 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
     { "Complete microfacet shadow map multi-pass lighting shader for directional lights",
     (UNIFORM_MASK_COMMON ^ (
-    (1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_LIGHT_ATT) |
+    (1 << UNIFORM_AMBIENT_COLOR) |
     (1 << UNIFORM_EMISSION_COLOR) |
     (1 << UNIFORM_USE_EMISSION_MAP) |
     (1 << UNIFORM_EMISSION_MAP_SAMPLER) | (1 << UNIFORM_SPECULAR_EXPONENT))) |
@@ -180,7 +184,7 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) |
     (1 << UNIFORM_EMISSION_COLOR) |
     (1 << UNIFORM_USE_EMISSION_MAP) |
-    (1 << UNIFORM_EMISSION_MAP_SAMPLER))) | (1 << UNIFORM_SPOTLIGHT) |
+    (1 << UNIFORM_EMISSION_MAP_SAMPLER))) |
     (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER) |
     /* (1 << UNIFORM_SHADOW_MAP_DIMENSIONS) | */ (1 << UNIFORM_SEGMENT_DISTANCE_SCALING),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
@@ -190,7 +194,7 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     (1 << UNIFORM_EMISSION_COLOR) |
     (1 << UNIFORM_USE_EMISSION_MAP) |
     (1 << UNIFORM_EMISSION_MAP_SAMPLER))) |
-    (1 << UNIFORM_SPOTLIGHT) | (1 << UNIFORM_DIFFUSE_FRACTION) |
+    (1 << UNIFORM_DIFFUSE_FRACTION) |
     (1 << UNIFORM_ROUGHNESS) | (1 << UNIFORM_ROUGHNESS_WEIGHTS) | (1 << UNIFORM_ANISOTROPIC) |
     (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER) |
     /* (1 << UNIFORM_SHADOW_MAP_DIMENSIONS) | */ (1 << UNIFORM_SEGMENT_DISTANCE_SCALING),
@@ -200,7 +204,7 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) |
     (1 << UNIFORM_EMISSION_COLOR) |
     (1 << UNIFORM_USE_EMISSION_MAP) |
-    (1 << UNIFORM_EMISSION_MAP_SAMPLER))) | (1 << UNIFORM_SPOTLIGHT) |
+    (1 << UNIFORM_EMISSION_MAP_SAMPLER))) |
     (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER) |
     (1 << UNIFORM_SHADOW_MAP_DIMENSIONS),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
@@ -210,7 +214,7 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     (1 << UNIFORM_EMISSION_COLOR) |
     (1 << UNIFORM_USE_EMISSION_MAP) |
     (1 << UNIFORM_EMISSION_MAP_SAMPLER))) |
-    (1 << UNIFORM_SPOTLIGHT) | (1 << UNIFORM_DIFFUSE_FRACTION) |
+    (1 << UNIFORM_DIFFUSE_FRACTION) |
     (1 << UNIFORM_ROUGHNESS) | (1 << UNIFORM_ROUGHNESS_WEIGHTS) | (1 << UNIFORM_ANISOTROPIC) |
     (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER) |
     (1 << UNIFORM_SHADOW_MAP_DIMENSIONS),
@@ -219,9 +223,8 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     { "Earth shadow map multi-pass lighting shader for directional light", (1 << UNIFORM_MVP) |
     (1 << UNIFORM_MODEL_MATRIX) | (1 << UNIFORM_MODEL_ROTATION_MATRIX) |
     (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) |
-    (1 << UNIFORM_LIGHT_POSITION) |
-    (1 << UNIFORM_LIGHT_COLOR) | (1 << UNIFORM_SPECULAR_REFLECTION_COLOR) |
-    (1 << UNIFORM_SPECULAR_EXPONENT) | (1 << UNIFORM_TEXTURE_SAMPLER) |
+    (1 << UNIFORM_LIGHT_PARAMETERS) | (1 << UNIFORM_SPECULAR_REFLECTION_COLOR) |
+    (1 << UNIFORM_SPECULAR_EXPONENT) | (1 << UNIFORM_TEXTURE_MAP_SAMPLER) |
     (1 << UNIFORM_SPECULARITY_MAP_SAMPLER) | (1 << UNIFORM_EMISSION_MAP_SAMPLER) |
     (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER) |
     (1 << UNIFORM_SHADOW_MAP_DIMENSIONS),
@@ -230,14 +233,14 @@ static ShaderInfo lighting_pass_shader_info[NU_LIGHTING_PASS_SHADERS] = {
     { "Earth multi-pass lighting shader for directional light", (1 << UNIFORM_MVP) |
     (1 << UNIFORM_MODEL_MATRIX) |
     (1 << UNIFORM_MODEL_ROTATION_MATRIX) | (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) |
-    (1 << UNIFORM_VIEWPOINT) | (1 << UNIFORM_LIGHT_POSITION) | (1 << UNIFORM_LIGHT_COLOR) |
+    (1 << UNIFORM_VIEWPOINT) | (1 << UNIFORM_LIGHT_PARAMETERS) |
     (1 << UNIFORM_SPECULAR_REFLECTION_COLOR) |
-    (1 << UNIFORM_SPECULAR_EXPONENT) | (1 << UNIFORM_TEXTURE_SAMPLER) |
+    (1 << UNIFORM_SPECULAR_EXPONENT) | (1 << UNIFORM_TEXTURE_MAP_SAMPLER) |
     (1 << UNIFORM_SPECULARITY_MAP_SAMPLER) | (1 << UNIFORM_EMISSION_MAP_SAMPLER),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) }
 };
 
-const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
+const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     // Complete versatile lighting pass shader for local lights with support for all
     // options except emission color and map (obsolete)
     "#define TEXCOORD_IN\n"
@@ -250,12 +253,12 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
@@ -267,11 +270,11 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define COLOR_IN\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define EMISSION_MAP_OPTION\n"
     "#define AMBIENT_COLOR_IN\n"
     "#define EMISSION_COLOR_IN\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define EMISSION_MAP_SAMPLER\n"
     "#define NO_SMOOTH_SHADING\n"
     "#define TEXTURE_ALPHA\n",
@@ -291,10 +294,10 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define POSITION_WORLD_VAR\n"
     "#define NORMAL_VAR\n"
     "#define TEXCOORD_VAR\n"
-    "#define TEXTURE_FIXED\n"
+    "#define TEXTURE_MAP_FIXED\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define GENERAL_LOCAL_LIGHT\n",
     // Complete versatile lighting pass shader for directional lights.
     "#define TEXCOORD_IN\n"
@@ -307,12 +310,12 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
@@ -324,10 +327,10 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define POSITION_WORLD_VAR\n"
     "#define NORMAL_VAR\n"
     "#define TEXCOORD_VAR\n"
-    "#define TEXTURE_FIXED\n"
+    "#define TEXTURE_MAP_FIXED\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define DIRECTIONAL_LIGHT\n",
     // Complete lighting pass shader with support for all options except emission color and map,
     // for local lights.
@@ -341,12 +344,12 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define GENERAL_LOCAL_LIGHT\n",
@@ -362,12 +365,12 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
@@ -401,12 +404,12 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
@@ -423,12 +426,12 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
@@ -448,12 +451,12 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
@@ -470,12 +473,12 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
@@ -493,12 +496,12 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
@@ -516,12 +519,12 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
@@ -540,12 +543,12 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
@@ -564,12 +567,12 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
@@ -589,12 +592,12 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
@@ -613,12 +616,12 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
@@ -632,11 +635,11 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define POSITION_WORLD_VAR\n"
     "#define NORMAL_VAR\n"
     "#define TEXCOORD_VAR\n"
-    "#define TEXTURE_FIXED\n"
+    "#define TEXTURE_MAP_FIXED\n"
     "#define SPECULARITY_MAP_FIXED\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define EMISSION_MAP_SAMPLER\n"
     "#define DIRECTIONAL_LIGHT\n"
@@ -649,11 +652,11 @@ const char *lighting_pass_shader_prologue[NU_LIGHTING_PASS_SHADERS] = {
     "#define POSITION_WORLD_VAR\n"
     "#define NORMAL_VAR\n"
     "#define TEXCOORD_VAR\n"
-    "#define TEXTURE_FIXED\n"
+    "#define TEXTURE_MAP_FIXED\n"
     "#define SPECULARITY_MAP_FIXED\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define EMISSION_MAP_SAMPLER\n"
     "#define DIRECTIONAL_LIGHT\n"
@@ -667,15 +670,14 @@ static ShaderInfo single_pass_shader_info[NU_SINGLE_PASS_SHADERS] = {
     UNIFORM_MASK_COMMON,
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
-    { "Complete single pass shader for directional light", UNIFORM_MASK_COMMON ^
-    ((1 << UNIFORM_LIGHT_ATT)),
+    { "Complete single pass shader for directional light", UNIFORM_MASK_COMMON,
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
     (1 << ATTRIBUTE_COLOR) },
     { "Single-pass phong-only shader for directional light", (1 << UNIFORM_MVP) |
     (1 << UNIFORM_MODEL_MATRIX) | (1 << UNIFORM_MODEL_ROTATION_MATRIX) |
-    (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_MULTI_COLOR) |
-    (1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_VIEWPOINT) | (UNIFORM_LIGHT_PARAMETERS_MASK ^
-    (1 << UNIFORM_LIGHT_ATT)) | (1 << UNIFORM_EMISSION_COLOR),
+    (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_USE_MULTI_COLOR) |
+    (1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_VIEWPOINT) | (UNIFORM_LIGHT_PARAMETERS_MASK) |
+    (1 << UNIFORM_EMISSION_COLOR),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_COLOR) },
     { "Single-pass (final pass) constant shader", (1 << UNIFORM_MVP) | (1 << UNIFORM_EMISSION_COLOR) |
     (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER) |
@@ -684,25 +686,25 @@ static ShaderInfo single_pass_shader_info[NU_SINGLE_PASS_SHADERS] = {
     { "Single-pass phong texture-only shader for directional light", (1 << UNIFORM_MVP) |
     (1 << UNIFORM_MODEL_MATRIX) | (1 << UNIFORM_MODEL_ROTATION_MATRIX) |
     (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_AMBIENT_COLOR) |
-    (1 << UNIFORM_VIEWPOINT) | (UNIFORM_LIGHT_PARAMETERS_MASK ^ (1 << UNIFORM_LIGHT_ATT)) |
-    (1 << UNIFORM_TEXTURE_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM) | (1 << UNIFORM_EMISSION_COLOR),
+    (1 << UNIFORM_VIEWPOINT) | (UNIFORM_LIGHT_PARAMETERS_MASK) |
+    (1 << UNIFORM_TEXTURE_MAP_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM) | (1 << UNIFORM_EMISSION_COLOR),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) },
     { "Single-pass phong texture plus normal map-only shader for directional light", (1 << UNIFORM_MVP) |
     (1 << UNIFORM_MODEL_MATRIX) | (1 << UNIFORM_MODEL_ROTATION_MATRIX) |
-    (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_VIEWPOINT) |
-    (UNIFORM_LIGHT_PARAMETERS_MASK ^ (1 << UNIFORM_LIGHT_ATT)) |
-    (1 << UNIFORM_TEXTURE_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM) | (1 << UNIFORM_NORMAL_MAP_SAMPLER) |
+    (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_AMBIENT_COLOR) |
+    (1 << UNIFORM_VIEWPOINT) | (UNIFORM_LIGHT_PARAMETERS_MASK) |
+    (1 << UNIFORM_TEXTURE_MAP_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM) | (1 << UNIFORM_NORMAL_MAP_SAMPLER) |
     (1 << UNIFORM_EMISSION_COLOR),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) },
     { "Complete single pass shader for local lights (point, beam, spot) with a linear "
     "attenuation range",
-    UNIFORM_MASK_COMMON | (1 << UNIFORM_SPOTLIGHT),
+    UNIFORM_MASK_COMMON,
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) |
     (1 << ATTRIBUTE_COLOR) },
     { "Single-pass constant shader with multi-color support",
     (1 << UNIFORM_MVP) | (1 << UNIFORM_EMISSION_COLOR) |
-    (1 << UNIFORM_MULTI_COLOR),
+    (1 << UNIFORM_USE_MULTI_COLOR),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_COLOR) },
 };
 
@@ -719,12 +721,12 @@ const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define AMBIENT_COLOR_IN\n"
@@ -746,12 +748,12 @@ const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define AMBIENT_COLOR_IN\n"
@@ -788,12 +790,12 @@ const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     "#define UV_TRANSFORM\n"
     "#define NORMAL_IN\n"
     "#define POSITION_WORLD_VAR\n"
-    "#define TEXTURE_FIXED\n"
+    "#define TEXTURE_MAP_FIXED\n"
     "#define NORMAL_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define AMBIENT_COLOR_IN\n"
     "#define EMISSION_COLOR_IN\n"
     "#define DIRECTIONAL_LIGHT\n",
@@ -804,13 +806,13 @@ const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     "#define NORMAL_IN\n"
     "#define TANGENT_IN\n"
     "#define POSITION_WORLD_VAR\n"
-    "#define TEXTURE_FIXED\n"
+    "#define TEXTURE_MAP_FIXED\n"
     "#define NORMAL_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define TBN_MATRIX_VAR\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_FIXED\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define AMBIENT_COLOR_IN\n"
@@ -828,12 +830,12 @@ const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
     "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
     "#define NORMAL_MAP_OPTION\n"
     "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_SAMPLER\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define AMBIENT_COLOR_IN\n"
@@ -853,6 +855,160 @@ const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     "#define NO_SMOOTH_SHADING\n"
     "#define ADD_DIFFUSE_TO_EMISSION\n"
 };
+
+static char *newstrcat(const char *s1, const char *s2) {
+    char *s = new char[strlen(s1) + strlen(s2) + 1];
+    strcpy(s, s1);
+    strcat(s, s2);
+    return s;
+}
+
+static void AddPrologueDefinition(const char *definition, char* &prologue) {
+        char *old_prologue = prologue;
+        char *new_prologue = newstrcat(prologue, definition);
+        delete [] old_prologue;
+        prologue = new_prologue;
+}
+
+enum {
+    SHADER_CREATION_FLAG_MULTI_PASS = 0x1,
+    SHADER_CREATION_FLAG_NO_SMOOTH_SHADING = 0x2,
+    SHADER_CREATION_FLAG_AMBIENT_AND_EMISSION_COLOR = 0x4,
+    SHADER_CREATION_FLAG_TEXTURE_MAP_FIXED = 0x8,
+    SHADER_CREATION_FLAG_TEXTURE_MAP_OPTION = 0x10,
+    SHADER_CREATION_FLAG_NORMAL_MAP_FIXED = 0x20,
+    SHADER_CREATION_FLAG_NORMAL_MAP_OPTION = 0x40,
+    SHADER_CREATION_FLAG_SPECULARITY_MAP_FIXED = 0x80,
+    SHADER_CREATION_FLAG_SPECULARITY_MAP_OPTION = 0x100,
+    SHADER_CREATION_FLAG_EMISSION_MAP_FIXED = 0x200,
+    SHADER_CREATION_FLAG_EMISSION_MAP_OPTION = 0x400,
+    SHADER_CREATION_MASK_ANY_TEXTURE = 0x7F8,
+    SHADER_CREATION_FLAG_MULTI_COLOR_FIXED = 0x1000,
+    SHADER_CREATION_FLAG_MULTI_COLOR_OPTION = 0x2000,
+    SHADER_CREATION_FLAG_MICROFACET = 0x4000,
+    SHADER_CREATION_FLAG_TEXTURE_MAP_ALPHA = 0x8000,
+    SHADER_CREATION_FLAG_EMISSION_MAP_ALPHA = 0x10000,
+    SHADER_CREATION_FLAG_NO_SPECULAR = 0x20000
+};
+
+static const char *light_type_definition_str[4] = {
+   "#define DIRECTIONAL_LIGHT\n",
+   "#define POINT_SOURCE_LIGHT\n",
+   "#define SPOT_LIGHT\n",
+   "#define BEAM_LIGHT\n"
+};
+
+// Create based on flags and light type, storing the shader code prologue text (newly allocated)
+// and the uniform mask;
+
+static void CreateShaderDefinitions(int flags, int light_type_index, char* &prologue,
+unsigned int &uniform_mask, int &attribute_mask) {
+    prologue = new char[1];
+    prologue[0] = '\0';
+    uniform_mask |= (1 << UNIFORM_MVP);
+    attribute_mask |= SRE_POSITION_MASK;
+
+    if (!(flags & SHADER_CREATION_FLAG_MULTI_PASS))
+        AddPrologueDefinition("#define SINGLE_PASS\n", prologue);
+    AddPrologueDefinition(light_type_definition_str[light_type_index], prologue);
+    if (light_type_index != SRE_LIGHT_TYPE_DIRECTIONAL) {
+        AddPrologueDefinition("#define LINEAR_ATTENUATION_RANGE\n", prologue);
+    }
+    if (flags & SHADER_CREATION_FLAG_NO_SMOOTH_SHADING)
+        AddPrologueDefinition("#define NO_SMOOTH_SHADING\n", prologue);
+    else {
+        AddPrologueDefinition("#define LIGHT_PARAMETERS\n", prologue);
+        AddPrologueDefinition("#define NORMAL_IN\n", prologue);
+        AddPrologueDefinition("#define NORMAL_VAR\n", prologue);
+        AddPrologueDefinition("#define POSITION_WORLD_VAR\n", prologue);
+        AddPrologueDefinition("#define VIEWPOINT_IN\n", prologue);
+        uniform_mask |= (1 << UNIFORM_LIGHT_PARAMETERS) |
+            (1 <<UNIFORM_VIEWPOINT) | (1 << UNIFORM_MODEL_MATRIX) |
+            (1 << UNIFORM_MODEL_ROTATION_MATRIX);
+        uniform_mask |= (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR);
+        if (!(flags & SHADER_CREATION_FLAG_NO_SPECULAR)) {
+            AddPrologueDefinition("#define NO_SPECULAR\n", prologue);
+            uniform_mask |= (1 << UNIFORM_SPECULAR_REFLECTION_COLOR) |
+                (1 << UNIFORM_SPECULAR_EXPONENT);
+        }
+        attribute_mask |= SRE_NORMAL_MASK;
+   }
+
+    if (flags & SHADER_CREATION_FLAG_TEXTURE_MAP_FIXED)
+        AddPrologueDefinition("#define TEXTURE_MAP_FIXED\n", prologue);
+    if (flags & SHADER_CREATION_FLAG_TEXTURE_MAP_OPTION) {
+        AddPrologueDefinition("#define TEXTURE_MAP_OPTION\n", prologue);
+        uniform_mask |= 1 << UNIFORM_USE_TEXTURE_MAP;
+    }
+    if (flags & (SHADER_CREATION_FLAG_TEXTURE_MAP_FIXED |
+    SHADER_CREATION_FLAG_TEXTURE_MAP_OPTION))
+        AddPrologueDefinition("#define TEXTURE_MAP_SAMPLER\n", prologue);
+    if (flags & SHADER_CREATION_FLAG_TEXTURE_MAP_ALPHA)
+        AddPrologueDefinition("#define TEXTURE_MAP_ALPHA\n", prologue);
+
+    if (flags & SHADER_CREATION_FLAG_NORMAL_MAP_FIXED)
+        AddPrologueDefinition("#define NORMAL_MAP_FIXED\n", prologue);
+    if (flags & SHADER_CREATION_FLAG_NORMAL_MAP_OPTION) {
+        AddPrologueDefinition("#define NORMAL_MAP_OPTION\n", prologue);
+        uniform_mask |= 1 << UNIFORM_USE_NORMAL_MAP;
+    }
+    if (flags & (SHADER_CREATION_FLAG_NORMAL_MAP_FIXED | SHADER_CREATION_FLAG_NORMAL_MAP_OPTION)) {
+        AddPrologueDefinition("#define NORMAL_MAP_SAMPLER\n", prologue);
+        AddPrologueDefinition("#define TBN_MATRIX_VAR\n", prologue);
+    }
+    if (flags & SHADER_CREATION_FLAG_SPECULARITY_MAP_FIXED)
+        AddPrologueDefinition("#define SPECULARITY_MAP_FIXED\n", prologue);
+    if (flags & SHADER_CREATION_FLAG_SPECULARITY_MAP_OPTION)
+        AddPrologueDefinition("#define SPECULARITY_MAP_OPTION\n", prologue);
+    if (flags & (SHADER_CREATION_FLAG_SPECULARITY_MAP_FIXED |
+    SHADER_CREATION_FLAG_SPECULARITY_MAP_OPTION)) {
+        AddPrologueDefinition("#define SPECULARITY_MAP_SAMPLER\n", prologue);
+        uniform_mask |= 1 << UNIFORM_USE_SPECULARITY_MAP;
+    }
+
+    if (flags & SHADER_CREATION_MASK_ANY_TEXTURE) {
+        AddPrologueDefinition("#define TEXCOORD_IN\n", prologue);
+        AddPrologueDefinition("#define TEXCOORD_VAR\n", prologue);
+        AddPrologueDefinition("#define UV_TRANSFORM\n", prologue);
+        uniform_mask |= 1 << UNIFORM_UV_TRANSFORM;
+        attribute_mask |= SRE_TEXCOORDS_MASK;
+    }
+
+    if (flags & SHADER_CREATION_FLAG_AMBIENT_AND_EMISSION_COLOR) {
+        AddPrologueDefinition("#define AMBIENT_COLOR_IN\n"
+            "#define EMISSION_COLOR_IN\n", prologue);
+        uniform_mask |= 1 << UNIFORM_AMBIENT_COLOR;
+    }
+    if (flags & SHADER_CREATION_FLAG_EMISSION_MAP_FIXED)
+        AddPrologueDefinition("#define EMISSION_MAP_FIXED\n", prologue);
+    if (flags & SHADER_CREATION_FLAG_EMISSION_MAP_OPTION) {
+        AddPrologueDefinition("#define EMISSION_MAP_OPTION\n", prologue);
+        uniform_mask |= 1 << UNIFORM_USE_EMISSION_MAP;
+    }
+    if (flags & (SHADER_CREATION_FLAG_EMISSION_MAP_FIXED |
+    SHADER_CREATION_FLAG_EMISSION_MAP_OPTION))
+        AddPrologueDefinition("#define EMISSION_MAP_SAMPLER\n", prologue);
+    if (flags & SHADER_CREATION_FLAG_EMISSION_MAP_ALPHA)
+        AddPrologueDefinition("#define EMISSION_MAP_ALPHA\n", prologue);
+
+    if (flags & SHADER_CREATION_FLAG_MULTI_COLOR_FIXED)
+        AddPrologueDefinition("#define MULTI_COLOR_FIXED\n", prologue);
+    if (flags & SHADER_CREATION_FLAG_MULTI_COLOR_OPTION) {
+        AddPrologueDefinition("#define MULTI_COLOR_OPTION\n", prologue);
+        uniform_mask |= 1 << UNIFORM_USE_MULTI_COLOR;
+    }
+    if (flags & (SHADER_CREATION_FLAG_MULTI_COLOR_FIXED |
+    SHADER_CREATION_FLAG_MULTI_COLOR_OPTION)) {
+        AddPrologueDefinition("#define COLOR_IN\n", prologue);
+        attribute_mask |= SRE_COLOR_MASK;
+    }
+
+    if ((flags & (SHADER_CREATION_FLAG_NORMAL_MAP_FIXED | SHADER_CREATION_FLAG_NORMAL_MAP_OPTION))
+    || (flags & SHADER_CREATION_FLAG_MICROFACET)) {
+        AddPrologueDefinition("#define TANGENT_IN\n", prologue);
+        attribute_mask |= SRE_TANGENT_MASK;
+    }
+}
 
 static void printShaderInfoLog(GLuint obj) {
     int infologLength = 0;
@@ -1411,7 +1567,7 @@ void sreShader::InitializeUniformLocationsMiscShader() {
 
 // Actual shader initialization.
 
-sreShader lighting_pass_shader[NU_LIGHTING_PASS_SHADERS];
+sreShader multi_pass_shader[NU_MULTI_PASS_SHADERS];
 sreShader single_pass_shader[NU_SINGLE_PASS_SHADERS];
 sreShader misc_shader[SRE_NU_MISC_SHADERS];
 sreShader HDR_tone_map_shader[SRE_NUMBER_OF_TONE_MAPPING_SHADERS];
@@ -1496,65 +1652,48 @@ static void sreInitializeHDRShaders() {
 #endif 
 }
 
-static char *newstrcat(const char *s1, const char *s2) {
-    char *s = new char[strlen(s1) + strlen(s2) + 1];
-    strcpy(s, s1);
-    strcat(s, s2);
-    return s;
-}
-
-static char *AddPrologueDefinition(const char *definition, char *prologue) {
-        char *old_prologue = prologue;
-        char *new_prologue = newstrcat(prologue, definition);
-        delete [] old_prologue;
-        return new_prologue;
-}
-
 static void AddDirectionalLightSpillOverDefinition(char* &prologue) {
-#ifdef DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR
-        float spill_over_value = DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR;
-        char *spill_over_definition = new char[64];
-        sprintf(spill_over_definition, "#define DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR %1.3f\n",
-            spill_over_value);
-        prologue = AddPrologueDefinition(spill_over_definition, prologue);
-        delete [] spill_over_definition;
+#ifdef ENABLE_DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR
+        const char *spill_over_definition = "#define ENABLE_DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR\n";
+        AddPrologueDefinition(spill_over_definition, prologue);
 #endif
 }
 
 static const char *light_parameter_definitions =
-	"#define NU_LIGHT_PARAMETERS_DIRECTIONAL 6\n"
-	"#define NU_LIGHT_PARAMETERS_POINT 7\n"
-	"#define NU_LIGHT_PARAMETERS_SPOT 11\n"
-	"#define NU_LIGHT_PARAMETERS_BEAM 13\n"
-	"#define NU_LIGHT_PARAMETERS_LOCAL 15\n"
-	"#define NU_LIGHT_PARAMETERS_MAX 16\n"
-	"#define LIGHT_POSITION_X 0\n"
-	"#define LIGHT_POSITION_Y 1\n"
-	"#define LIGHT_POSITION_Z 2\n"
-	"#define LIGHT_COLOR_R 3\n"
-	"#define LIGHT_COLOR_G 4\n"
-	"#define LIGHT_COLOR_B 5\n"
-	"#define LIGHT_LINEAR_ATTENUATION_RANGE 6\n"
-	"#define LIGHT_AXIS_DIRECTION_X 7\n"
-	"#define LIGHT_AXIS_DIRECTION_Y 8\n"
-	"#define LIGHT_AXIS_DIRECTION_Z 9\n"
-	"#define SPOT_LIGHT_EXPONENT 10\n"
-	"#define BEAM_LIGHT_AXIS_CUT_OFF_DISTANCE 10\n"
-	"#define BEAM_LIGHT_RADIUS 11\n"
-	"#define BEAM_LIGHT_RADIAL_LINEAR_ATTENUATION_RANGE 12\n"
-	"#define LOCAL_LIGHT_TYPE 10\n"
-	"#define LOCAL_LIGHT_SPOT_EXPONENT 11\n"
-	"#define LOCAL_LIGHT_BEAM_AXIS_CUT_OFF_DISTANCE 12\n"
-	"#define LOCAL_LIGHT_BEAM_RADIUS 13\n"
-	"#define LOCAL_LIGHT_BEAM_RADIAL_LINEAR_ATTENUATION_RANGE 14\n";
+    "#define NU_LIGHT_PARAMETERS_DIRECTIONAL 6\n"
+    "#define NU_LIGHT_PARAMETERS_POINT 7\n"
+    "#define NU_LIGHT_PARAMETERS_SPOT 11\n"
+    "#define NU_LIGHT_PARAMETERS_BEAM 13\n"
+    "#define NU_LIGHT_PARAMETERS_LOCAL 15\n"
+    "#define NU_LIGHT_PARAMETERS_MAX 16\n"
+    "#define LIGHT_POSITION_X 0\n"
+    "#define LIGHT_POSITION_Y 1\n"
+    "#define LIGHT_POSITION_Z 2\n"
+    "#define LIGHT_COLOR_R 3\n"
+    "#define LIGHT_COLOR_G 4\n"
+    "#define LIGHT_COLOR_B 5\n"
+    "#define LIGHT_LINEAR_ATTENUATION_RANGE 6\n"
+    "#define LIGHT_AXIS_DIRECTION_X 7\n"
+    "#define LIGHT_AXIS_DIRECTION_Y 8\n"
+    "#define LIGHT_AXIS_DIRECTION_Z 9\n"
+    "#define DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR 6\n"
+    "#define SPOT_LIGHT_EXPONENT 10\n"
+    "#define BEAM_LIGHT_AXIS_CUT_OFF_DISTANCE 10\n"
+    "#define BEAM_LIGHT_RADIUS 11\n"
+    "#define BEAM_LIGHT_RADIAL_LINEAR_ATTENUATION_RANGE 12\n"
+    "#define LOCAL_LIGHT_TYPE 10\n"
+    "#define LOCAL_LIGHT_SPOT_EXPONENT 11\n"
+    "#define LOCAL_LIGHT_BEAM_AXIS_CUT_OFF_DISTANCE 12\n"
+    "#define LOCAL_LIGHT_BEAM_RADIUS 13\n"
+    "#define LOCAL_LIGHT_BEAM_RADIAL_LINEAR_ATTENUATION_RANGE 14\n";
 
 static void AddLightParameterDefinitions(char *&prologue) {
-	prologue = AddPrologueDefinition(light_parameter_definitions, prologue);
+    AddPrologueDefinition(light_parameter_definitions, prologue);
 }
 
 static void sreInitializeMultiPassLightingShaders() {
     // New style shader loading for lighting shaders.
-    for (int i = 0; i < NU_LIGHTING_PASS_SHADERS; i++) {
+    for (int i = 0; i < NU_MULTI_PASS_SHADERS; i++) {
         // Do not load shadow map or cube shadow map lighting shaders when
         // the shadow map feature is not supported.
         if (i == 13 || i == 15) {
@@ -1564,24 +1703,24 @@ static void sreInitializeMultiPassLightingShaders() {
         else if (i >= 12 && i <= 18 &&
         !(sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_MAP_SUPPORT))
             continue;
-        char *prologue = new char[strlen(lighting_pass_shader_prologue[i]) + 1];
-        strcpy(prologue, lighting_pass_shader_prologue[i]);
+        char *prologue = new char[strlen(multi_pass_shader_prologue[i]) + 1];
+        strcpy(prologue, multi_pass_shader_prologue[i]);
 #ifdef COMPRESS_COLOR_ATTRIBUTE
         const char *color_attribute_definition = "#define COMPRESS_COLOR_ATTRIBUTE\n";
-        prologue = AddPrologueDefinition(color_attribute_definition, prologue);
+        AddPrologueDefinition(color_attribute_definition, prologue);
 #endif
 #if defined(OPENGL_ES2) && defined(USE_REFLECTION_VECTOR_GLES2)
         const char *reflection_vector_definition = "#define USE_REFLECTION_VECTOR_GLES2\n";
-        prologue = AddPrologueDefinition(reflection_vector_definition, prologue);
+        AddPrologueDefinition(reflection_vector_definition, prologue);
 #endif
         AddDirectionalLightSpillOverDefinition(prologue);
         AddLightParameterDefinitions(prologue);
 //	sreMessage(SRE_MESSAGE_INFO, "%s", prologue);
-        lighting_pass_shader[i].Initialize(
-            lighting_pass_shader_info[i].name,
+        multi_pass_shader[i].Initialize(
+            multi_pass_shader_info[i].name,
             SRE_SHADER_MASK_LIGHTING_MULTI_PASS,
-            lighting_pass_shader_info[i].uniform_mask,
-            lighting_pass_shader_info[i].attribute_mask,
+            multi_pass_shader_info[i].uniform_mask,
+            multi_pass_shader_info[i].attribute_mask,
             "gl3_lighting_pass.vert", "gl3_lighting_pass.frag",
             prologue);
         delete [] prologue;
@@ -1594,11 +1733,11 @@ static void sreInitializeSinglePassLightingShaders() {
         strcpy(prologue, single_pass_shader_prologue[i]);
 #ifdef COMPRESS_COLOR_ATTRIBUTE
         const char *color_attribute_definition = "#define COMPRESS_COLOR_ATTRIBUTE\n";
-        prologue = AddPrologueDefinition(color_attribute_definition, prologue);
+        AddPrologueDefinition(color_attribute_definition, prologue);
 #endif
 #if defined(OPENGL_ES2) && defined(USE_REFLECTION_VECTOR_GLES2)
         const char *reflection_vector_definition = "#define USE_REFLECTION_VECTOR_GLES2\n";
-        prologue = AddPrologueDefinition(reflection_vector_definition, prologue);
+        AddPrologueDefinition(reflection_vector_definition, prologue);
 #endif
         AddDirectionalLightSpillOverDefinition(prologue);
         AddLightParameterDefinitions(prologue);

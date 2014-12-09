@@ -45,9 +45,9 @@ extern unsigned int sre_internal_attribute_list_table[1 << SRE_NU_VERTEX_ATTRIBU
 
 #define NU_SINGLE_PASS_SHADERS 8
 #ifdef NO_SHADOW_MAP
-#define NU_LIGHTING_PASS_SHADERS 13
+#define NU_MULTI_PASS_SHADERS 13
 #else
-#define NU_LIGHTING_PASS_SHADERS 22
+#define NU_MULTI_PASS_SHADERS 22
 #endif
 
 #define MAX_UNIFORMS 32
@@ -95,19 +95,22 @@ extern bool sre_shader_load_on_demand;
 #define UNIFORM_MODEL_MATRIX 1
 #define UNIFORM_MODEL_ROTATION_MATRIX 2
 #define UNIFORM_DIFFUSE_REFLECTION_COLOR 3
-#define UNIFORM_MULTI_COLOR 4
-#define UNIFORM_USE_TEXTURE 5
+#define UNIFORM_USE_MULTI_COLOR 4
+#define UNIFORM_USE_TEXTURE_MAP 5
 // #define UNIFORM_CURRENT_LIGHT 6
 // Reuse unused uniform index.
 #define UNIFORM_SHADOW_MAP_DIMENSIONS 6
 #define UNIFORM_AMBIENT_COLOR 7
 #define UNIFORM_VIEWPOINT 8
+#define UNIFORM_LIGHT_PARAMETERS 9
+#if 0
 #define UNIFORM_LIGHT_POSITION 9
 #define UNIFORM_LIGHT_ATT 10
 #define UNIFORM_LIGHT_COLOR 11
+#endif
 #define UNIFORM_SPECULAR_REFLECTION_COLOR 12
 #define UNIFORM_SPECULAR_EXPONENT 13
-#define UNIFORM_TEXTURE_SAMPLER 14
+#define UNIFORM_TEXTURE_MAP_SAMPLER 14
 #define UNIFORM_USE_NORMAL_MAP 15
 #define UNIFORM_NORMAL_MAP_SAMPLER 16
 #define UNIFORM_USE_SPECULARITY_MAP 17
@@ -123,11 +126,26 @@ extern bool sre_shader_load_on_demand;
 #define UNIFORM_SHADOW_MAP_SAMPLER 27
 #define UNIFORM_CUBE_SHADOW_MAP_SAMPLER 28
 #define UNIFORM_SEGMENT_DISTANCE_SCALING 29
-#define UNIFORM_SPOTLIGHT 30
+// #define UNIFORM_SPOTLIGHT 30
 #define UNIFORM_UV_TRANSFORM 31
+#if 1
+#define UNIFORM_LIGHT_PARAMETERS_MASK ((1 << UNIFORM_LIGHT_PARAMETERS) | \
+    (1 << UNIFORM_SPECULAR_REFLECTION_COLOR) | (1 << UNIFORM_SPECULAR_EXPONENT))
+#else
 #define UNIFORM_LIGHT_PARAMETERS_MASK ((1 << 9) | (1 << 10) | (1 << 11) | (1 << 12) | (1 << 13))
+#endif
 // The mask defines a set of commonly used uniforms, but does not include all uniforms.
-#define UNIFORM_MASK_COMMON 0x803FFFBF
+#define UNIFORM_MASK_COMMON ((1 << UNIFORM_MVP) | (1 << UNIFORM_MODEL_MATRIX ) | \
+    (1 << UNIFORM_MODEL_ROTATION_MATRIX) | (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | \
+    (1 << UNIFORM_USE_MULTI_COLOR) | (1 << UNIFORM_USE_TEXTURE_MAP) | \
+    (1 << UNIFORM_AMBIENT_COLOR) | \
+    (1 << UNIFORM_VIEWPOINT) | (1 << UNIFORM_LIGHT_PARAMETERS) | \
+    (1 << UNIFORM_SPECULAR_REFLECTION_COLOR) | (1 << UNIFORM_SPECULAR_EXPONENT) | \
+    (1 << UNIFORM_TEXTURE_MAP_SAMPLER) | (1 << UNIFORM_USE_NORMAL_MAP ) | \
+    (1 << UNIFORM_NORMAL_MAP_SAMPLER) | (1 << UNIFORM_USE_SPECULARITY_MAP) | \
+    (1 << UNIFORM_SPECULARITY_MAP_SAMPLER) | (1 << UNIFORM_EMISSION_COLOR) | \
+    (1 << UNIFORM_USE_EMISSION_MAP ) | (1 << UNIFORM_EMISSION_MAP_SAMPLER ) | \
+    ((unsigned int)1 << UNIFORM_UV_TRANSFORM))
 
 // It would be better to treat the miscellaneous shaders in a more efficient in terms of storing
 // the uniform locations. Combining the uniform mask has no great advantage, except for initialization
@@ -239,7 +257,7 @@ enum {
 
 // shader_loading.cpp
 
-extern sreShader lighting_pass_shader[NU_LIGHTING_PASS_SHADERS];
+extern sreShader multi_pass_shader[NU_MULTI_PASS_SHADERS];
 extern sreShader single_pass_shader[NU_SINGLE_PASS_SHADERS];
 extern sreShader misc_shader[SRE_NU_MISC_SHADERS];
 extern sreShader HDR_tone_map_shader[SRE_NUMBER_OF_TONE_MAPPING_SHADERS];

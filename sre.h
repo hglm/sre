@@ -643,7 +643,7 @@ public:
 // Data structures for lights.
 
 enum {
-    // Light type.
+    // Light type flags.
     SRE_LIGHT_DIRECTIONAL = 1,
     SRE_LIGHT_POINT_SOURCE = 2,
     SRE_LIGHT_SPOT = 4,
@@ -675,6 +675,13 @@ enum {
     SRE_LIGHT_STATIC_SHADOW_CASTER_LIST = 0x200000
 };
 
+enum {
+   SRE_LIGHT_TYPE_DIRECTIONAL = 0,
+   SRE_LIGHT_TYPE_POINT_SOURCE,
+   SRE_LIGHT_TYPE_SPOT,
+   SRE_LIGHT_TYPE_BEAM
+};
+
 // The number of the light types that can affect the selected shader for multi-pass
 // rendering is limited.
 
@@ -694,14 +701,16 @@ enum {
 
 class SRE_API sreLight {
 public:
-    int type;
+    int type;             // This field should be renamed flags.
     int id;
-    int shader_light_type;
+    char shader_light_type;
+    char type_index;
     Vector4D vector;      // Direction for directional lights (w == 0), positions for other lights (w == 1.0).
     Vector3D attenuation; // Constant, linear and quadratic terms, or a single linear attenation range.
     Color color;          // RGB values from 0 to beyond 1.0.
     Vector4D spotlight;   // Spotlight direction, plus exponent in w coordinate. For beam light direction, plus
                           // circular radius in w coordinate.
+    float spill_over_factor; // Light spill-over factor for directional lights.
     sreBoundingVolumeSphere sphere;
     sreBoundingVolumeSphericalSector spherical_sector;
     sreBoundingVolumeCylinder cylinder;
@@ -1420,10 +1429,11 @@ public:
     void SetAmbientColor(Color color);
     int AddDirectionalLight(int flags, Vector3D direction, Color color);
     int AddPointSourceLight(int flags, Point3D position, float linear_range, Color color);
-    int AddSpotLight(int flags, Point3D position, Vector3D direction, float exponent, float linear_range,
-        Color color);
+    int AddSpotLight(int flags, Point3D position, Vector3D direction, float exponent,
+        float linear_range, Color color);
     int AddBeamLight(int flags, Point3D position, Vector3D direction, float beam_radius,
         float radial_linear_range, float cutoff_distance, float linear_range, Color color);
+    void SetDirectionalLightSpillOverFactor(int i, float factor) const;
     void ChangeDirectionalLightDirection(int i, Vector3D direction) const;
     void ChangeLightPosition(int i, Point3D position) const;
     void ChangeLightColor(int i, Color color) const;

@@ -45,9 +45,9 @@ uniform mat4x3 model_matrix;
 uniform mat3 model_rotation_matrix;
 #endif
 #ifdef MULTI_COLOR_OPTION
-uniform bool multi_color_in;
+uniform bool use_multi_color_in;
 #endif
-#ifdef TEXTURE_OPTION
+#ifdef TEXTURE_MAP_OPTION
 uniform bool use_texture_in;
 #endif
 #ifdef NORMAL_MAP_OPTION
@@ -73,8 +73,7 @@ uniform mat4x3 shadow_map_transformation_matrix;
 // For use with shadow map parameter precalculation (directional/beam lights).
 uniform vec4 shadow_map_dimensions_in;
 uniform sampler2D shadow_map_in;
-uniform MEDIUMP vec4 light_position_in;
-uniform MEDIUMP vec4 spotlight_in;
+uniform float light_parameters_in[NU_LIGHT_PARAMETERS_MAX];
 #endif
 attribute vec4 position_in;
 #ifdef TEXCOORD_IN
@@ -154,7 +153,7 @@ void main() {
 #endif
 
 #ifdef MULTI_COLOR_OPTION
-        if (!multi_color_in)
+        if (!use_multi_color_in)
 		diffuse_reflection_color_var = diffuse_reflection_color_in;
 	else
 #endif
@@ -208,12 +207,27 @@ void main() {
 #ifdef SHADOW_MAP
 	reprocical_shadow_map_size_var = 1.0 / shadow_map_dimensions_in.w;
 	vec3 L_bias;
-	if (light_position_in.w > 0.5)
-	        // For a beam light, the direction of light remains the z axis even for points away
-		// from the central axis.
-		L_bias = - spotlight_in.xyz;
-	else
-		L_bias = light_position_in.xyz;
+
+      	vec3 light_parameters_position;
+        light_parameters_position = vec3(
+		light_parameters_in[LIGHT_POSITION_X],
+		light_parameters_in[LIGHT_POSITION_Y],
+		light_parameters_in[LIGHT_POSITION_Z]
+		);
+
+#ifdef DIRECTIONAL_LIGHT
+	L_bias = light_parameters_position;
+#else
+	// For a beam light, the direction of light remains the z axis even for points away
+	// from the central axis.
+	vec3 light_parameters_axis_direction;
+        light_parameters_axis_direction = vec3(
+		light_parameters_in[LIGHT_AXIS_DIRECTION_X],
+		light_parameters_in[LIGHT_AXIS_DIRECTION_Y],
+		light_parameters_in[LIGHT_AXIS_DIRECTION_Z]
+		);
+	L_bias = - light_parameters_axis_direction;
+#endif
 	// Calculate the slope of the triangle relative to direction of the light
 	// (direction of increasing depth in shadow map).
 	// Use the vertex normal.

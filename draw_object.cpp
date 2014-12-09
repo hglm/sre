@@ -633,10 +633,10 @@ void sreDrawObjectMultiPassLightingPass(sreObject *so, bool shadow_map_required)
         // To be safe, mask with the attribute mask of the shader.
         int shader_attribute_mask;
         if (shadow_map_required)
-             shader_attribute_mask = lighting_pass_shader[so->current_shader_shadow_map[
+             shader_attribute_mask = multi_pass_shader[so->current_shader_shadow_map[
                  sre_internal_current_light->shader_light_type]].attribute_mask;
         else
-             shader_attribute_mask = lighting_pass_shader[so->current_shader[
+             shader_attribute_mask = multi_pass_shader[so->current_shader[
                  sre_internal_current_light->shader_light_type]].attribute_mask;
         attribute_mask &= shader_attribute_mask;
 
