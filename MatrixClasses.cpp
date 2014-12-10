@@ -1076,7 +1076,7 @@ Color& Color::SetRGB888(int r8, int g8, int b8) {
 }
 
 Color& Color::SetRandom() {
-    sreRNG *rng = sreGetDefaultRNG();
+    dstRNG *rng = sreGetDefaultRNG();
     r = rng->RandomFloat(1.0f);
     g = rng->RandomFloat(1.0f);
     b = rng->RandomFloat(1.0f);

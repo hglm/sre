@@ -25,7 +25,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sreBackend.h"
 #include "demo.h"
 
-static sreRNG *rng;
+static dstRNG *rng;
 static int lightsource_object_index[2];
 
 #if defined(OPENGL)

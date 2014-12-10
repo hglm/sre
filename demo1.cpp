@@ -28,7 +28,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define LOTS_OF_SPOTLIGHTS
 #endif
 
-static sreRNG *rng;
+static dstRNG *rng;
 
 #define FLUID_SIZE 64
 #define USE_WATER

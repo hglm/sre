@@ -105,7 +105,7 @@ FRAMEBUFFER_COMMON_MODULE_OBJECTS = CriticalSection.o MouseEventQueue.o linux-fb
 # Variable for things like extra device-specific include directories etc.
 EXTRA_CFLAGS_LIB =
 EXTRA_CFLAGS_BACKEND =
-LFLAGS_LIBRARY = -lpng
+LFLAGS_LIBRARY = -lpng -ldatasetturbo
 PKG_CONFIG_REQUIREMENTS =
 
 ifdef OPENGL_ES2
@@ -295,7 +295,7 @@ PLATFORM_MODULE_OBJECTS += bullet.o
 PKG_CONFIG_REQUIREMENTS += bullet
 endif
 
-LFLAGS_DEMO += -lpthread
+LFLAGS_DEMO += -ldatasetturbo -lpthread
 LIBRARY_FLAGS_DEMO =
 
 # Set final CFLAGS.
@@ -325,7 +325,7 @@ PKG_CONFIG_LIBS_DEMO = `pkg-config --libs bullet $(EXTRA_PKG_CONFIG_DEMO)`
 CORE_LIBRARY_MODULE_OBJECTS = sre.o draw.o geometry.o read_model_file.o binary_model_file.o \
 texture.o shadow.o shadow_bounds.o MatrixClasses.o intersection.o preprocess.o mipmap.o \
 frustum.o bounds.o octree.o fluid.o standard_objects.o text.o scene.o lights.o shadowmap.o \
-bounding_volume.o random.o rng-cmwc.o shader_matrix.o shader_loading.o vertex_buffer.o \
+bounding_volume.o shader_matrix.o shader_loading.o vertex_buffer.o \
 shader_uniform.o draw_object.o sreSIMD.o
 DEMO_MODULE_OBJECTS = demo_main.o demo1.o demo2.o demo4.o demo4b.o \
 demo5.o demo7.o demo8.o demo9.o demo10.o demo11.o textdemo.o
@@ -337,7 +337,7 @@ ORIGINAL_LIBRARY_MODULE_OBJECTS = $(CORE_LIBRARY_MODULE_OBJECTS) $(EXTRA_LIBRARY
 LIBRARY_MODULE_OBJECTS = $(ORIGINAL_LIBRARY_MODULE_OBJECTS) $(EXTRA_GENERATED_LIBRARY_MODULE_OBJECTS)
 BACKEND_MODULE_OBJECTS = sre_backend.o gui-common.o $(PLATFORM_MODULE_OBJECTS)
 
-LIBRARY_HEADER_FILES = sre.h sreVectorMath.h sreDoubleMath.h sreBoundingVolume.h sreRandom.h sreBackend.h
+LIBRARY_HEADER_FILES = sre.h sreVectorMath.h sreDoubleMath.h sreBoundingVolume.h sreBackend.h
 
 LIBRARY_PKG_CONFIG_FILE = sre.pc
 

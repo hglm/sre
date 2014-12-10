@@ -59,10 +59,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define SRE_GLUINT unsigned int
 #define SRE_GLINT int
 
+// dstRandom.h is provided by the external DataSetTurbo library.
+#include <dstRandom.h>
 #include "sreVectorMath.h"
 // Note: sreVectorMath.h also provides alignment macro SRE_ALIGNED(n)
 #include "sreBoundingVolume.h"
-#include "sreRandom.h"
 
 #define SRE_MAX_ACTIVE_LIGHTS_UNLIMITED 2147483647
 // When multi-pass rendering is used, the following value defines the default maximum number
@@ -1981,7 +1982,7 @@ SRE_API void sreMessage(int priority, const char *format, ...);
 SRE_API void sreMessageNoNewline(int priority, const char *format, ...);
 
 // Default random number generator.
-SRE_API sreRNG *sreGetDefaultRNG();
-SRE_API void sreSetDefaultRNG(sreRNG* rng) ;
+SRE_API dstRNG *sreGetDefaultRNG();
+SRE_API void sreSetDefaultRNG(dstRNG* rng);
 
 #endif

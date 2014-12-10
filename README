@@ -73,7 +73,9 @@ back-end. This includes:
   is enabled, allowing loading many different 3D model file formats.
   In Debian-based distributions, it is available as libassimp-dev.
 
-Another dependency is libpng (development package).
+Another dependency is libpng (development package). The DataSetTurbo
+library is also required (also available from github,
+https://github.com/hglm/DataSetTurbo.git).
 
 The Makefile uses sed and awk.
 

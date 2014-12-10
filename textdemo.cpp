@@ -37,7 +37,7 @@ typedef void (*TextDemoDrawFuncType)();
 typedef void (*TextDemoSetTextFuncType)(double dt);
 
 
-static sreRNG *rng;
+static dstRNG *rng;
 
 static int current_test = - 1;
 static double test_start_time, test_time;

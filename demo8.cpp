@@ -97,7 +97,7 @@ static float star_billboard_size_target[NU_STARS];
 static double star_last_twinkle_time[NU_STARS];
 static float star_dec[NU_STARS];
 
-static sreRNG *rng;
+static dstRNG *rng;
 
 void Demo8CreateScene(sreScene *scene, sreView *view) {
     int l;

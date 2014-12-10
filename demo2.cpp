@@ -30,7 +30,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include "demo.h"
 
-static sreRNG *rng;
+static dstRNG *rng;
 static sreModel *particle_system_500_model = NULL;
 
 #define PARTICLE_SYSTEM_RADIUS_XY 15.0f
