@@ -156,9 +156,9 @@ static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
 }
 
 static void RenderShadowMapFromCasterArray(sreScene *scene, const sreLight& light) {
-    for (int i = 0; i < scene->nu_shadow_caster_objects; i++)
+    for (int i = 0; i < scene->shadow_caster_array.Size(); i++)
         RenderShadowMapObject(scene->object[
-            scene->shadow_caster_object[i]], light);
+            scene->shadow_caster_array.Get(i)], light);
 }
 
 static void RenderCubeShadowMapFromCasterArray(sreScene *scene, const sreLight& light, int segment) {
@@ -166,10 +166,10 @@ static void RenderCubeShadowMapFromCasterArray(sreScene *scene, const sreLight& 
     // 26 to 31 of each entry in the shadow caster object array.
 //    object_count = 0;
     unsigned int segment_bit = (unsigned int)1 << (26 + segment);
-    for (int i = 0; i < scene->nu_shadow_caster_objects; i++)
-        if (scene->shadow_caster_object[i] & segment_bit)
+    for (int i = 0; i < scene->shadow_caster_array.Size(); i++)
+        if (scene->shadow_caster_array.Get(i) & segment_bit)
             RenderShadowMapObject(scene->object[
-                scene->shadow_caster_object[i] & 0x03FFFFFF], light);
+                scene->shadow_caster_array.Get(i) & 0x03FFFFFF], light);
 //    sreMessage(SRE_MESSAGE_INFO, "Light %d shadow cube map generation: segment mask = 0x%08X, "
 //          "%d objects rendered.", light.id, segment_bit, object_count);
 }
@@ -323,18 +323,6 @@ static unsigned int GetSegmentMask(const sreLight& light, const sreObject& so) {
     return mask;
 }
 
-static void CheckShadowCasterCapacity(sreScene *scene) {
-    if (scene->nu_shadow_caster_objects == scene->max_shadow_caster_objects) {
-        // Dynamically increase the shadow caster object array when needed.
-        int *new_shadow_caster_object = new int[scene->max_shadow_caster_objects * 2];
-        memcpy(new_shadow_caster_object, scene->shadow_caster_object,
-            sizeof(int) * scene->max_shadow_caster_objects);
-        delete [] scene->shadow_caster_object;
-        scene->shadow_caster_object = new_shadow_caster_object;
-        scene->max_shadow_caster_objects *= 2;
-    }
-}
-
 // Find the AABB for a directional light. Bounds checks are performed starting from the
 // root node. The special bound check result value SRE_BOUNDS_DO_NOT_CHECK disables
 // all octree bounds checks (useful for root node-only octrees).
@@ -376,9 +364,7 @@ sreScene *scene, const sreFrustum& frustum, BoundsCheckResult octree_bounds_chec
                     continue;
             if (so->flags & SRE_OBJECT_CAST_SHADOWS) {
                 UpdateAABBWithObject(AABB_generation_info.casters, so);
-                CheckShadowCasterCapacity(scene);
-                scene->shadow_caster_object[scene->nu_shadow_caster_objects]= so->id;
-                scene->nu_shadow_caster_objects++;
+                scene->shadow_caster_array.Add(so->id);
             }
             // For all objects that receive light, update the shadow receiver AABB.
             if (!(so->flags & SRE_OBJECT_EMISSION_ONLY)) 
@@ -432,16 +418,13 @@ const sreFrustum& frustum, const sreLight& light, BoundsCheckResult octree_bound
                     // the shadow caster volume.
                     if (Intersects(*so, frustum.shadow_caster_volume)) {
                         UpdateAABBWithObject(AABB_generation_info.casters, so);
-                        CheckShadowCasterCapacity(scene);
                         if (light.type & SRE_LIGHT_POINT_SOURCE) {
                             unsigned int segment_mask = GetSegmentMask(light, *so);
-                            scene->shadow_caster_object[scene->nu_shadow_caster_objects] =
-                               so->id | (segment_mask << 26);
+                            scene->shadow_caster_array.Add(so->id | (segment_mask << 26));
                             segment_non_empty_mask |= segment_mask;
                         }
                         else
-                            scene->shadow_caster_object[scene->nu_shadow_caster_objects] = so->id;
-                        scene->nu_shadow_caster_objects++;
+                            scene->shadow_caster_array.Add(so->id);
                     }
                 }
                 // For all objects that receive light, update the shadow receiver AABB.
@@ -822,7 +805,7 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
 
     // Calculate shadow caster volume.
     frustum.CalculateShadowCasterVolume(light.vector, 6);
-    scene->nu_shadow_caster_objects = 0;
+    scene->shadow_caster_array.Truncate(0);
     // This flag will be set to false when a shadow map is actually not needed for the light.
     light.shadow_map_required = true;
 

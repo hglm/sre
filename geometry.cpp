@@ -1556,19 +1556,8 @@ void sreObject::CalculateAABB() {
 // Scene-level model handling.
 
 void sreScene::RegisterModel(sreModel *m) {
-    if (nu_models >= max_models) {
-        if (sre_internal_debug_message_level >= 1)
-            printf("Maximum number of models reached -- doubling capacity to %d.\n",
-                max_models * 2);
-        sreModel **new_models = new sreModel *[max_models * 2];
-        memcpy(new_models, model, sizeof(sreModel *) * max_models);
-        delete [] model;
-        model = new_models;
-        max_models *= 2;
-    }
-    m->id = nu_models;
-    model[nu_models] = m;
-    nu_models++;
+    m->id = models.Size();
+    models.Add(m);
     // Set the id of the LOD models.
     for (int i = 0; i < m->nu_lod_levels; i++) {
         sreLODModel *lm = m->lod_model[i];
@@ -1596,19 +1585,19 @@ void sreScene::RegisterModel(sreModel *m) {
 // enabled there might be additional unreferenced models.
 
 void sreScene::RemoveUnreferencedModels() {
-    char *model_used = new char[nu_models];
-    memset(model_used, 0, nu_models);
+    char *model_used = new char[models.Size()];
+    memset(model_used, 0, models.Size());
     // First pass: iterate all LOD models and set their ID to - 2.
     // Also check that the index and ID of full models are the same.
-    for (int i = 0; i < nu_models; i++) {
-        if (model[i] == NULL)
+    for (int i = 0; i < models.Size(); i++) {
+        if (models.Get(i) == NULL)
             continue;
-        if (model[i]->id != i) {
+        if (models.Get(i)->id != i) {
             printf("Warning: model index %d does not match model id of %d.\n",
-                i, model[i]->id);
+                i, models.Get(i)->id);
         }
-        for (int j = 0; j < model[i]->nu_lod_levels; j++)
-            model[i]->lod_model[j]->id = - 2;
+        for (int j = 0; j < models.Get(i)->nu_lod_levels; j++)
+            models.Get(i)->lod_model[j]->id = - 2;
     }
     // Second pass: iterate all objects and mark every model and LOD model used;
     // set the ID of every LOD model encountered (some of which may be shared
@@ -1633,22 +1622,22 @@ void sreScene::RemoveUnreferencedModels() {
     // references.
     int gpu_triangle_count = 0;
     int lod_model_count = 0;
-    for (int i = 0; i < nu_models; i++) {
-        if (model[i] == NULL)
+    for (int i = 0; i < models.Size(); i++) {
+        if (models.Get(i) == NULL)
             continue;
-        if (model[i]->referenced && model_used[i] == 0) {
+        if (models.Get(i)->referenced && model_used[i] == 0) {
             printf("Model id %d is marked is referenced but not actually used -- marking as unreferenced.\n", i);
-            model[i]->referenced = false;
+            models.Get(i)->referenced = false;
         }
         else {
-            if (!model[i]->referenced && model_used[i] != 0) {
+            if (!models.Get(i)->referenced && model_used[i] != 0) {
                 printf("Warning: Model id %d is not marked as referenced but is actually used -- "
                     "marking as referenced.\n", i);
-                model[i]->referenced = true;
+                models.Get(i)->referenced = true;
             }
         }
-        for (int j = 0; j < model[i]->nu_lod_levels; j++) {
-            sreLODModel *lm = model[i]->lod_model[j];
+        for (int j = 0; j < models.Get(i)->nu_lod_levels; j++) {
+            sreLODModel *lm = models.Get(i)->lod_model[j];
             // When we encounter a LOD model that is actually used for the first time,
             // assign a unique ID.
             if (lm->id == - 1) {
@@ -1677,17 +1666,17 @@ void sreScene::RemoveUnreferencedModels() {
     // unused LOD models will have an ID of - 2. The referenced flag also reflects this.
     printf("Scene statistics: %d objects, worst case %d triangles, %d models, "
         "%d LOD models actually used, %d triangles uploaded to GPU.\n",
-         nu_objects, scene_triangle_count, nu_models,
+         nu_objects, scene_triangle_count, models.Size(),
          nu_lod_models, gpu_triangle_count);
 }
 
 void sreScene::MarkAllModelsReferenced() const {
-    for (int i = 0; i < nu_models; i++) {
-        if (model[i] == NULL)
+    for (int i = 0; i < models.Size(); i++) {
+        if (models.Get(i) == NULL)
             continue;
-        model[i]->referenced = true;
-        for (int j = 0; j < model[i]->nu_lod_levels; j++)
-            model[i]->lod_model[j]->referenced = true;
+        models.Get(i)->referenced = true;
+        for (int j = 0; j < models.Get(i)->nu_lod_levels; j++)
+            models.Get(i)->lod_model[j]->referenced = true;
     }
 }
 
@@ -1696,12 +1685,12 @@ void sreScene::MarkAllModelsReferenced() const {
 
 void sreScene::UploadModels() const {
     // Iterate all models.
-    for (int i = 0; i < nu_models; i++) {
-        if (model[i] == NULL)
+    for (int i = 0; i < models.Size(); i++) {
+        if (models.Get(i) == NULL)
             continue;
         bool shadow_volumes_configured = true;
-        for (int j = 0; j < model[i]->nu_lod_levels; j++) {
-            sreLODModel *m = model[i]->lod_model[j];
+        for (int j = 0; j < models.Get(i)->nu_lod_levels; j++) {
+            sreLODModel *m = models.Get(i)->lod_model[j];
             if (m->referenced) {
                 int dynamic_flags = 0;
                 if (m->flags & SRE_LOD_MODEL_VERTEX_BUFFER_DYNAMIC) {
@@ -1729,18 +1718,19 @@ void sreScene::UploadModels() const {
         // Mark the model as supporting shadow volumes if all LOD models
         // support shadow volumes.
         if (shadow_volumes_configured)
-            model[i]->model_flags |= SRE_MODEL_SHADOW_VOLUMES_CONFIGURED;
+            models.Get(i)->model_flags |= SRE_MODEL_SHADOW_VOLUMES_CONFIGURED;
     }
 }
 
 void sreScene::ClearModels() {
-    for (int i = 0; i < nu_models; i++) {
-        if (model[i] == NULL)
+    for (int i = 0; i < models.Size(); i++) {
+        if (models.Get(i) == NULL)
             continue;
         // Delete sreModel.
         // The deconstructor will trigger deletion of the LOD levels too,
         // and corresponding bufferson the GPU are also deleted.
-        delete model[i];
+        delete models.Get(i);
     }
-    nu_models = 0;
+    models.MakeEmpty();
 }
+

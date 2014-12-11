@@ -1200,7 +1200,7 @@ void sreScene::CalculateStaticLightObjectLists() {
         // variable but have a worst-case bounding sphere.
         if (!(light[i]->type & SRE_LIGHT_DYNAMIC_SHADOW_VOLUME) ||
         (light[i]->type & SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE)) {
-            nu_shadow_caster_objects = 0;
+            shadow_caster_array.Truncate(0);
             for (int k = 0; k < nu_intersecting_objects; k++) {
                 int j = intersecting_object[k];
                 sreObject *so = object[j];
@@ -1219,8 +1219,7 @@ void sreScene::CalculateStaticLightObjectLists() {
                     // Add the object to the list of shadow casters for the light.
                     // For lights with SRE_LIGHT_WORST_CASE_BOUNDS_SPHERE set, these are only
                     // potential shadow casters.
-                    shadow_caster_object[nu_shadow_caster_objects] = j;
-                    nu_shadow_caster_objects++;
+                    shadow_caster_array.Add(j);
                 }
                 // When the light's shadow volumes are static for a static object,
                 // calculate the shadow volume and add it to the object's list of shadow volumes.
@@ -1300,16 +1299,16 @@ void sreScene::CalculateStaticLightObjectLists() {
                     so->AddShadowVolume(sv);
                 }
             }
-            light[i]->nu_shadow_caster_objects = nu_shadow_caster_objects;
+            light[i]->nu_shadow_caster_objects = shadow_caster_array.Size();
             if (!(light[i]->type & SRE_LIGHT_DIRECTIONAL)) {
                 // Copy the shadow caster list into the light's structure.
-                if (nu_shadow_caster_objects > 0) {
-                    light[i]->shadow_caster_object = new int[nu_shadow_caster_objects];
-                    memcpy(light[i]->shadow_caster_object, shadow_caster_object,
-                        nu_shadow_caster_objects * sizeof(int));
+                if (shadow_caster_array.Size() > 0) {
+                    light[i]->shadow_caster_object = new int[shadow_caster_array.Size()];
+                    memcpy(light[i]->shadow_caster_object, shadow_caster_array.DataPointer(),
+                        shadow_caster_array.Size() * sizeof(int));
                 }
                 sreMessage(SRE_MESSAGE_LOG, "Light %d: %d shadow casters within light volume.",
-                    i, nu_shadow_caster_objects);
+                    i, shadow_caster_array.Size());
                 // Set the flag indicating there is a list containing all static shadow casters
                 // for the light.
                 light[i]->type |= SRE_LIGHT_STATIC_SHADOW_CASTER_LIST;

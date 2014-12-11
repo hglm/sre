@@ -462,8 +462,8 @@ int &nu_intersecting_objects, int *intersecting_object) const {
         int index;
         fast_oct.GetEntity(array_index + i, type, index);
         if (type == SRE_ENTITY_OBJECT && static_object_belonging_to_object[index] != - 1) {
-            if (ModelBoundsIntersectWithMargin(*model[model_index],
-            *model[static_object_belonging_to_object[index]])) {
+            if (ModelBoundsIntersectWithMargin(*models.Get(model_index),
+            *models.Get(static_object_belonging_to_object[index]))) {
                 intersecting_object[nu_intersecting_objects] =
                    static_object_belonging_to_object[index];
                 nu_intersecting_objects++;
@@ -500,7 +500,7 @@ static int CompareVertexInsertions(const void *e1, const void *e2) {
 void sreScene::EliminateTJunctions() {
     // Convert static objects to absolute coordinates.
     int count = 0;
-    int *object_belonging_to_object = new int[nu_objects + nu_models];
+    int *object_belonging_to_object = new int[nu_objects + models.Size()];
     int *static_object_belonging_to_object = new int[nu_objects];
     for (int i = 0; i < nu_objects; i++) {
         if (object[i]->model->is_static)
@@ -525,30 +525,30 @@ void sreScene::EliminateTJunctions() {
     int pair_count = 0;
     int weld_count = 0;
     int t_junction_count = 0;
-    bool *model_changed = new bool[nu_models];
-    int *intersecting_object = new int[nu_models];
+    bool *model_changed = new bool[models.Size()];
+    int *intersecting_object = new int[models.Size()];
     vertex_insertion_array = new VertexInsertionArray;
-    for (int i = 0; i < nu_models; i++) {
+    for (int i = 0; i < models.Size(); i++) {
         // Converted scenery is maked with the is_static flag.
-        if (model[i]->is_static) {
+        if (models.Get(i)->is_static) {
             model_changed[i] = false;
             sreBoundingVolumeAABB AABB;
-            AABB.dim_min = model[i]->AABB.dim_min - Vector3D(EPSILON2, EPSILON2, EPSILON2);
-            AABB.dim_max = model[i]->AABB.dim_max + Vector3D(EPSILON2, EPSILON2, EPSILON2);
+            AABB.dim_min = models.Get(i)->AABB.dim_min - Vector3D(EPSILON2, EPSILON2, EPSILON2);
+            AABB.dim_max = models.Get(i)->AABB.dim_max + Vector3D(EPSILON2, EPSILON2, EPSILON2);
             int nu_intersecting_objects = 0;
             // All static objects are conveniently grouped in the static entities octree.
             DetermineStaticIntersectingObjects(fast_octree_static, 0, i, AABB,
                 static_object_belonging_to_object, nu_intersecting_objects, intersecting_object);
             for (int k = 0; k < nu_intersecting_objects; k++) {
                 int j = intersecting_object[k];
-                if (j != i && model[j]->is_static) {
+                if (j != i && models.Get(j)->is_static) {
                     pair_count++;
-                    bool r = WeldModels(*model[i], *model[j]);
+                    bool r = WeldModels(*models.Get(i), *models.Get(j));
                     if (r) {
                         model_changed[i] = true;
                         weld_count++;
                     }
-                    r = EliminateTJunctionsForModels(*model[i], *model[j]);
+                    r = EliminateTJunctionsForModels(*models.Get(i), *models.Get(j));
                     if (r) {
                        model_changed[i] = true;
                        t_junction_count++;
@@ -622,17 +622,17 @@ next_t :
     }
     delete vertex_insertion_array; // With destructor.
     int changed_count = 0;
-    for (int i = 0; i < nu_models; i++) {
-        if (model[i]->is_static) {
+    for (int i = 0; i < models.Size(); i++) {
+        if (models.Get(i)->is_static) {
             if (model_changed[i]) {
                  // The duplicated static object will be used.
                  // Mark the model as referenced.
-                 model[i]->referenced = true;
+                 models.Get(i)->referenced = true;
                  // Mark the LOD model as referenced.
-                 model[i]->lod_model[0]->referenced = true;
+                 models.Get(i)->lod_model[0]->referenced = true;
                  // Update fields in scene object to reflect the fact that coordinates are absolute.
                  int j = object_belonging_to_object[i];
-                 object[j]->model = model[i];
+                 object[j]->model = models.Get(i);
                  object[j]->model_matrix.SetIdentity();
                  // Save the original rotation matrix.
                  object[j]->original_rotation_matrix = new Matrix3D;
@@ -647,25 +647,25 @@ next_t :
                  // Not necessary to duplicate this object, so go back to using the original instantiation.
                  // Free the unused static object.
                  // Delete the single LOD level.
-                 sreLODModel *lm = model[i]->lod_model[0];
+                 sreLODModel *lm = models.Get(i)->lod_model[0];
                  delete [] lm->vertex;
                  delete [] lm->vertex_normal;
                  if (lm->flags & SRE_TANGENT_MASK)
                      delete [] lm->vertex_tangent;
                  delete lm;
                  // Delete the sreModel.
-                 for (int j = 0; j < model[i]->nu_polygons; j++)
-                     delete model[i]->polygon[j].vertex_index;
-                 delete model[i]->polygon;
-                 if (model[i]->bounds_flags & SRE_BOUNDS_PREFER_SPECIAL) {
-                     if (model[i]->bv_special.type == SRE_BOUNDING_VOLUME_ELLIPSOID)
-                         delete model[i]->bv_special.ellipsoid;
+                 for (int j = 0; j < models.Get(i)->nu_polygons; j++)
+                     delete models.Get(i)->polygon[j].vertex_index;
+                 delete models.Get(i)->polygon;
+                 if (models.Get(i)->bounds_flags & SRE_BOUNDS_PREFER_SPECIAL) {
+                     if (models.Get(i)->bv_special.type == SRE_BOUNDING_VOLUME_ELLIPSOID)
+                         delete models.Get(i)->bv_special.ellipsoid;
                      else
-                     if (model[i]->bv_special.type ==  SRE_BOUNDING_VOLUME_CYLINDER)
-                         delete model[i]->bv_special.cylinder;
+                     if (models.Get(i)->bv_special.type ==  SRE_BOUNDING_VOLUME_CYLINDER)
+                         delete models.Get(i)->bv_special.cylinder;
                  }
-                 delete model[i];
-                 model[i] = NULL;	// Mark as invalid.
+                 delete models.Get(i);
+                 models.Set(i, NULL);	// Mark as invalid.
              }
          }
     }
@@ -904,10 +904,10 @@ void sreModel::Triangulate() {
 }
 
 void sreScene::Triangulate() {
-    for (int i = 0; i < nu_models; i++) {
-        if (model[i] != NULL) {
-            if (model[i]->is_static)
-                model[i]->Triangulate();
+    for (int i = 0; i < models.Size(); i++) {
+        if (models.Get(i) != NULL) {
+            if (models.Get(i)->is_static)
+                models.Get(i)->Triangulate();
         }
     }
 }
@@ -916,11 +916,11 @@ void sreScene::Preprocess() {
     // T-junction elimination, converting static objects to absolute coordinates if necessary.
     EliminateTJunctions();
     Triangulate();
-    for (int i = 0; i < nu_models; i++)
-        if (model[i] != NULL)
-            if (model[i]->is_static) {
+    for (int i = 0; i < models.Size(); i++)
+        if (models.Get(i) != NULL)
+            if (models.Get(i)->is_static) {
                  // A newly created static object always has just one LOD level.
-                 sreLODModel *lm = model[i]->lod_model[0];
+                 sreLODModel *lm = models.Get(i)->lod_model[0];
                  // The model is modified copy with vertices added or adjusted.
                  // The new vertices will have corrupted the sorting order of the vertices.
                  // Sort the vertices.

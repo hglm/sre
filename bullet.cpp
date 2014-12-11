@@ -134,9 +134,9 @@ void sreBulletPhysicsApplication::InitializePhysics() {
     // First pass over the other objects: calculate necessary collision shapes.
     // Cache the shape of the last instance of a model object so that the same bullet shape will be used if consecutive
     // scene objects have the same dimensions.
-    CollisionShapeInfo *static_object_collision_shape_info = (CollisionShapeInfo *)alloca(sizeof(CollisionShapeInfo) * scene->nu_models);
-    CollisionShapeInfo *dynamic_object_collision_shape_info = (CollisionShapeInfo *)alloca(sizeof(CollisionShapeInfo) *scene->nu_models);
-    for (int i = 0; i < scene->nu_models; i++) {
+    CollisionShapeInfo *static_object_collision_shape_info = (CollisionShapeInfo *)alloca(sizeof(CollisionShapeInfo) * scene->models.Size());
+    CollisionShapeInfo *dynamic_object_collision_shape_info = (CollisionShapeInfo *)alloca(sizeof(CollisionShapeInfo) *scene->models.Size());
+    for (int i = 0; i < scene->models.Size(); i++) {
         static_object_collision_shape_info[i].shape = NULL;
         dynamic_object_collision_shape_info[i].shape = NULL;
     }

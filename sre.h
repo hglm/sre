@@ -59,8 +59,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define SRE_GLUINT unsigned int
 #define SRE_GLINT int
 
-// dstRandom.h is provided by the external DataSetTurbo library.
+// dstRandom.h and dstDynamicArray.h are provided by the external DataSetTurbo library.
 #include <dstRandom.h>
+#include <dstDynamicArray.h>
+
 #include "sreVectorMath.h"
 // Note: sreVectorMath.h also provides alignment macro SRE_ALIGNED(n)
 #include "sreBoundingVolume.h"
@@ -1307,17 +1309,21 @@ enum {
 // The top-level scene class, contain arrays of the objects and lights in the scene,
 // octree information, a model registry, data structures used during rendering, and
 // state variables used during scene construction.
+;
+typedef dstCastDynamicArray <sreModel *, void *, uint32_t, dstPointerArray> sreModelPointerArray;
 
 class SRE_API sreScene {
 public:
     int nu_objects;
-    int nu_models;
+
     // The objects in the scene.
     sreObject **object;
     // A registry of all higher-level models.
-    sreModel **model;
+    sreModelPointerArray models;
+//    int nu_models;
+//    sreModel **model;
+//    int max_models;
     int max_objects;
-    int max_models;
     int nu_lod_models;
     sreFastOctree fast_octree_static;
     sreFastOctree fast_octree_static_infinite_distance;
@@ -1328,17 +1334,15 @@ public:
     int *visible_object;
     // Array of final-pass visible objects, updated each frame.
     int *final_pass_object;
-    // Array of shadow casters, updated for each light within each frame.
-    int *shadow_caster_object;
+    // Array of shadow caster objects, updated for each light within each frame.
+    dstIntArray shadow_caster_array;
     // Array of visible lights, updated each frame.
     int *visible_light;
     int nu_visible_objects;
     int nu_final_pass_objects;
-    int nu_shadow_caster_objects;
     int nu_visible_lights;
     int max_visible_objects;
     int max_final_pass_objects;
-    int max_shadow_caster_objects;
     int max_visible_lights;
     // Lights
     Color ambient_color;

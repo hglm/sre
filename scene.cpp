@@ -33,14 +33,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 sreScene::sreScene(int _max_objects, int _max_models, int _max_scene_lights) {
     nu_objects = 0;
-    nu_models = 0;
     max_objects = _max_objects;
     object = new sreObject *[max_objects];
-    max_models = _max_models;
-    model = new sreModel *[max_models];
-    nu_lights = 0;
+    models.SetCapacity(_max_models);
     max_scene_lights = _max_scene_lights;
     light = new sreLight *[max_scene_lights];
+    nu_lights = 0;
     ambient_color = Color(0.1, 0.1, 0.1);
     // Scene building helpers.
     SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
@@ -69,7 +67,6 @@ sreScene::sreScene(int _max_objects, int _max_models, int _max_scene_lights) {
     // No rendering object arrays allocated yet.
     max_visible_objects = 0;
     max_final_pass_objects = 0; 
-    max_shadow_caster_objects = 0;
     max_visible_lights = 0;
 }
 
@@ -97,15 +94,14 @@ void sreScene::ClearObjectsAndLights() {
 
 sreScene::~sreScene() {
     ClearModels();
-    delete [] model;
+    models.MakeEmpty();
     ClearObjectsAndLights();
     delete [] object;
     delete [] light;
 
     if (max_visible_objects > 0)
         delete [] visible_object;
-    if (max_shadow_caster_objects > 0)
-        delete [] shadow_caster_object;
+    shadow_caster_array.MakeEmpty();
     if (max_final_pass_objects > 0)
         delete [] final_pass_object;
     if (max_visible_lights > 0)
@@ -128,12 +124,12 @@ void sreScene::PrepareForRendering(unsigned int flags) {
     // with full capacity for shadow volume calculation.
     nu_visible_objects = 0;
     visible_object = new int[max_objects];
-    nu_shadow_caster_objects = 0;
-    shadow_caster_object = new int[max_objects];
+    shadow_caster_array.Truncate(0);
+    shadow_caster_array.SetCapacity(max_objects);
     // Use visible_object and shadow_caster_object arrays as scratch memory.
     CalculateStaticLightObjectLists();
     delete [] visible_object;
-    delete [] shadow_caster_object;
+    shadow_caster_array.MakeEmpty();
 
     // Set reasonable limits for number of visible objects/lights during
     // rendering. If the world is large, this can be much lower than the
@@ -141,13 +137,14 @@ void sreScene::PrepareForRendering(unsigned int flags) {
     // increased when a limit is encountered.
     max_visible_objects = mini(SRE_DEFAULT_MAX_VISIBLE_OBJECTS, nu_objects);
     max_final_pass_objects = mini(SRE_DEFAULT_MAX_FINAL_PASS_OBJECTS, nu_objects);
-    max_shadow_caster_objects = mini(SRE_DEFAULT_MAX_SHADOW_CASTER_OBJECTS, nu_objects);
     max_visible_lights = mini(SRE_DEFAULT_MAX_VISIBLE_LIGHTS, nu_lights);
 
     nu_visible_objects = 0;
     visible_object = new int[max_visible_objects];
-    nu_shadow_caster_objects = 0;
-    shadow_caster_object = new int[max_shadow_caster_objects];
+
+    shadow_caster_array.Truncate(0);
+    shadow_caster_array.SetCapacity(mini(SRE_DEFAULT_MAX_SHADOW_CASTER_OBJECTS, nu_objects));
+
     nu_final_pass_objects = 0;
     final_pass_object = new int[max_final_pass_objects];
     nu_visible_lights = 0;

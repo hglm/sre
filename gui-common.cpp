@@ -100,7 +100,7 @@ static char *strend(char *s) {
 static void SetSceneInfo(sreScene *scene, sreEngineSettingsInfo *settings_info) {
     sprintf(scene_info_text_line[13],
         "Number of objects: %d (capacity %d), models: %d (capacity %d)",
-        scene->nu_objects, scene->max_objects, scene->nu_models, scene->max_models);
+        scene->nu_objects, scene->max_objects, scene->models.Size(), scene->models.AllocatedSize());
     sprintf(scene_info_text_line[14],
         "Visible number of objects:  %d (capacity %d), final pass: %d (%d)",
         scene->nu_visible_objects, scene->max_visible_objects,

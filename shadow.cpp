@@ -524,7 +524,6 @@ model_not_closed :
 }
 
 #define SHORT_ELEMENT_BUFFER
-// #define PING_PONG_BUFFERS
 
 #define EmitVertexShort(v) \
     ((unsigned short *)shadow_volume_vertex)[nu_shadow_volume_vertices] = v; \
@@ -534,17 +533,14 @@ model_not_closed :
     ((unsigned int *)shadow_volume_vertex)[nu_shadow_volume_vertices] = v; \
     nu_shadow_volume_vertices++;
 
-#ifdef PING_PONG_BUFFERS
-static GLuint element_buffer0_id, element_buffer1_id;
+#define NU_ELEMENT_BUFFERS 1
+static GLuint element_buffer_id[NU_ELEMENT_BUFFERS];
 static int current_element_buffer;
-#endif
 static GLuint last_vertexbuffer_id;
 
 static void *shadow_volume_vertex = NULL;
 static int max_shadow_volume_vertices;
 static int nu_shadow_volume_vertices;
-
-static GLuint element_buffer_id = 0xFFFFFFFF;
 
 // Array buffer flags for shadow volumes.
 
@@ -961,7 +957,12 @@ int array_buffer_flags, int nu_vertices) {
         glDrawElements(mode, nu_vertices, GL_UNSIGNED_INT, (void *)0);
 }
 
-static void DrawShadowVolumeGL(sreLODModelShadowVolume *m, int array_buffer_flags) {
+// Draw shadow volume after it has been calculated.
+
+static void DrawShadowVolumeGL(sreLODModelShadowVolume *m, int array_buffer_flags,
+int cache_used) {
+    if (nu_shadow_volume_vertices == 0)
+        return;
     // Enable the vertex buffer of the model.
     if (m->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION] != last_vertexbuffer_id) {
         glEnableVertexAttribArray(0);
@@ -977,27 +978,23 @@ static void DrawShadowVolumeGL(sreLODModelShadowVolume *m, int array_buffer_flag
 
         last_vertexbuffer_id = m->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION];
     }
-#ifdef PING_PONG_BUFFERS
+
     // Enable the elements (index) buffer.
-    if (current_element_buffer == 0) {
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer1_id);
-        current_element_buffer = 1;
-    }
-    else {
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer0_id);
-        current_element_buffer = 0;
-    }
-#else
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer_id);
-#endif
+    current_element_buffer = (current_element_buffer + 1) % NU_ELEMENT_BUFFERS;
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer_id[current_element_buffer]);
 
     // Upload the element data.
+    int buffer_usage;
+    if (cache_used != 0)
+        buffer_usage = GL_STATIC_DRAW;
+    else
+        buffer_usage = GL_DYNAMIC_DRAW;
     if (m->GL_indexsize == 2)
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, nu_shadow_volume_vertices * sizeof(short int),
-            shadow_volume_vertex, GL_DYNAMIC_DRAW);
+            shadow_volume_vertex, buffer_usage);
     else
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, nu_shadow_volume_vertices * sizeof(int),
-            shadow_volume_vertex, GL_DYNAMIC_DRAW);
+            shadow_volume_vertex, buffer_usage);
 
     // Draw the element array.
 #ifndef NO_PRIMITIVE_RESTART
@@ -1325,6 +1322,215 @@ const Vector4D& lightpos_model, int type) {
     return true;
 }
 
+// Create a shadow volume GPU object after the silhouette has just been calculated, and
+// render it. The GPU object is preserved in the cache if appropriate.
+
+static void RenderCalculatedShadowVolume(sreObject *so, sreLight *light,
+const Vector4D& lightpos_model, sreLODModelShadowVolume *m, int type, int cache_used) {
+        // Generate a new buffer if required.
+        if (element_buffer_id[current_element_buffer] == 0xFFFFFFFF)
+            glGenBuffers(1, &element_buffer_id[current_element_buffer]);
+
+        // The number of edges in the silhouette limits the worst-case total amount of vertices
+        // in the shadow volume.
+        //
+        // With depth-pass rendering (sides only), the maximum number of vertices is equal
+        // to the number of silhouette edges * 6 for point and spot lights (two triangles
+        // required for each edge), while for directional and beam lights it is
+        // equal to the number of silhouette edges * 3 (one triangle required for each edge).
+        //
+        // With depth-fail rendering, front cap, sides and dark cap may need to be included.
+        // For point or spot lights, the maximum number of vertices in the shadow volume is
+        // the number of silhouette edges * 6 (sides) + the number of model triangles * 3
+        // (the light cap and dark cap combined total not more than the total number of
+        // triangles in the object).
+        //
+        // For directional lights and beam lights, the maximum number of vertices is also
+        // number of silhouette edges * 3 (sides) + the number of model triangles * 3
+        // (only a light cap is required, but it can potentially have as many triangles
+        // as the whole object if the triangle detail of the object is concentrated on
+        // the light-facing side).
+        int max_vertices;
+        if (type & TYPE_DEPTH_PASS) {
+            if (light->type & (SRE_LIGHT_SPOT | SRE_LIGHT_POINT_SOURCE))
+                max_vertices = silhouette_edges->nu_edges * 6;
+            else
+                max_vertices = silhouette_edges->nu_edges * 3;
+        }
+        else {
+            if (!(type & TYPE_SKIP_SIDES)) {
+                if (light->type & (SRE_LIGHT_SPOT | SRE_LIGHT_POINT_SOURCE))
+                    max_vertices = silhouette_edges->nu_edges * 6;
+                else
+                    max_vertices = silhouette_edges->nu_edges * 3;
+            }
+            // Add the vertices for the front and/or dark cap. If any of these
+            // is present, the maximum amount of combined vertices is never
+            // greater than the total number of triangles in the model * 3.
+            if ((type & (TYPE_SKIP_DARKCAP | TYPE_SKIP_LIGHTCAP)) !=
+            (TYPE_SKIP_DARKCAP | TYPE_SKIP_LIGHTCAP))
+                max_vertices += m->nu_triangles * 3;
+        }
+        // Dynamically enlarge the shadow volume vertex buffer when needed.
+        if (max_vertices > max_shadow_volume_vertices) {
+            delete [] (int *)shadow_volume_vertex;
+            // Add a little extra capacity to avoid constant reallocation in the unlikely
+            // theoretical case of a small number of triangles being added to the largest
+            // model continuously.
+            shadow_volume_vertex = new int[max_vertices + 1024];
+            max_shadow_volume_vertices = max_vertices + 1024;
+        }
+
+        int array_buffer_flags;
+        if (m->GL_indexsize == 2)
+            array_buffer_flags = SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX;
+        else
+            array_buffer_flags = 0;
+        GL3InitializeShadowVolumeShader(*so, lightpos_model);
+        nu_shadow_volume_vertices = 0;
+        if (type & TYPE_DEPTH_PASS) {
+            // Depth-pass rendering.
+            glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
+            glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
+            if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES)
+            && cache_used != 0 && (light->type & (SRE_LIGHT_DIRECTIONAL | SRE_LIGHT_BEAM))
+            && !(m->flags & (SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_CONTAINS_HOLES))) {
+                // For closed models without holes with a directional light or beam light, we
+                // can create a triangle fan representing the shadow volume.
+                // Because constructing a triangle fan is more processor/memory intensive than
+                // a regular shadow volume, only try when the shadow volume will be cached
+                // subsequently.
+                array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN;
+                bool r = AddSidesTriangleFan(silhouette_edges, *light, array_buffer_flags);
+                if (r) {
+                    array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN;
+#if 0
+                    printf("Triangle fan shadow volume constructed (%d vertices).\n", nu_shadow_volume_vertices);
+#endif
+                }
+                else {
+                    // Triangle fan construction not succesful; use a regular shadow volume
+                    // consisting of triangles.
+#ifdef DEBUG_RENDER_LOG
+                    if (sre_internal_debug_message_level >= 1)
+                        printf("Triangle fan shadow volume construction failed for model %d.\n", m->id);
+#endif
+                    AddSides(silhouette_edges, *light, array_buffer_flags);
+                }
+            }
+            else
+#ifndef NO_PRIMITIVE_RESTART
+            if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_STRIPS_FOR_SHADOW_VOLUMES)
+            && (light->type & (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_SPOT))) {
+                // When we just need the sides for a point or spot light, we can use triangle strips with
+                // primitive restart for all of the shadow volume, resulting in a small saving of GPU space.
+                array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_STRIP;
+                AddSidesTriangleStrip(silhouette_edges, *light, array_buffer_flags);
+            }
+            else
+#endif
+                AddSides(silhouette_edges, *light, array_buffer_flags);
+            if (nu_shadow_volume_vertices > 0) {
+                DrawShadowVolumeGL(m, array_buffer_flags, cache_used);
+            }
+        }
+        else {
+            // Depth-fail rendering.
+            glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
+            glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
+            if ((type & (TYPE_SKIP_SIDES | TYPE_SKIP_DARKCAP | TYPE_SKIP_LIGHTCAP)) ==
+            (TYPE_SKIP_DARKCAP | TYPE_SKIP_LIGHTCAP)) {
+                // Just sides required.
+                if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES)
+                && cache_used != 0 && (light->type & (SRE_LIGHT_DIRECTIONAL | SRE_LIGHT_BEAM))
+                && !(m->flags & (SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_CONTAINS_HOLES))) {
+                    // For closed models with a directional light or beam light, we can create a
+                    // triangle fan representing the shadow volume (sides only).
+                    bool r = AddSidesTriangleFan(silhouette_edges, *light, array_buffer_flags);
+                    if (r)
+                        array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN;
+                    else {
+                        // Triangle fan construction not succesful; use a regular shadow volume
+                        // consisting of triangles.
+#ifdef DEBUG_RENDER_LOG
+                        if (sre_internal_debug_message_level >= 1)
+                            printf("Triangle fan shadow volume construction failed for model %d.\n", m->id);
+#endif
+                        AddSides(silhouette_edges, *light, array_buffer_flags);
+                    }
+                }
+                else
+#ifndef NO_PRIMITIVE_RESTART
+                if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_STRIPS_FOR_SHADOW_VOLUMES)
+                && (light->type & (SRE_LIGHT_SPOT | SRE_LIGHT_POINT_SOURCE))) {
+                    // When we just need the sides for a point or spot light, we can use triangle strips with
+                    // primitive restart for all of the shadow volume.
+                    array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_STRIP;
+                    AddSidesTriangleStrip(silhouette_edges, *light, array_buffer_flags);
+                }
+                else
+#endif
+                    AddSides(silhouette_edges, *light, array_buffer_flags);
+                DrawShadowVolumeGL(m, array_buffer_flags, cache_used);
+            }
+            else {
+                 // At least a lightcap or darkcap is needed.
+                if (!(type & TYPE_SKIP_SIDES)) {
+                    AddSides(silhouette_edges, *light, array_buffer_flags);
+ 		}
+                if (!(type & TYPE_SKIP_DARKCAP)) {
+                    AddDarkCap(silhouette_edges, array_buffer_flags);
+		}
+                if (!(type & TYPE_SKIP_LIGHTCAP)) {
+                    AddLightCap(silhouette_edges, array_buffer_flags);
+                    DrawShadowVolumeGL(m, array_buffer_flags, cache_used);
+		}
+            }
+        }
+
+        // Add to the cache when applicable.
+        // Note: In the unlikely case that the number of shadow volumes vertices is zero,
+        // (which probably shouldn't happen), still add to the cache to minimize overhead.
+        if (cache_used == 1) {
+            if (object_cache.Add(so->id, m, lightpos_model,
+            element_buffer_id[current_element_buffer],
+            nu_shadow_volume_vertices, type, array_buffer_flags))
+                // If added to the object cache, mark the current buffer as invalid.
+                element_buffer_id[current_element_buffer] = 0xFFFFFFFF;
+        }
+        else if (cache_used == 2) {
+            if (model_cache.Add(m, lightpos_model, element_buffer_id[current_element_buffer],
+            nu_shadow_volume_vertices, type, array_buffer_flags))
+                // If added to the model cache, mark the current buffer as invalid.
+                element_buffer_id[current_element_buffer] = 0xFFFFFFFF;
+        }
+}
+
+class sreShadowVolumeQueueEntry {
+public :
+	sreObject *so;
+	sreLight *light;
+	Vector4D lightpos_model;
+	sreLODModelShadowVolume *m;
+	int type;
+	int cache_used;
+	sreScissors scissors;
+
+	sreShadowVolumeQueueEntry(sreObject *_so, sreLight *_light, const Vector4D& _lightpos_model,
+	sreLODModelShadowVolume *_m, int _type, int _cache_used, const sreScissors* _scissors) {
+		so = _so;
+		light = _light;
+		lightpos_model = _lightpos_model;
+		m = _m;
+		type = _type;
+		cache_used = _cache_used;
+		scissors = *_scissors;
+	}
+};
+
+// Queue for calculated shadow volumes for which rendering has been deferred.
+typedef dstDynamicArray <sreShadowVolumeQueueEntry, uint32_t> sreShadowVolumeQueue;
+sreShadowVolumeQueue shadow_volume_queue;
 
 // Draw an object's shadow volume for the given light. The object has already been
 // determined to be a shadow caster in terms of being in the light volume and in
@@ -1338,7 +1544,7 @@ const Vector4D& lightpos_model, int type) {
 //
 // Any GPU scissors settings have been applied.
 
-static void DrawShadowVolume(sreObject *so, sreLight *light, sreFrustum &frustum, sreShadowVolume *sv_in) {
+static void DrawShadowVolume(sreObject *so, sreLight *light, sreFrustum &frustum, sreShadowVolume *sv_in, const sreScissors *scissors) {
         // Determine whether depth-pass or depth-fail rendering must be used.
         // If the shadow volume visibility test is enabled, also test whether the geometrical
         // shadow volume intersects with the view frustum.
@@ -1481,185 +1687,24 @@ skip_cache :
         // Have to calculate a new shadow volume vertex buffer and upload
         // it to the GPU.
         sre_internal_silhouette_count++;
-        // Generate a new buffer if required.
-        if (element_buffer_id == 0xFFFFFFFF)
-            glGenBuffers(1, &element_buffer_id);
 
         // Calculate silhouette edges.
         silhouette_edges->m = m;
         silhouette_edges->full_model = so->model;
+
+#ifndef THREADED_SILHOUETTE_CALCULATION
+
         CalculateSilhouetteEdges(lightpos_model, silhouette_edges);
+	RenderCalculatedShadowVolume(so, light, lightpos_model, m, type, cache_used);
 
-        // The number of edges in the silhouette limits the worst-case total amount of vertices
-        // in the shadow volume.
-        //
-        // With depth-pass rendering (sides only), the maximum number of vertices is equal
-        // to the number of silhouette edges * 6 for point and spot lights (two triangles
-        // required for each edge), while for directional and beam lights it is
-        // equal to the number of silhouette edges * 3 (one triangle required for each edge).
-        //
-        // With depth-fail rendering, front cap, sides and dark cap may need to be included.
-        // For point or spot lights, the maximum number of vertices in the shadow volume is
-        // the number of silhouette edges * 6 (sides) + the number of model triangles * 3
-        // (the light cap and dark cap combined total not more than the total number of
-        // triangles in the object).
-        //
-        // For directional lights and beam lights, the maximum number of vertices is also
-        // number of silhouette edges * 3 (sides) + the number of model triangles * 3
-        // (only a light cap is required, but it can potentially have as many triangles
-        // as the whole object if the triangle detail of the object is concentrated on
-        // the light-facing side).
-        int max_vertices;
-        if (type & TYPE_DEPTH_PASS) {
-            if (light->type & (SRE_LIGHT_SPOT | SRE_LIGHT_POINT_SOURCE))
-                max_vertices = silhouette_edges->nu_edges * 6;
-            else
-                max_vertices = silhouette_edges->nu_edges * 3;
-        }
-        else {
-            if (!(type & TYPE_SKIP_SIDES)) {
-                if (light->type & (SRE_LIGHT_SPOT | SRE_LIGHT_POINT_SOURCE))
-                    max_vertices = silhouette_edges->nu_edges * 6;
-                else
-                    max_vertices = silhouette_edges->nu_edges * 3;
-            }
-            // Add the vertices for the front and/or dark cap. If any of these
-            // is present, the maximum amount of combined vertices is never
-            // greater than the total number of triangles in the model * 3.
-            if ((type & (TYPE_SKIP_DARKCAP | TYPE_SKIP_LIGHTCAP)) !=
-            (TYPE_SKIP_DARKCAP | TYPE_SKIP_LIGHTCAP))
-                max_vertices += m->nu_triangles * 3;
-        }
-        // Dynamically enlarge the shadow volume vertex buffer when needed.
-        if (max_vertices > max_shadow_volume_vertices) {
-            delete [] (int *)shadow_volume_vertex;
-            // Add a little extra capacity to avoid constant reallocation in the unlikely
-            // theoretical case of a small number of triangles being added to the largest
-            // model continuously.
-            shadow_volume_vertex = new int[max_vertices + 1024];
-            max_shadow_volume_vertices = max_vertices + 1024;
-        }
+#else
 
-        int array_buffer_flags;
-        if (m->GL_indexsize == 2)
-            array_buffer_flags = SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX;
-        else
-            array_buffer_flags = 0;
-        GL3InitializeShadowVolumeShader(*so, lightpos_model);
-        nu_shadow_volume_vertices = 0;
-        if (type & TYPE_DEPTH_PASS) {
-            // Depth-pass rendering.
-            if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES)
-            && cache_used != 0 && (light->type & (SRE_LIGHT_DIRECTIONAL | SRE_LIGHT_BEAM))
-            && !(m->flags & (SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_CONTAINS_HOLES))) {
-                // For closed models without holes with a directional light or beam light, we
-                // can create a triangle fan representing the shadow volume.
-                // Because constructing a triangle fan is more processor/memory intensive than
-                // a regular shadow volume, only try when the shadow volume will be cached
-                // subsequently.
-                array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN;
-                bool r = AddSidesTriangleFan(silhouette_edges, *light, array_buffer_flags);
-                if (r) {
-                    array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN;
-#if 0
-                    printf("Triangle fan shadow volume constructed (%d vertices).\n", nu_shadow_volume_vertices);
-#endif
-                }
-                else {
-                    // Triangle fan construction not succesful; use a regular shadow volume
-                    // consisting of triangles.
-#ifdef DEBUG_RENDER_LOG
-                    if (sre_internal_debug_message_level >= 1)
-                        printf("Triangle fan shadow volume construction failed for model %d.\n", m->id);
-#endif
-                    AddSides(silhouette_edges, *light, array_buffer_flags);
-                }
-            }
-            else
-#ifndef NO_PRIMITIVE_RESTART
-            if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_STRIPS_FOR_SHADOW_VOLUMES)
-            && (light->type & (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_SPOT))) {
-                // When we just need the sides for a point or spot light, we can use triangle strips with
-                // primitive restart for all of the shadow volume, resulting in a small saving of GPU space.
-                array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_STRIP;
-                AddSidesTriangleStrip(silhouette_edges, *light, array_buffer_flags);
-            }
-            else
-#endif
-                AddSides(silhouette_edges, *light, array_buffer_flags);
-            if (nu_shadow_volume_vertices > 0) {
-                glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
-                glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
-                DrawShadowVolumeGL(m, array_buffer_flags);
-            }
-        }
-        else {
-            // Depth-fail rendering.
-            if ((type & (TYPE_SKIP_SIDES | TYPE_SKIP_DARKCAP | TYPE_SKIP_LIGHTCAP)) ==
-            (TYPE_SKIP_DARKCAP | TYPE_SKIP_LIGHTCAP)) {
-                // Just sides required.
-                if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES)
-                && cache_used != 0 && (light->type & (SRE_LIGHT_DIRECTIONAL | SRE_LIGHT_BEAM))
-                && !(m->flags & (SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_CONTAINS_HOLES))) {
-                    // For closed models with a directional light or beam light, we can create a
-                    // triangle fan representing the shadow volume (sides only).
-                    bool r = AddSidesTriangleFan(silhouette_edges, *light, array_buffer_flags);
-                    if (r)
-                        array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN;
-                    else {
-                        // Triangle fan construction not succesful; use a regular shadow volume
-                        // consisting of triangles.
-#ifdef DEBUG_RENDER_LOG
-                        if (sre_internal_debug_message_level >= 1)
-                            printf("Triangle fan shadow volume construction failed for model %d.\n", m->id);
-#endif
-                        AddSides(silhouette_edges, *light, array_buffer_flags);
-                    }
-                }
-                else
-#ifndef NO_PRIMITIVE_RESTART
-                if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_STRIPS_FOR_SHADOW_VOLUMES)
-                && (light->type & (SRE_LIGHT_SPOT | SRE_LIGHT_POINT_SOURCE))) {
-                    // When we just need the sides for a point or spot light, we can use triangle strips with
-                    // primitive restart for all of the shadow volume.
-                    array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_STRIP;
-                    AddSidesTriangleStrip(silhouette_edges, *light, array_buffer_flags);
-                }
-                else
-#endif
-                    AddSides(silhouette_edges, *light, array_buffer_flags);
-            }
-            else {
-                 // At least a lightcap or darkcap is needed.
-                if (!(type & TYPE_SKIP_SIDES))
-                    AddSides(silhouette_edges, *light, array_buffer_flags);
-                if (!(type & TYPE_SKIP_DARKCAP))
-                    AddDarkCap(silhouette_edges, array_buffer_flags);
-                if (!(type & TYPE_SKIP_LIGHTCAP))
-                    AddLightCap(silhouette_edges, array_buffer_flags);
-            }
-            if (nu_shadow_volume_vertices > 0) {
-                glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
-                glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
-                DrawShadowVolumeGL(m, array_buffer_flags);
-            }
-        }
+	silhouette_task_group.Add
 
-        // Add to the cache when applicable.
-        // Note: In the unlikely case that the number of shadow volumes vertices is zero,
-        // (which probably shouldn't happen), still add to the cache to minimize overhead.
-        if (cache_used == 1) {
-            if (object_cache.Add(so->id, m, lightpos_model, element_buffer_id,
-            nu_shadow_volume_vertices, type, array_buffer_flags))
-                // If added to the object cache, mark the current buffer as invalid.
-                element_buffer_id = 0xFFFFFFFF;
-        }
-        else if (cache_used == 2) {
-            if (model_cache.Add(m, lightpos_model, element_buffer_id, nu_shadow_volume_vertices, type,
-            array_buffer_flags))
-                // If added to the model cache, mark the current buffer as invalid.
-                element_buffer_id = 0xFFFFFFFF;
-        }
+	sreShadowVolumeQueueEntry entry(so, lightpos_model, m, type, cache_used, scissors);
+	shadow_volume_queue.Add(entry);
+
+#endif
 }
 
 static void SetGLScissors(const sreScissors& scissors) {
@@ -1680,6 +1725,44 @@ static void SetGLScissors(const sreScissors& scissors) {
 //    printf("glScissor(%d, %d, %d, %d)\n", left, bottom, right - left, top - bottom);
     glScissor(left, bottom, right - left, top - bottom);
 }
+
+#ifdef THREADED_SILHOUETTE_CALCULATION
+
+static void RenderQueuedShadowVolumesGeometryScissors() {
+	int n = shadow_volume_queue.Size();
+	sreShadowVolumeQueueEntry *data = shadow_volume_queue.DataPointer();
+	for (int i = 0; i < n; i++) {
+            // Update scissors and depth bounds.
+            SetGLScissors(data[i].scissors);
+#ifndef NO_DEPTH_BOUNDS
+            if (GLEW_EXT_depth_bounds_test)
+                glDepthBoundsEXT(scissors->near, scissors->far);
+#endif
+            RenderCalculatedShadowVolume(
+		data[i].so,
+		data[i].light,
+		data[i].lightpos_model,
+		data[i].m,
+		data[i].type,
+		data[i].cache_used);
+	}
+}
+
+static void RenderQueuedShadowVolumes() {
+	int n = shadow_volume_queue.Size();
+	sreShadowVolumeQueueEntry *data = shadow_volume_queue.DataPointer();
+	for (int i = 0; i < n; i++) {
+            RenderCalculatedShadowVolume(
+		data[i].so,
+		data[i].light,
+		data[i].lightpos_model,
+		data[i].m,
+		data[i].type,
+		data[i].cache_used);
+	}
+}
+
+#endif
 
 static int octree_count, octree_count2, octree_count3;
 static bool custom_scissors_set;
@@ -1755,11 +1838,11 @@ static void RenderShadowVolumeGeometryScissors(sreObject *so, sreLight *light, s
                 custom_depth_bounds_set = depth_bounds_adjusted;
             }
 #endif
-            DrawShadowVolume(so, light, frustum, sv);
+            DrawShadowVolume(so, light, frustum, sv, scissors);
 }
 
 static void RenderShadowVolume(sreObject *so, sreLight *light, sreFrustum& frustum) {
-    DrawShadowVolume(so, light, frustum, NULL);
+    DrawShadowVolume(so, light, frustum, NULL, NULL);
 }
 
 // Flags indicating whether an octree is completely inside the light volume
@@ -1887,20 +1970,6 @@ sreScene *scene, sreLight *light, sreFrustum &frustum, int intersection_flags) {
 
 #endif
 
-// This function is duplicated in shadowmap.cpp.
-
-static void CheckShadowCasterCapacity(sreScene *scene) {
-    if (scene->nu_shadow_caster_objects == scene->max_shadow_caster_objects) {
-        // Dynamically increase the shadow caster object array when needed.
-        int *new_shadow_caster_object = new int[scene->max_shadow_caster_objects * 2];
-        memcpy(new_shadow_caster_object, scene->shadow_caster_object,
-            sizeof(int) * scene->max_shadow_caster_objects);
-        delete [] scene->shadow_caster_object;
-        scene->shadow_caster_object = new_shadow_caster_object;
-        scene->max_shadow_caster_objects *= 2;
-    }
-}
-
 // Determine shadow casters for just the root node of an octree, used for dynamic object octrees
 // which contain only the root node. We perform a light volume intersection test and
 // shadow caster volume intersection test for every potential shadow casting object. Any
@@ -1947,9 +2016,7 @@ sreScene *scene, sreLight *light, sreFrustum &frustum, int intersection_flags) {
             continue;
         }
 
-        CheckShadowCasterCapacity(scene);
-        scene->shadow_caster_object[scene->nu_shadow_caster_objects] = index;
-        scene->nu_shadow_caster_objects++;
+        scene->shadow_caster_array.Add(index);
     }
 }
 
@@ -2032,9 +2099,7 @@ sreScene *scene, sreLight *light, sreFrustum &frustum, int intersection_flags) {
                 continue;
             }
         // Add the object.
-        CheckShadowCasterCapacity(scene);
-        scene->shadow_caster_object[scene->nu_shadow_caster_objects] = index;
-        scene->nu_shadow_caster_objects++;
+        scene->shadow_caster_array.Add(index);
     }
     // Traverse every non-empty subnode.
     array_index += nu_entities;
@@ -2066,9 +2131,7 @@ sreScene *scene, sreLight *light, sreFrustum &frustum) {
         // Check whether the object can cast shadows into the frustum.
         if (!Intersects(*so, frustum.shadow_caster_volume))
             continue;
-        CheckShadowCasterCapacity(scene);
-        scene->shadow_caster_object[scene->nu_shadow_caster_objects] = j;
-        scene->nu_shadow_caster_objects++;
+        scene->shadow_caster_array.Add(j);
     }
 }
 
@@ -2084,16 +2147,27 @@ sreLight *light, sreFrustum &frustum) {
         use_geometry_scissors = true;
     else
         use_geometry_scissors = false;
-    if (use_geometry_scissors)
-       for (int i = 0; i < scene->nu_shadow_caster_objects; i++) {
-            sreObject *so = scene->object[scene->shadow_caster_object[i]];
+#ifdef THREADED_SILHOUETTE_CALCULATION
+    shadow_volume_queue.Truncate(0);
+#endif
+    if (use_geometry_scissors) {
+       for (int i = 0; i < scene->shadow_caster_array.Size(); i++) {
+            sreObject *so = scene->object[scene->shadow_caster_array.Get(i)];
             RenderShadowVolumeGeometryScissors(so, light, frustum);
        }
-    else
-       for (int i = 0; i < scene->nu_shadow_caster_objects; i++) {
-            sreObject *so = scene->object[scene->shadow_caster_object[i]];
+#ifdef THREADED_SILHOUETTE_CALCULATION
+       RenderQueuedShadowVolumesGeometryScissors();
+#endif
+    }
+    else {
+       for (int i = 0; i < scene->shadow_caster_array.Size(); i++) {
+            sreObject *so = scene->object[scene->shadow_caster_array.Get(i)];
             RenderShadowVolume(so, light, frustum);
        }
+#ifdef THREADED_SILHOUETTE_CALCULATION
+       RenderQueuedShadowVolumes();
+#endif
+    }
 }
 
 // Render all shadow volumes for a light.
@@ -2103,7 +2177,7 @@ void sreRenderShadowVolumes(sreScene *scene, sreLight *light, sreFrustum &frustu
     frustum.CalculateShadowCasterVolume(scene->light[sre_internal_current_light_index]->vector, 5);
 
     // Compile a list of all shadow casters, and store them in the scene's shadow caster array.
-    scene->nu_shadow_caster_objects = 0;
+    scene->shadow_caster_array.Truncate(0);
     if (sre_internal_light_object_lists_enabled &&
     (light->type & SRE_LIGHT_STATIC_SHADOW_CASTER_LIST)) {
         // When static object lists for lights are enabled, there will be list precalculated
@@ -2134,17 +2208,16 @@ void sreRenderShadowVolumes(sreScene *scene, sreLight *light, sreFrustum &frustu
     // Predetermining shadow casting objects has the advantage that we can exit
     // early when they are none such objects, avoid overhead like stencil buffer
     // clearing, and we can disable the stencil test entirely for the light.
-    if (scene->nu_shadow_caster_objects == 0) {
+    if (scene->shadow_caster_array.Size() == 0) {
         glDisable(GL_STENCIL_TEST);
         return;
     }
 
     // One-pass two-sided stencil rendering.
-#ifdef PING_PONG_BUFFERS
-    glGenBuffers(1, &element_buffer0_id);
-    glGenBuffers(1, &element_buffer1_id);
+    for (int i = 0; i < NU_ELEMENT_BUFFERS; i++)
+        glGenBuffers(1, &element_buffer_id[i]);
     current_element_buffer = 0;
-#endif
+
     last_vertexbuffer_id = 0xFFFFFFFF;
     // Create global silhouette edges data structure.
     if (silhouette_edges == NULL) {
@@ -2229,10 +2302,9 @@ void sreRenderShadowVolumes(sreScene *scene, sreLight *light, sreFrustum &frustu
 //    delete [] shadow_volume_vertex;
 //    delete silhouette_edges;
     glDisableVertexAttribArray(0);
-#ifdef PING_PONG_BUFFERS
-    glDeleteBuffers(1, &element_buffer0_id);
-    glDeleteBuffers(1, &element_buffer1_id);
-#endif
+    for (int i = 0; i < NU_ELEMENT_BUFFERS; i++)
+        if (element_buffer_id[0] != 0xFFFFFFFF)
+            glDeleteBuffers(1, &element_buffer_id[i]);
 }
 
 void sreReportShadowCacheStats() {

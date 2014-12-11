@@ -185,7 +185,7 @@ typedef __m128i __simd128_int;
 typedef __m128d __simd128_double;
 
 #define SHUFFLE(w0, w1, w2, w3) \
-    (w0 | (w1 << 2) | (w2 << 4) | (w3 << 6))
+    (uint8_t)(w0 | (w1 << 2) | (w2 << 4) | (w3 << 6))
 
 static inline_only __simd128_int simd128_cast_float_int(__simd128_float s) {
     return _mm_castps_si128(s);

@@ -37,7 +37,13 @@ LIBRARY_LINK_DEFINES =
 endif
 
 # CFLAGS with optional tuning for CPU
+ifeq ($(LIBRARY_CONFIGURATION), DEBUG)
+# Using some optimization helps propagating constants which can otherwise
+# break debugging version compilation.
+OPTCFLAGS = -ggdb -O
+else
 OPTCFLAGS = -Ofast -ffast-math
+endif
 ifeq ($(TARGET_CPU), CORTEX_A7)
 OPTCFLAGS += -mcpu=cortex-a7 -mfpu=vfpv4
 endif
@@ -63,9 +69,6 @@ ifeq ($(TARGET_SIMD), NONE)
 OPTCFLAGS +=-DNO_SIMD
 endif
 
-ifeq ($(LIBRARY_CONFIGURATION), DEBUG)
-OPTCFLAGS = -ggdb
-endif
 CFLAGS = -Wall -pipe $(OPTCFLAGS)
 
 # Select GLFW platform
