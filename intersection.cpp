@@ -28,7 +28,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre_internal.h"
 #include "sre_bounds.h"
 #include "win32_compat.h"
-#include "sre_simd.h"
+
+#include <dstVectorMathSIMD.h>
 
 // Intersection tests against a hull (a collection of vertex positions).
 

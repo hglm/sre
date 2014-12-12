@@ -442,7 +442,26 @@ Bugs as of July 2014:
   specular lighting can be used. This is especially likely to be beneficial
   for OpenGL ES 2.0-based devices in conjunction with the use of the
   single-pass shaders.
- 
+
+Use of multi-threading for silhouette edges calculation
+
+Calculation of silhouette edges, which is CPU-intensive, would obviously
+benefit from multi-threading. One strategy would be start a thread for
+each silhouette that has to be calculated and then queue the drawing of
+the shadow volume until after the silhouette calculation is finished.
+
+Memory usage may be a problem though; if each silhouette has its own
+(heap) main memory storage, memory use can add up when several silhouettes
+are calculated and negatively affect performance when it doesn't fit inside
+the CPU cache.
+
+Dynamic shader generation
+
+Dynamic shader generation should be possible; most of the groundwork has
+already been laid. Some kind of hash table should probably be used to
+efficiently find an appropriate shader for a set of shader parameters.
+However, selected shaders are already cached so the cost of the shader
+check may not be highly relevant.
 
 --- LICENSE --
 

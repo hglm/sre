@@ -761,10 +761,10 @@ void sreScene::CalculateWholeSceneActiveLights(sreView *view, int max_lights) {
 void sreScene::CalculateVisibleActiveLights(sreView *view, int max_lights) {
     // If we can support all lights as active lights, just copy them.
     // (currently only one light is supported for single-pass rendering).
-    if (nu_visible_lights <= max_lights) {
-        for (int i = 0; i < nu_visible_lights; i++)
-            active_light[i] = visible_light[i];
-        nu_active_lights = nu_visible_lights;
+    if (visible_light_array.Size() <= max_lights) {
+        for (int i = 0; i < visible_light_array.Size(); i++)
+            active_light[i] = visible_light_array.Get(i);
+        nu_active_lights = visible_light_array.Size();
         return;
     }
     // There are more than max_lights lights.
@@ -774,21 +774,21 @@ void sreScene::CalculateVisibleActiveLights(sreView *view, int max_lights) {
         // When we need only the most prominent light, don't sort the whole
         // set.
         int light_element[2];
-        light_element[0] = visible_light[0];
-        for (int i = 1; i < nu_visible_lights; i++) {
-            light_element[1] = visible_light[i];
+        light_element[0] = visible_light_array.Get(0);
+        for (int i = 1; i < visible_light_array.Size(); i++) {
+            light_element[1] = visible_light_array.Get(i);
             if (CompareLights(&light_element[0], &light_element[1]) > 0)
-                light_element[0] = visible_light[i];
+                light_element[0] = visible_light_array.Get(i);
         }
         active_light[0] = light_element[0];
 //        printf("Active light: %d\n", active_light[0]);
     }
     else {
         // Perform a full sort.
-        int *light_element = (int *)alloca(sizeof(int) * nu_visible_lights);
-        for (int i = 0; i < nu_visible_lights; i++)
-            light_element[i] = visible_light[i];
-        qsort(light_element, nu_visible_lights, sizeof(int), CompareLights);
+        int *light_element = (int *)alloca(sizeof(int) * visible_light_array.Size());
+        for (int i = 0; i < visible_light_array.Size(); i++)
+            light_element[i] = visible_light_array.Get(i);
+        qsort(light_element, visible_light_array.Size(), sizeof(int), CompareLights);
         for (int i = 0; i < max_lights; i++)
             active_light[i] = light_element[i];
 //        printf("First active light: %d\n", active_light[0]);

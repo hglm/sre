@@ -34,7 +34,7 @@ static int lightsource_object_index[2];
 #define HALO_LIGHT
 
 void Demo5CreateScene(sreScene *scene, sreView *view) {
-    rng = sreGetDefaultRNG();
+    rng = dstGetDefaultRNG();
 
     // Set diffuse fraction to 0.6 and two roughness values of 0.1 and 0.25 with weight 0.4 and 0.6,
     // isotropic.

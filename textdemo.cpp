@@ -429,7 +429,7 @@ void TextDemoCreateScene(sreScene *scene, sreView *view) {
 
     // Frame-indepedent test initialization
 
-    rng = sreGetDefaultRNG();
+    rng = dstGetDefaultRNG();
 
     // Test 0.
     // GRID_WIDTH x GRID_HEIGHT character grid, with space for newlines and terminator.
