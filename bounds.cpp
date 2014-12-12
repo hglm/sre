@@ -27,7 +27,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre.h"
 #include "sre_internal.h"
 #include "sre_bounds.h"
-#include "sre_simd.h"
 
 //============================================================================
 //

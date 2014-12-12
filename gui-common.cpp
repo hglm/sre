@@ -100,7 +100,7 @@ static char *strend(char *s) {
 static void SetSceneInfo(sreScene *scene, sreEngineSettingsInfo *settings_info) {
     sprintf(scene_info_text_line[13],
         "Number of objects: %d (capacity %d), models: %d (capacity %d)",
-        scene->nu_objects, scene->max_objects, scene->models.Size(), scene->models.AllocatedSize());
+        scene->nu_objects, scene->max_objects, scene->models.Size(), scene->models.Capacity());
     sprintf(scene_info_text_line[14],
         "Visible number of objects:  %d (capacity %d), final pass: %d (%d)",
         scene->nu_visible_objects, scene->max_visible_objects,
@@ -114,7 +114,7 @@ static void SetSceneInfo(sreScene *scene, sreEngineSettingsInfo *settings_info) 
         sprintf(active_lights_str, "%d", settings_info->max_visible_active_lights);
     sprintf(scene_info_text_line[16],
         "Visible lights (frustum): %d (capacity %d), max visible: %s",
-        scene->nu_visible_lights, scene->max_visible_lights, active_lights_str);
+        scene->visible_light_array.Size(), scene->visible_light_array.Capacity(), active_lights_str);
     if (settings_info->shadows_method == SRE_SHADOWS_SHADOW_VOLUMES) {
         sreShadowRenderingInfo *info = sreGetShadowRenderingInfo();
         sprintf(scene_info_text_line[17], "Shadow volumes rendered: %d, silhouettes calculated: %d",

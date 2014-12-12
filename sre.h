@@ -59,12 +59,14 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define SRE_GLUINT unsigned int
 #define SRE_GLINT int
 
-// dstRandom.h and dstDynamicArray.h are provided by the external DataSetTurbo library.
+// dstRandom.h, dstDynamicArray.h and dstMatrixMath.h are provided by the external
+// DataSetTurbo library.
 #include <dstRandom.h>
 #include <dstDynamicArray.h>
+#include <dstMatrixMath.h>
+#include <dstColor.h>
 
-#include "sreVectorMath.h"
-// Note: sreVectorMath.h also provides alignment macro SRE_ALIGNED(n)
+// Note: sreMatrixMath.h also provides alignment macro DST_ALIGNED(n)
 #include "sreBoundingVolume.h"
 
 #define SRE_MAX_ACTIVE_LIGHTS_UNLIMITED 2147483647
@@ -1337,13 +1339,11 @@ public:
     // Array of shadow caster objects, updated for each light within each frame.
     dstIntArray shadow_caster_array;
     // Array of visible lights, updated each frame.
-    int *visible_light;
+    dstIntArray visible_light_array;
     int nu_visible_objects;
     int nu_final_pass_objects;
-    int nu_visible_lights;
     int max_visible_objects;
     int max_final_pass_objects;
-    int max_visible_lights;
     // Lights
     Color ambient_color;
     int nu_lights;
@@ -1886,7 +1886,7 @@ SRE_API sreModel *sreReadModelFromSREBinaryModelFile(sreScene *scene, const char
 // corresponds to load_flags and can be used to omit certain attributes.
 SRE_API void sreSaveLODModelToSREBinaryLODModelFile(sreLODModel *lm, const char *pathname,
     int save_flags);
-void sreSaveModelToSREBinaryModelFile(sreModel *m, const char *pathname,
+SRE_API void sreSaveModelToSREBinaryModelFile(sreModel *m, const char *pathname,
     int save_flags);
 
 SRE_API sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d,
@@ -1985,8 +1985,5 @@ enum {
 SRE_API void sreMessage(int priority, const char *format, ...);
 SRE_API void sreMessageNoNewline(int priority, const char *format, ...);
 
-// Default random number generator.
-SRE_API dstRNG *sreGetDefaultRNG();
-SRE_API void sreSetDefaultRNG(dstRNG* rng);
-
 #endif
+

@@ -5,6 +5,9 @@ include Makefile.conf
 VERSION = 0.3
 VERSION_MAJOR = 0
 
+CCPLUSPLUS = g++
+LINKER_SELECTION_FLAGS = -fuse-ld=gold
+
 DEMO_PROGRAM = sre-demo
 ALL_DEMO_PROGRAMS = $(DEMO_PROGRAM) game
 
@@ -108,8 +111,10 @@ FRAMEBUFFER_COMMON_MODULE_OBJECTS = CriticalSection.o MouseEventQueue.o linux-fb
 # Variable for things like extra device-specific include directories etc.
 EXTRA_CFLAGS_LIB =
 EXTRA_CFLAGS_BACKEND =
-LFLAGS_LIBRARY = -lpng -ldatasetturbo
-PKG_CONFIG_REQUIREMENTS =
+LFLAGS_LIBRARY = -lpng
+PKG_CONFIG_REQUIREMENTS = datasetturbo
+PKG_CONFIG_CFLAGS_LIB = `pkg-config --cflags datasetturbo`
+PKG_CONFIG_LIBS_LIB =
 
 ifdef OPENGL_ES2
 # OPENGL ES2 platform configuration.
@@ -139,8 +144,6 @@ DEFINES_LIB = -DOPENGL_ES2 $(DEFINES_OPENGL_ES2) $(DEFINES_GLES2_FEATURES) \
 -DNO_PRIMITIVE_RESTART # -NO_SHADOW_MAP
 DEFINES_DEMO = $(DEFINES_OPENGL_ES2) -DOPENGL_ES2
 LFLAGS_DEMO =
-PKG_CONFIG_CFLAGS_LIB =
-PKG_CONFIG_LIBS_LIB =
 
 # Need console mouse support when not using X11
 ifneq ($(OPENGL_ES2), X11)
@@ -163,7 +166,7 @@ LFLAGS_DEMO += -lGLESv2 -lEGL
 
 else # !defined(OPENGL_ES2)
 
-EXTRA_PKG_CONFIG_DEMO = gl glew
+EXTRA_PKG_CONFIG_DEMO = gl glew datasetturbo
 EXTRA_PKG_CONFIG_LIB = gl glew
 PKG_CONFIG_REQUIREMENTS += gl glew
 DEFINES_LIB = -DOPENGL #-DNO_SHADOW_MAP -DNO_HDR -DNO_SRGB -DNO_DEPTH_CLAMP -DNO_MULTI_SAMPLE
@@ -319,17 +322,18 @@ endif
 endif
 CFLAGS_LIB += $(EXTRA_CFLAGS_LIB) $(CFLAGS) $(DEFINES_LIB) -I.
 CFLAGS_DEMO = $(EXTRA_CFLAGS_BACKEND) $(CFLAGS) $(DEFINES_DEMO) $(DEFINES_BACKEND) -I.
-ALL_LFLAGS_DEMO=$(LIBRARY_LFLAGS_DEMO) $(LFLAGS_DEMO) $(PKG_CONFIG_LIBS_DEMO)
 
 # Set pkg-config definitions.
 PKG_CONFIG_CFLAGS_DEMO = `pkg-config --cflags bullet $(EXTRA_PKG_CONFIG_DEMO)`
-PKG_CONFIG_LIBS_DEMO = `pkg-config --libs bullet $(EXTRA_PKG_CONFIG_DEMO)`
+PKG_CONFIG_LIBS_DEMO = `pkg-config --libs datasetturbo bullet $(EXTRA_PKG_CONFIG_DEMO)`
+
+ALL_LFLAGS_DEMO=$(LIBRARY_LFLAGS_DEMO) $(LFLAGS_DEMO) $(PKG_CONFIG_LIBS_DEMO)
 
 CORE_LIBRARY_MODULE_OBJECTS = sre.o draw.o geometry.o read_model_file.o binary_model_file.o \
-texture.o shadow.o shadow_bounds.o MatrixClasses.o intersection.o preprocess.o mipmap.o \
+texture.o shadow.o shadow_bounds.o intersection.o preprocess.o mipmap.o \
 frustum.o bounds.o octree.o fluid.o standard_objects.o text.o scene.o lights.o shadowmap.o \
 bounding_volume.o shader_matrix.o shader_loading.o vertex_buffer.o \
-shader_uniform.o draw_object.o sreSIMD.o
+shader_uniform.o draw_object.o
 DEMO_MODULE_OBJECTS = demo_main.o demo1.o demo2.o demo4.o demo4b.o \
 demo5.o demo7.o demo8.o demo9.o demo10.o demo11.o textdemo.o
 ALL_DEMO_MODULE_OBJECTS = $(DEMO_MODULE_OBJECTS) game.o
@@ -352,7 +356,7 @@ endif
 ifeq ($(LIBRARY_CONFIGURATION), SHARED)
 LIBRARY_OBJECT = libsre.so.$(VERSION)
 INSTALL_TARGET = install_shared install_backend
-LIBRARY_DEPENDENCY = $(SHARED_LIB_INSTALL_DIR)/$(LIBRARY_OBJECT) $(BACKEND_OBJECT)
+LIBRARY_DEPENDENCY = $(BACKEND_OBJECT)
 else
 ifeq ($(LIBRARY_CONFIGURATION), DEBUG)
 LIBRARY_OBJECT = libsre_dbg.a
@@ -369,8 +373,7 @@ default : library backend
 library : $(LIBRARY_OBJECT)
 
 libsre.so.$(VERSION) : $(LIBRARY_MODULE_OBJECTS)
-	g++ -shared -Wl,-soname,libsre.so.$(VERSION_MAJOR) -fPIC -o libsre.so.$(VERSION) \
-$(LIBRARY_MODULE_OBJECTS) $(LFLAGS_LIBRARY) -lm -lc
+	$(CCPLUSPLUS) $(LINKER_SELECTION_FLAGS) -shared -Wl,-soname,libsre.so.$(VERSION_MAJOR) -fPIC -o libsre.so.$(VERSION) $(LIBRARY_MODULE_OBJECTS) $(LFLAGS_LIBRARY) -lm -lc
 	@echo Run '(sudo) make install to install.'
 
 libsre.a : $(LIBRARY_MODULE_OBJECTS)
@@ -425,10 +428,10 @@ install_backend : $(BACKEND_OBJECT)
 demo : $(ALL_DEMO_PROGRAMS)
 
 $(DEMO_PROGRAM) : $(LIBRARY_DEPENDENCY) $(BACKEND_OBJECT) $(DEMO_MODULE_OBJECTS)
-	g++ $(DEMO_MODULE_OBJECTS) -o $(DEMO_PROGRAM) $(ALL_LFLAGS_DEMO)
+	$(CCPLUSPLUS) $(LINKER_SELECTION_FLAGS) $(DEMO_MODULE_OBJECTS) -o $(DEMO_PROGRAM) $(ALL_LFLAGS_DEMO)
 
 game : $(LIBRARY_DEPENDENCY) $(BACKEND_OBJECT) game.o
-	g++ game.o -o game $(ALL_LFLAGS_DEMO)
+	$(CCPLUSPLUS) $(LINKER_SELECTION_FLAGS) game.o -o game $(ALL_LFLAGS_DEMO)
 
 $(LIBRARY_PKG_CONFIG_FILE) : Makefile.conf Makefile
 	@echo Generating sre.pc.
@@ -480,14 +483,14 @@ rules :
 	@for x in $(LIBRARY_MODULE_OBJECTS); do \
 	echo $$x : >> .rules; \
 	SOURCEFILE=`echo $$x | sed s/\\\.o/\.cpp/`; \
-	echo \\tg++ -c '$$(CFLAGS_LIB)' "$$SOURCEFILE" \
+	echo \\t$(CCPLUSPLUS) -c '$$(CFLAGS_LIB)' "$$SOURCEFILE" \
 	-o $$x '$$(PKG_CONFIG_CFLAGS_LIB)' >> .rules; \
 	done
 	@# Create rules to compile demo/back-end modules.
 	@for x in $(ALL_DEMO_MODULE_OBJECTS) $(ALL_BACKEND_MODULE_OBJECTS); do \
 	echo $$x : >> .rules; \
 	SOURCEFILE=`echo $$x | sed s/\\\.o/\.cpp/`; \
-	echo \\tg++ -c '$$(CFLAGS_DEMO)' "$$SOURCEFILE" \
+	echo \\t$(CCPLUSPLUS) -c '$$(CFLAGS_DEMO)' "$$SOURCEFILE" \
 	-o $$x '$$(PKG_CONFIG_CFLAGS_DEMO)' >> .rules; \
 	done
 
@@ -498,12 +501,13 @@ dep :
 .depend: Makefile.conf Makefile
 	@echo Generating .depend.
 	@# Do not include shaders_builtin.cpp yet because creates dependency problems.
-	@g++ -MM $(patsubst %.o,%.cpp,$(ORIGINAL_LIBRARY_MODULE_OBJECTS)) >> .depend
+	@$(CCPLUSPLUS) -MM $(patsubst %.o,%.cpp,$(ORIGINAL_LIBRARY_MODULE_OBJECTS)) $(PKG_CONFIG_CFLAGS_LIB) >> .depend
         # Make sure Makefile.conf is a dependency for all modules.
 	@for x in $(ORIGINAL_LIBRARY_MODULE_OBJECTS); do \
 	echo $$x : Makefile.conf >> .depend; done
 	@echo '# Module dependencies' >> .depend
-	@g++ -MM $(patsubst %.o,%.cpp,$(ALL_DEMO_MODULE_OBJECTS) $(BACKEND_MODULE_OBJECTS)) >> .depend
+	@$(CCPLUSPLUS) -MM $(patsubst %.o,%.cpp,$(ALL_DEMO_MODULE_OBJECTS) \
+	$(BACKEND_MODULE_OBJECTS)) $(PKG_CONFIG_CFLAGS_DEMO) >> .depend
 	@# Make sure Makefile.conf is a dependency for all modules.
 	@for x in $(ALL_DEMO_MODULE_OBJECTS) $(BACKEND_MODULE_OBJECTS); do \
 	echo $$x : Makefile.conf >> .depend; done

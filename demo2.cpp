@@ -84,7 +84,7 @@ Color light_object_color_array[4] = {
 };
 
 void Demo2CreateScene(sreScene *scene, sreView *view) {
-    rng = sreGetDefaultRNG();
+    rng = dstGetDefaultRNG();
 
     // Add player sphere as scene object 0.
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);

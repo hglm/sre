@@ -24,10 +24,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <math.h>
 #include <float.h>
 
+#include <dstSIMD.h>
+
 #include "win32_compat.h"
 #include "sre.h"
 #include "sre_internal.h"
-#include "sre_simd.h"
 
 // Constructor function for Scene.
 
@@ -67,7 +68,6 @@ sreScene::sreScene(int _max_objects, int _max_models, int _max_scene_lights) {
     // No rendering object arrays allocated yet.
     max_visible_objects = 0;
     max_final_pass_objects = 0; 
-    max_visible_lights = 0;
 }
 
 void sreScene::ClearOctrees() {
@@ -104,8 +104,7 @@ sreScene::~sreScene() {
     shadow_caster_array.MakeEmpty();
     if (max_final_pass_objects > 0)
         delete [] final_pass_object;
-    if (max_visible_lights > 0)
-        delete [] visible_light;
+    visible_light_array.MakeEmpty();
 }
 
 void sreScene::PrepareForRendering(unsigned int flags) {
@@ -137,7 +136,6 @@ void sreScene::PrepareForRendering(unsigned int flags) {
     // increased when a limit is encountered.
     max_visible_objects = mini(SRE_DEFAULT_MAX_VISIBLE_OBJECTS, nu_objects);
     max_final_pass_objects = mini(SRE_DEFAULT_MAX_FINAL_PASS_OBJECTS, nu_objects);
-    max_visible_lights = mini(SRE_DEFAULT_MAX_VISIBLE_LIGHTS, nu_lights);
 
     nu_visible_objects = 0;
     visible_object = new int[max_visible_objects];
@@ -147,8 +145,8 @@ void sreScene::PrepareForRendering(unsigned int flags) {
 
     nu_final_pass_objects = 0;
     final_pass_object = new int[max_final_pass_objects];
-    nu_visible_lights = 0;
-    visible_light = new int[max_visible_lights];
+    visible_light_array.Truncate(0);
+    visible_light_array.SetCapacity(mini(SRE_DEFAULT_MAX_VISIBLE_LIGHTS, nu_lights));
 
     // Upload models to GPU memory.
     if (!(flags & SRE_PREPARE_UPLOAD_NO_MODELS))

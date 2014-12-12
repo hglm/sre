@@ -53,7 +53,7 @@ static sreObject *fluid_scene_object;
 static int light_object[13 * 28];
 
 void Demo1CreateScene(sreScene *scene, sreView *view) {
-    rng = sreGetDefaultRNG();
+    rng = dstGetDefaultRNG();
 
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);
     // Add player sphere as scene object 0.

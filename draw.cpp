@@ -457,17 +457,6 @@ static float AccurateProjectedSize(const sreFrustum& f, const Point3D& P, float 
 }
 
 
-void sreScene::CheckVisibleLightCapacity() {
-    if (nu_visible_lights == max_visible_lights) {
-        // Dynamically increase the visible objects array when needed.
-        int *new_visible_light = new int[max_visible_lights * 2];
-        memcpy(new_visible_light, visible_light, sizeof(int) * max_visible_lights);
-        delete [] visible_light;
-        visible_light = new_visible_light;
-        max_visible_lights *= 2;
-    }
-}
-
 static int octree_culled_count_frustum = 0;
 static int octree_culled_count_projected = 0;
 static int octree_objects_inside = 0;
@@ -583,9 +572,7 @@ const sreFrustum& frustum, BoundsCheckResult bounds_check_result, int array_inde
                     continue;
             }
 //            printf("Light %d is visible, type = %d.\n", l->id, l->type);
-            CheckVisibleLightCapacity();
-            visible_light[nu_visible_lights] = l->id;
-            nu_visible_lights++;
+            visible_light_array.Add(l->id);
         }
     }
 }
@@ -593,7 +580,7 @@ const sreFrustum& frustum, BoundsCheckResult bounds_check_result, int array_inde
 // Recursive determination of entities (objects and light volumes) that intersect the view
 // frustum using a "fast" octree.
 //
-// The visible_light[] array is updated when a visible light is encountered (meaning a light
+// visible_light_array is updated when a visible light is encountered (meaning a light
 // that can affect objects in within the view frustum).
 // The visible_object[] array (the object's most_recent_frame_visible field) is
 // updated for visible objects that need to be drawn in lighting passes, and final_pass_object[]
@@ -907,7 +894,7 @@ void sreScene::DetermineVisibleEntities(const sreFrustum& frustum) {
         // visible lights up to nu_static_visible_lights;
         nu_visible_objects = nu_static_visible_objects;
         nu_final_pass_objects = nu_static_final_pass_objects;
-        nu_visible_lights = nu_static_visible_lights;
+        visible_light_array.Truncate(nu_static_visible_lights);
         if (sre_internal_octree_type == SRE_OCTREE_STRICT_OPTIMIZED || sre_internal_octree_type ==
         SRE_QUADTREE_XY_STRICT_OPTIMIZED) {
             // Only need to recheck the dynamic entities.
@@ -929,7 +916,7 @@ void sreScene::DetermineVisibleEntities(const sreFrustum& frustum) {
     // Full visible entity determination (static and dynamic objects).
     nu_visible_objects = 0;
     nu_final_pass_objects = 0;
-    nu_visible_lights = 0;
+    visible_light_array.Truncate(0);
 
     if (sre_internal_octree_type == SRE_OCTREE_STRICT_OPTIMIZED || sre_internal_octree_type ==
     SRE_QUADTREE_XY_STRICT_OPTIMIZED) {
@@ -942,7 +929,7 @@ void sreScene::DetermineVisibleEntities(const sreFrustum& frustum) {
             fast_octree_static_infinite_distance, 0, frustum, SRE_BOUNDS_UNDEFINED);
         nu_static_visible_objects = nu_visible_objects;
         nu_static_final_pass_objects = nu_final_pass_objects;
-        nu_static_visible_lights = nu_visible_lights;
+        nu_static_visible_lights = visible_light_array.Size();
         // Handle all dynamic entities. They will be stored at the end of the visible entity arrays.
         DetermineVisibleEntitiesInFastStrictOptimizedOctreeRootNode(fast_octree_dynamic,
             0, frustum, SRE_COMPLETELY_INSIDE);
@@ -956,18 +943,19 @@ void sreScene::DetermineVisibleEntities(const sreFrustum& frustum) {
             0, frustum, SRE_BOUNDS_UNDEFINED);
         nu_static_visible_objects = nu_visible_objects;
         nu_static_final_pass_objects = nu_final_pass_objects;
-        nu_static_visible_lights = nu_visible_lights;
+        nu_static_visible_lights = visible_light_array.Size();
         // Handle all dynamic entities. They will be stored at the end of the visible entity arrays.
         DetermineVisibleEntitiesInFastOctreeRootNode(fast_octree_dynamic, 0, frustum,
             SRE_COMPLETELY_INSIDE);
         DetermineVisibleEntitiesInFastOctreeRootNode(
             fast_octree_dynamic_infinite_distance, 0, frustum, SRE_COMPLETELY_INSIDE);
     }
-//    printf("Number of visible objects: %d, lights: %d\n", nu_visible_objects, nu_visible_lights);
+//    printf("Number of visible objects: %d, lights: %d\n", nu_visible_objects,
+//          visible_light_array.Size());
 //    printf("octrees culled: frustum: %d projected size: %d\n", octree_culled_count_frustum,
 //        octree_culled_count_projected);
 //    printf("objects inside octrees completely inside frustum: %d\n", octree_objects_inside);
-//    printf("%d light volumes intersect frustum\n", nu_visible_lights);
+//    printf("%d light volumes intersect frustum\n", visible_light_array.Size());
 }
 
 // Adjust the GPU scissors region, based on the supplied scissors coordinates
@@ -1914,9 +1902,9 @@ void sreScene::RenderLightingPasses(sreFrustum *frustum, sreView *view) {
 
     // Set the max_active_lights field in the sreScene structure.
     if (sre_internal_max_active_lights == SRE_MAX_ACTIVE_LIGHTS_UNLIMITED ||
-    nu_visible_lights <= sre_internal_max_active_lights)
+    visible_light_array.Size() <= sre_internal_max_active_lights)
         // All visible lights will be rendered.
-        nu_active_lights = nu_visible_lights;
+        nu_active_lights = visible_light_array.Size();
     else {
         // The following function sets nu_active_lights.
         CalculateVisibleActiveLights(view, sre_internal_max_active_lights);
@@ -1924,8 +1912,8 @@ void sreScene::RenderLightingPasses(sreFrustum *frustum, sreView *view) {
 
     for (int i = 0; i < nu_active_lights; i++) {
         // Set the light to be rendered.
-        if (nu_active_lights == nu_visible_lights)
-            sre_internal_current_light_index = visible_light[i];
+        if (nu_active_lights == visible_light_array.Size())
+            sre_internal_current_light_index = visible_light_array.Get(i);
         else
             sre_internal_current_light_index = active_light[i];
         sre_internal_current_light = light[sre_internal_current_light_index];
@@ -2078,9 +2066,9 @@ void sreScene::RenderLightingPassesNoShadow(sreFrustum *frustum, sreView *view) 
     intersection_tests_all_lights = 0;
 
     // Set the max_active_lights field in the sreScene structure.
-    if (nu_visible_lights <= sre_internal_max_active_lights)
+    if (visible_light_array.Size() <= sre_internal_max_active_lights)
         // All visible lights will be rendered.
-        nu_active_lights = nu_visible_lights;
+        nu_active_lights = visible_light_array.Size();
     else {
         // The following function sets nu_active_lights.
         CalculateVisibleActiveLights(view, sre_internal_max_active_lights);
@@ -2088,8 +2076,8 @@ void sreScene::RenderLightingPassesNoShadow(sreFrustum *frustum, sreView *view) 
 
     for (int i = 0; i < nu_active_lights; i++) {
         // Set the light to be rendered.
-        if (nu_active_lights == nu_visible_lights)
-            sre_internal_current_light_index = visible_light[i];
+        if (nu_active_lights == visible_light_array.Size())
+            sre_internal_current_light_index = visible_light_array.Get(i);
         else
             sre_internal_current_light_index = active_light[i];
         sre_internal_current_light = light[sre_internal_current_light_index];

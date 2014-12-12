@@ -101,7 +101,7 @@ static dstRNG *rng;
 
 void Demo8CreateScene(sreScene *scene, sreView *view) {
     int l;
-    rng = sreGetDefaultRNG();
+    rng = dstGetDefaultRNG();
 
     scene->SetAmbientColor(Color(0.15, 0.15, 0.15));
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);

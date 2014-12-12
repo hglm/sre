@@ -21,7 +21,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // intersection.cpp and not included in this header file; these can be made
 // non-static and added to this header file when required by a different module.
 
-#include "sre_simd.h"
+#include <dstSIMD.h>
 
 // Inline AABB utility functions.
 

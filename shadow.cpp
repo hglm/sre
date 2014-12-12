@@ -34,10 +34,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <GL/gl.h>
 #endif
 
+#include <dstSIMD.h>
+
 #include "sre.h"
 #include "sre_internal.h"
 #include "sre_bounds.h"
-#include "sre_simd.h"
 
 // Cache for objects (point source lights and spotlights).
 // The total number of entries is four times this number (four per object).
