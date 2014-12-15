@@ -34,7 +34,7 @@ int LATITUDE_SEGMENTS, float radius_y, float radius_z) {
     float radius = 1;
     int vertex_index = 0;
     m->nu_vertices = (LONGITUDE_SEGMENTS + 1) * (LATITUDE_SEGMENTS + 1);
-    m->vertex = new Point3D[m->nu_vertices];
+    Point3D *vertex = new Point3D[m->nu_vertices];
     m->texcoords = new Point2D[m->nu_vertices];
     for (int i = 0; i <= LONGITUDE_SEGMENTS; i++) {
         for (int j = - (LATITUDE_SEGMENTS / 2 ); j <= LATITUDE_SEGMENTS / 2; j++) {
@@ -59,7 +59,7 @@ int LATITUDE_SEGMENTS, float radius_y, float radius_z) {
                 y = 0;
             if (z == -0)
                 z = 0;
-            m->vertex[vertex_index].Set(x, y, z);
+            vertex[vertex_index].Set(x, y, z);
             m->texcoords[vertex_index].Set((float)i / LONGITUDE_SEGMENTS, (float)(j +
                 LATITUDE_SEGMENTS / 2) / LATITUDE_SEGMENTS);
             grid_vertex[(j + LATITUDE_SEGMENTS / 2) * row_size + i] = vertex_index;
@@ -79,7 +79,8 @@ int LATITUDE_SEGMENTS, float radius_y, float radius_z) {
             triangle_index++;
         }
     }
-    m->flags |= SRE_POSITION_MASK | SRE_TEXCOORDS_MASK;
+    m->SetPositions(vertex);
+    m->SetAttributeFlags(SRE_POSITION_MASK | SRE_TEXCOORDS_MASK);
     m->RemoveEmptyTriangles();
     m->SortVertices(2); // Sort on z-coordinate.
     m->MergeIdenticalVertices();
@@ -158,12 +159,14 @@ sreModel *sreCreateBillboardModel(sreScene *scene, bool is_halo) {
     sreModel *m = new sreModel;
     sreLODModel *lm = m->lod_model[0] = sreNewLODModelNoShadowVolume();
     m->nu_lod_levels = 1;
-    lm->vertex = new Point3D[4];
     lm->nu_vertices = 4;
     lm->nu_triangles = 0;  // Indicate that no triangle indices are allocated.
     // A single billboard does not have any indices (triangle data).
     // The model is a triangle fan consisting of two triangles.
-    lm->flags |= SRE_POSITION_MASK | SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT |
+    Point3D *vertex = new Point3D[4];
+    lm->SetPositions(vertex);
+    lm->SetAttributeFlags(SRE_POSITION_MASK);
+    lm->flags |= SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT |
         SRE_LOD_MODEL_VERTEX_BUFFER_DYNAMIC | SRE_LOD_MODEL_BILLBOARD;
     m->model_flags |= SRE_MODEL_BILLBOARD;
     if (is_halo) {
@@ -179,7 +182,6 @@ sreModel *sreCreateParticleSystemModel(sreScene *scene, int n, bool is_halo) {
     sreModel *m = new sreModel;
     sreLODModel *lm = m->lod_model[0] = sreNewLODModelNoShadowVolume();
     m->nu_lod_levels = 1;
-    lm->vertex = new Point3D[4 * n];
     lm->triangle = new sreModelTriangle[2 * n];
     lm->nu_vertices = 4 * n;
     lm->nu_triangles = 2 * n;
@@ -188,8 +190,11 @@ sreModel *sreCreateParticleSystemModel(sreScene *scene, int n, bool is_halo) {
        lm->triangle[i * 2].AssignVertices(i * 4, i * 4 + 1, i * 4 + 2);
        lm->triangle[i * 2 + 1].AssignVertices(i * 4 + 2, i * 4 + 3, i * 4);
     }
+    Point3D *vertex = new Point3D[4 * n];
+    lm->SetPositions(vertex);
     // Note: normals buffer used as centers of each billboard.
-    lm->flags |= SRE_POSITION_MASK | SRE_NORMAL_MASK | SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT |
+    lm->SetAttributeFlags(SRE_POSITION_MASK | SRE_NORMAL_MASK);
+    lm->flags |= SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT |
         SRE_LOD_MODEL_VERTEX_BUFFER_DYNAMIC | SRE_LOD_MODEL_BILLBOARD;
     m->model_flags |= SRE_MODEL_BILLBOARD | SRE_MODEL_PARTICLE_SYSTEM;
     if (is_halo) {
@@ -208,16 +213,16 @@ sreModel *sreCreateUnitBlockModel(sreScene *scene) {
     m->nu_lod_levels = 1;
     lm->nu_triangles = 12;
     lm->nu_vertices = 24;
-    lm->vertex = new Point3D[lm->nu_vertices];
+    Point3D *vertex = new Point3D[lm->nu_vertices];
     lm->triangle = new sreModelTriangle[lm->nu_triangles];
     lm->texcoords = new Point2D[lm->nu_vertices];
     // We have to define the vertices for each face seperately to allow different normals at the same
     // vertex position.
     // Bottom face.
-    lm->vertex[0].Set(0, 0, 0);
-    lm->vertex[1].Set(1, 0, 0);
-    lm->vertex[2].Set(1, 1, 0);
-    lm->vertex[3].Set(0, 1, 0);
+    vertex[0].Set(0, 0, 0);
+    vertex[1].Set(1, 0, 0);
+    vertex[2].Set(1, 1, 0);
+    vertex[3].Set(0, 1, 0);
     lm->texcoords[0].Set(0, 1);
     lm->texcoords[1].Set(1, 1);
     lm->texcoords[2].Set(1, 0);
@@ -225,10 +230,10 @@ sreModel *sreCreateUnitBlockModel(sreScene *scene) {
     lm->triangle[0].AssignVertices(3, 2, 1);
     lm->triangle[1].AssignVertices(3, 1, 0);
     // Top face.
-    lm->vertex[4].Set(0, 0, 1);
-    lm->vertex[5].Set(1, 0, 1);
-    lm->vertex[6].Set(1, 1, 1);
-    lm->vertex[7].Set(0, 1, 1);
+    vertex[4].Set(0, 0, 1);
+    vertex[5].Set(1, 0, 1);
+    vertex[6].Set(1, 1, 1);
+    vertex[7].Set(0, 1, 1);
     lm->texcoords[4].Set(0, 0);
     lm->texcoords[5].Set(1, 0);
     lm->texcoords[6].Set(1, 1);
@@ -236,10 +241,10 @@ sreModel *sreCreateUnitBlockModel(sreScene *scene) {
     lm->triangle[2].AssignVertices(4, 5, 6);
     lm->triangle[3].AssignVertices(4, 6, 7);
     // Front face.
-    lm->vertex[8].Set(0, 0, 0);
-    lm->vertex[9].Set(1, 0, 0);
-    lm->vertex[10].Set(1, 0, 1);
-    lm->vertex[11].Set(0, 0, 1);
+    vertex[8].Set(0, 0, 0);
+    vertex[9].Set(1, 0, 0);
+    vertex[10].Set(1, 0, 1);
+    vertex[11].Set(0, 0, 1);
     lm->texcoords[8].Set(0, 0);
     lm->texcoords[9].Set(1, 0);
     lm->texcoords[10].Set(1, 1);
@@ -247,10 +252,10 @@ sreModel *sreCreateUnitBlockModel(sreScene *scene) {
     lm->triangle[4].AssignVertices(8, 9, 10);
     lm->triangle[5].AssignVertices(8, 10, 11);
     // Back face.
-    lm->vertex[12].Set(0, 1, 0);
-    lm->vertex[13].Set(1, 1, 0);
-    lm->vertex[14].Set(1, 1, 1);
-    lm->vertex[15].Set(0, 1, 1);
+    vertex[12].Set(0, 1, 0);
+    vertex[13].Set(1, 1, 0);
+    vertex[14].Set(1, 1, 1);
+    vertex[15].Set(0, 1, 1);
     lm->texcoords[12].Set(1, 0);
     lm->texcoords[13].Set(0, 0);
     lm->texcoords[14].Set(0, 1);
@@ -258,10 +263,10 @@ sreModel *sreCreateUnitBlockModel(sreScene *scene) {
     lm->triangle[6].AssignVertices(13, 12, 15);
     lm->triangle[7].AssignVertices(13, 15, 14);
     // Left face.
-    lm->vertex[16].Set(0, 1, 0);
-    lm->vertex[17].Set(0, 0, 0);
-    lm->vertex[18].Set(0, 0, 1);
-    lm->vertex[19].Set(0, 1, 1);
+    vertex[16].Set(0, 1, 0);
+    vertex[17].Set(0, 0, 0);
+    vertex[18].Set(0, 0, 1);
+    vertex[19].Set(0, 1, 1);
     lm->texcoords[16].Set(0, 0);
     lm->texcoords[17].Set(1, 0);
     lm->texcoords[18].Set(1, 1);
@@ -269,17 +274,18 @@ sreModel *sreCreateUnitBlockModel(sreScene *scene) {
     lm->triangle[8].AssignVertices(16, 17, 18);
     lm->triangle[9].AssignVertices(16, 18, 19);
     // Right face.
-    lm->vertex[20].Set(1, 0, 0);
-    lm->vertex[21].Set(1, 1, 0);
-    lm->vertex[22].Set(1, 1, 1);
-    lm->vertex[23].Set(1, 0, 1);
+    vertex[20].Set(1, 0, 0);
+    vertex[21].Set(1, 1, 0);
+    vertex[22].Set(1, 1, 1);
+    vertex[23].Set(1, 0, 1);
     lm->texcoords[20].Set(0, 0);
     lm->texcoords[21].Set(1, 0);
     lm->texcoords[22].Set(1, 1);
     lm->texcoords[23].Set(0, 1);
     lm->triangle[10].AssignVertices(20, 21, 22);
     lm->triangle[11].AssignVertices(20, 22, 23);
-    lm->flags |= SRE_POSITION_MASK | SRE_TEXCOORDS_MASK;
+    lm->SetPositions(vertex);
+    lm->SetAttributeFlags(SRE_POSITION_MASK | SRE_TEXCOORDS_MASK);
     lm->SortVertices(0); // Sort on x-coordinate.
 //    m->MergeIdenticalVertices();
     lm->vertex_normal = new Vector3D[lm->nu_vertices];
@@ -502,7 +508,8 @@ sreModel *sreCreateRampModel(sreScene *scene, float xdim, float ydim, float zdim
     lm->nu_vertices = 0;
     lm->nu_triangles = 0;
     AddRamp(lm, 0, 0, xdim, ydim, zdim, type);
-    lm->flags |= SRE_POSITION_MASK | SRE_TEXCOORDS_MASK;
+    lm->SetPositions(lm->vertex);
+    lm->SetAttributeFlags(SRE_POSITION_MASK | SRE_TEXCOORDS_MASK);
     lm->SortVertices(0); // Sort on x-coordinate.
 //    m->MergeIdenticalVertices();
     lm->vertex_normal = new Vector3D[lm->nu_vertices];
@@ -561,7 +568,8 @@ sreModel *sreCreateRingsModel(sreScene *scene, float min_radius, float max_radiu
            triangle_index++;
         }
     }
-    m->flags |= SRE_POSITION_MASK | SRE_TEXCOORDS_MASK;
+    m->SetPositions(m->vertex);
+    m->SetAttributeFlags(SRE_POSITION_MASK | SRE_TEXCOORDS_MASK);
     m->RemoveEmptyTriangles(); // Added
     m->SortVertices(0); // Sort on x-coordinate.
     m->MergeIdenticalVertices();
@@ -612,8 +620,9 @@ Color color1, Color color2) {
             i += 3;
         }
     delete [] mesh;
-    m->flags |= SRE_POSITION_MASK | SRE_COLOR_MASK | SRE_LOD_MODEL_NOT_CLOSED |
-        SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT;
+    m->SetPositions(m->vertex);
+    m->SetAttributeFlags(SRE_POSITION_MASK | SRE_COLOR_MASK);
+    m->flags |= SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT;
     m->SortVertices(0); // Sort on x-coordinate.
     m->MergeIdenticalVertices();
     m->vertex_normal = new Vector3D[m->nu_vertices];
@@ -690,7 +699,9 @@ int TORUS_LATITUDE_SEGMENTS, int TORUS_LONGITUDE_SEGMENTS_PER_TEXTURE, int TORUS
         }
     }
     delete [] grid_vertex;
-    m->flags |= SRE_POSITION_MASK | SRE_TEXCOORDS_MASK | SRE_LOD_MODEL_CONTAINS_HOLES;
+    m->SetPositions(m->vertex);
+    m->SetAttributeFlags(SRE_POSITION_MASK | SRE_TEXCOORDS_MASK);
+    m->flags |= SRE_LOD_MODEL_CONTAINS_HOLES;
     m->SortVertices(0); // Sort on x-coordinate.
     m->MergeIdenticalVertices();
     m->vertex_normal = new Vector3D[m->nu_vertices];
@@ -905,7 +916,9 @@ float GAP_WIDTH, float BAR_WIDTH, float THICKNESS) {
         x += GAP_WIDTH + BAR_WIDTH;
     }
 //    printf("nu_vertices = %d, max_vertices = %d", m->nu_vertices, max_vertices);
-    m->flags |= SRE_POSITION_MASK | SRE_LOD_MODEL_CONTAINS_HOLES; /* SRE_TEXCOORDS_MASK */
+    m->SetPositions(m->vertex);
+    m->SetAttributeFlags(SRE_POSITION_MASK /* | SRE_TEXCOORDS_MASK */);
+    m->flags |= SRE_LOD_MODEL_CONTAINS_HOLES;
     m->SortVertices(0); // Sort on x-coordinate.
     // Slight difference in the coordinates for some vertices caused by rounding
     // differences makes it necessary to weld vertices with almost similar
@@ -964,7 +977,8 @@ sreModel *sreCreateBlockModel(sreScene *scene, float xdim, float ydim, float zdi
     m->nu_vertices = 0;
     m->nu_triangles = 0;
     AddBar(m, 0, 0, xdim, ydim, zdim, flags);
-    m->flags |= SRE_POSITION_MASK | SRE_TEXCOORDS_MASK;
+    m->SetPositions(m->vertex);
+    m->SetAttributeFlags(SRE_POSITION_MASK | SRE_TEXCOORDS_MASK);
     // If any side of the block is missing, the mode is not closed.
     if (flags != 0)
         m->flags |= SRE_LOD_MODEL_NOT_CLOSED;
@@ -1015,7 +1029,9 @@ sreModel *sreCreateRepeatingRectangleModel(sreScene *scene, float size, float un
     m->texcoords[5].Set(0, size / unit_size);
     i += 3;
     delete [] mesh;
-    m->flags |= SRE_POSITION_MASK | /* SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT | */
+    m->SetPositions(m->vertex);
+    m->SetAttributeFlags(SRE_POSITION_MASK);
+    m->flags |= /* SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT | */
         SRE_LOD_MODEL_NOT_CLOSED | SRE_TEXCOORDS_MASK;
     m->SortVertices(0); // Sort on x-coordinate.
     m->MergeIdenticalVertices();
@@ -1058,7 +1074,9 @@ static sreModel *FinishPlaneRectangleModel(sreScene *scene, Point3D *mesh) {
     m->texcoords[5].Set(0, 1.0f);
     i += 3;
     delete [] mesh;
-    m->flags |= SRE_POSITION_MASK | /* SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT | */
+    m->SetPositions(m->vertex);
+    m->SetAttributeFlags(SRE_POSITION_MASK);
+    m->flags |= /* SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT | */
         SRE_LOD_MODEL_NOT_CLOSED | SRE_TEXCOORDS_MASK;
     m->SortVertices(0); // Sort on x-coordinate.
     m->MergeIdenticalVertices();
@@ -1181,7 +1199,8 @@ bool include_top, bool include_bottom) {
                 grid_vertex[i + row_size * 3]);
             triangle_index++;
         }
-    m->flags |= SRE_POSITION_MASK | SRE_TEXCOORDS_MASK;
+    m->SetPositions(m->vertex);
+    m->SetAttributeFlags(SRE_POSITION_MASK | SRE_TEXCOORDS_MASK);
     if (!(include_bottom && include_top))
         m->flags |= SRE_LOD_MODEL_NOT_CLOSED;
     m->SortVertices(0); // Sort on x-coordinate.
@@ -1310,7 +1329,8 @@ float cap_radius, float length, float radius_y, float radius_z) {
     AddHalfEllipsoid(m, LONGITUDE_SEGMENTS, LATITUDE_SEGMENTS, cap_radius, length * 0.5, true, radius_y, radius_z);
     AddSquashedCylinderHull(m, LONGITUDE_SEGMENTS, length, radius_y, radius_z);
     AddHalfEllipsoid(m, LONGITUDE_SEGMENTS, LATITUDE_SEGMENTS, cap_radius, - length * 0.5, false, radius_y, radius_z);
-    m->flags |= SRE_POSITION_MASK;
+    m->SetPositions(m->vertex);
+    m->SetAttributeFlags(SRE_POSITION_MASK);
     m->RemoveEmptyTriangles();
     m->SortVertices(2); // Sort on z-coordinate.
     m->MergeIdenticalVertices();
@@ -1432,7 +1452,7 @@ Vector3D rotation, float scaling) {
     }
     if (compound_model->nu_vertices > 0)
         delete [] compound_model->vertex;
-    compound_model->vertex = new_vertex;
+    compound_model->SetPositions(new_vertex);
     if (compound_model->nu_vertices > 0)
         delete [] compound_model->vertex_normal;
     compound_model->vertex_normal = new_vertex_normal;

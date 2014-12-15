@@ -29,6 +29,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre_internal.h"
 #include "sre_bounds.h"
 
+#include <dstMemory.h>
+
 // Higher level model class constuctor.
 
 sreModel::sreModel() {
@@ -170,7 +172,7 @@ sreBaseModel::sreBaseModel() {
 
 sreBaseModel::sreBaseModel(int nu_vertices, int nu_triangles, int flags) {
     sreBaseModel();
-    vertex = new Point3D[nu_vertices];
+    position = dstNewAligned <Point3D>((size_t)nu_vertices, 16);
     triangle = new sreModelTriangle[nu_triangles];
     if (flags & SRE_NORMAL_MASK)
         vertex_normal = new Vector3D[nu_vertices];
@@ -180,6 +182,33 @@ sreBaseModel::sreBaseModel(int nu_vertices, int nu_triangles, int flags) {
         vertex_tangent = new Vector4D[nu_vertices];
     if (flags & SRE_COLOR_MASK)
         colors = new Color[nu_vertices];
+}
+
+void sreBaseModel::SetPositions(Point3D *_positions) {
+    // Allocate to 16-byte boundary for SIMD.
+    // This functions requires special handling for the case when the class
+    // position array pointer is already initialized and passed as _positions.
+    if (((uintptr_t)_positions & 0xF) == 0) {
+        position = _positions;
+        return;
+    }
+    // Buffer has to be realigned.
+    Point3D *new_position = dstNewAligned <Point3D>((size_t)nu_vertices, 16);
+    dstMemcpyAlignedLarge(new_position, _positions, nu_vertices * sizeof(Point3D));
+    free(_positions);
+    position = new_position;
+}
+
+void sreBaseModel::SetTexcoords(Point2D *_texcoords) {
+    texcoords = _texcoords;
+}
+
+void sreBaseModel::SetColors(Color *_colors) {
+    colors = _colors;
+}
+
+void sreBaseModel::SetTangents(Vector4D *_tangents) {
+    vertex_tangent = _tangents;
 }
 
 // Base model destructor.
@@ -249,7 +278,7 @@ void sreBaseModel::RemapVertices(int *vertex_mapping, int n, int *_vertex_mappin
     else
         // The number of vertices has changed.
         nu_vertices = n;
-    Point3D *new_vertex = new Point3D[nu_vertices];
+    Point3D *new_vertex = dstNewAligned <Point3D>((size_t)nu_vertices, 16);
     Point2D *new_texcoords;
     if (flags & SRE_TEXCOORDS_MASK)
         new_texcoords = new Point2D[nu_vertices];
@@ -581,6 +610,8 @@ void sreBaseModel::CloneGeometry(sreBaseModel *clone) {
 
 void sreBaseModel::Clone(sreBaseModel *clone) {
     CloneGeometry(clone);
+    // Make sure the position array is properly aligned.
+    clone->SetPositions(clone->position);
     clone->flags = flags;
     if (flags & SRE_NORMAL_MASK)
         clone->vertex_normal = new Vector3D[nu_vertices];

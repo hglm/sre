@@ -304,7 +304,10 @@ class SRE_API sreBaseModel {
 public :
     int nu_vertices;
     int nu_triangles;
-    Point3D *vertex;
+    union {
+        Point3D *vertex;
+        Point3D *position;
+    };
     sreModelTriangle *triangle;
     Vector3D *vertex_normal;
     Vector4D *vertex_tangent;
@@ -318,6 +321,18 @@ public :
     sreBaseModel();
     sreBaseModel(int nu_vertices, int nu_triangles, int flags);
     ~sreBaseModel();
+    void SetAttributeFlags(int _flags) {
+        flags = (flags & (~SRE_ALL_ATTRIBUTES_MASK)) | _flags;
+    }
+    void SetNuVertices(int n) {
+        nu_vertices = n;
+    }
+    // Assign vertex attribute data. The buffer arguments may no long point to valid
+    // data after the call.
+    void SetPositions(Point3D *_positions);
+    void SetTexcoords(Point2D *_texcoords);
+    void SetColors(Color *_colors);
+    void SetTangents(Vector4D *_tangents);
     void CalculateNormals();
     void CalculateNormals(int start_vertex_index, int nu_vertices, bool verbose);
     void CalculateNormalsNotSmooth();
