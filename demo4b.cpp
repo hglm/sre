@@ -470,7 +470,7 @@ void Demo4cStep(sreScene *scene, double demo_time) {
         Point3D sun_pos = (sun_m1 * sun_m2) * (Point3D(1.0f, 0.0f, 0.0f) *
             EARTH_RADIUS * 1000.0f);
         scene->ChangePosition(sun_object_id, sun_pos);
-        Vector3D light_dir = (- sun_pos).Normalize();
+        Vector3D light_dir = (- sun_pos.GetVector3D()).Normalize();
         scene->ChangeDirectionalLightDirection(directional_light_index, light_dir);
 
         Matrix3D m1;

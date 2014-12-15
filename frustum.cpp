@@ -260,7 +260,9 @@ void sreFrustum::CalculateShadowCasterVolume(const Vector4D& lightpos, int nu_fr
     // Calculate the convex hull enclosing the view frustum and the light source.
     shadow_caster_volume.nu_planes = 0;
     // Calculate the dot products between the frustum planes and the light source.
-    float dot[6];
+    float dot[6] DST_ALIGNED(16);
+    // The SIMD-accelerated version check for 16-bytes aligned arrays, which is hard to
+    // guarantee in this case; otherwise, no SIMD will be used.
 #if 1
     CalculateDotProductsWithConstantVector(nu_frustum_planes, &frustum_world.plane[0],
         lightpos, &dot[0]);
@@ -307,13 +309,13 @@ void sreFrustum::CalculateShadowCasterVolume(const Vector4D& lightpos, int nu_fr
 //                adjacent_plane[i].plane0, adjacent_plane[i].plane1, adjacent_plane[i].vertex0,
 //                adjacent_plane[i].vertex1);
             if (lightpos.w == 1.0f)
-                shadow_caster_volume.plane[shadow_caster_volume.nu_planes] = PlaneFromPoints(
+                shadow_caster_volume.plane[shadow_caster_volume.nu_planes] = dstPlaneFromPoints(
                     frustum_world.hull.vertex[adjacent_plane[i].vertex0],
                     frustum_world.hull.vertex[adjacent_plane[i].vertex1],
                     lightpos.GetPoint3D()
                     );
             else {
-                shadow_caster_volume.plane[shadow_caster_volume.nu_planes] = PlaneFromPoints(
+                shadow_caster_volume.plane[shadow_caster_volume.nu_planes] = dstPlaneFromPoints(
                     frustum_world.hull.vertex[adjacent_plane[i].vertex0],
                     frustum_world.hull.vertex[adjacent_plane[i].vertex1],
                     frustum_world.hull.vertex[adjacent_plane[i].vertex0] + lightpos.GetVector3D()

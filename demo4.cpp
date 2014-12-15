@@ -1291,7 +1291,7 @@ void Demo4Step(sreScene *scene, double demo_time) {
         (day_interval * 365.0));
     Point3D sun_pos = Point3D(- X_SCALE * 1000.0f, 0, 0);
     sun_pos = ((sr3 * sr2) * sr1) * sun_pos;
-    Vector3D light_dir = (- sun_pos).Normalize();
+    Vector3D light_dir = (- sun_pos.GetVector3D()).Normalize();
     scene->ChangeDirectionalLightDirection(directional_light, light_dir);
     scene->ChangePosition(sun_object, sun_pos.x, sun_pos.y, sun_pos.z);
     if (display_time) {

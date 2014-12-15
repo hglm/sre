@@ -217,7 +217,7 @@ void sreBoundingVolume::CompleteParameters() {
         pyramid->nu_planes = pyramid->nu_vertices;
         // Add the side planes. The normals should point inwards.
         for (int i = 0; i < pyramid->nu_vertices - 1; i++) {
-            pyramid->plane[i] = PlaneFromPoints(pyramid->vertex[0], pyramid->vertex[i + 1],
+            pyramid->plane[i] = dstPlaneFromPoints(pyramid->vertex[0], pyramid->vertex[i + 1],
                 pyramid->vertex[((i + 1) % (pyramid->nu_vertices - 1)) + 1]);
             pyramid->plane[i].OrientPlaneTowardsPoint(pyramid->center);
         }
@@ -248,7 +248,7 @@ void sreBoundingVolume::CompleteParameters() {
             v1 = 2;
             v2 = 3;
         }
-        Vector4D base_plane = PlaneFromPoints(pyramid->vertex[v0],
+        Vector4D base_plane = dstPlaneFromPoints(pyramid->vertex[v0],
             pyramid->vertex[v1], pyramid->vertex[v2]);
         // The normal should point inwards (which is towards the apex).
         base_plane.OrientPlaneTowardsPoint(pyramid->vertex[0]);
@@ -268,7 +268,7 @@ void sreBoundingVolume::CompleteParameters() {
             int *vertex_indices = &convex_hull_configurable->plane_definitions[j + 1];
             // Just use the first three vertices defined for the plane. For planes defined with
             // three or four vertices, this should be OK.
-            convex_hull_configurable->plane[i] = PlaneFromPoints(
+            convex_hull_configurable->plane[i] = dstPlaneFromPoints(
                 convex_hull_configurable->hull.vertex[vertex_indices[0]],
                 convex_hull_configurable->hull.vertex[vertex_indices[1]],
                 convex_hull_configurable->hull.vertex[vertex_indices[2]]);

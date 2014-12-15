@@ -350,7 +350,9 @@ void sreBaseModel::CalculateAABB(sreBoundingVolumeAABB& AABB) const {
 // sreModel bounding volume calculation.
 
 void sreModel::CalculateBoundingSphere() {
-    lod_model[0]->CalculatePCABoundingSphere(PCA, sphere);
+    sreBoundingVolumeSphere s;
+    lod_model[0]->CalculatePCABoundingSphere(PCA, s);
+    sphere = s;
 }
 
 void sreModel::CalculateBoundingBox() {
@@ -379,7 +381,12 @@ void sreModel::CalculateAABB() {
 // so that the bounding volumes defined for the model are guaranteed to fit all LOD models.
 
 void sreModel::CalculateBounds() {
-    lod_model[0]->CalculatePrincipalComponents(PCA, box_center);
+    srePCAComponent _PCA[3];
+    Point3D center;
+    lod_model[0]->CalculatePrincipalComponents(_PCA, center);
+    for (int i = 0; i < 3; i++)
+        PCA[i] = _PCA[i];
+    box_center = center;
 
     CalculateBoundingBox(); // Already calculated as PCA components and box_center.
     CalculateBoundingSphere();

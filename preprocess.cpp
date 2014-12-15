@@ -748,12 +748,12 @@ static int TriangulatePolygon(int vertexCount, const Point3D *vertex,
 		bool negative = false;
 		
 		// Determine whether vp1, vp2, and vm1 form a valid triangle.
-		Vector3D n1 = normal % (vm1 - vp2).Normalize();
-		if (n1 * (vp1 - vp2) > epsilon)
+		Vector3D n1 = Cross(normal, (vm1 - vp2).Normalize());
+		if (Dot(n1, (vp1 - vp2)) > epsilon)
 		{
 			positive = true;
-			Vector3D n2 = (normal % (vp1 - vm1).Normalize());
-			Vector3D n3 = (normal % (vp2 - vp1).Normalize());
+			Vector3D n2 = Cross(normal, (vp1 - vm1).Normalize());
+			Vector3D n3 = Cross(normal, (vp2 - vp1).Normalize());
 			
 			for (int a = 0; a < vertexCount; a++)
 			{
@@ -761,9 +761,9 @@ static int TriangulatePolygon(int vertexCount, const Point3D *vertex,
 				if ((active[a]) && (a != p1) && (a != p2) && (a != m1))
 				{
 					const Vector3D& v = vertex[a];
-					if ((n1 * (v - vp2).Normalize() > -epsilon)
-						&& (n2 * (v - vm1).Normalize() > -epsilon)
-						&& (n3 * (v - vp1).Normalize() > -epsilon))
+					if (Dot(n1, (v - vp2).Normalize()) > -epsilon
+						&& Dot(n2, (v - vm1).Normalize()) > -epsilon
+						&& Dot(n3, (v - vp1).Normalize()) > -epsilon)
 					{
 						positive = false;
 						break;
@@ -773,12 +773,12 @@ static int TriangulatePolygon(int vertexCount, const Point3D *vertex,
 		}
 		
 		// Determine whether vm1, vm2, and vp1 form a valid triangle.
-		n1 = normal % (vm2 - vp1).Normalize();
-		if (n1 * (vm1 - vp1) > epsilon)
+		n1 = Cross(normal, (vm2 - vp1).Normalize());
+		if (Dot(n1, (vm1 - vp1)) > epsilon)
 		{
 			negative = true;
-			Vector3D n2 = (normal % (vm1 - vm2).Normalize());
-			Vector3D n3 = (normal % (vp1 - vm1).Normalize());
+			Vector3D n2 = Cross(normal, (vm1 - vm2).Normalize());
+			Vector3D n3 = Cross(normal, (vp1 - vm1).Normalize());
 			
 			for (int a = 0; a < vertexCount; a++)
 			{
@@ -786,9 +786,9 @@ static int TriangulatePolygon(int vertexCount, const Point3D *vertex,
 				if ((active[a]) && (a != m1) && (a != m2) && (a != p1))
 				{
 					const Vector3D& v = vertex[a];
-					if ((n1 * (v - vp1).Normalize() > -epsilon)
-						&& (n2 * (v - vm2).Normalize() > -epsilon)
-						&& (n3 * (v - vm1).Normalize() > -epsilon))
+					if (Dot(n1, (v - vp1).Normalize()) > -epsilon
+						&& Dot(n2, (v - vm2).Normalize()) > -epsilon
+						&& Dot(n3, (v - vm1).Normalize()) > -epsilon)
 					{
 						negative = false;
 						break;
@@ -801,8 +801,8 @@ static int TriangulatePolygon(int vertexCount, const Point3D *vertex,
 		// the larger smallest angle.
 		if ((positive) && (negative))
 		{
-			float pd = (vp2 - vm1).Normalize() * (vm2 - vm1).Normalize();
-			float md = (vm2 - vp1).Normalize() * (vp2 - vp1).Normalize();
+			float pd = Dot((vp2 - vm1).Normalize(), (vm2 - vm1).Normalize());
+			float md = Dot((vm2 - vp1).Normalize(), (vp2 - vp1).Normalize());
 			if (fabs(pd - md) < epsilon)
 			{
 				if (lastPositive) positive = false;
