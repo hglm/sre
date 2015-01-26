@@ -1416,8 +1416,10 @@ void sreScene::CalculateStaticLightObjectLists() {
                 "Light %d: %d objects within light volume, %d partially inside.", i,
                 nu_visible_objects, light[i]->nu_light_volume_objects_partially_inside);
         }
-        else
+        else {
+            sreMessage(SRE_MESSAGE_LOG, "Light %d: No objects within light volume.", i);
             light[i]->nu_light_volume_objects = 0;
+	}
     }
     delete [] intersecting_object;
     delete [] intersection_test_result;

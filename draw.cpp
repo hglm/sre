@@ -1780,6 +1780,8 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
         else
             for (int i = 0; i < nu_visible_objects; i++)
                 RenderVisibleObjectLightingPass(*object[visible_object[i]], light, frustum);
+//        sreMessage(SRE_MESSAGE_LOG, "%d visible objects rendered for dynamic light %d.",
+//            nu_visible_objects, light.id);
 #if 0
         int object_count_total = object_count;
         // Render the objects that start at the root subnode the light is in all the way down in the path where

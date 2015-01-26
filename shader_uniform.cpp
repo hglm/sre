@@ -833,13 +833,13 @@ static MultiPassShaderList shader_list_directional_shadow_map_microfacet = {
 #endif
 
 static MultiPassShaderList shader_list_point_source = {
-    6,
-    { SHADER0, SHADER2, SHADER3, SHADER6, SHADER8, SHADER10 }
-}; 
+    5,
+    { SHADER0, SHADER2, SHADER3, SHADER6, SHADER10 }
+};
 
 static MultiPassShaderList shader_list_spot_light_standard = {
-    2,
-    { SHADER7, SHADER9 }
+    1,
+    { SHADER8 }
 };
 
 static MultiPassShaderList shader_list_spot_light_microfacet = {
@@ -848,8 +848,8 @@ static MultiPassShaderList shader_list_spot_light_microfacet = {
 };
 
 static MultiPassShaderList shader_list_beam_light_standard = {
-    2,
-    { SHADER7, SHADER9 }
+    1,
+    { SHADER8 } // Currently not implemented.
 };
 
 static MultiPassShaderList shader_list_beam_light_microfacet = {
@@ -1219,13 +1219,20 @@ static MultiPassShaderSelection sreSelectMultiPassShader(const sreObject& so) {
                 shader = SHADER4;
         }
         else // Point source light, beam or spot light.
-        if (sre_internal_current_light->type & SRE_LIGHT_LINEAR_ATTENUATION_RANGE)
-            // Linear attenuation range.
+        if ((sre_internal_current_light->type & (SRE_LIGHT_POINT_SOURCE |
+        SRE_LIGHT_LINEAR_ATTENUATION_RANGE)) == (SRE_LIGHT_POINT_SOURCE |
+        SRE_LIGHT_LINEAR_ATTENUATION_RANGE))
+            // Point source light with linear attenuation range.
             if ((flags & (SRE_OBJECT_MULTI_COLOR | SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
             SRE_OBJECT_USE_SPECULARITY_MAP)) == 0)
                 shader = SHADER9;
             else
                 shader = SHADER7;
+        else if (sre_internal_current_light->type & SRE_LIGHT_SPOT)
+            // Spot light.
+            shader = SHADER8;
+        else if (sre_internal_current_light->type & SRE_LIGHT_BEAM)
+            shader = SHADER8; // Not yet implemented.
         else // Not a linear attenuation range.
         if ((flags & (SRE_OBJECT_MULTI_COLOR | SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
         SRE_OBJECT_USE_SPECULARITY_MAP)) == SRE_OBJECT_MULTI_COLOR)
@@ -1436,7 +1443,7 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
                GL3InitializeShaderWithUVTransform(
                    multi_pass_shader[6].uniform_location[UNIFORM_UV_TRANSFORM], so);
             break;
-        case SHADER7 : // Complete lighting pass shader for point source lights/spot lights/beam lights 
+        case SHADER7 : // Complete lighting pass shader for point source lights 
                        // with a linear attenuation range.
             glUseProgram(multi_pass_shader[7].program);
             GL3InitializeShaderWithMVP(multi_pass_shader[7].uniform_location[UNIFORM_MVP], so);
@@ -1472,10 +1479,24 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
                 multi_pass_shader[8].uniform_location[UNIFORM_MODEL_ROTATION_MATRIX], so);
             GL3InitializeShaderWithDiffuseReflectionColor(
                 multi_pass_shader[8].uniform_location[UNIFORM_DIFFUSE_REFLECTION_COLOR], so);
+            GL3InitializeShaderWithMultiColor(multi_pass_shader[8].uniform_location[UNIFORM_USE_MULTI_COLOR], so);
+            GL3InitializeShaderWithUseTexture(multi_pass_shader[8].uniform_location[UNIFORM_USE_TEXTURE_MAP], so);
             GL3InitializeShaderWithSpecularReflectionColor(
                 multi_pass_shader[8].uniform_location[UNIFORM_SPECULAR_REFLECTION_COLOR], so);
             GL3InitializeShaderWithSpecularExponent(
                 multi_pass_shader[8].uniform_location[UNIFORM_SPECULAR_EXPONENT], so);
+            if (flags & SRE_OBJECT_USE_TEXTURE)
+                GL3InitializeShaderWithObjectTexture(so);
+            GL3InitializeShaderWithUseNormalMap(multi_pass_shader[8].uniform_location[UNIFORM_USE_NORMAL_MAP], so);
+            if (flags & SRE_OBJECT_USE_NORMAL_MAP)
+                GL3InitializeShaderWithObjectNormalMap(so);
+            GL3InitializeShaderWithUseSpecularMap(multi_pass_shader[8].uniform_location[UNIFORM_USE_SPECULARITY_MAP], so);
+            if (flags & SRE_OBJECT_USE_SPECULARITY_MAP)
+                GL3InitializeShaderWithObjectSpecularMap(so);
+            if (flags & (SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
+            SRE_OBJECT_USE_SPECULARITY_MAP))
+               GL3InitializeShaderWithUVTransform(
+                   multi_pass_shader[8].uniform_location[UNIFORM_UV_TRANSFORM], so);
             break;
         case SHADER9 : // Plain Phong-shading lighting pass shader for point source lights/
                        // spot lights/beam lights with a linear attenuation range.

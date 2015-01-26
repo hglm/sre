@@ -240,24 +240,20 @@ pipeline.
 
 2. Current bugs.
 
-Bugs as of July 2014:
+Bugs as of January 2015:
 
-- Shadow errors for spotlights in demo1 (incorrect shadow bands) with
-  shadow volumes around the central open wall, irrespective of scissors
-  settings. The problem is caused by incorrect shadow volume generation
-  for compound objects consisting of multiple blocks (which may have
-  missing sides). Worked around by avoiding compound objects casting
-  shadows.
+- Point light shadow mapping shadows sometimes disappear.
 
-- In demo1, the red spotlight light occasionally disappears (visible
-  on the pool edge).
-
-- The shadow of the second spotlight in demo1 disappears sometimes.
+- With shadow mapping, light from most spot lights in demo1 does not show
+  up (only for lights for which there are static objects inside the light
+  volume) and shadows do not show up.
 
 - The shadow map visualization option ('u') does not work correctly
   for point light cube shadow maps and spot light shadow maps.
 
-- The repeating blue fields show invalid shadows much of the time.
+- The repeating blue fields in demo8 show invalid shadows much of the time.
+
+- Collision detection for the cylinder shapes in demo8 is slightly off.
 
 - Spotlight shadows, related to handling of the bias parameter in
   the shader, is not yet robust (second spotlight in demo1 produces
@@ -468,7 +464,7 @@ check may not be highly relevant.
 The code is licensed under the ISC license, except for the Linux console
 mouse queue code implementation.
 
-Copyright (c) 2014 Harm Hanemaaijer <fgenfb@yahoo.com>
+Copyright (c) 2015 Harm Hanemaaijer <fgenfb@yahoo.com>
 
 Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above

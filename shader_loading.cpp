@@ -77,6 +77,7 @@ public :
 #define ATTRIBUTE_COLOR SRE_ATTRIBUTE_COLOR
 
 static ShaderInfo multi_pass_shader_info[NU_MULTI_PASS_SHADERS] = {
+    // SHADER0
     { "Complete multi-pass lighting shader", UNIFORM_MASK_COMMON ^ (
     (1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_EMISSION_COLOR) |
     (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER)),
@@ -98,6 +99,7 @@ static ShaderInfo multi_pass_shader_info[NU_MULTI_PASS_SHADERS] = {
     (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) |
     UNIFORM_LIGHT_PARAMETERS_MASK | (1 << UNIFORM_TEXTURE_MAP_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) },
+    // SHADER4
     { "Complete multi-pass lighting shader for directional lights", UNIFORM_MASK_COMMON ^ (
     (1 << UNIFORM_AMBIENT_COLOR) |
     (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER)),
@@ -109,21 +111,26 @@ static ShaderInfo multi_pass_shader_info[NU_MULTI_PASS_SHADERS] = {
     (UNIFORM_LIGHT_PARAMETERS_MASK) |
     (1 << UNIFORM_TEXTURE_MAP_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) },
+    // SHADER6
     { "Complete multi-pass lighting shader for point source lights", UNIFORM_MASK_COMMON ^
     ((1 << UNIFORM_AMBIENT_COLOR) |
     (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER)),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
-    { "Complete multi-pass lighting shader for point/spot/beam lights with a linear attenuation range",
-    (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) | 
-    (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER))),
-    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
-    (1 << ATTRIBUTE_COLOR) },
-    { "Plain Phong-shaded object multi-pass lighting shader for point lights", (1 << UNIFORM_MVP) |
-    (1 << UNIFORM_MODEL_MATRIX) | (1 << UNIFORM_MODEL_ROTATION_MATRIX) |
-    (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) | UNIFORM_LIGHT_PARAMETERS_MASK,
-    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_NORMAL) },
-    { "Plain Phong-shaded object multi-pass lighting shader for point/spot/beam lights with a linear attenuation range",
+    // SHADER7
+    { "Multi-pass lighting shader for point lights with a linear attenuation range",
+    (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_EMISSION_COLOR) |
+    (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER))),
+    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
+    (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
+    // SHADER8
+    { "Multi-pass lighting shader for spot lights",
+    (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_EMISSION_COLOR) |
+    (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER))),
+    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
+    (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
+    // SHADER9
+    { "Plain Phong-shaded object multi-pass lighting shader for point lights with a linear attenuation range",
     (1 << UNIFORM_MVP) | (1 << UNIFORM_MODEL_MATRIX) | (1 << UNIFORM_MODEL_ROTATION_MATRIX) |
     (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) | UNIFORM_LIGHT_PARAMETERS_MASK ,
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_NORMAL) },
@@ -353,8 +360,9 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define GENERAL_LOCAL_LIGHT\n",
-    // Complete lighting pass shader with support for all options except emission color and map, for
-    // local light sources with a linear attenuation range.
+    // SHADER7
+    // Lighting pass shader with support for all options except emission color and map, for
+    // point light sources with a linear attenuation range.
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
     "#define NORMAL_IN\n"
@@ -374,24 +382,40 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
     "#define TEXTURE_ALPHA\n"
-    "#define GENERAL_LOCAL_LIGHT\n"
+    "#define POINT_SOURCE_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n",
-    // Lighting pass shader for plain phong-shaded objects for local lights with a traditional
-    // attenuation range.
+    // SHADER8
+    // Multi-pass lighting shader for spot lights
+    "#define TEXCOORD_IN\n"
+    "#define UV_TRANSFORM\n"
     "#define NORMAL_IN\n"
+    "#define TANGENT_IN\n"
+    "#define COLOR_IN\n"
     "#define POSITION_WORLD_VAR\n"
     "#define NORMAL_VAR\n"
+    "#define TBN_MATRIX_VAR\n"
+    "#define TEXCOORD_VAR\n"
+    "#define MULTI_COLOR_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
+    "#define NORMAL_MAP_OPTION\n"
+    "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define GENERAL_LOCAL_LIGHT\n",
-    // Lighting pass shader for plain phong-shaded objects for local lights with a
+    "#define TEXTURE_MAP_SAMPLER\n"
+    "#define NORMAL_MAP_SAMPLER\n"
+    "#define SPECULARITY_MAP_SAMPLER\n"
+    "#define TEXTURE_ALPHA\n"
+    "#define SPOT_LIGHT\n"
+    "#define LINEAR_ATTENUATION_RANGE\n",
+    // SHADER9
+    // Lighting pass shader for plain phong-shaded objects for point source light with a
     // linear attenuation range.
     "#define NORMAL_IN\n"
     "#define POSITION_WORLD_VAR\n"
     "#define NORMAL_VAR\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define GENERAL_LOCAL_LIGHT\n"
+    "#define POINT_SOURCE_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n",
     // Complete microfacet lighting pass shader for directional lights
     "#define TEXCOORD_IN\n"

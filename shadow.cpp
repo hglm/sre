@@ -309,7 +309,7 @@ static void CalculateSilhouetteEdges(const Vector4D& lightpos, EdgeArray *ea) {
 //            printf("face_type[0, 1, 2, 3] = 0x%08X\n", ea->GetFourFaceTypes(k));
         }
     }
-#endif
+#endif	// defined(USE_SIMD)
     for (;i < m->nu_triangles; i++) {
         Vector3D light_vector = lightpos.GetPoint3D() -
             lightpos.w * m->vertex[m->triangle[i].vertex_index[0]];
