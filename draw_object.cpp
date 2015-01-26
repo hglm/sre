@@ -385,7 +385,7 @@ static void PrintAttributeList(sreObjectAttributeInfo *info, bool interleaved) {
         }
         for (int i = 0; i < SRE_NU_VERTEX_ATTRIBUTES; i++)
             if (mask & (1 << i))
-                sreMessageNoNewline("%c", '0' + i);
+                sreMessageNoNewline(SRE_MESSAGE_LOG, "%c", '0' + i);
     }
 }
 
@@ -408,7 +408,7 @@ const char *pass,  int light_type_slot) {
 static void PrintNewShaderInfo(const sreObject *so, sreLODModel *m, sreObjectAttributeInfo *info,
 const char *pass, int light_type_slot) {
     if (sre_internal_debug_message_level >= SRE_MESSAGE_LOG) {
-        sreMessage(SRE_MESSAGE_LOG, ("New shader selected: ");
+        sreMessage(SRE_MESSAGE_LOG, "New shader selected: ");
         PrintShaderInfo(so, m, info, pass, light_type_slot);
     }
 }
@@ -416,7 +416,7 @@ const char *pass, int light_type_slot) {
 static void PrintDrawObjectInfo(const sreObject *so, sreLODModel *m, sreObjectAttributeInfo *info,
 const char *pass, int light_type_slot) {
     if (sre_internal_debug_message_level >= SRE_MESSAGE_VERBOSE_LOG) {
-        sreMessage(SRE_MESSAGE_VERBOSE_LOG, ("sreDrawObject: ");
+        sreMessage(SRE_MESSAGE_VERBOSE_LOG, "sreDrawObject: ");
         PrintShaderInfo(so, m, info, pass, light_type_slot);
     }
 }
@@ -545,9 +545,9 @@ void sreDrawObjectSinglePass(sreObject *so) {
 // as well as normal maps and specularity maps.
 
 void sreDrawObjectAmbientPass(sreObject *so) {
-   bool new_shader_selected = sreInitializeObjectShaderAmbientPass(*so);
+    bool new_shader_selected = sreInitializeObjectShaderAmbientPass(*so);
 
-   GL3SetGLFlags(so);
+    GL3SetGLFlags(so);
 
     // Level-of-detail handling.
     sreLODModel *m = sreCalculateLODModel(*so);

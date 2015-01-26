@@ -67,7 +67,7 @@ enum BoundsCheckResult {
 };
 
 #define SRE_BOUNDS_EQUAL_AND_TEST_ALLOWED(result, value) \
-    ((result) == (value))
+    ((result) == (value) && ((result) & SRE_BOUNDS_DO_NOT_CHECK_MASK) == 0)
 
 #define SRE_BOUNDS_NOT_EQUAL_AND_TEST_ALLOWED(result, value) \
     ((result) != (value) && ((result) & SRE_BOUNDS_DO_NOT_CHECK_MASK) == 0)

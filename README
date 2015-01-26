@@ -244,9 +244,10 @@ Bugs as of January 2015:
 
 - Point light shadow mapping shadows sometimes disappear.
 
-- With shadow mapping, light from most spot lights in demo1 does not show
-  up (only for lights for which there are static objects inside the light
-  volume) and shadows do not show up.
+- With shadow mapping, spot light shadows do not show up at all, and
+  light from spot lights in demo1 disappears, especially when the player
+  object is near. This suggests something is wrong with spot light
+  shadow map handling.
 
 - The shadow map visualization option ('u') does not work correctly
   for point light cube shadow maps and spot light shadow maps.

@@ -1925,7 +1925,7 @@ void sreScene::RenderLightingPasses(sreFrustum *frustum, sreView *view) {
 
         // Visible objects for each light have been predetermined before this function was called.
         // However, for variable lights with a defined worst-case light volume, when the frustum
-        // hasn't changed so visiblity has not been redetermined, it is very possible that the light
+        // hasn't changed so visiblity has not been predetermined, it is very possible that the light
         // volume is now outside the frustum, in which case we can skip the light.
         if ((sre_internal_current_light->type & SRE_LIGHT_DYNAMIC_LIGHT_VOLUME) &&
         sre_internal_current_frame > frustum->most_recent_frame_changed) {
@@ -1951,6 +1951,8 @@ void sreScene::RenderLightingPasses(sreFrustum *frustum, sreView *view) {
             glDepthMask(GL_FALSE);
             if (!r) {
                 // There are no shadow casters and no shadow (or light) receivers for this light.
+                sreMessage(SRE_MESSAGE_LOG, "There are no shadow casters and no shadow (or light) "
+                    "receivers for light %d.", sre_internal_current_light->id);
                 UpdateGeometryScissorsCacheData(*frustum, *sre_internal_current_light);
                 continue;
             }

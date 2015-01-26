@@ -863,8 +863,8 @@ static MultiPassShaderList shader_list_beam_light_microfacet = {
 // any shadow casters or receivers).
 
 static MultiPassShaderList shader_list_spot_light_shadow_map_standard = {
-    3,
-    { SHADER7, SHADER9, SHADER16 }
+    2,
+    { SHADER8, SHADER16 }
 };
 
 static MultiPassShaderList shader_list_spot_light_shadow_map_microfacet = {
@@ -1471,7 +1471,7 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
                GL3InitializeShaderWithUVTransform(
                    multi_pass_shader[7].uniform_location[UNIFORM_UV_TRANSFORM], so);
             break;
-        case SHADER8 : // Plain Phong-shading lighting pass shader for point source lights.
+        case SHADER8 : // Complete lighting pass shader for spot lights.
             glUseProgram(multi_pass_shader[8].program);
             GL3InitializeShaderWithMVP(multi_pass_shader[8].uniform_location[UNIFORM_MVP], so);
             GL3InitializeShaderWithModelMatrix(multi_pass_shader[8].uniform_location[UNIFORM_MODEL_MATRIX], so);

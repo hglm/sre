@@ -192,15 +192,15 @@ public :
 
     void Initialize() {
 #ifdef USE_SIMD
-        casters.m_dim_min = simd128_set_same_float(POSITIVE_INFINITY_FLOAT);
-        casters.m_dim_max = simd128_set_same_float(NEGATIVE_INFINITY_FLOAT);
+        casters.m_dim_min = simd128_set_same_float(FLT_MAX);
+        casters.m_dim_max = simd128_set_same_float(- FLT_MAX);
         receivers.m_dim_min = casters.m_dim_min;
         receivers.m_dim_max = casters.m_dim_max;
 #else
-        casters.dim_min = receivers.dim_min = Vector3D(POSITIVE_INFINITY_FLOAT, 
-            POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT);
-        casters.dim_max = receivers.dim_max = Vector3D(NEGATIVE_INFINITY_FLOAT,
-            NEGATIVE_INFINITY_FLOAT, NEGATIVE_INFINITY_FLOAT);
+        casters.dim_min = receivers.dim_min = Vector3D(FLT_MAX, 
+            FLT_MAX, FLT_MAX);
+        casters.dim_max = receivers.dim_max = Vector3D(- FLT_MAX,
+            - FLT_MAX, - FLT_MAX);
 #endif
     }
     void GetCasters(sreBoundingVolumeAABB& AABB) {
@@ -823,13 +823,13 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
             scene->fast_octree_dynamic, 0, scene, frustum, light, SRE_BOUNDS_DO_NOT_CHECK);
         AABB_generation_info.GetCasters(AABB_shadow_caster);
         AABB_generation_info.GetReceivers(AABB_shadow_receiver);
-        if (AABB_shadow_caster.dim_min.x == POSITIVE_INFINITY_FLOAT ||
-        AABB_shadow_receiver.dim_min.x == POSITIVE_INFINITY_FLOAT ||
+        if (AABB_shadow_caster.dim_min.x == FLT_MAX ||
+        AABB_shadow_receiver.dim_min.x == FLT_MAX ||
         !Intersects(AABB_shadow_receiver, frustum.frustum_world)) {
             // No objects cast or no objects receive shadows for this light,
             // or the shadow receiver volume does not intersect the frustum.
             light.shadow_map_required = false;
-            if (AABB_shadow_receiver.dim_min.x == POSITIVE_INFINITY_FLOAT) {
+            if (AABB_shadow_receiver.dim_min.x == FLT_MAX) {
                 // If no objects receive shadows and light, we can skip the light entirely.
                 sreMessage(SRE_MESSAGE_LOG, "No shadow or light receivers for light %d.", light.id);
                 return false;
@@ -874,12 +874,12 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
         scene->fast_octree_dynamic, 0, scene, frustum, SRE_BOUNDS_DO_NOT_CHECK);
     AABB_generation_info.GetCasters(AABB_shadow_caster);
     AABB_generation_info.GetReceivers(AABB_shadow_receiver);
-    if (AABB_shadow_caster.dim_min.x == POSITIVE_INFINITY_FLOAT ||
-    AABB_shadow_receiver.dim_min.x == POSITIVE_INFINITY_FLOAT ||
+    if (AABB_shadow_caster.dim_min.x == FLT_MAX ||
+    AABB_shadow_receiver.dim_min.x == FLT_MAX ||
     !Intersects(AABB_shadow_receiver, frustum.frustum_world)) {
         // No objects cast or no objects receive shadows for this light.
         light.shadow_map_required = false;
-        if (AABB_shadow_receiver.dim_min.x == POSITIVE_INFINITY_FLOAT) {
+        if (AABB_shadow_receiver.dim_min.x == FLT_MAX) {
             // If no objects receive shadows and light, we can skip the light entirely.
             return false;
         }
@@ -914,8 +914,8 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
 
     // Clip the shadow receivers AABB against the AABB of the view frustum (including far plane).
     sreBoundingVolumeAABB frustum_AABB;
-    frustum_AABB.dim_min.Set(POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT);
-    frustum_AABB.dim_max.Set(NEGATIVE_INFINITY_FLOAT, NEGATIVE_INFINITY_FLOAT, NEGATIVE_INFINITY_FLOAT);
+    frustum_AABB.dim_min.Set(FLT_MAX, FLT_MAX, FLT_MAX);
+    frustum_AABB.dim_max.Set(- FLT_MAX, - FLT_MAX, - FLT_MAX);
     for (int i = 0; i < 8; i++)
         // Extend AABB so that includes the frustum vertex.
         UpdateAABB(frustum_AABB, frustum.frustum_world.hull.vertex[i]);
@@ -1107,8 +1107,8 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
     Vector3D y_dir = Cross(x_dir, light.vector.GetVector3D());
     // Calculate the vertex that is furthest from the camera position in both directions along x_dir and y_dir,
     // and the vertex that is furthest from the camera opposition in the opposite light vector direction.
-    dim_max.x = dim_max.y = dim_max.z = NEGATIVE_INFINITY_FLOAT;
-    dim_min.x = dim_min.y = POSITIVE_INFINITY_FLOAT;
+    dim_max.x = dim_max.y = dim_max.z = - FLT_MAX;
+    dim_min.x = dim_min.y = FLT_MAX;
     for (int i = 0; i < 8; i++) {
         Vector4D L = Vector4D(x_dir, - Dot(AABB_vertex[i], x_dir));
         float dist = Dot(L, camera_position);
