@@ -22,7 +22,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // It has been written to be compatible with both OpenGL 2.0+ and OpenGL ES 2.0.
 
 uniform mat4 view_projection_matrix;
-attribute vec3 position_in;	// Billboard vertices in world space.
+attribute vec4 position_in;	// Billboard vertices in world space.
 #ifdef HALO
 attribute vec3 normal_in;	// Billboard center in world space for halo.
 // Halo size is in the range [0, 1] where 1.0 means it just fades
@@ -43,7 +43,7 @@ varying vec2 texcoord_var;
 #endif
 
 void main() {
-	vec4 position = view_projection_matrix * vec4(position_in, 1.0);
+	vec4 position = view_projection_matrix * vec4(position_in.xyz, 1.0);
 #ifdef HALO
         vec4 projected_center = (view_projection_matrix * vec4(normal_in, 1.0));
 	screen_position_center = projected_center.xy / projected_center.w;

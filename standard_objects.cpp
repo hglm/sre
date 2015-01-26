@@ -502,13 +502,13 @@ sreModel *sreCreateRampModel(sreScene *scene, float xdim, float ydim, float zdim
     sreModel *m = new sreModel;
     sreLODModel *lm = m->lod_model[0] = sreNewLODModel();
     m->nu_lod_levels = 1;
-    lm->vertex = new Point3D[max_vertices];
+    lm->position = new Point3DPadded[max_vertices];
     lm->triangle = new sreModelTriangle[max_triangles];
     lm->texcoords = new Point2D[max_vertices];
     lm->nu_vertices = 0;
     lm->nu_triangles = 0;
     AddRamp(lm, 0, 0, xdim, ydim, zdim, type);
-    lm->SetPositions(lm->vertex);
+    lm->SetPositions(lm->position);
     lm->SetAttributeFlags(SRE_POSITION_MASK | SRE_TEXCOORDS_MASK);
     lm->SortVertices(0); // Sort on x-coordinate.
 //    m->MergeIdenticalVertices();
@@ -532,7 +532,7 @@ sreModel *sreCreateRingsModel(sreScene *scene, float min_radius, float max_radiu
     sreLODModel *m = model->lod_model[0] = sreNewLODModel();
     model->nu_lod_levels = 1;
     m->nu_vertices = (RINGS_LONGITUDE_SEGMENTS + 1) * (RINGS_RADIAL_SEGMENTS + 1);
-    m->vertex = new Point3D[m->nu_vertices];
+    Point3D *vertex = new Point3D[m->nu_vertices];
     m->texcoords = new Point2D[m->nu_vertices];
     for (int i = 0; i <= RINGS_LONGITUDE_SEGMENTS; i++) {
         for (int j = 0; j <= RINGS_RADIAL_SEGMENTS; j++) {
@@ -549,7 +549,7 @@ sreModel *sreCreateRingsModel(sreScene *scene, float min_radius, float max_radiu
                 x = 0;
             if (y == -0)
                 y = 0;
-            m->vertex[vertex_index].Set(x, y, z);
+            vertex[vertex_index].Set(x, y, z);
             m->texcoords[vertex_index].Set((float)j / RINGS_RADIAL_SEGMENTS, 0);
             grid_vertex[j][i] = vertex_index;
             vertex_index++;
@@ -568,7 +568,7 @@ sreModel *sreCreateRingsModel(sreScene *scene, float min_radius, float max_radiu
            triangle_index++;
         }
     }
-    m->SetPositions(m->vertex);
+    m->SetPositions(vertex);
     m->SetAttributeFlags(SRE_POSITION_MASK | SRE_TEXCOORDS_MASK);
     m->RemoveEmptyTriangles(); // Added
     m->SortVertices(0); // Sort on x-coordinate.
@@ -593,7 +593,7 @@ Color color1, Color color2) {
     model->nu_lod_levels = 1;
     m->nu_triangles = size * size * 2;
     m->nu_vertices = m->nu_triangles * 3;
-    m->vertex = new Point3D[m->nu_vertices];
+    Point3D *vertex = new Point3D[m->nu_vertices];
     m->colors = new Color[m->nu_vertices];
     m->triangle = new sreModelTriangle[m->nu_triangles];
     int i = 0;
@@ -608,19 +608,19 @@ Color color1, Color color2) {
                 color = color2;
             for (int j = 0; j < 6; j++)
                  m->colors[i + j] = color;
-            m->vertex[i] = mesh[y * (size + 1) + x];
-            m->vertex[i + 1] = mesh[y * (size + 1) + x + 1];
-            m->vertex[i + 2] = mesh[(y + 1) * (size + 1) + x];
+            vertex[i] = mesh[y * (size + 1) + x];
+            vertex[i + 1] = mesh[y * (size + 1) + x + 1];
+            vertex[i + 2] = mesh[(y + 1) * (size + 1) + x];
             t1->AssignVertices(i, i + 1, i + 2);
             i += 3;
-            m->vertex[i] = mesh[y * (size + 1) + x + 1];
-            m->vertex[i + 1] = mesh[(y + 1) * (size + 1) + x + 1];
-            m->vertex[i + 2] = mesh[(y + 1) * (size + 1) + x];
+            vertex[i] = mesh[y * (size + 1) + x + 1];
+            vertex[i + 1] = mesh[(y + 1) * (size + 1) + x + 1];
+            vertex[i + 2] = mesh[(y + 1) * (size + 1) + x];
             t2->AssignVertices(i, i + 1, i + 2);
             i += 3;
         }
     delete [] mesh;
-    m->SetPositions(m->vertex);
+    m->SetPositions(vertex);
     m->SetAttributeFlags(SRE_POSITION_MASK | SRE_COLOR_MASK);
     m->flags |= SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT;
     m->SortVertices(0); // Sort on x-coordinate.
@@ -671,7 +671,7 @@ int TORUS_LATITUDE_SEGMENTS, int TORUS_LONGITUDE_SEGMENTS_PER_TEXTURE, int TORUS
         }
     }
     m->nu_vertices = TORUS_LONGITUDE_SEGMENTS * TORUS_LATITUDE_SEGMENTS * 4;
-    m->vertex = new Point3D[m->nu_vertices];
+    Point3D *vertex = new Point3D[m->nu_vertices];
     m->texcoords = new Point2D[m->nu_vertices];
     m->nu_triangles = TORUS_LONGITUDE_SEGMENTS * TORUS_LATITUDE_SEGMENTS * 2;
     m->triangle = new sreModelTriangle[m->nu_triangles];
@@ -681,11 +681,11 @@ int TORUS_LATITUDE_SEGMENTS, int TORUS_LONGITUDE_SEGMENTS_PER_TEXTURE, int TORUS
     for (int l = 0; l < TORUS_LONGITUDE_SEGMENTS; l++) {
         for (int k = 0; k < TORUS_LATITUDE_SEGMENTS; k++) {
             // Set the vertices of this segment quad
-            m->vertex[v] = grid_vertex[l * TORUS_LATITUDE_SEGMENTS + k];
-            m->vertex[v + 1] = grid_vertex[((l + 1) % TORUS_LONGITUDE_SEGMENTS) * TORUS_LATITUDE_SEGMENTS + k];
-            m->vertex[v + 2] = grid_vertex[((l + 1) % TORUS_LONGITUDE_SEGMENTS) * TORUS_LATITUDE_SEGMENTS +
+            vertex[v] = grid_vertex[l * TORUS_LATITUDE_SEGMENTS + k];
+            vertex[v + 1] = grid_vertex[((l + 1) % TORUS_LONGITUDE_SEGMENTS) * TORUS_LATITUDE_SEGMENTS + k];
+            vertex[v + 2] = grid_vertex[((l + 1) % TORUS_LONGITUDE_SEGMENTS) * TORUS_LATITUDE_SEGMENTS +
                 (k + 1) % TORUS_LATITUDE_SEGMENTS];
-            m->vertex[v + 3] = grid_vertex[l * TORUS_LATITUDE_SEGMENTS + (k + 1) % TORUS_LATITUDE_SEGMENTS];
+            vertex[v + 3] = grid_vertex[l * TORUS_LATITUDE_SEGMENTS + (k + 1) % TORUS_LATITUDE_SEGMENTS];
             // Set the texcoords, dependent on whether the vertex is left/top or right/bottom within the quad.
             m->texcoords[v].Set(CalculateTextureX(l, k, false, tlongpt), CalculateTextureY(l, k, false, tlatpt));
             m->texcoords[v + 1].Set(CalculateTextureX(l + 1, k, true, tlongpt), CalculateTextureY(l + 1, k, false, tlatpt));
@@ -699,7 +699,7 @@ int TORUS_LATITUDE_SEGMENTS, int TORUS_LONGITUDE_SEGMENTS_PER_TEXTURE, int TORUS
         }
     }
     delete [] grid_vertex;
-    m->SetPositions(m->vertex);
+    m->SetPositions(vertex);
     m->SetAttributeFlags(SRE_POSITION_MASK | SRE_TEXCOORDS_MASK);
     m->flags |= SRE_LOD_MODEL_CONTAINS_HOLES;
     m->SortVertices(0); // Sort on x-coordinate.
@@ -848,7 +848,7 @@ float GAP_WIDTH, float BAR_WIDTH, float THICKNESS) {
         (NU_HOLES_Y - 1) * 8 + (NU_HOLES_Y - 1) * 6 + 1 * 8 +
         (NU_HOLES_Y - 1) * ((NU_HOLES_X - 1) * (8 + 4 + 8) + 8) + (NU_HOLES_X - 1) * 8;
     int max_vertices = max_triangles * 2;
-    m->vertex = new Point3D[max_vertices];
+    m->position = new Point3DPadded[max_vertices];
     m->triangle = new sreModelTriangle[max_triangles];
     m->texcoords = new Point2D[max_vertices];
     m->nu_vertices = 0;
@@ -916,7 +916,7 @@ float GAP_WIDTH, float BAR_WIDTH, float THICKNESS) {
         x += GAP_WIDTH + BAR_WIDTH;
     }
 //    printf("nu_vertices = %d, max_vertices = %d", m->nu_vertices, max_vertices);
-    m->SetPositions(m->vertex);
+    m->SetPositions(m->position);
     m->SetAttributeFlags(SRE_POSITION_MASK /* | SRE_TEXCOORDS_MASK */);
     m->flags |= SRE_LOD_MODEL_CONTAINS_HOLES;
     m->SortVertices(0); // Sort on x-coordinate.
@@ -971,13 +971,13 @@ sreModel *sreCreateBlockModel(sreScene *scene, float xdim, float ydim, float zdi
     sreModel *model = new sreModel;
     sreLODModel *m = model->lod_model[0] = sreNewLODModel();
     model->nu_lod_levels = 1;
-    m->vertex = new Point3D[max_vertices];
+    m->position = new Point3DPadded[max_vertices];
     m->triangle = new sreModelTriangle[max_triangles];
     m->texcoords = new Point2D[max_vertices];
     m->nu_vertices = 0;
     m->nu_triangles = 0;
     AddBar(m, 0, 0, xdim, ydim, zdim, flags);
-    m->SetPositions(m->vertex);
+    m->SetPositions(m->position);
     m->SetAttributeFlags(SRE_POSITION_MASK | SRE_TEXCOORDS_MASK);
     // If any side of the block is missing, the mode is not closed.
     if (flags != 0)
@@ -1006,30 +1006,30 @@ sreModel *sreCreateRepeatingRectangleModel(sreScene *scene, float size, float un
             mesh[y * 2 + x].Set(x * size, y * size, 0);
     m->nu_triangles = 2;
     m->nu_vertices = m->nu_triangles * 3;
-    m->vertex = new Point3D[m->nu_vertices];
+    m->position = new Point3DPadded[m->nu_vertices];
     m->triangle = new sreModelTriangle[m->nu_triangles];
     m->texcoords = new Point2D[m->nu_vertices];
     int i = 0;
     sreModelTriangle *t1 = &m->triangle[0];
     sreModelTriangle *t2 = &m->triangle[1];
-    m->vertex[i] = mesh[0];
-    m->vertex[i + 1] = mesh[1];
-    m->vertex[i + 2] = mesh[2];
+    m->position[i] = mesh[0];
+    m->position[i + 1] = mesh[1];
+    m->position[i + 2] = mesh[2];
     t1->AssignVertices(i, i + 1, i + 2);
     m->texcoords[0].Set(0, 0);
     m->texcoords[1].Set(size / unit_size, 0);
     m->texcoords[2].Set(0, size / unit_size);
     i += 3;
-    m->vertex[i] = mesh[1];
-    m->vertex[i + 1] = mesh[3];
-    m->vertex[i + 2] = mesh[2];
+    m->position[i] = mesh[1];
+    m->position[i + 1] = mesh[3];
+    m->position[i + 2] = mesh[2];
     t2->AssignVertices(i, i + 1, i + 2);
     m->texcoords[3].Set(size / unit_size, 0);
     m->texcoords[4].Set(size / unit_size, size / unit_size);
     m->texcoords[5].Set(0, size / unit_size);
     i += 3;
     delete [] mesh;
-    m->SetPositions(m->vertex);
+    m->SetPositions(m->position);
     m->SetAttributeFlags(SRE_POSITION_MASK);
     m->flags |= /* SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT | */
         SRE_LOD_MODEL_NOT_CLOSED | SRE_TEXCOORDS_MASK;
@@ -1051,30 +1051,30 @@ static sreModel *FinishPlaneRectangleModel(sreScene *scene, Point3D *mesh) {
     model->nu_lod_levels = 1;
     m->nu_triangles = 2;
     m->nu_vertices = m->nu_triangles * 3;
-    m->vertex = new Point3D[m->nu_vertices];
+    m->position = new Point3DPadded[m->nu_vertices];
     m->triangle = new sreModelTriangle[m->nu_triangles];
     m->texcoords = new Point2D[m->nu_vertices];
     int i = 0;
     sreModelTriangle *t1 = &m->triangle[0];
     sreModelTriangle *t2 = &m->triangle[1];
-    m->vertex[i] = mesh[0];
-    m->vertex[i + 1] = mesh[1];
-    m->vertex[i + 2] = mesh[2];
+    m->position[i] = mesh[0];
+    m->position[i + 1] = mesh[1];
+    m->position[i + 2] = mesh[2];
     t1->AssignVertices(i, i + 1, i + 2);
     m->texcoords[0].Set(0, 0);
     m->texcoords[1].Set(1.0f, 0);
     m->texcoords[2].Set(0, 1.0f);
     i += 3;
-    m->vertex[i] = mesh[1];
-    m->vertex[i + 1] = mesh[3];
-    m->vertex[i + 2] = mesh[2];
+    m->position[i] = mesh[1];
+    m->position[i + 1] = mesh[3];
+    m->position[i + 2] = mesh[2];
     t2->AssignVertices(i, i + 1, i + 2);
     m->texcoords[3].Set(1.0f, 0);
     m->texcoords[4].Set(1.0f, 1.0f);
     m->texcoords[5].Set(0, 1.0f);
     i += 3;
     delete [] mesh;
-    m->SetPositions(m->vertex);
+    m->SetPositions(m->position);
     m->SetAttributeFlags(SRE_POSITION_MASK);
     m->flags |= /* SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT | */
         SRE_LOD_MODEL_NOT_CLOSED | SRE_TEXCOORDS_MASK;
@@ -1125,7 +1125,7 @@ bool include_top, bool include_bottom) {
         m->nu_vertices += (LONGITUDE_SEGMENTS + 1) + 1;
     if (include_bottom)
         m->nu_vertices += (LONGITUDE_SEGMENTS + 1) + 1;
-    m->vertex = new Point3D[m->nu_vertices];
+    m->position = new Point3DPadded[m->nu_vertices];
     m->texcoords = new Point2D[m->nu_vertices];
     for (int i = 0; i <= LONGITUDE_SEGMENTS; i++) {
             float longitude = i * (360 / (float)LONGITUDE_SEGMENTS) * M_PI / 180;
@@ -1134,8 +1134,8 @@ bool include_top, bool include_bottom) {
             float x, y;
             x = radius * cosf(longitude);
             y = radius * sinf(longitude);
-            m->vertex[vertex_index].Set(x, y, zdim);
-            m->vertex[vertex_index + 1].Set(x, y, 0.0);
+            m->position[vertex_index].Set(x, y, zdim);
+            m->position[vertex_index + 1].Set(x, y, 0.0);
             m->texcoords[vertex_index].Set((float)i / LONGITUDE_SEGMENTS, 0);
             m->texcoords[vertex_index + 1].Set((float)i / LONGITUDE_SEGMENTS, 1.0);
             grid_vertex[i] = vertex_index;
@@ -1145,7 +1145,7 @@ bool include_top, bool include_bottom) {
     // Duplicate the vertices for the top and bottom (vertex normals will be different for the same vertex).
     if (include_top)
         for (int i = 0; i <= LONGITUDE_SEGMENTS; i++) {
-            m->vertex[vertex_index] = m->vertex[i * 2];
+            m->position[vertex_index] = m->position[i * 2];
             // Top is hard to texture map, provide an arbitrary mapping.
             m->texcoords[vertex_index].Set((float)i / LONGITUDE_SEGMENTS, 0);
             grid_vertex[i + row_size * 2] = vertex_index;
@@ -1153,7 +1153,7 @@ bool include_top, bool include_bottom) {
         }
     if (include_bottom)
         for (int i = 0; i <= LONGITUDE_SEGMENTS; i++) {
-            m->vertex[vertex_index] = m->vertex[i * 2 + 1];
+            m->position[vertex_index] = m->position[i * 2 + 1];
             m->texcoords[vertex_index].Set((float)i / LONGITUDE_SEGMENTS, 0);
             grid_vertex[i + row_size * 3] = vertex_index;
             vertex_index++;
@@ -1161,13 +1161,13 @@ bool include_top, bool include_bottom) {
     int top_center_vertex_index;
     if (include_top) {
         top_center_vertex_index = vertex_index;
-        m->vertex[vertex_index].Set(0, 0, zdim);
+        m->position[vertex_index].Set(0, 0, zdim);
         vertex_index++;
     }
     int bottom_center_vertex_index;
     if (include_bottom) {
         bottom_center_vertex_index = vertex_index;
-        m->vertex[vertex_index].Set(0, 0, 0);
+        m->position[vertex_index].Set(0, 0, 0);
         vertex_index++;
     }
     m->nu_triangles = LONGITUDE_SEGMENTS * 2;
@@ -1199,7 +1199,7 @@ bool include_top, bool include_bottom) {
                 grid_vertex[i + row_size * 3]);
             triangle_index++;
         }
-    m->SetPositions(m->vertex);
+    m->SetPositions(m->position);
     m->SetAttributeFlags(SRE_POSITION_MASK | SRE_TEXCOORDS_MASK);
     if (!(include_bottom && include_top))
         m->flags |= SRE_LOD_MODEL_NOT_CLOSED;
@@ -1321,7 +1321,7 @@ static void sreInitializeCapsuleModel(sreBaseModel *m, int LONGITUDE_SEGMENTS, i
 float cap_radius, float length, float radius_y, float radius_z) {
     int max_vertices = (LONGITUDE_SEGMENTS + 1) * (LATITUDE_SEGMENTS / 2 + 1) * 2 + // The ellipsoid caps.
         (LONGITUDE_SEGMENTS + 1) * 2; // The cylinder hull.
-    m->vertex = new Point3D[max_vertices];
+    m->position = new Point3DPadded[max_vertices];
     m->nu_vertices = 0;
     int max_triangles = LONGITUDE_SEGMENTS * (LATITUDE_SEGMENTS / 2) * 2 * 2 + LONGITUDE_SEGMENTS * 2;
     m->triangle = new sreModelTriangle[max_triangles];
@@ -1329,7 +1329,7 @@ float cap_radius, float length, float radius_y, float radius_z) {
     AddHalfEllipsoid(m, LONGITUDE_SEGMENTS, LATITUDE_SEGMENTS, cap_radius, length * 0.5, true, radius_y, radius_z);
     AddSquashedCylinderHull(m, LONGITUDE_SEGMENTS, length, radius_y, radius_z);
     AddHalfEllipsoid(m, LONGITUDE_SEGMENTS, LATITUDE_SEGMENTS, cap_radius, - length * 0.5, false, radius_y, radius_z);
-    m->SetPositions(m->vertex);
+    m->SetPositions(m->position);
     m->SetAttributeFlags(SRE_POSITION_MASK);
     m->RemoveEmptyTriangles();
     m->SortVertices(2); // Sort on z-coordinate.
@@ -1419,8 +1419,8 @@ Vector3D rotation, float scaling) {
         model_transform = (translation_transform * scaling_transform) * rotation_transform;
     }
 
-    Point3D *new_vertex = new Point3D[compound_model->nu_vertices + m->nu_vertices];
-    memcpy(new_vertex, compound_model->vertex, sizeof(Point3D) * compound_model->nu_vertices);
+    Point3DPadded *new_vertex = dstNewAligned <Point3DPadded>(compound_model->nu_vertices + m->nu_vertices, 16);
+    memcpy(new_vertex, compound_model->vertex, sizeof(Point3DPadded) * compound_model->nu_vertices);
     Vector3D *new_vertex_normal = new Vector3D[compound_model->nu_vertices + m->nu_vertices];
     memcpy(new_vertex_normal, compound_model->vertex_normal, sizeof(Vector3D) * compound_model->nu_vertices);
     Point2D *new_texcoords;

@@ -368,9 +368,9 @@ static sreLODModel *ConvertToModel(int load_flags) {
 
     m->nu_vertices = nu_vertices;
     // Assign vertex positions.
-    m->vertex = new Point3D[m->nu_vertices];
+    m->position = new Point3DPadded[m->nu_vertices];
     for (int i = 0; i < m->nu_vertices; i++) {
-        m->vertex[i].Set(assimp_vertex[i].x, assimp_vertex[i].y, assimp_vertex[i].z);
+        m->position[i].Set(assimp_vertex[i].x, assimp_vertex[i].y, assimp_vertex[i].z);
     }
     m->flags |= SRE_POSITION_MASK;
     // Assign triangles.

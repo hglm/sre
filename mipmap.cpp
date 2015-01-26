@@ -239,8 +239,7 @@ static void create_mipmap_with_averaging(sreMipmapImage *source_image, int divid
 			a /= n;
 			if (source_image->alpha_bits == 0)
 				a = 0xFF;
-			else
-			if (source_image->alpha_bits == 1)
+			else if (source_image->alpha_bits == 1) {
 				// Avoid smoothing out 1-bit alpha textures. If there are less than n / 2
 				// alpha pixels in the source image with alpha 0xFF, then alpha becomes
 				// zero, otherwise 0xFF.
@@ -248,6 +247,7 @@ static void create_mipmap_with_averaging(sreMipmapImage *source_image, int divid
 					a = 0xFF;
 				else
 					a = 0;
+			}
 			unsigned int pixel = pack_rgba(r, g, b, a);
 			dest_image->pixels[dy * dest_image->extended_width + dx] = pixel;
 		}
@@ -293,8 +293,7 @@ static void create_mipmap_with_averaging_divider_2(sreMipmapImage *source_image,
 			a /= 4;
 			if (source_image->alpha_bits == 0)
 				a = 0xFF;
-			else
-			if (source_image->alpha_bits == 1)
+			else if (source_image->alpha_bits == 1) {
 				// Avoid smoothing out 1-bit alpha textures. If there are less than two
 				// alpha pixels in the source image with alpha 0xFF, then alpha becomes
 				// zero, otherwise 0xFF.
@@ -302,6 +301,7 @@ static void create_mipmap_with_averaging_divider_2(sreMipmapImage *source_image,
 					a = 0xFF;
 				else
 					a = 0;
+			}
 			pixel = pack_rgba(r, g, b, a);
 			dest_image->pixels[dy * dest_image->extended_width + dx] = pixel;
 		}

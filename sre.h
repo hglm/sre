@@ -66,6 +66,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <dstMatrixMath.h>
 #include <dstColor.h>
 
+typedef Matrix4x3RM MatrixTransform;
+
 // Note: sreMatrixMath.h also provides alignment macro DST_ALIGNED(n)
 #include "sreBoundingVolume.h"
 
@@ -305,8 +307,8 @@ public :
     int nu_vertices;
     int nu_triangles;
     union {
-        Point3D *vertex;
-        Point3D *position;
+        Point3DPadded *vertex;
+        Point3DPadded *position;
     };
     sreModelTriangle *triangle;
     Vector3D *vertex_normal;
@@ -327,9 +329,10 @@ public :
     void SetNuVertices(int n) {
         nu_vertices = n;
     }
-    // Assign vertex attribute data. The buffer arguments may no long point to valid
+    // Assign vertex attribute data. The buffer argument may no long point to valid
     // data after the call.
     void SetPositions(Point3D *_positions);
+    void SetPositions(Point3DPadded *_positions);
     void SetTexcoords(Point2D *_texcoords);
     void SetColors(Color *_colors);
     void SetTangents(Vector4D *_tangents);

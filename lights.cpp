@@ -880,6 +880,7 @@ sreScissors& scissors) {
         B[6] = E2 + r * N2 - r * N3;
         B[7] = E2 - r * N2 - r * N3;
 // printf("Distance(E1, E2) = %f, height = %f\n", Magnitude(E1 - E2), height);
+//        sreMessage(SRE_MESSAGE_VERBOSE_LOG, "Calculated sphere-sphere intersection");
         bool result = scissors.UpdateWithWorldSpaceBoundingBox(B, 8, frustum);
         if (!result)
             return SRE_COMPLETELY_OUTSIDE;
@@ -951,6 +952,7 @@ sreScissors& scissors) {
         }
         sreMessage(SRE_MESSAGE_INFO, "");
 #endif
+//        sreMessage(SRE_MESSAGE_VERBOSE_LOG, "Calculated sphere-box intersection");
         bool result = scissors.UpdateWithWorldSpaceBoundingBox(P, n_vertices, frustum);
         if (!result)
             return SRE_COMPLETELY_OUTSIDE;
@@ -1048,6 +1050,7 @@ sreScissors& scissors) {
                 MoveBoundingBoxVerticesInward(B, 8, M, i, - sphere.radius + dim - dist[i + 1]);
             }
         }
+//        sreMessage(SRE_MESSAGE_VERBOSE_LOG, "Calculated cylinder-sphere intersection");
         bool result = scissors.UpdateWithWorldSpaceBoundingBox(B, 8, frustum);
         if (!result) {
 //           sreMessage(SRE_MESSAGE_INFO, "Geometry scissors region empty for spotlight %d and object %d",

@@ -150,13 +150,18 @@ static void CalculateEigensystem(const Matrix3D& m, float *lambda, Matrix3D& r)
 
 // sreBaseModel bounding volume calculation.
 
-void sreBaseModel::CalculatePrincipalComponents(srePCAComponent *PCA, Point3D &center) const {
+void sreBaseModel::CalculatePrincipalComponents(srePCAComponent *_PCA, Point3D &center) const {
     // Calculate the average position m.
     Point3D m;
     m.Set(0, 0, 0);
     for (int i = 0; i < nu_vertices; i++)
-        m += vertex[i];
+        m += position[i];
     m *= 1 / nu_vertices;
+
+//    char *s = m.GetString();
+//    sreMessage(SRE_MESSAGE_INFO, "Average position: %s", s);
+//    delete s;
+
     // Calculate the covariance matrix.
     float C11, C22, C33, C12, C13, C23;
     C11 = 0;
@@ -166,12 +171,12 @@ void sreBaseModel::CalculatePrincipalComponents(srePCAComponent *PCA, Point3D &c
     C13 = 0;
     C23 = 0;
     for (int i = 0; i < nu_vertices; i++) {
-        C11 += sqrf(vertex[i].x - m.x);
-        C22 += sqrf(vertex[i].y - m.y);
-        C33 += sqrf(vertex[i].z - m.z);
-        C12 += (vertex[i].x - m.x) * (vertex[i].y - m.y);
-        C13 += (vertex[i].x - m.x) * (vertex[i].z - m.z);
-        C23 += (vertex[i].y - m.y) * (vertex[i].z - m.z);
+        C11 += sqrf(position[i].x - m.x);
+        C22 += sqrf(position[i].y - m.y);
+        C33 += sqrf(position[i].z - m.z);
+        C12 += (position[i].x - m.x) * (position[i].y - m.y);
+        C13 += (position[i].x - m.x) * (position[i].z - m.z);
+        C23 += (position[i].y - m.y) * (position[i].z - m.z);
     }
     C11 *= 1 / nu_vertices;
     C22 *= 1 / nu_vertices;
@@ -185,9 +190,9 @@ void sreBaseModel::CalculatePrincipalComponents(srePCAComponent *PCA, Point3D &c
     float lambda[3];
     Matrix3D r;
     CalculateEigensystem(C, lambda, r);
-    PCA[0].vector = r.GetRow(0).Normalize();
-    PCA[1].vector = r.GetRow(1).Normalize();
-    PCA[2].vector = r.GetRow(2).Normalize();
+    _PCA[0].vector = r.GetRow(0).Normalize();
+    _PCA[1].vector = r.GetRow(1).Normalize();
+    _PCA[2].vector = r.GetRow(2).Normalize();
 #if 0
     // Sort on decreasing lambda so that R is the eigenvector with the greatest lambda.
     // Note: this doesn't seem to guarantee ordering on size, we calculate the extents explicitly.
@@ -195,77 +200,101 @@ void sreBaseModel::CalculatePrincipalComponents(srePCAComponent *PCA, Point3D &c
         float temp = lambda[0];
         lambda[0] = lambda[1];
         lambda[1] = temp;
-        Vector3D temp_V = PCA[0].vector;
-        PCA[0].vector = PCA[1].vector;
-        PCA[1].vector = temp_V;
+        Vector3D temp_V = _PCA[0].vector;
+        _PCA[0].vector = _PCA[1].vector;
+        _PCA[1].vector = temp_V;
     }
     if (lambda[1] < lambda[2]) {
         float temp = lambda[1];
         lambda[1] = lambda[2];
         lambda[2] = temp;
-        Vector3D temp_V = PCA[1].vector;
-        PCA[1].vector = PCA[2].vector;
-        PCA[2].vector = temp_V;
+        Vector3D temp_V = _PCA[1].vector;
+        _PCA[1].vector = _PCA[2].vector;
+        _PCA[2].vector = temp_V;
     }
     if (lambda[0] < lambda[1]) {
         float temp = lambda[0];
         lambda[0] = lambda[1];
         lambda[1] = temp;
-        Vector3D temp_V = PCA[0].vector;
-        PCA[0].vector = PCA[1].vector;
-        PCA[1].vector = temp_V;
+        Vector3D temp_V = _PCA[0].vector;
+        _PCA[0].vector = _PCA[1].vector;
+        _PCA[1].vector = temp_V;
     }
 #endif
     // Given principal axis R, S, and T, calculate the minimum and maximum extents
     // in each direction.
     Vector3D PCA_C[3];
     float min_dot_product[3], max_dot_product[3];
-    for (int i = 0; i < 3; i++)
-        PCA_C[i] = PCA[i].vector;
-    CalculateMinAndMaxDotProductWithThreeConstantVectors(nu_vertices, vertex,
+    for (int i = 0; i < 3; i++) {
+        PCA_C[i] = _PCA[i].vector;
+
+//        char *s = PCA_C[i].GetString();
+//	sreMessageNoNewline(SRE_MESSAGE_INFO, "PCA[%d] = %s ", i, s);
+    }
+//    sreMessage(SRE_MESSAGE_INFO, "");
+    dstCalculateMinAndMaxDotProductNx3(nu_vertices, position,
         PCA_C, min_dot_product, max_dot_product);
+
+//    sreMessageNoNewline(SRE_MESSAGE_INFO, "dstCalculateMinAndMaxDotProductNx3 (n = %d): ", nu_vertices);
+//    for (int i = 0; i < 3; i++)
+//        sreMessageNoNewline(SRE_MESSAGE_INFO, "min_dot[%d] = %f, max_dot[%d] = %f ", i,
+//            min_dot_product[i], i, max_dot_product[i]);
+//    sreMessage(SRE_MESSAGE_INFO, "");
+ 
     center.Set(0.0f, 0.0f, 0.0f);
     for (int i = 0; i < 3; i++) {
-        PCA[i].size = max_dot_product[i] - min_dot_product[i];
-        center +=  (max_dot_product[i] + min_dot_product[i]) * 0.5f * PCA[i].vector;
+        _PCA[i].size = max_dot_product[i] - min_dot_product[i];
+        center +=  (max_dot_product[i] + min_dot_product[i]) * 0.5f * _PCA[i].vector;
     }
     // Sort components on decreasing size so that R is the largest dimension.
-    if (PCA[0].size < PCA[1].size) {
-        float temp = PCA[0].size;
-        PCA[0].size = PCA[1].size;
-        PCA[1].size = temp;
-        Vector3D temp_V = PCA[0].vector;
-        PCA[0].vector = PCA[1].vector;
-        PCA[1].vector = temp_V;
+    if (_PCA[0].size < _PCA[1].size) {
+        float temp = _PCA[0].size;
+        _PCA[0].size = _PCA[1].size;
+        _PCA[1].size = temp;
+        Vector3D temp_V = _PCA[0].vector;
+        _PCA[0].vector = _PCA[1].vector;
+        _PCA[1].vector = temp_V;
     }
-    if (PCA[1].size < PCA[2].size) {
-        float temp = PCA[1].size;
-        PCA[1].size = PCA[2].size;
-        PCA[2].size = temp;
-        Vector3D temp_V = PCA[1].vector;
-        PCA[1].vector = PCA[2].vector;
-        PCA[2].vector = temp_V;
+    if (_PCA[1].size < _PCA[2].size) {
+        float temp = _PCA[1].size;
+        _PCA[1].size = _PCA[2].size;
+        _PCA[2].size = temp;
+        Vector3D temp_V = _PCA[1].vector;
+        _PCA[1].vector = _PCA[2].vector;
+        _PCA[2].vector = temp_V;
     }
-    if (PCA[0].size < PCA[1].size) {
-        float temp = PCA[0].size;
-        PCA[0].size = PCA[1].size;
-        PCA[1].size = temp;
-        Vector3D temp_V = PCA[0].vector;
-        PCA[0].vector = PCA[1].vector;
-        PCA[1].vector = temp_V;
+    if (_PCA[0].size < _PCA[1].size) {
+        float temp = _PCA[0].size;
+        _PCA[0].size = _PCA[1].size;
+        _PCA[1].size = temp;
+        Vector3D temp_V = _PCA[0].vector;
+        _PCA[0].vector = _PCA[1].vector;
+        _PCA[1].vector = temp_V;
     }
 }
 
-
-void sreBaseModel::CalculatePCABoundingSphere(const srePCAComponent *PCA,
+void sreBaseModel::CalculatePCABoundingSphere(const srePCAComponent *_PCA,
 sreBoundingVolumeSphere& sphere) const {
     // Given principal axis R, calculate the points Pk and Pl representing the minimum and
     // maximum extents in that direction.
     int i_Pmin, i_Pmax;
-    GetIndicesWithMinAndMaxDotProduct(nu_vertices, vertex, PCA[0].vector, i_Pmin, i_Pmax);
+    dstGetIndicesWithMinAndMaxDotProductNx1(nu_vertices, (Vector3DPadded *)position, _PCA[0].vector,
+        i_Pmin, i_Pmax);
+//    sreMessage(SRE_MESSAGE_INFO, "i_Pmin = %d, i_Pmax = %d", i_Pmin, i_Pmax);
 
     // Calculate the center and radius.
     sphere.center = (vertex[i_Pmin] + vertex[i_Pmax]) * 0.5f;
+
+#if 0
+    char *s1 = vertex[i_Pmin].GetString();
+    char *s2 = vertex[i_Pmax].GetString();
+    char *s3 = sphere.center.GetString();
+    char *PCA0_str = _PCA[0].vector.GetString();
+    sreMessage(SRE_MESSAGE_INFO, "n = %d, PCA[0] = %s, V[i_Pmin] = %s, V[i_Pmax] = %s, sphere_center %s",
+        nu_vertices, PCA0_str, s1, s2, s3);
+    delete s1; delete s2; delete s3; delete PCA0_str;
+#endif
+    
     float r_squared = SquaredMag(vertex[i_Pmin] - sphere.center);
     // Make sure every point is inside the sphere.
     for (int i = 0; i < nu_vertices; i++) {
@@ -283,40 +312,40 @@ sreBoundingVolumeSphere& sphere) const {
     sphere.radius = sqrtf(r_squared);
 }
 
-void sreBaseModel::CalculatePCABoundingEllipsoid(const srePCAComponent *PCA,
+void sreBaseModel::CalculatePCABoundingEllipsoid(const srePCAComponent *_PCA,
 sreBoundingVolumeEllipsoid& ellipsoid) const {
     sreBaseModel scaled_m;
-    scaled_m.vertex = new Point3D[nu_vertices];
+    scaled_m.vertex = new Point3DPadded[nu_vertices];
     scaled_m.nu_vertices = nu_vertices;
     Matrix3D M_RST;
-    M_RST.Set(PCA[0].vector.x, PCA[1].vector.x, PCA[2].vector.x,
-        PCA[0].vector.y, PCA[1].vector.y, PCA[2].vector.y,
-        PCA[0].vector.z, PCA[1].vector.z, PCA[2].vector.z);
+    M_RST.Set(_PCA[0].vector.x, _PCA[1].vector.x, _PCA[2].vector.x,
+        _PCA[0].vector.y, _PCA[1].vector.y, _PCA[2].vector.y,
+        _PCA[0].vector.z, _PCA[1].vector.z, _PCA[2].vector.z);
     Matrix3D M_scale;
-    M_scale.Set(1.0f / PCA[0].size, 0, 0, 0, 1.0 / PCA[1].size, 0, 0, 0, 1.0f / PCA[2].size);
+    M_scale.Set(1.0f / _PCA[0].size, 0, 0, 0, 1.0 / _PCA[1].size, 0, 0, 0, 1.0f / _PCA[2].size);
     Matrix3D M = M_RST * (M_scale * Transpose(M_RST));
     for (int i = 0; i < nu_vertices; i++)
         scaled_m.vertex[i] = M * vertex[i];
     sreBoundingVolumeSphere scaled_sphere;
-    scaled_m.CalculatePCABoundingSphere(PCA, scaled_sphere);
+    scaled_m.CalculatePCABoundingSphere(_PCA, scaled_sphere);
     Matrix3D M_unscale;
-    M_unscale.Set(PCA[0].size, 0, 0, 0, PCA[1].size, 0, 0, 0, PCA[2].size);
+    M_unscale.Set(_PCA[0].size, 0, 0, 0, _PCA[1].size, 0, 0, 0, _PCA[2].size);
     M = M_RST * (M_unscale * Transpose(M_RST));
     ellipsoid.center = M * scaled_sphere.center;
-    ellipsoid.PCA[0].vector = PCA[0].vector * PCA[0].size * scaled_sphere.radius;
-    ellipsoid.PCA[1].vector = PCA[1].vector * PCA[1].size * scaled_sphere.radius;
-    ellipsoid.PCA[2].vector = PCA[2].vector * PCA[2].size * scaled_sphere.radius;
+    ellipsoid.PCA[0].vector = _PCA[0].vector * _PCA[0].size * scaled_sphere.radius;
+    ellipsoid.PCA[1].vector = _PCA[1].vector * _PCA[1].size * scaled_sphere.radius;
+    ellipsoid.PCA[2].vector = _PCA[2].vector * _PCA[2].size * scaled_sphere.radius;
     delete [] scaled_m.vertex;
 }
 
-void sreBaseModel::CalculatePCABoundingCylinder(const srePCAComponent *PCA,
+void sreBaseModel::CalculatePCABoundingCylinder(const srePCAComponent *_PCA,
 sreBoundingVolumeCylinder& cylinder) const {
    Point3D *H = new Point3D[nu_vertices];
    for (int i = 0; i < nu_vertices; i++)
-       H[i] = vertex[i] - Dot(vertex[i], PCA[0].vector) * PCA[0].vector;
+       H[i] = vertex[i] - Dot(vertex[i], _PCA[0].vector) * _PCA[0].vector;
 
     int i_Hmin, i_Hmax;
-    GetIndicesWithMinAndMaxDotProduct(nu_vertices, H, PCA[1].vector, i_Hmin, i_Hmax);
+    dstGetIndicesWithMinAndMaxDotProductNx1(nu_vertices, H, _PCA[1].vector, i_Hmin, i_Hmax);
 
     cylinder.center = (H[i_Hmin] + H[i_Hmax]) * 0.5;
     float r_squared = SquaredMag(H[i_Hmin] - cylinder.center);
@@ -331,12 +360,12 @@ sreBoundingVolumeCylinder& cylinder) const {
     }
     delete [] H;
     cylinder.radius = sqrtf(r_squared);
-    cylinder.axis = PCA[0].vector;
-    cylinder.length = PCA[0].size;
+    cylinder.axis = _PCA[0].vector;
+    cylinder.length = _PCA[0].size;
     float min_dot_product, max_dot_product;
-    CalculateMinAndMaxDotProduct(nu_vertices, vertex, PCA[0].vector,
+    dstCalculateMinAndMaxDotProductNx1(nu_vertices, vertex, _PCA[0].vector,
         min_dot_product, max_dot_product);
-    cylinder.center = (min_dot_product + max_dot_product) * 0.5f * PCA[0].vector;
+    cylinder.center = (min_dot_product + max_dot_product) * 0.5f * _PCA[0].vector;
 }
 
 void sreBaseModel::CalculateAABB(sreBoundingVolumeAABB& AABB) const {
@@ -392,9 +421,8 @@ void sreModel::CalculateBounds() {
     CalculateBoundingSphere();
     float volume_box = PCA[0].size * PCA[1].size * PCA[2].size;
     float volume_sphere = 4.0f / 3.0f * M_PI * sphere.radius * sphere.radius * sphere.radius;
-    if (sre_internal_debug_message_level >= 2)
-        printf("Bounding sphere: centre (%f, %f, %f), radius %f.\n", sphere.center.x, sphere.center.y,
-            sphere.center.z, sphere.radius);
+    sreMessage(SRE_MESSAGE_LOG, "Bounding sphere: centre (%f, %f, %f), radius %f.",
+        sphere.center.x, sphere.center.y, sphere.center.z, sphere.radius);
     if (volume_sphere > volume_box) {
         // Use the bounding sphere of the bounding box if it is smaller than the calculated bounding sphere.
         float sphere_box_radius = sqrtf(sqrf(PCA[0].size * 0.5) + sqrf(PCA[1].size * 0.5)
@@ -402,8 +430,8 @@ void sreModel::CalculateBounds() {
         if (sphere_box_radius < sphere.radius) {
             sphere.center = box_center;
             sphere.radius = sphere_box_radius;
-        if (sre_internal_debug_message_level >= 2)
-                printf("Using bounding box for bounding sphere definition (radius = %f).\n", sphere.radius);
+        sreMessage(SRE_MESSAGE_LOG,
+            "Using bounding box for bounding sphere definition (radius = %f).", sphere.radius);
             volume_sphere = 4.0 / 3.0 * M_PI * sphere.radius * sphere.radius * sphere.radius;
         }
     }
@@ -428,14 +456,13 @@ void sreModel::CalculateBounds() {
         CalculateBoundingEllipsoid(ellipsoid);
         float volume_ellipsoid = 4.0f / 3.0f * M_PI * Magnitude(ellipsoid.PCA[0].vector) *
             Magnitude(ellipsoid.PCA[1].vector) * Magnitude(ellipsoid.PCA[2].vector);
-        if (sre_internal_debug_message_level >= 2)
-            printf("Bounding ellipsoid volume %f, best volume %f.\n", volume_ellipsoid, best_volume);
+        sreMessage(SRE_MESSAGE_LOG, "Bounding ellipsoid volume %f, best volume %f.", volume_ellipsoid,
+            best_volume);
         sreBoundingVolumeCylinder cylinder;
         CalculateBoundingCylinder(cylinder);
         float volume_cylinder = M_PI * sqrf(cylinder.radius) * cylinder.length;
-        if (sre_internal_debug_message_level >= 2)
-            printf("Bounding cylinder length = %f, radius = %f, volume = %f, best volume  = %f.\n", cylinder.length,
-                cylinder.radius, volume_cylinder, best_volume);
+        sreMessage(SRE_MESSAGE_LOG, "Bounding cylinder length = %f, radius = %f, volume = %f, "
+            "best volume  = %f.", cylinder.length, cylinder.radius, volume_cylinder, best_volume);
         // Only use the ellipsoid when it is at least 1% better in volume, and impose a further
         // criterion on absolute the difference.
         if (volume_ellipsoid < 0.99f * best_volume && (best_volume - volume_ellipsoid) > EPSILON2
@@ -488,7 +515,8 @@ void sreModel::CalculateBounds() {
         }
         else
             special = "None";
-        printf("Bounding volume selected: basic: %s%s, special: %s\n", basic, aabb, special);
+        sreMessage(SRE_MESSAGE_LOG, "Bounding volume selected: basic: %s%s, special: %s", basic, aabb,
+            special);
     }
 }
 

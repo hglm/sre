@@ -48,7 +48,7 @@ sreModel *sreObject::ConvertToStaticScenery() const {
     new_lm->sorting_dimension = lm->sorting_dimension;
     new_lm->nu_vertices = lm->nu_vertices;
     new_lm->flags = lm->flags;
-    new_lm->vertex = new Point3D[lm->nu_vertices];
+    new_lm->position = new Point3DPadded[lm->nu_vertices];
     new_lm->vertex_normal = new Vector3D[lm->nu_vertices];
     if (lm->flags & SRE_TEXCOORDS_MASK)
         new_lm->texcoords = new Point2D[lm->nu_vertices];
@@ -263,8 +263,8 @@ void sreModel::InsertPolygonVertex(int p, int i, const Point3D& Q, float t) {
     polygon[p].vertex_index = new_vertex_index;
     polygon[p].nu_vertices++;
     // Append a new vertex to the vertex array.
-    Point3D *new_vertex = new Point3D[lm->nu_vertices + 1];
-    memcpy(new_vertex, lm->vertex, sizeof(Point3D) * lm->nu_vertices);
+    Point3DPadded *new_vertex = new Point3DPadded[lm->nu_vertices + 1];
+    memcpy(new_vertex, lm->vertex, sizeof(Point3DPadded) * lm->nu_vertices);
     new_vertex[lm->nu_vertices] = Q;
     delete [] lm->vertex;
     lm->vertex = new_vertex;

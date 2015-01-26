@@ -78,12 +78,12 @@ public :
             AABB.dim_max.x, AABB.dim_max.y, AABB.dim_max.z, 0.0f);
     }
     void Get(sreBoundingVolumeAABB& AABB) {
-        AABB.dim_min.x = simd128_get_float(simd128_select_float(m_dim_min, 0, 0, 0, 0));
-        AABB.dim_min.y = simd128_get_float(simd128_select_float(m_dim_min, 1, 1, 1, 1));
-        AABB.dim_min.z = simd128_get_float(simd128_select_float(m_dim_min, 2, 2, 2, 2));
-        AABB.dim_max.x = simd128_get_float(simd128_select_float(m_dim_max, 0, 0, 0, 0));
-        AABB.dim_max.y = simd128_get_float(simd128_select_float(m_dim_max, 1, 1, 1, 1));
-        AABB.dim_max.z = simd128_get_float(simd128_select_float(m_dim_max, 2, 2, 2, 2));
+        AABB.dim_min.x = simd128_get_float(m_dim_min, 0);
+        AABB.dim_min.y = simd128_get_float(m_dim_min, 1);
+        AABB.dim_min.z = simd128_get_float(m_dim_min, 2);
+        AABB.dim_max.x = simd128_get_float(m_dim_max, 0);
+        AABB.dim_max.y = simd128_get_float(m_dim_max, 1);
+        AABB.dim_max.z = simd128_get_float(m_dim_max, 2);
     }
 };
 

@@ -67,6 +67,10 @@ void sreBoundingVolumeConvexHullWithVertices::AllocateStorage(int n_vertices, in
        plane = new Vector4D[n_planes];
 }
 
+sreBoundingVolumeConvexHullFull::sreBoundingVolumeConvexHullFull(int n_vertices, int n_planes) {
+    AllocateStorage(n_vertices, n_planes);
+}
+
 void sreBoundingVolumeConvexHullFull::AllocateStorage(int n_vertices, int n_planes) {
    hull.nu_vertices = n_vertices;
    if (n_vertices > 0)

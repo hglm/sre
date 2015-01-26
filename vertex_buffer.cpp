@@ -297,7 +297,8 @@ void sreLODModel::UploadToGPU(int attribute_mask, int dynamic_flags) {
 
     Vector4D *positions_4D;
     if (attribute_mask & SRE_POSITION_MASK) {
-        // Create 4D array for vertex position buffer from 3D positions in sreBaseModel geometry.
+        // Create 4D array for vertex position buffer from aligned 3D positions in
+	// sreBaseModel geometry.
         positions_4D = new Vector4D[total_nu_vertices];
         // Copy vertex positions, adding a w component of 1.0 for the shaders.
         for (int i = 0; i < nu_vertices; i++)
@@ -307,7 +308,7 @@ void sreLODModel::UploadToGPU(int attribute_mask, int dynamic_flags) {
         if (shadow) {
             for (int i = 0; i < nu_vertices; i++)
                 // w = 0 for extruded vertices.
-                positions_4D[i + nu_vertices] = Vector4D(vertex[i], 0);
+                positions_4D[i + nu_vertices] = Vector4D(vertex[i], 0.0f);
             model_shadow_volume->vertex_index_shadow_offset = nu_vertices;
         }
     }
@@ -449,7 +450,7 @@ void GL3SetBillboard(sreObject *so) {
         for (int i = 0; i < 4; i++)
             m->vertex_normal[i] = P;
     glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
-    glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(float) * 3, m->vertex, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(float) * 4, m->vertex, GL_DYNAMIC_DRAW);
     if (so->flags & SRE_OBJECT_LIGHT_HALO) {
         glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_NORMAL]);
         glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(float) * 3, m->vertex_normal, GL_DYNAMIC_DRAW);
@@ -479,8 +480,8 @@ void GL3SetParticleSystem(sreObject *so) {
     m->nu_triangles = so->nu_particles * 2;
     // Upload vertex attribute data.
     glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
-    glBufferData(GL_ARRAY_BUFFER, so->nu_particles * 4 * sizeof(float) * 3,
-        m->vertex, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, so->nu_particles * 4 * sizeof(float) * 4,
+        m->position, GL_DYNAMIC_DRAW);
     
     if (so->flags & SRE_OBJECT_LIGHT_HALO) {
         glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_NORMAL]);

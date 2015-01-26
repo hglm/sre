@@ -27,7 +27,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre_bounds.h"
 #include "win32_compat.h"
 
-#include <dstMatrixMathSIMD.h>
+#include <dstMatrixMath.h>
 
 sreFrustum::sreFrustum() {
      frustum_world.AllocateStorage(8, 6);
@@ -89,7 +89,7 @@ void sreFrustum::Calculate() {
     frustum_eye.plane[5].Set(0, 0, 1.0, farD);
     // Convert the planes to world space.
     Matrix4D transpose_view_matrix = Transpose(sre_internal_view_matrix);
-    MatrixMultiplyVectors(6, transpose_view_matrix, &frustum_eye.plane[0],
+    dstMatrixMultiplyVectors1xN(6, transpose_view_matrix, &frustum_eye.plane[0],
         &frustum_world.plane[0]);
 //    for (int i = 0; i < 5; i++)
 //        printf("plane_world[%d] = (%f, %f, %f, %f)\n", i, plane_world[i].K.x, plane_world[i].K.y, plane_world[i].K.z,
@@ -117,7 +117,7 @@ void sreFrustum::Calculate() {
         vertex[5] = Point3D(AABB.dim_max.x, AABB.dim_min.y, AABB.dim_max.z);
         vertex[6] = Point3D(AABB.dim_min.x, AABB.dim_max.y, AABB.dim_max.z);
         vertex[7] = Point3D(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_max.z);
-        MatrixMultiplyVectors(8, inverse_view_matrix, vertex, vertex);
+        dstMatrixMultiplyVectors1xN(8, inverse_view_matrix, vertex, vertex);
         sreBoundingVolumeAABB empty_AABB;
         empty_AABB.dim_min =
             Point3D(POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT);
@@ -264,7 +264,7 @@ void sreFrustum::CalculateShadowCasterVolume(const Vector4D& lightpos, int nu_fr
     // The SIMD-accelerated version check for 16-bytes aligned arrays, which is hard to
     // guarantee in this case; otherwise, no SIMD will be used.
 #if 1
-    CalculateDotProductsWithConstantVector(nu_frustum_planes, &frustum_world.plane[0],
+    dstCalculateDotProductsNx1(nu_frustum_planes, &frustum_world.plane[0],
         lightpos, &dot[0]);
 #else
     for (int i = 0; i < nu_frustum_planes; i++)
@@ -460,9 +460,11 @@ bool sreScissors::UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const sreFr
     // Clip against image plane.
     float dist[8];
     int count;
-    CalculateDotProductsWithConstantVectorAndCountNegative(
+    dstCalculateDotProductsAndCountNegativeNx1(
         n, &P[0], frustum.frustum_world.plane[0], &dist[0], count);
     if (count == 0) {
+//        sreMessage(SRE_MESSAGE_INFO, "Bounding box of %d vertices is beyond near plane "
+//            " (stCalculateDotProductsAndCountNegativeNx1).", n);
         UpdateWithWorldSpaceBoundingHull(P, n);
         return true;
     }
@@ -596,8 +598,7 @@ const sreFrustum& frustum) {
     float dist[8];
     // Count the number of pyramid vertices that is outside the near plane.
     int count;
-    CalculateDotProductsWithConstantVectorAndCountNegative(
-        n, &P[0], frustum.frustum_world.plane[0], &dist[0], count);
+    dstCalculateDotProductsAndCountNegativeNx1(n, &P[0], frustum.frustum_world.plane[0], &dist[0], count);
     if (count == 0) {
         // The pyramid is entire inside the near plane; no clipping is necessary.
 //        printf("Pyramid (n = %d).\n", n);

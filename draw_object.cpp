@@ -202,7 +202,7 @@ void sreDrawObjectLightHalo(sreObject *so) {
     glBindBuffer(GL_ARRAY_BUFFER, m->GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
     glVertexAttribPointer(
         0,
-        3,
+        4,
         GL_FLOAT,
         GL_FALSE,
         0,

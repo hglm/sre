@@ -668,9 +668,9 @@ const sreBoundingVolumeSphere& sphere) {
     __simd128_float m_sphere_radius_squared = simd128_set_same_float(sqrf(sphere.radius));
     __simd128_float m_sphere_center = simd128_set_float(
          sphere.center.x, sphere.center.y, sphere.center.z, 0.0f);
-    __simd128_float m_sphere_center_x = simd128_select_float(m_sphere_center, 0, 0, 0, 0);
-    __simd128_float m_sphere_center_y = simd128_select_float(m_sphere_center, 1, 1, 1, 1);
-    __simd128_float m_sphere_center_z = simd128_select_float(m_sphere_center, 2, 2, 2, 2);
+    __simd128_float m_sphere_center_x = simd128_replicate_float(m_sphere_center, 0);
+    __simd128_float m_sphere_center_y = simd128_replicate_float(m_sphere_center, 1);
+    __simd128_float m_sphere_center_z = simd128_replicate_float(m_sphere_center, 2);
     m_corner_y = simd128_merge_float(m_dim_min, m_dim_max, 1, 1, 1, 1);
     m_corner_z = simd128_add_float(
         simd128_select_float(m_dim_min, 2, 3, 2, 3),
@@ -679,7 +679,7 @@ const sreBoundingVolumeSphere& sphere) {
     __simd128_float m_dim_min_max_x = simd128_merge_float(m_dim_min, m_dim_max, 0, 0, 0, 0);
     for (int i = 0; i < 2; i++) {
         // Check the four corners at x = dim_min.x (i = 0) and x = dim_max.x (i = 1).
-        m_corner_x = simd128_select_float(m_dim_min_max_x, i * 2, i * 2, i * 2, i * 2);
+        m_corner_x = simd128_replicate_float(m_dim_min_max_x, i * 2);
         // Calculate SquaredMag(corner[i] - sphere.center).
         __simd128_float m_temp_x = simd128_sub_float(m_corner_x, m_sphere_center_x);
         __simd128_float m_temp_y = simd128_sub_float(m_corner_y, m_sphere_center_y);

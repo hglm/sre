@@ -182,10 +182,13 @@ void sreBulletPhysicsApplication::InitializePhysics() {
         switch (collision_shape_type) {
         case SRE_COLLISION_SHAPE_SPHERE :
             // This will normally be equal to the zero vector.
-            so->collision_shape_center_offset = so->sphere.center - so->position;
+//            so->collision_shape_center_offset = so->sphere.center - so->position;
+            so->collision_shape_center_offset = (so->rotation_matrix * so->model->sphere.center) *
+               so->scaling;
             break;
         case SRE_COLLISION_SHAPE_BOX :
-            so->collision_shape_center_offset = (so->rotation_matrix * so->model->box_center) * so->scaling;
+            so->collision_shape_center_offset = (so->rotation_matrix * so->model->box_center) *
+                so->scaling;
             break;
         case SRE_COLLISION_SHAPE_CYLINDER :
             so->collision_shape_center_offset = (so->rotation_matrix * so->model->bv_special.cylinder->center) *

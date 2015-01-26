@@ -119,8 +119,12 @@ static sreLODModel *sreReadLODModelFromSREBinaryLODModelFile(FILE *fp, int load_
 
         // Read the vertex attribute data, in order.
         if (lm->flags & SRE_POSITION_MASK) {
-            lm->vertex = new Point3D[lm->nu_vertices];
-            fread_with_check(lm->vertex, 1, sizeof(Point3D) * lm->nu_vertices, fp);
+            Point3D *vertex = new Point3D[lm->nu_vertices];
+            fread_with_check(vertex, 1, sizeof(Point3D) * lm->nu_vertices, fp);
+            lm->position = dstNewAligned <Point3DPadded>((size_t)lm->nu_vertices, 16);
+            for (int i = 0; i < lm->nu_vertices; i++)
+	            lm->position[i] = vertex[i];
+            delete [] vertex;
         }
         if (lm->flags & SRE_NORMAL_MASK) {
             lm->vertex_normal = new Vector3D[lm->nu_vertices];
