@@ -231,7 +231,7 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     fluid_scene_object = scene->object[j];
 #endif
     // Add dim directional light source.
-    scene->AddDirectionalLight(0, Vector3D(0.8, 0.6, - 0.3).Normalize(), Color(0.5, 0.5, 0.5));
+//    scene->AddDirectionalLight(0, Vector3D(0.8, 0.6, - 0.3).Normalize(), Color(0.5, 0.5, 0.5));
 
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
 
@@ -273,6 +273,8 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
             color.Set(1.0, 1.0, 2.0);
             break;
         }
+	color *= powf(1.5f, (log(1.0f) / log(1.5f)) + rng->RandomFloat(
+            (log(8.0f) / log(1.5f)) - (log(1.0f) / log(1.5f))));
         light_object[j * 13 + i] = scene->AddSpotLight(SRE_LIGHT_DYNAMIC_DIRECTION,
             Point3D(- 150.0 + j * 10.0, 20.0 + i * 10.0, 30.0), Vector3D(0.1, 0, - 1.0),
             200.0f, 50.0f, color);

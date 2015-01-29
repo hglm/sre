@@ -577,8 +577,10 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
     }
     else {
         // Spotlight. Use a projection shadow map matrix.
+//        GL3CalculateProjectionShadowMapMatrix(light.vector.GetPoint3D(),
+//            light.spotlight.GetVector3D(), x_dir, y_dir, zmax);
         GL3CalculateProjectionShadowMapMatrix(light.vector.GetPoint3D(),
-            light.spotlight.GetVector3D(), x_dir, y_dir, zmax);
+            light.spotlight.GetVector3D(), x_dir, y_dir, light.spherical_sector.radius);
         GL3InitializeSpotlightShadowMapShadersBeforeLight();
         GL3UpdateShadowMapSegmentDistanceScaling((1.0f / light.spherical_sector.radius) * 0.999f);
         GL3InitializeSpotlightShadowMapShadersWithSegmentDistanceScaling();

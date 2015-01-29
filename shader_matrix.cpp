@@ -46,6 +46,7 @@ MatrixTransform shadow_map_matrix;
 Matrix4D projection_shadow_map_matrix;
 Matrix4D cube_shadow_map_matrix;
 MatrixTransform shadow_map_lighting_pass_matrix;
+Matrix4D projection_shadow_map_lighting_pass_matrix;
 // Matrix4D sre_internal_geometry_matrix_scissors_projection_matrix;
 Vector3D sre_internal_up_vector;
 Vector3D sre_internal_camera_vector;
@@ -194,6 +195,18 @@ Vector3D up_vector, float zmax) {
 
 void GL3CalculateProjectionShadowMapMatrix(Vector3D viewp, Vector3D light_direction,
 Vector3D x_direction, Vector3D y_direction, float zmax) {
+#if 0
+    char *s1 = light_direction.GetString();
+    char *s2 = x_direction.GetString();
+    char *s3 = y_direction.GetString();
+    sreMessage(SRE_MESSAGE_LOG, "GL3CalculateProjectionShadowMapMatrix: light_dir = %s, "
+        "x_dir = %s, y_dir = %s, dot products: %f, %f, %f", s1, s2, s3,
+        Dot(light_direction, x_direction), Dot(light_direction, y_direction),
+        Dot(x_direction, y_direction));
+    delete s1;
+    delete s2;
+    delete s3;
+#endif
     Vector3D fvec = light_direction;
 //    Vector3D up_vector = y_direction;
 //    Vector3D s = Cross(fvec, up_vector);
@@ -201,9 +214,11 @@ Vector3D x_direction, Vector3D y_direction, float zmax) {
     Vector3D s = x_direction;
     Vector3D u = y_direction;
     Matrix4D M;
+    // Note that the y direction has to be negated in order to preserve the handedness of
+    // triangles when rendering the shadow map.
     M.Set(
         s.x, s.y, s.z, 0,
-        u.x, u.y, u.z, 0,
+        - u.x, - u.y, - u.z, 0,
         - fvec.x, - fvec.y, - fvec.z, 0,
         0.0f, 0.0f, 0.0f, 1.0f);
     Matrix4D T;
@@ -211,12 +226,12 @@ Vector3D x_direction, Vector3D y_direction, float zmax) {
     // Calculate the projection matrix with a field of view of 90 degrees.
     float aspect = 1.0;
     float e = 1 / tanf((90.0 * M_PI / 180) / 2);
-    float n = zmax * 0.001;
+    float n = zmax * 0.001f;
     float f = zmax;
     float l = - n / e;
     float r = n / e;
-    float b = - (1 / aspect) * n / e;
-    float t = (1 / aspect) * n / e;
+    float b = - (1.0f / aspect) * n / e;
+    float t = (1.0f / aspect) * n / e;
     Matrix4D projection_matrix;
     projection_matrix.Set(
         2 * n / (r - l), 0.0f, (r + l) / (r - l), 0.0f,
@@ -229,7 +244,29 @@ Vector3D x_direction, Vector3D y_direction, float zmax) {
         0.5f, 0.0f, 0.0f, 0.5f,
         0.0f, 0.5f, 0.0f, 0.5f,
         0.0f, 0.0f, 0.5f, 0.5f);
-    shadow_map_lighting_pass_matrix = shadow_map_viewport_matrix * shadow_map_matrix;  
+//    projection_shadow_map_lighting_pass_matrix = shadow_map_viewport_matrix *
+//        projection_shadow_map_matrix;
+    projection_shadow_map_lighting_pass_matrix = projection_shadow_map_matrix;
+
+#if 0
+    Point3D P1 = viewp + light_direction * n;
+    Point3D P2 = viewp + light_direction * f;
+    Point3D P3 = viewp + light_direction * f + x_direction * f + y_direction * f;
+    Vector4D P1_proj = projection_shadow_map_matrix * P1;
+    Vector4D P2_proj = projection_shadow_map_matrix * P2;
+    Vector4D P3_proj = projection_shadow_map_matrix * P3;
+    Vector3D P1_norm = P1_proj.GetVector3D() / P1_proj.w;
+    Vector3D P2_norm = P2_proj.GetVector3D() / P2_proj.w;
+    Vector3D P3_norm = P3_proj.GetVector3D() / P3_proj.w;
+    char *P1_norm_str = P1_norm.GetString();
+    char *P2_norm_str = P2_norm.GetString();
+    char *P3_norm_str = P3_norm.GetString();
+    sreMessage(SRE_MESSAGE_LOG, "CalculateProjectionShadowMapMatrix: Point transformations "
+        "%s, %s and %s.", P1_norm_str, P2_norm_str, P3_norm_str);
+    delete P1_norm_str;
+    delete P2_norm_str;
+    delete P3_norm_str;
+#endif
 }
 
 void GL3CalculateShadowMapMatrixAlwaysLight() {

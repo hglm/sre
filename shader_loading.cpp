@@ -157,6 +157,7 @@ static ShaderInfo multi_pass_shader_info[NU_MULTI_PASS_SHADERS] = {
     (1 << UNIFORM_SHADOW_MAP_SAMPLER) | (1 << UNIFORM_SHADOW_MAP_DIMENSIONS),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
+    /// SHADER13
     { "Complete shadow map multi-pass lighting shader for point source light with a linear attenuation range",
     (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) |
     (1 << UNIFORM_EMISSION_COLOR) |
@@ -187,6 +188,7 @@ static ShaderInfo multi_pass_shader_info[NU_MULTI_PASS_SHADERS] = {
     (1 << UNIFORM_CUBE_SHADOW_MAP_SAMPLER) | (1 << UNIFORM_SEGMENT_DISTANCE_SCALING),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
+    // SHADER16
     { "Complete shadow map multi-pass lighting shader for spot light with a linear attenuation range",
     (UNIFORM_MASK_COMMON ^ ((1 << UNIFORM_AMBIENT_COLOR) |
     (1 << UNIFORM_EMISSION_COLOR) |

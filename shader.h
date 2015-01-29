@@ -25,6 +25,7 @@ extern MatrixTransform shadow_map_matrix;
 extern Matrix4D projection_shadow_map_matrix;
 extern Matrix4D cube_shadow_map_matrix;
 extern MatrixTransform shadow_map_lighting_pass_matrix;
+extern Matrix4D projection_shadow_map_lighting_pass_matrix;
 extern Vector3D sre_internal_up_vector;
 extern Vector3D sre_internal_camera_vector;
 

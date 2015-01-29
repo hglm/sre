@@ -516,7 +516,9 @@ static void GL3InitializeShaderWithShadowMapTransformationMatrix(int loc, const 
 }
 
 static void GL3InitializeShaderWithSpotlightShadowMapTransformationMatrix(int loc, const sreObject& so) {
-    Matrix4D transformation_matrix = shadow_map_lighting_pass_matrix * so.model_matrix;
+    // Since the fragment shader using the projection shadow map matrix for spot lights on world
+    // coordinate, we must not premultiply with the model matrix.
+    Matrix4D transformation_matrix = projection_shadow_map_lighting_pass_matrix;
     glUniformMatrix4fv(loc, 1, GL_FALSE, (float *)&transformation_matrix);
 }
 
@@ -2542,8 +2544,8 @@ void GL3InitializeSpotlightShadowMapShader(const sreObject& so) {
     }
     else {
         glUseProgram(misc_shader[SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP].program);
-        GL3InitializeShadowMapShaderWithCubeShadowMapMVP(misc_shader[SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP]
-            .uniform_location[UNIFORM_MISC_MVP], so);
+        GL3InitializeShadowMapShaderWithSpotlightShadowMapMVP(
+            misc_shader[SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP].uniform_location[UNIFORM_MISC_MVP], so);
         GL3InitializeShaderWithModelMatrix(
             misc_shader[SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP].uniform_location[UNIFORM_MISC_MODEL_MATRIX],
             so);

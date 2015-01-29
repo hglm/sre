@@ -738,21 +738,21 @@ void main() {
 	// Spotlight shadow map. Only one shadow map is used.
 	// shadow_map_transformation_matrix is expected to be the projection transformation
 	// for the spot light.
-	vec4 P_trans = shadow_map_transformation_matrix * vec4(position_world_var, 1.0);
+	vec4 P_proj = shadow_map_transformation_matrix * vec4(position_world_var, 1.0);
 	// If the fragment is outside of the spot light volume, just discard it.
-	vec3 P_proj = P_trans.xyz / P_trans.w;
-	bool out_of_spotlight_bounds = any(lessThan(P_proj.xy, vec2(- 1.0, - 1.0))) ||
-            any(greaterThan(P_proj.xy, vec2(1.0, 1.0))) || (P_proj.z < -1.0) || (P_proj.z > 1.0);
+	vec3 P_normalized = P_proj.xyz / P_proj.w;
+	bool out_of_spotlight_bounds = any(lessThan(P_normalized.xyz, vec3(- 1.0, - 1.0, - 1.0))) ||
+		any(greaterThan(P_normalized.xyz, vec3(1.0, 1.0, 1.0)));
 	if (out_of_spotlight_bounds)
 		discard;
-	float shadow_radial_dist = texture2D(shadow_map_in, P_proj.xy).z;
+	float shadow_radial_dist = texture2D(shadow_map_in, P_normalized.xy * 0.5 + vec2(0.5, 0.5)).z;
 #endif
         // Calculate the radial distance of the world position from the light position,
         // and scale it so that the range [0, 1] corresponds to the values stored in the
         // shadow map segments.
 	float radial_dist = length(space_vector_from_light) * segment_distance_scaling_in;
 	float bias = 0.001 * tan(acos(clamp(dot(normal, L), 0.0, 1.0)));
-        bias = clamp(bias, 0.0, 0.002);
+        bias = clamp(bias, 0.0005, 0.002);
 	if (shadow_radial_dist < radial_dist - bias)
 		discard;
 #endif

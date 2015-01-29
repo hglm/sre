@@ -244,21 +244,12 @@ Bugs as of January 2015:
 
 - Point light shadow mapping shadows sometimes disappear.
 
-- With shadow mapping, spot light shadows do not show up at all, and
-  light from spot lights in demo1 disappears, especially when the player
-  object is near. This suggests something is wrong with spot light
-  shadow map handling.
-
 - The shadow map visualization option ('u') does not work correctly
-  for point light cube shadow maps and spot light shadow maps.
+  for point light cube shadow maps.
 
 - The repeating blue fields in demo8 show invalid shadows much of the time.
 
 - Collision detection for the cylinder shapes in demo8 is slightly off.
-
-- Spotlight shadows, related to handling of the bias parameter in
-  the shader, is not yet robust (second spotlight in demo1 produces
-  limited shadows).
 
 3. Potential improvements that are not yet implemented.
 

@@ -20,7 +20,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include <cstdarg>
 
-// Defined shader_matrix.cpp:
+// Defined in shader_matrix.cpp:
 
 // The following matrices are used by different modules.
 extern Matrix4D sre_internal_projection_matrix;

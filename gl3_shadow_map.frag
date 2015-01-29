@@ -46,13 +46,13 @@ varying float bias_var;
 #ifdef GL_ES
 
 void WriteDepth(float z) {
-    gl_FragColor.z = z;
+	gl_FragColor.z = z;
 }
 
 #else
 
 void WriteDepth(float z) {
-    gl_FragDepth = z;
+	gl_FragDepth = z;
 }
 
 #endif
