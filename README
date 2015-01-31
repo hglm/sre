@@ -247,8 +247,7 @@ Bugs as of January 2015:
 
 - Collision detection for the cylinder shapes in demo8 is slightly off.
 
-- The beam light in demo8 is wrong when light scissors or geometry scissors are
-  enabled. It looks like the light scissors area is not correct. 
+- Shadow mapping for the beam light in demo8 still has problems.
 
 3. To do list.
 

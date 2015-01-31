@@ -709,39 +709,31 @@ void sreFrustum::CalculateLightScissors(sreLight *light) {
     if (light->type & (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM)) {
         // Approximate the bounding volume of the light by the bounding box of the bounding cylinder.
         Vector3D up;
-        if (fabsf(light->spotlight.x) < 0.01 && fabsf(light->spotlight.z) < 0.01) {
-            if (light->spotlight.y > 0)
-                up = Vector3D(0, 0, - 1.0);
+        if (fabsf(light->cylinder.axis.x) < 0.01f && fabsf(light->cylinder.axis.z) < 0.01f) {
+            if (light->cylinder.axis.y > 0)
+                up = Vector3D(0, 0, - 1.0f);
             else
-                up = Vector3D(0, 0, 1.0);
+                up = Vector3D(0, 0, 1.0f);
         }
         else
-            up = Vector3D(0, 1.0, 0);
+            up = Vector3D(0, 1.0f, 0);
         // Calculate tangent planes.
-        Vector3D x_dir = Cross(up, light->spotlight.GetVector3D());
-        x_dir.Normalize();
-        Vector3D y_dir = Cross(light->spotlight.GetVector3D(), x_dir);
-//        y_dir.Normalize();
-        Point3DPadded P[8];
-        P[0] = light->vector.GetPoint3D() + x_dir * light->cylinder.radius + y_dir *
-            light->cylinder.radius;
-        P[1] = light->vector.GetPoint3D() - x_dir * light->cylinder.radius + y_dir *
-            light->cylinder.radius;
-        P[2] = light->vector.GetPoint3D() + x_dir * light->cylinder.radius - y_dir *
-            light->cylinder.radius;
-        P[3] = light->vector.GetPoint3D() - x_dir * light->cylinder.radius - y_dir *
-            light->cylinder.radius;
-        Point3D E = light->vector.GetPoint3D() + light->attenuation.x * light->spotlight.GetVector3D();
-        P[4] = E + x_dir * light->cylinder.radius + y_dir *
-            light->cylinder.radius;
-        P[5] = E - x_dir * light->cylinder.radius + y_dir *
-            light->cylinder.radius;
-        P[6] = E + x_dir * light->cylinder.radius - y_dir *
-            light->cylinder.radius;
-        P[7] = E - x_dir * light->cylinder.radius - y_dir *
-            light->cylinder.radius;
+        Vector3D N2 = Cross(up, light->cylinder.axis);
+        N2.Normalize();
+        Vector3D N3 = Cross(light->cylinder.axis, N2);
+        Point3DPadded B[8];
+        Point3D E1 = light->cylinder.center - 0.5f * light->cylinder.length * light->cylinder.axis;
+        Point3D E2 = E1 + light->cylinder.length * light->cylinder.axis;
+        B[0] = E2 + light->cylinder.radius * N2 + light->cylinder.radius * N3;
+        B[1] = E1 + light->cylinder.radius * N2 + light->cylinder.radius * N3;
+        B[2] = E1 - light->cylinder.radius * N2 + light->cylinder.radius * N3;
+        B[3] = E2 - light->cylinder.radius * N2 + light->cylinder.radius * N3;
+        B[4] = E2 + light->cylinder.radius * N2 - light->cylinder.radius * N3;
+        B[5] = E1 + light->cylinder.radius * N2 - light->cylinder.radius * N3;
+        B[6] = E1 - light->cylinder.radius * N2 - light->cylinder.radius * N3;
+        B[7] = E2 - light->cylinder.radius * N2 - light->cylinder.radius * N3;
         scissors.SetEmptyRegion();
-        scissors.UpdateWithWorldSpaceBoundingBox(P, 8, *this);
+        scissors.UpdateWithWorldSpaceBoundingBox(B, 8, *this);
         scissors.ClampEmptyRegion();
         scissors.ClampRegionAndDepthBounds();
 #if 0

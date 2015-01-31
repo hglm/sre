@@ -440,6 +440,7 @@ void Demo8Step(sreScene *scene, double demo_time) {
             scene->ChangeEmissionColor(corner_light_object_index[i], object_color);
         }
     }
+
     // Rotate the beam light.
     Matrix4D M_rot;
     Vector4D V = Vector4D(0.2, 0, - 1.0, 0);
@@ -447,6 +448,7 @@ void Demo8Step(sreScene *scene, double demo_time) {
     M_rot.AssignRotationAlongZAxis(fmod(demo_time * 0.5 , 1.0) * 2.0 * M_PI);
     Vector3D W = (M_rot * V).GetVector3D();
     scene->ChangeSpotOrBeamLightDirection(beam_light, W);
+
     // Let the stars twinkle.
 #ifdef TWINKLING_STARS
     for (int i = 0; i < NU_STARS; i++) {

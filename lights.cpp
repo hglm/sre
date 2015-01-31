@@ -1417,7 +1417,8 @@ void sreScene::CalculateStaticLightObjectLists() {
                 nu_visible_objects, light[i]->nu_light_volume_objects_partially_inside);
         }
         else {
-            sreMessage(SRE_MESSAGE_LOG, "Light %d: No objects within light volume.", i);
+            sreMessage(SRE_MESSAGE_LOG, "Light %d: Objects within light volume not calculated "
+                "(directional or dynamic light).", i);
             light[i]->nu_light_volume_objects = 0;
 	}
     }

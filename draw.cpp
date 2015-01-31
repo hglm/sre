@@ -1558,7 +1558,19 @@ void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const
             // the light's data structure, only rendering visible objects.
             // First the render objects that are partially inside the light volume; the
             // geometry scissors are likely to be applied on a per-object basis.
-            if (sre_internal_current_frame > frustum.most_recent_frame_changed + 1 &&
+            if (light.type & SRE_LIGHT_DYNAMIC_LIGHT_VOLUME) {
+                // For lights with a dynamic (variable) light volume that have a worst case bounds
+                // so for which an approximate static objects lists is defined, do not store any
+                // geometry scissors.
+                for (int i = 0; i < light.nu_light_volume_objects_partially_inside; i++) {
+                    sreObject *so = object[light.light_volume_object[i]];
+                    if (so->most_recent_frame_visible < frustum.most_recent_frame_changed)
+                        // Object is not visible; skip it.
+                        continue;
+                    RenderVisibleObjectLightingPassGeometryScissors(*so, light, frustum);
+                }
+            }
+            else if (sre_internal_current_frame > frustum.most_recent_frame_changed + 1 &&
             (sre_internal_rendering_flags & SRE_RENDERING_FLAG_GEOMETRY_SCISSORS_CACHE_ENABLED)) {
                 // If the frustum has not changed, we can reuse previously calculated scissors.
                 // Note that we wait one extra frame after the frustum stops changing before
@@ -1926,7 +1938,7 @@ void sreScene::RenderLightingPasses(sreFrustum *frustum, sreView *view) {
 
         // Visible objects for each light have been predetermined before this function was called.
         // However, for variable lights with a defined worst-case light volume, when the frustum
-        // hasn't changed so visiblity has not been predetermined, it is very possible that the light
+        // hasn't changed so visibility has not been predetermined, it is very possible that the light
         // volume is now outside the frustum, in which case we can skip the light.
         if ((sre_internal_current_light->type & SRE_LIGHT_DYNAMIC_LIGHT_VOLUME) &&
         sre_internal_current_frame > frustum->most_recent_frame_changed) {

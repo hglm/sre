@@ -851,7 +851,7 @@ static MultiPassShaderList shader_list_spot_light_microfacet = {
 
 static MultiPassShaderList shader_list_beam_light_standard = {
     1,
-    { SHADER8 } // Currently not implemented.
+    { SHADER2 }
 };
 
 static MultiPassShaderList shader_list_beam_light_microfacet = {
@@ -1254,11 +1254,11 @@ static MultiPassShaderSelection sreSelectMultiPassShader(const sreObject& so) {
             // Spot light.
             shader = SHADER8;
         else if (sre_internal_current_light->type & SRE_LIGHT_BEAM)
-            shader = SHADER8; // Not yet implemented.
+            shader = SHADER2;
         else // Not a linear attenuation range.
         if ((flags & (SRE_OBJECT_MULTI_COLOR | SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
         SRE_OBJECT_USE_SPECULARITY_MAP)) == SRE_OBJECT_MULTI_COLOR)
-            shader = SHADER2;
+            shader = SHADER6;
         else
         if ((flags & (SRE_OBJECT_MULTI_COLOR | SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
         SRE_OBJECT_USE_SPECULARITY_MAP)) == SRE_OBJECT_USE_TEXTURE)
@@ -1368,17 +1368,33 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
                GL3InitializeShaderWithUVTransform(
                    multi_pass_shader[1].uniform_location[UNIFORM_UV_TRANSFORM], so);
             break;
-        case SHADER2 : // Plain multi-color object lighting pass shader for point source lights.
+        case SHADER2 : // Lighting pass shader for beam lights.
             glUseProgram(multi_pass_shader[2].program);
             GL3InitializeShaderWithMVP(multi_pass_shader[2].uniform_location[UNIFORM_MVP], so);
             GL3InitializeShaderWithModelMatrix(multi_pass_shader[2].uniform_location[UNIFORM_MODEL_MATRIX], so);
             GL3InitializeShaderWithModelRotationMatrix(
                 multi_pass_shader[2].uniform_location[UNIFORM_MODEL_ROTATION_MATRIX], so);
+            GL3InitializeShaderWithDiffuseReflectionColor(
+                multi_pass_shader[2].uniform_location[UNIFORM_DIFFUSE_REFLECTION_COLOR], so);
+            GL3InitializeShaderWithMultiColor(multi_pass_shader[2].uniform_location[UNIFORM_USE_MULTI_COLOR], so);
+            GL3InitializeShaderWithUseTexture(multi_pass_shader[2].uniform_location[UNIFORM_USE_TEXTURE_MAP], so);
             GL3InitializeShaderWithSpecularReflectionColor(
                 multi_pass_shader[2].uniform_location[UNIFORM_SPECULAR_REFLECTION_COLOR], so);
             GL3InitializeShaderWithSpecularExponent(
                 multi_pass_shader[2].uniform_location[UNIFORM_SPECULAR_EXPONENT], so);
-            break;
+            if (flags & SRE_OBJECT_USE_TEXTURE)
+                GL3InitializeShaderWithObjectTexture(so);
+            GL3InitializeShaderWithUseNormalMap(multi_pass_shader[2].uniform_location[UNIFORM_USE_NORMAL_MAP], so);
+            if (flags & SRE_OBJECT_USE_NORMAL_MAP)
+                GL3InitializeShaderWithObjectNormalMap(so);
+            GL3InitializeShaderWithUseSpecularMap(multi_pass_shader[2].uniform_location[UNIFORM_USE_SPECULARITY_MAP], so);
+            if (flags & SRE_OBJECT_USE_SPECULARITY_MAP)
+                GL3InitializeShaderWithObjectSpecularMap(so);
+            if (flags & (SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
+            SRE_OBJECT_USE_SPECULARITY_MAP))
+               GL3InitializeShaderWithUVTransform(
+                   multi_pass_shader[2].uniform_location[UNIFORM_UV_TRANSFORM], so);
+           break;
         case SHADER3 : // Plain texture-mapped object lighting pass shader for point source lights.
             glUseProgram(multi_pass_shader[3].program);
             GL3InitializeShaderWithMVP(multi_pass_shader[3].uniform_location[UNIFORM_MVP], so);
