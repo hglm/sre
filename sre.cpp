@@ -572,8 +572,7 @@ static void sreDrawSplashScreen() {
 void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_buffers_func) {
     // Initialize the DataSetTurbo library.
     dstInit();
-    // There are bugs in the accelerated SIMD functions in the current version of the library.
-    dstSetSIMDType(DST_SIMD_NONE);
+//    dstSetSIMDType(DST_SIMD_NONE);
 
     // Initialize the internal bounding volume structures used for temporary shadow volumes.
     sreInitializeInternalShadowVolume();

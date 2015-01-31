@@ -453,7 +453,7 @@ static float AccurateProjectedSize(const sreFrustum& f, const Point3D& P, float 
     // is a max bound on the real size, 2.0 bounding_radius / w will bound the
     // projected x or y size in screen space, which has coordinates ranging from
     // [-1.0, 1.0].
-    return bounding_radius * 2.0f / w;
+    return fabsf(bounding_radius * 2.0f / w);
 }
 
 

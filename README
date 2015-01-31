@@ -242,10 +242,10 @@ pipeline.
 
 Bugs as of January 2015:
 
-- Point light shadow mapping shadows sometimes disappear.
-
-- The shadow map visualization option ('u') does not work correctly
-  for point light cube shadow maps.
+- Point light shadow mapping shadows largely disappear when geometry
+  scissors are enabled. This is probably related to changes to
+  sreScissors::UpdateWithWorldSpacePyramid and related functions for
+  geometry scissors.
 
 - The repeating blue fields in demo8 show invalid shadows much of the time.
 
