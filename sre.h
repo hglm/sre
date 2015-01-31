@@ -856,10 +856,10 @@ public :
         return near == scissors.near && far == scissors.far;
     }
     void UpdateWithProjectedPoint(float x, float y, double z);
-    void UpdateWithWorldSpaceBoundingHull(Point3D *P, int n);
-    bool UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const sreFrustum& frustum);
-    bool UpdateWithWorldSpaceBoundingPolyhedron(Point3D *P, int n, const sreFrustum& frustum);
-    sreScissorsRegionType UpdateWithWorldSpaceBoundingPyramid(Point3D *P, int n, const sreFrustum& frustum);
+    void UpdateWithWorldSpaceBoundingHull(Point3DPadded *P, int n);
+    bool UpdateWithWorldSpaceBoundingBox(Point3DPadded *P, int n, const sreFrustum& frustum);
+    bool UpdateWithWorldSpaceBoundingPolyhedron(Point3DPadded *P, int n, const sreFrustum& frustum);
+    sreScissorsRegionType UpdateWithWorldSpaceBoundingPyramid(Point3DPadded *P, int n, const sreFrustum& frustum);
     void Print();
 };
 
@@ -1826,7 +1826,8 @@ enum {
     SRE_TEXT_SET_ALL = 127,
     // Special flag that sets one component source texture configuration
     // (used with SET_TEXTURE or SET_TEXTURE_ARRAY).
-    SRE_IMAGE_SET_ONE_COMPONENT_SOURCE = 0x10000
+    SRE_IMAGE_SET_ONE_COMPONENT_SOURCE = 0x10000,
+    SRE_IMAGE_SET_SOURCE_FLAGS_ONLY = 0x20000,
 };
 
 #define SRE_TEXT_SET_FONT_SIZE SRE_TEXT_SET_SCREEN_SIZE_IN_CHARS

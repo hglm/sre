@@ -270,7 +270,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define GENERAL_LOCAL_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n",
     // Complete ambient pass shader.
@@ -286,7 +286,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define EMISSION_MAP_SAMPLER\n"
     "#define NO_SMOOTH_SHADING\n"
-    "#define TEXTURE_ALPHA\n",
+    "#define TEXTURE_MAP_ALPHA\n",
     // Lighting pass shader for plain multi-color objects for local lights.
     "#define NORMAL_IN\n"
     "#define COLOR_IN\n"
@@ -327,7 +327,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define DIRECTIONAL_LIGHT\n",
     // Plain texture mapped object lighting pass shader for directional lights.
     "#define TEXCOORD_IN\n"
@@ -383,7 +383,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define POINT_SOURCE_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n",
     // SHADER8
@@ -406,7 +406,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define SPOT_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n",
     // SHADER9
@@ -438,7 +438,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define MICROFACET\n"
     "#define DIRECTIONAL_LIGHT\n",
     // Complete microfacet lighting pass shader for local light sources with a linear attenuation range.
@@ -460,7 +460,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define GENERAL_LOCAL_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n"
     "#define MICROFACET\n",
@@ -485,7 +485,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define DIRECTIONAL_LIGHT\n"
     "#define SHADOW_MAP\n",
     // Complete shadow map lighting pass shader for point source light with a linear attenuation range
@@ -507,7 +507,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define POINT_SOURCE_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n"  
     "#define SHADOW_CUBE_MAP\n",
@@ -530,7 +530,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define DIRECTIONAL_LIGHT\n"
     "#define MICROFACET\n"
     "#define SHADOW_MAP\n",
@@ -553,7 +553,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define POINT_SOURCE_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n"  
     "#define MICROFACET\n"
@@ -577,7 +577,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define SPOT_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n" 
 //    "#define SHADOW_MAP\n"
@@ -601,7 +601,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define SPOT_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n"
     "#define MICROFACET\n" 
@@ -626,7 +626,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define BEAM_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n" 
     "#define SHADOW_MAP\n",
@@ -650,7 +650,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define BEAM_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n"
     "#define MICROFACET\n" 
@@ -759,7 +759,7 @@ const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     "#define EMISSION_COLOR_IN\n"
     "#define EMISSION_MAP_OPTION\n"
     "#define EMISSION_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define GENERAL_LOCAL_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n",
     // Complete versatile single pass shader for directional lights with support for all options.
@@ -868,7 +868,7 @@ const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     "#define EMISSION_COLOR_IN\n"
     "#define EMISSION_MAP_OPTION\n"
     "#define EMISSION_MAP_SAMPLER\n"
-    "#define TEXTURE_ALPHA\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define GENERAL_LOCAL_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n",
     // Constant shading-only single pass shader (no lighting or texture)
@@ -1458,7 +1458,8 @@ static const MiscShaderInfo misc_shader_info[] = {
     {
     "Shadow map shader (non-closed object)",
     SRE_SHADER_MASK_SHADOW_MAP,
-    (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_SHADOW_MAP_DIMENSIONS),
+    (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_SHADOW_MAP_DIMENSIONS)  |
+    (1 << UNIFORM_MISC_LIGHT_POSITION),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_NORMAL),
     "gl3_shadow_map.vert", "gl3_shadow_map.frag", "#define ADD_BIAS\n"
     },
@@ -1470,7 +1471,17 @@ static const MiscShaderInfo misc_shader_info[] = {
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS),
     "gl3_shadow_map.vert", "gl3_shadow_map.frag", "#define TEXTURE_ALPHA\n#define UV_TRANSFORM\n"
     },
-    // Spotlight now use similar shadow map format to a point light cube map side.
+    {
+    "Shadow map shader (non-closed object) for transparent textures",
+    SRE_SHADER_MASK_SHADOW_MAP,
+    (1 << UNIFORM_MISC_MVP) | (1 << UNIFORM_MISC_TEXTURE_SAMPLER) |
+    (1 << UNIFORM_MISC_UV_TRANSFORM) | (1 << UNIFORM_MISC_SHADOW_MAP_DIMENSIONS) |
+    (1 << UNIFORM_MISC_LIGHT_POSITION),
+    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS),
+    "gl3_shadow_map.vert", "gl3_shadow_map.frag",
+    "#define ADD_BIAS\n#define TEXTURE_ALPHA\n#define UV_TRANSFORM\n"
+    },
+    // Spotlight now uses similar shadow map format to a point light cube map side.
     {
     "Shadow map shader (spotlights)",
     SRE_SHADER_MASK_SHADOW_MAP,

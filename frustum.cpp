@@ -28,6 +28,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "win32_compat.h"
 
 #include <dstMatrixMath.h>
+#ifdef USE_SIMD
+#include <dstSIMDMatrix.h>
+#endif
 
 sreFrustum::sreFrustum() {
      frustum_world.AllocateStorage(8, 6);
@@ -107,7 +110,7 @@ void sreFrustum::Calculate() {
 #ifndef NO_SHADOW_MAP
     // Set the shadow map region for directional lights.
     if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING) {
-        Point3D vertex[8];
+        Point3DPadded vertex[8], vertex2[8];
         sreBoundingVolumeAABB AABB = sre_internal_shadow_map_AABB;
         vertex[0] = Point3D(AABB.dim_min.x, AABB.dim_min.y, AABB.dim_min.z);
         vertex[1] = Point3D(AABB.dim_max.x, AABB.dim_min.y, AABB.dim_min.z);
@@ -117,7 +120,7 @@ void sreFrustum::Calculate() {
         vertex[5] = Point3D(AABB.dim_max.x, AABB.dim_min.y, AABB.dim_max.z);
         vertex[6] = Point3D(AABB.dim_min.x, AABB.dim_max.y, AABB.dim_max.z);
         vertex[7] = Point3D(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_max.z);
-        dstMatrixMultiplyVectors1xN(8, inverse_view_matrix, vertex, vertex);
+        dstMatrixMultiplyVectors1xN(8, inverse_view_matrix, vertex, vertex2);
         sreBoundingVolumeAABB empty_AABB;
         empty_AABB.dim_min =
             Point3D(POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT);
@@ -130,7 +133,7 @@ void sreFrustum::Calculate() {
         sreBoundingVolumeAABB region_AABB = empty_AABB;
 #endif
         for (int i = 0; i < 8; i++)
-            UpdateAABB(region_AABB, vertex[i]);
+            UpdateAABB(region_AABB, vertex2[i]);
 #ifdef USE_SIMD
         region_AABB.Get(shadow_map_region_AABB);
 #else
@@ -377,16 +380,19 @@ void sreScissors::UpdateWithProjectedPoint(float x, float y, double z) {
 //
 // The input vertices are assumed to be beyond the near plane (although this is checked). 
 
-void sreScissors::UpdateWithWorldSpaceBoundingHull(Point3D *P, int n) {
+void sreScissors::UpdateWithWorldSpaceBoundingHull(Point3DPadded *P, int n) {
     int i = 0;
 #ifdef USE_SIMD
-    Matrix4DSIMD m_simd;
-    m_simd.Set(sre_internal_view_projection_matrix);
+    const float *f = (const float *)&sre_internal_view_projection_matrix;
+    __simd128_float m_matrix_column0 = simd128_load_float(&f[0]);
+    __simd128_float m_matrix_column1 = simd128_load_float(&f[4]);
+    __simd128_float m_matrix_column2 = simd128_load_float(&f[8]);
+    __simd128_float m_matrix_column3 = simd128_load_float(&f[12]);
     for (; i + 3 < n; i += 4) {
         // Handle four vertices at a time.
         __simd128_float m_Pproj0, m_Pproj1, m_Pproj2, m_Pproj3;
-        SIMDMatrixMultiplyFourVectorsNoStore(m_simd, &P[i], m_Pproj0, m_Pproj1, m_Pproj2,
-            m_Pproj3);
+        dstInlineMatrixMultiplyVectors1x4M4x4CMP3P(m_matrix_column0, m_matrix_column1, m_matrix_column2,
+            m_matrix_column3, (const float *)&P[i], m_Pproj0, m_Pproj1, m_Pproj2, m_Pproj3);
         // Divide x and y coordinates by w.
         __simd128_float m_Pproj_xy_0011 = simd128_merge_float(m_Pproj0, m_Pproj1, 0, 1, 0, 1);
         __simd128_float m_Pproj_w_0011 = simd128_merge_float(m_Pproj0, m_Pproj1, 3, 3, 3, 3);
@@ -456,7 +462,7 @@ void sreScissors::UpdateWithWorldSpaceBoundingHull(Point3D *P, int n) {
 // A return value of false indicates the scissors region is empty (it may actually be
 // set to an empty region), while true indicates a valid scissors region was calculated.
 
-bool sreScissors::UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const sreFrustum& frustum) {
+bool sreScissors::UpdateWithWorldSpaceBoundingBox(Point3DPadded *P, int n, const sreFrustum& frustum) {
     // Clip against image plane.
     float dist[8];
     int count;
@@ -470,7 +476,7 @@ bool sreScissors::UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const sreFr
     }
     if (count == n)
         return false;
-    Point3D Q[12];
+    Point3DPadded Q[12];
     int n_clipped = 0;
     // First clip the edges within the two planes. 
     for (int i = 0; i < n; i++) {
@@ -556,7 +562,8 @@ bool sreScissors::UpdateWithWorldSpaceBoundingBox(Point3D *P, int n, const sreFr
 // Currently, this function is not fully implemented and just calls the bounding box scissors
 // update function when n is equal to 8.
 
-bool sreScissors::UpdateWithWorldSpaceBoundingPolyhedron(Point3D *P, int n, const sreFrustum& frustum) {
+bool sreScissors::UpdateWithWorldSpaceBoundingPolyhedron(Point3DPadded *P, int n,
+const sreFrustum& frustum) {
     if (n == 8) {
         UpdateWithWorldSpaceBoundingBox(P, n, frustum);
         if (IsEmptyOrOutside())
@@ -582,7 +589,7 @@ bool sreScissors::UpdateWithWorldSpaceBoundingPolyhedron(Point3D *P, int n, cons
 // The return value of type sreScissorsRegionType indicates whether the scissors region is
 // empty, undefined (effectively the whole display), or defined.
 
-sreScissorsRegionType sreScissors::UpdateWithWorldSpaceBoundingPyramid(Point3D *P, int n,
+sreScissorsRegionType sreScissors::UpdateWithWorldSpaceBoundingPyramid(Point3DPadded *P, int n,
 const sreFrustum& frustum) {
     if (n != 5 && n != 7 && n != 8) {
         sreMessage(SRE_MESSAGE_WARNING, "Expected 5, 7 or 8 vertices in bounding pyramid (n = %d).", n);
@@ -613,7 +620,7 @@ const sreFrustum& frustum) {
 
     // The pyramid has to be clipped against the near plane.
 
-    Point3D Q[16];
+    Point3DPadded Q[16];
     int n_clipped = 0;
     // First clip the edges starting at the tip of the pyramid if necessary.
     if (dist[0] < 0) {
@@ -715,7 +722,7 @@ void sreFrustum::CalculateLightScissors(sreLight *light) {
         x_dir.Normalize();
         Vector3D y_dir = Cross(light->spotlight.GetVector3D(), x_dir);
 //        y_dir.Normalize();
-        Point3D P[8];
+        Point3DPadded P[8];
         P[0] = light->vector.GetPoint3D() + x_dir * light->cylinder.radius + y_dir *
             light->cylinder.radius;
         P[1] = light->vector.GetPoint3D() - x_dir * light->cylinder.radius + y_dir *

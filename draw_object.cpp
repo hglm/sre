@@ -141,7 +141,7 @@ void sreLODModel::SetupAttributesInterleaved(sreObjectAttributeInfo *info) const
     } while (mask != 0);
 }
 
-static void GL3SetGLFlags(sreObject *so) {
+static void sreSetGLFlags(sreObject *so) {
     if (so->render_flags & SRE_OBJECT_INFINITE_DISTANCE) {
         glDepthMask(GL_FALSE);
     }
@@ -160,7 +160,7 @@ static void GL3SetGLFlags(sreObject *so) {
 #endif
 }
 
-static void GL3ResetGLFlags(sreObject *so) {
+static void sreResetGLFlags(sreObject *so) {
     if (so->render_flags & SRE_OBJECT_INFINITE_DISTANCE) {
         glDepthMask(GL_TRUE);
     }
@@ -364,7 +364,7 @@ sreObjectAttributeInfo *info) {
         mask >>= 8;
     }
 
-    GL3ResetGLFlags(so);
+    sreResetGLFlags(so);
 }
 
 #ifdef DEBUG_RENDER_LOG
@@ -498,7 +498,7 @@ void sreDrawObjectFinalPass(sreObject *so) {
 void sreDrawObjectSinglePass(sreObject *so) {
     bool new_shader_selected = sreInitializeObjectShaderSinglePass(*so);
 
-    GL3SetGLFlags(so);
+    sreSetGLFlags(so);
 
     // Level-of-detail handling.
     sreLODModel *m = sreCalculateLODModel(*so);
@@ -547,7 +547,7 @@ void sreDrawObjectSinglePass(sreObject *so) {
 void sreDrawObjectAmbientPass(sreObject *so) {
     bool new_shader_selected = sreInitializeObjectShaderAmbientPass(*so);
 
-    GL3SetGLFlags(so);
+    sreSetGLFlags(so);
 
     // Level-of-detail handling.
     sreLODModel *m = sreCalculateLODModel(*so);
@@ -601,7 +601,7 @@ void sreDrawObjectMultiPassLightingPass(sreObject *so, bool shadow_map_required)
         info = &so->attribute_info;
     }
 
-    GL3SetGLFlags(so);
+    sreSetGLFlags(so);
 
     // Level-of-detail handling.
     sreLODModel *m = sreCalculateLODModel(*so);

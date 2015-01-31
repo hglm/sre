@@ -149,7 +149,7 @@ static void GL3InitializeShadowMapShaderWithLightPosition(int loc) {
     glUniform3fv(loc, 1, (GLfloat *)&sre_internal_current_light->vector);
 }
 
-static void GL3InitializeShadowMapShaderWithSpotLightDirection(int loc) {
+static void GL3InitializeShadowMapShaderWithInvertedSpotOrBeamLightDirection(int loc) {
     // Calculate the inverted spotlight direction.
     Vector3D dir = - sre_internal_current_light->spotlight.GetVector3D();
     glUniform3fv(loc, 1, (GLfloat *)&dir);
@@ -1033,9 +1033,29 @@ void GL3InitializeShadowMapShadersBeforeLight(const Vector4D& dim) {
         GL3InitializeShadowMapShaderWithShadowMapDimensions(
             misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT].
             uniform_location[UNIFORM_MISC_SHADOW_MAP_DIMENSIONS], dim);
-        GL3InitializeShadowMapShaderWithDirectionalLightDirection(
-            misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT].
-                uniform_location[UNIFORM_MISC_LIGHT_POSITION]);
+        if (sre_internal_current_light->type & SRE_LIGHT_BEAM)
+            GL3InitializeShadowMapShaderWithInvertedSpotOrBeamLightDirection(
+                misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT].
+                    uniform_location[UNIFORM_MISC_LIGHT_POSITION]);
+        else
+            GL3InitializeShadowMapShaderWithDirectionalLightDirection(
+                misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT].
+                    uniform_location[UNIFORM_MISC_LIGHT_POSITION]);
+    }
+    if (misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT_TRANSPARENT].status ==
+    SRE_SHADER_STATUS_LOADED) {
+        glUseProgram(misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT_TRANSPARENT].program);
+        GL3InitializeShadowMapShaderWithShadowMapDimensions(
+            misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT_TRANSPARENT].
+            uniform_location[UNIFORM_MISC_SHADOW_MAP_DIMENSIONS], dim);
+        if (sre_internal_current_light->type & SRE_LIGHT_BEAM)
+            GL3InitializeShadowMapShaderWithInvertedSpotOrBeamLightDirection(
+                misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT_TRANSPARENT].
+                    uniform_location[UNIFORM_MISC_LIGHT_POSITION]);
+        else
+            GL3InitializeShadowMapShaderWithDirectionalLightDirection(
+                misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT_TRANSPARENT].
+                    uniform_location[UNIFORM_MISC_LIGHT_POSITION]);
     }
     if (misc_shader[SRE_MISC_SHADER_SHADOW_MAP_TRANSPARENT].status ==
     SRE_SHADER_STATUS_LOADED) {
@@ -2460,7 +2480,7 @@ void GL3InitializeShadowMapShader(const sreObject& so) {
             misc_shader[SRE_MISC_SHADER_SHADOW_MAP_TRANSPARENT].uniform_location[UNIFORM_MISC_MVP], so);
         GL3InitializeShaderWithUVTransform(
             misc_shader[SRE_MISC_SHADER_SHADOW_MAP_TRANSPARENT].
-            uniform_location[UNIFORM_MISC_UV_TRANSFORM], so);
+                uniform_location[UNIFORM_MISC_UV_TRANSFORM], so);
         // When the texture is NULL, it is assumed that the object uses a mesh with different
         // textures for each sub-mesh, which will be bound later.
         if (so.texture != NULL) {
@@ -2478,13 +2498,27 @@ void GL3InitializeShadowMapShader(const sreObject& so) {
 
 // This function does not yet support transparent textures.
 void GL3InitializeShadowMapShaderNonClosedObject(const sreObject& so) {
-    if (so.render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE)
-        sreMessage(SRE_MESSAGE_WARNING,
-            "Transparent textures for non-closed object shadow mapping not yet supported.");
-    glUseProgram(misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT].program);
-    GL3InitializeShadowMapShaderWithShadowMapMVP(
-        misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT].
-            uniform_location[UNIFORM_MISC_MVP], so);
+    if (so.render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE) {
+        glUseProgram(misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT_TRANSPARENT].program);
+        GL3InitializeShadowMapShaderWithShadowMapMVP(
+            misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT_TRANSPARENT].
+                uniform_location[UNIFORM_MISC_MVP], so);
+        GL3InitializeShaderWithUVTransform(
+            misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT_TRANSPARENT].
+                uniform_location[UNIFORM_MISC_UV_TRANSFORM], so);
+        // When the texture is NULL, it is assumed that the object uses a mesh with different
+        // textures for each sub-mesh, which will be bound later.
+        if (so.texture != NULL) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, so.texture->opengl_id);
+        }
+    }
+    else {
+        glUseProgram(misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT].program);
+        GL3InitializeShadowMapShaderWithShadowMapMVP(
+            misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT].
+                uniform_location[UNIFORM_MISC_MVP], so);
+    }
 }
 
 #if 0
@@ -2555,7 +2589,8 @@ void GL3InitializeSpotlightShadowMapShader(const sreObject& so) {
 void GL3InitializeCubeShadowMapShader(const sreObject& so) {
     if (so.render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE) {
         glUseProgram(misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT].program);
-        GL3InitializeShadowMapShaderWithCubeShadowMapMVP(misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT]
+        GL3InitializeShadowMapShaderWithCubeShadowMapMVP(
+            misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT]
             .uniform_location[UNIFORM_MISC_MVP], so);
         GL3InitializeShaderWithModelMatrix(
             misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT]

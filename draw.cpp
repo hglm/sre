@@ -1333,6 +1333,7 @@ const sreLight& light, const sreFrustum &frustum, const sreScissors& object_scis
                 frustum.scissors.left, frustum.scissors.right, frustum.scissors.bottom, frustum.scissors.top);
             while (glGetError() != GL_NO_ERROR);
        }
+       }
 #endif
         // Update the flag indicating whether the scissors region that was just set is
         // equal to the light scissors region.

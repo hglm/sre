@@ -20,6 +20,15 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include <cstdarg>
 
+// Select optional use of explicit inline SIMD acceleration functions.
+
+#ifndef NO_SIMD
+#if defined(__SSE2__)
+#define USE_SIMD
+#define DST_SIMD_MODE_SSE2
+#endif
+#endif
+
 // Defined in shader_matrix.cpp:
 
 // The following matrices are used by different modules.
@@ -268,7 +277,7 @@ SRE_LOCAL int count_mipmap_levels(sreMipmapImage *image);
 
 // Error checking macro that is only defined if the DEBUG_OPENGL build flag was set.
 #ifdef DEBUG_OPENGL
-#define CHECK_GL_ERROR(s, ...) sreCheckGLError(s, ...);
+#define CHECK_GL_ERROR(s) sreCheckGLError(s);
 #else
 #define CHECK_GL_ERROR(s)
 #endif
@@ -284,3 +293,4 @@ SRE_LOCAL void sreAbortOnGLError(const char *format, ...);
 // Abitrarily defined in binary_model_file.cpp.
 SRE_LOCAL void fread_with_check(void *ptr, size_t size, size_t nmemb, FILE *stream);
 SRE_LOCAL void fwrite_with_check(void *ptr, size_t size, size_t nmemb, FILE *stream);
+

@@ -70,7 +70,7 @@ public :
     const char *prologue;
 
     sreShader();
-    // When demand loading is disbabled, Initialize() will load the shader.
+    // When demand loading is disabled, Initialize() will load the shader.
     void Initialize(const char *_name, int _type, int _uniform_mask, int _attribute_mask,
         const char * _vsource, const char *_fsource, const char *_prologue);
     void Initialize(const char *vertex_shader, const char *fragment_shader, const char *prologue);
@@ -211,7 +211,7 @@ enum { UNIFORM_HDR_LUMINANCE_HISTORY_TEXTURE_SAMPLER = 0, UNIFORM_HDR_LUMINANCE_
 #ifdef NO_SHADOW_MAP
 #define SRE_NU_MISC_SHADERS_SHADOW_MAP 0
 #else
-#define SRE_NU_MISC_SHADERS_SHADOW_MAP 7
+#define SRE_NU_MISC_SHADERS_SHADOW_MAP 8
 #endif
 #ifdef NO_HDR
 #define SRE_NU_MISC_SHADERS_HDR 0
@@ -240,6 +240,7 @@ enum {
     SRE_MISC_SHADER_SHADOW_MAP,
     SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT,
     SRE_MISC_SHADER_SHADOW_MAP_TRANSPARENT,
+    SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT_TRANSPARENT,
     SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP,
 //    SRE_MISC_SHADER_PROJECTION_SHADOW_MAP_NON_CLOSED_OBJECT,
     SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP_TRANSPARENT,

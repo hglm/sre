@@ -870,7 +870,7 @@ sreScissors& scissors) {
         Vector3D N2 = Cross(up, N);
         N2.Normalize();
         Vector3D N3 = Cross(N, N2);
-        Point3D B[8];
+        Point3DPadded B[8];
         B[0] = E1 + r * N2 + r * N3;
         B[1] = E1 - r * N2 + r * N3;
         B[2] = E1 + r * N2 - r * N3;
@@ -917,7 +917,7 @@ sreScissors& scissors) {
         }
         else
             n_planes = 6;
-        Point3D P[8];
+        Point3DPadded P[8];
         int n_vertices;
         bool changed = false;
         for (int i = 0; i < n_planes; i += 2) {
@@ -1002,7 +1002,7 @@ sreScissors& scissors) {
         N2.Normalize();
         Vector3D N3 = Cross(N, N2);
         // Create the bounding box of the light volume cylinder.
-        Point3D B[8];
+        Point3DPadded B[8];
         Point3D E1 = light.cylinder.center - light.cylinder.length * light.cylinder.axis * 0.5f;
         Point3D E2 = E1 + light.cylinder.length * light.cylinder.axis;
         // The order of box vertices must correspond to the one expected by

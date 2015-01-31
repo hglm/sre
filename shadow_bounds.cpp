@@ -304,8 +304,11 @@ bool sreObject::CalculateShadowVolumeScissors(const sreLight& light, const sreFr
 const sreShadowVolume& sv, sreScissors& shadow_volume_scissors) const {
     if (sv.type == SRE_BOUNDING_VOLUME_PYRAMID_CONE) {
         shadow_volume_scissors.SetEmptyRegion();
+        Point3DPadded P[12];
+	for (int i = 0; i < sv.pyramid_cone->nu_vertices; i++)
+            P[i] = sv.pyramid_cone->vertex[i];
         sreScissorsRegionType t = shadow_volume_scissors.UpdateWithWorldSpaceBoundingPyramid(
-            sv.pyramid_cone->vertex, sv.pyramid_cone->nu_vertices, frustum);
+            &P[0], sv.pyramid_cone->nu_vertices, frustum);
         if (t == SRE_SCISSORS_REGION_DEFINED)
             return true;
         else if (t == SRE_SCISSORS_REGION_EMPTY)

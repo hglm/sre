@@ -458,6 +458,15 @@ void sreImageShaderInfo::Initialize(int buffer_flags) {
 
 void sreImageShaderInfo::SetSource(int set_mask, SRE_GLUINT _opengl_id,
 int _array_index) {
+    if (set_mask & SRE_IMAGE_SET_SOURCE_FLAGS_ONLY) {
+        source_flags = 0;
+        // Texture source configuration.
+        if (set_mask & SRE_IMAGE_SET_TEXTURE_ARRAY_INDEX)
+            source_flags |= SRE_IMAGE_SOURCE_FLAG_TEXTURE_ARRAY;
+        if (set_mask & SRE_IMAGE_SET_ONE_COMPONENT_SOURCE)
+            source_flags |= SRE_IMAGE_SOURCE_FLAG_ONE_COMPONENT_SOURCE;
+        return;
+    }
     if (set_mask & SRE_IMAGE_SET_TEXTURE) {
         opengl_id = _opengl_id;
         // Make sure any previous source-related update mask bit are cleared.

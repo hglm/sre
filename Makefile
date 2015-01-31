@@ -66,10 +66,10 @@ OPTCFLAGS += -msse2 -DUSE_SSE2
 endif
 endif
 ifeq ($(TARGET_SIMD), ARM_NEON)
-OPTCFLAGS +=-DUSE_ARM_NEON -mneon
+OPTCFLAGS += -DUSE_ARM_NEON -mneon
 endif
 ifeq ($(TARGET_SIMD), NONE)
-OPTCFLAGS +=-DNO_SIMD
+OPTCFLAGS += -DNO_SIMD
 endif
 
 CFLAGS = -Wall -pipe $(OPTCFLAGS)

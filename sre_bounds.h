@@ -21,7 +21,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // intersection.cpp and not included in this header file; these can be made
 // non-static and added to this header file when required by a different module.
 
+#ifdef USE_SIMD
 #include <dstSIMD.h>
+#endif
 
 // Inline AABB utility functions.
 
@@ -129,7 +131,8 @@ extern const int flat_BB_plane_nu_vertices[6];
 extern const int BB_edge_vertex[12][2];
 extern const int BB_edge_plane[12][2];
 
-static inline void MoveBoundingBoxVerticesInward(Point3D *P, int n_vertices, Vector4D *K, int plane, float dist) {
+static inline void MoveBoundingBoxVerticesInward(Point3DPadded *P, int n_vertices, Vector4D *K,
+int plane, float dist) {
     int n;
     if (n_vertices == 4)
         n = flat_BB_plane_nu_vertices[plane];
