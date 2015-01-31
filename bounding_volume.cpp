@@ -483,7 +483,8 @@ sreBoundingVolumeCylinder& cylinder) {
 // a projected bounding box may impact the accuracy of plane vector
 // calculations.
 
-void sreBoundingVolumeBox::ConstructVertices(Point3D *P, int& n) const {
+template <class T>
+inline void sreBoundingVolumeBox::ConstructVerticesTemplate(T *P, int& n) const {
     P[0] = GetCorner(0.5f, 0.5f, 0.5f);
     P[1] = GetCorner(- 0.5f, 0.5f, 0.5f);
     P[2] = GetCorner(- 0.5f, - 0.5f, 0.5f);
@@ -497,6 +498,14 @@ void sreBoundingVolumeBox::ConstructVertices(Point3D *P, int& n) const {
     P[6] = GetCorner(- 0.5f, - 0.5f, - 0.5f);
     P[7] = GetCorner(0.5f, - 0.5f, - 0.5f);
     n = 8;
+}
+
+void sreBoundingVolumeBox::ConstructVertices(Point3D *P, int& n) const {
+    ConstructVerticesTemplate(P, n);
+}
+
+void sreBoundingVolumeBox::ConstructVertices(Point3DPadded *P, int& n) const {
+    ConstructVerticesTemplate(P, n);
 }
 
 const int BB_plane_vertex[6][4] = {

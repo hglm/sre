@@ -618,12 +618,15 @@ static Vector3D cube_map_up_vector[6] = {
 static void BindAndClearCubeMap(int i) {
 #ifdef OPENGL_ES2
     glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_cube_shadow_map_framebuffer[
-        sre_internal_current_cube_shadow_map_index][i]);
+            sre_internal_current_cube_shadow_map_index][i]);
 #else
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_cube_shadow_map_framebuffer[
          sre_internal_current_cube_shadow_map_index][i]);
 #endif
-    glClear(GL_DEPTH_BUFFER_BIT);
+    if (!sre_internal_depth_cube_map_texture_is_clear[
+    sre_internal_current_cube_shadow_map_index][i])
+        glClear(GL_DEPTH_BUFFER_BIT);
+    sre_internal_depth_cube_map_texture_is_clear[sre_internal_current_cube_shadow_map_index][i] = true;
 }
 
 void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sreFrustum &frustum) {
@@ -672,7 +675,6 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
         int cube_map_mask = 0;
         for (int i = 0; i < 6; i++) {
             // Bind the framebuffer with correct cube face and clear the cube map segment.
-            // Ideally this should be skipped when possible.
             BindAndClearCubeMap(i);
             CHECK_GL_ERROR("Error after BindAndClearCubeMap\n");
 
@@ -747,7 +749,6 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
             // the z-coordinate directed into the direction of the cube segment away from
             // the light source, which is at (0, 0, 0). We are only interested in objects
             // that overlap with the z range [0, zmax].
-
             bool skip = false;
             if (zmax <= 0 || zmax_casters <= 0 || zmin_casters > zmax)
                 // If the segment has no casters or receivers, skip it.
@@ -765,6 +766,8 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
             CHECK_GL_ERROR("Error after GL3InitializeShadowMapShadersBeforeLight\n");
             RenderCubeShadowMapFromCasterArray(scene, light, i);
             CHECK_GL_ERROR("Error after RenderCubeShadowMapFromCasterArray\n");
+            sre_internal_depth_cube_map_texture_is_clear[sre_internal_current_cube_shadow_map_index][i] =
+                false;
         }
 
     // Set the current cube map texture.

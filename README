@@ -242,16 +242,23 @@ pipeline.
 
 Bugs as of January 2015:
 
-- Point light shadow mapping shadows largely disappear when geometry
-  scissors are enabled. This is probably related to changes to
-  sreScissors::UpdateWithWorldSpacePyramid and related functions for
-  geometry scissors.
-
-- The repeating blue fields in demo8 show invalid shadows much of the time.
+- In demo7, an anomalous triangular shadow is visible at the top right when
+  the viewpoint is within the scene.
 
 - Collision detection for the cylinder shapes in demo8 is slightly off.
 
-3. Potential improvements that are not yet implemented.
+- The beam light in demo8 is wrong when light scissors or geometry scissors are
+  enabled. It looks like the light scissors area is not correct. 
+
+3. To do list.
+
+- Currently, each of the six cube shadow maps is cleared when generating
+  point light shadow maps. Based on information that a shadow map is not
+  required for a particular cube face, the corresponding cube map face
+  could be defined as a small, empty shadow map that takes less memory
+  and does not need to be cleared.
+
+4. Potential improvements that are not yet implemented.
 
 - There is no real scene graph except for an optimized octree. A
   proper scene graph would allow objects to be grouped together

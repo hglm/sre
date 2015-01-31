@@ -607,7 +607,7 @@ const sreFrustum& frustum) {
     int count;
     dstCalculateDotProductsAndCountNegativeNx1(n, &P[0], frustum.frustum_world.plane[0], &dist[0], count);
     if (count == 0) {
-        // The pyramid is entire inside the near plane; no clipping is necessary.
+        // The pyramid is entirely inside the near plane; no clipping is necessary.
 //        printf("Pyramid (n = %d).\n", n);
         UpdateWithWorldSpaceBoundingHull(P, n);
         if (IsEmptyOrOutside())
@@ -751,6 +751,7 @@ void sreFrustum::CalculateLightScissors(sreLight *light) {
 #endif
         return;
     }
+    // Point source light.
     scissors.SetFullRegionAndDepthBounds();
     // Transform the light position from world space to eye space.
     Point3D L = (sre_internal_view_matrix * light->vector).GetPoint3D();

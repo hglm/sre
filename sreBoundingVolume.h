@@ -122,6 +122,9 @@ public :
             PCA[2].vector * T_factor;
     }
     void ConstructVertices(Point3D *P, int& n) const;
+    void ConstructVertices(Point3DPadded *P, int& n) const;
+private :
+    template <class T> inline void ConstructVerticesTemplate(T *P, int& n) const;
 };
 
 class sreBoundingVolumeAABB {

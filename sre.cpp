@@ -63,6 +63,7 @@ SRE_GLUINT sre_internal_shadow_map_framebuffer[SRE_MAX_SHADOW_MAP_LEVELS_OPENGL]
 SRE_GLUINT sre_internal_depth_cube_map_texture[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL];
 SRE_GLUINT sre_internal_cube_shadow_map_framebuffer[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL][6];
 SRE_GLUINT sre_internal_current_depth_cube_map_texture;
+bool sre_internal_depth_cube_map_texture_is_clear[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL][6];
 SRE_GLUINT sre_internal_HDR_multisample_color_renderbuffer = 0;
 SRE_GLUINT sre_internal_HDR_multisample_depth_renderbuffer = 0;
 SRE_GLUINT sre_internal_HDR_color_texture = 0;
@@ -778,6 +779,7 @@ skip_shadow_map:
             glTexImage2D(cube_map_target[i], 0, GL_DEPTH_COMPONENT16, size, size, 0,
                 GL_DEPTH_COMPONENT, GL_HALF_FLOAT, 0);
             CHECK_GL_ERROR("Error after cube map face initialization.\n");
+            sre_internal_depth_cube_map_texture_is_clear[level][i] = false;
         }
 #endif
 
