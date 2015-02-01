@@ -572,6 +572,7 @@ void main() {
 		// Invert normal for back faces for correct lighting of faces that
                 // can be looked at from both sides.
 		normal *= float(gl_FrontFacing) * 2.0f - 1.0f;
+
 		// Light calculations will be performed in tangent space.
 
 		// Convert vectors for the light calculation into tangent space.

@@ -227,6 +227,7 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     }
     sreFinalizeCompoundModel(scene, pond);
     scene->AddObject(pond, 0, 0, 0, 0, 0, 0, 1.0f);
+
     // Create fluid.
 #if 1
     sreModel *fluid_object = sreCreateFluidModel(scene, FLUID_SIZE, FLUID_SIZE,
@@ -248,9 +249,10 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     scene->SetSpecularReflectionColor(Color(0.2, 0.2, 0.2));
     scene->SetSpecularExponent(4.0);
 #endif
-    int j = scene->AddObject(fluid_object, - 45, 15, 3, 0, 0, 0, 1);
+    int j = scene->AddObject(fluid_object, Point3D(- 45.0f, 15.0f, 3.0f), Vector3D(0, 0, 0), 1.0f);
     fluid_scene_object = scene->object[j];
 #endif
+
     // Add dim directional light source.
     scene->AddDirectionalLight(0, Vector3D(0.8, 0.6, - 0.3).Normalize(), Color(0.5, 0.5, 0.5));
 

@@ -166,14 +166,33 @@ void sreLODModelFluid::Evaluate() {
         fvertices[i * 4] = vert[i].x;
         fvertices[i * 4 + 1] = vert[i].y;
         fvertices[i * 4 + 2] = vert[i].z;
-        fvertices[i * 4 + 3] = 1.0;
+        fvertices[i * 4 + 3] = 1.0f;
     }
     glBindBuffer(GL_ARRAY_BUFFER, GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
     glBufferData(GL_ARRAY_BUFFER, nu_vertices * sizeof(float) * 4, &fvertices[0], GL_DYNAMIC_DRAW);
     delete fvertices;
     // Update normals.
+    // Although the normals are not normalized, the lighting pass fragment shader will generally
+    // perform normalization.
+    // For reasons that are unclear, the normals have to inverted in order to be not recognized as
+    // as back-facing triangles (with no lighting) in the fragment shader.
+    Vector3D *normals = new Vector3D[nu_vertices];
+    for (int i = 0; i < nu_vertices; i++) {
+        normals[i] = - fluid->normal[i];
+    }
+#if 0
+    for (int i = 0; i < nu_vertices; i++) {
+        normals[i] = fluid->normal[i];
+//        char *s = fluid->normal[i].GetString();
+//        sreMessage(SRE_MESSAGE_INFO, "N = %s ", s);
+//        delete s;
+        normals[i].Normalize();
+        normals[i] *= - 1.0f;
+    }
+#endif
     glBindBuffer(GL_ARRAY_BUFFER, GL_attribute_buffer[SRE_ATTRIBUTE_NORMAL]);
-    glBufferData(GL_ARRAY_BUFFER, nu_vertices * sizeof(float) * 3, fluid->normal, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, nu_vertices * sizeof(float) * 3, normals, GL_DYNAMIC_DRAW);
+    delete [] normals;
 }
 
 void sreEvaluateModelFluid(sreModel *m) {
@@ -215,10 +234,10 @@ sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d, f
     for (int y = 0; y < height; y += 2)
         for (int x = 0; x < width; x += 2) {
             lm->triangle[i].AssignVertices(mesh(x, y), mesh(x + 1, y), mesh(x + 1, y + 1));
-            lm->triangle[i + 1].AssignVertices(mesh(x, y), mesh(x + 1, y  + 1), mesh(x, y + 1));
+            lm->triangle[i + 1].AssignVertices(mesh(x, y), mesh(x + 1, y + 1), mesh(x, y + 1));
             lm->triangle[i + 2].AssignVertices(mesh(x + 1, y), mesh(x + 2, y), mesh(x + 1, y + 1));
             lm->triangle[i + 3].AssignVertices(mesh(x + 2, y), mesh(x + 2, y + 1), mesh(x + 1, y + 1));
-            lm->triangle[i + 4].AssignVertices(mesh(x, y + 1), mesh(x + 1, y + 1), mesh(x, y + 2));
+            lm->triangle[i + 4].AssignVertices(mesh(x + 1, y + 1), mesh(x, y + 2), mesh(x, y + 1));
             lm->triangle[i + 5].AssignVertices(mesh(x + 1, y + 1), mesh(x + 1, y + 2), mesh(x, y + 2));
             lm->triangle[i + 6].AssignVertices(mesh(x + 1, y + 1), mesh(x + 2, y + 1), mesh(x + 2, y + 2));
             lm->triangle[i + 7].AssignVertices(mesh(x + 1, y + 1), mesh(x + 2, y + 2), mesh(x + 1, y + 2));
@@ -226,7 +245,8 @@ sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d, f
         }
     lm->fluid = new sreFluid(width + 1, height + 1, d, t, c, mu);
     lm->flags = SRE_POSITION_MASK | SRE_TEXCOORDS_MASK | SRE_LOD_MODEL_VERTEX_BUFFER_DYNAMIC |
-        SRE_LOD_MODEL_IS_FLUID_MODEL;
+        SRE_LOD_MODEL_IS_FLUID_MODEL |
+        SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT;
     lm->vertex_normal = new Vector3D[lm->nu_vertices];
     lm->CalculateNormals(); // Will set SRE_NORMAL_MASK.
     // Bounding box z extent should depend on parameters (fix me).
