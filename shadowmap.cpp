@@ -73,7 +73,9 @@ static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
     // version), the MVP matrix uniform is set, and when a transparent texture is used it is
     // bound to GL_TEXTURE0 and the UV transformation matrix is set.
     sreLODModel *m = sreCalculateLODModel(*so);
-    if (m->flags & SRE_LOD_MODEL_NOT_CLOSED)
+    bool non_closed_model_handling = (m->flags & (SRE_LOD_MODEL_NOT_CLOSED |
+        SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT)) == SRE_LOD_MODEL_NOT_CLOSED;
+    if (non_closed_model_handling)
         // Disable front-face culling for non-closed models.
         glDisable(GL_CULL_FACE);
 
@@ -85,7 +87,10 @@ static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
         GL3InitializeSpotlightShadowMapShader(*so);
     else {
         // Directional or beam light.
-        if (m->flags & SRE_LOD_MODEL_NOT_CLOSED) {
+        // When the model is not closed, and the open side is not hidden from light, use special
+        // handling so that a bias value is already added to the depth value for light-facing
+	// triangles.
+        if (non_closed_model_handling) {
             non_closed_add_bias = true;
             GL3InitializeShadowMapShaderNonClosedObject(*so);
         }
@@ -151,7 +156,7 @@ static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
         glDisableVertexAttribArray(2);
     if (so->render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE)
         glDisableVertexAttribArray(1);
-    if (m->flags & SRE_LOD_MODEL_NOT_CLOSED)
+    if (non_closed_model_handling)
         glEnable(GL_CULL_FACE);
     CHECK_GL_ERROR("Error after RenderShadowMapObject.\n");
 //    object_count++;

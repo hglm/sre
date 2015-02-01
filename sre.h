@@ -1679,6 +1679,10 @@ public :
 
 typedef void (*sreSwapBuffersFunc)();
 
+// The following functions must be called before sreInitialize().
+SRE_API void sreSetDemandLoadShaders(bool enabled);
+SRE_API void sreSetMaxShadowMapSize(int size);
+// SRE library initialization function.
 SRE_API void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_buffers_func);
 SRE_API void sreResize(sreView *view, int window_width, int window_heigth);
 SRE_API void sreApplyNewZoom(sreView *view);
@@ -1735,7 +1739,6 @@ SRE_API void sreSetSplashScreen(int type, void (*SplashScreenFunction)());
 SRE_API void sreSwapBuffers();
 SRE_API sreEngineSettingsInfo *sreGetEngineSettingsInfo();
 SRE_API sreShadowRenderingInfo *sreGetShadowRenderingInfo();
-SRE_API void sreSetDemandLoadShaders(bool enabled);
 SRE_API void sreSetVisualizedShadowMap(int light_index);
 SRE_API void sreSetDrawTextOverlayFunc(void (*func)());
 SRE_API void sreSetTriangleStripUseForShadowVolumes(bool enabled);

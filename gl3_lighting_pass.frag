@@ -223,7 +223,7 @@ float SampleShadowPoisson(sampler2D shadow_map, vec3 coords, float bias, float f
 	float light_factor = 1.0;
 	for (int i = 0; i < 4; i++)
 		if (texture2D(shadow_map, coords.xy + poisson_disk[i] * factor).z
-		< coords.z - bias)
+		< coords.z + bias)
 			light_factor -= 0.25;
 	return light_factor;
 }
@@ -232,14 +232,16 @@ float SampleShadowPoisson(sampler2D shadow_map, vec3 coords, float bias, float f
 
 float SampleShadowSimple(sampler2D shadow_map, vec3 coords, float bias, float factor) {
 	// When rendering closed models in the shadow map, only back faces are rendered
-	// so the bias has to be subtracted from the calculated depth coordinate.
+	// so the bias has to be added to the calculated z coordinates to prevent light
+        // "bleeding" from around the back faces.
 	//
 	// For non-closed models, light-facing triangles are also rendered so the bias
 	// has to be negative to prevent incorrect self-shadows on the side facing the light.
 	// This should be implemented by already adding a bias to the depth stored
-	// in the shadow map when rendering a non-closed model. This bias should be somewhat 		// greater than the bias calculated when drawing the same object in the lighting pass
+	// in the shadow map when rendering a non-closed model. This bias should be somewhat
+        // greater than the bias calculated when drawing the same object in the lighting pass
 	// to prevent self-shadowing.
-	if (texture2D(shadow_map, coords.xy).z < coords.z - bias)
+	if (texture2D(shadow_map, coords.xy).z < coords.z + bias)
 		return 0.0;
 	else
 		return 1.0;
@@ -252,7 +254,6 @@ float SampleShadowSimple(sampler2D shadow_map, vec3 coords, float bias, float fa
 float CalculateShadow() {
 	// Scale the Poisson factor according to the resolution of the shadow map.
 	float poisson_factor = 1.3 * reprocical_shadow_map_size_var;
-	vec3 L_bias;
         // z / xy in shadow map in real world coordinates at the fragment position, in terms
         // of shadow map u,v and z coordinates (normalized to [0, 1]).
 	float shadow_map_world_depth_range;
@@ -271,14 +272,18 @@ float CalculateShadow() {
 	bias *= 1.0 / shadow_map_world_depth_range;
 	// Example bias calculation for directional light, slope = 1.0:
 	// bias = 1.0 * 400.0 * (1.0 / 2048.0) / 400.0 = 1.0 / 2048.0 = 0.000488
+
+	// The bias calculated is much too large in practice; adjust it.
+	bias *= 0.01;
+
 	// Add one unit of shadow map depth precision (0.00024 for 16-bit depth buffer).
 	bias += shadow_map_depth_precision_var;
 
 	// Produce slightly soft shadows with the Poisson disk.
-//	return SampleShadowPoisson(shadow_map_in, shadow_map_coord_var, bias,
-//		poisson_factor);
-	return SampleShadowSimple(shadow_map_in, shadow_map_coord_var, bias,
+	return SampleShadowPoisson(shadow_map_in, shadow_map_coord_var, bias,
 		poisson_factor);
+//	return SampleShadowSimple(shadow_map_in, shadow_map_coord_var, bias,
+//		poisson_factor);
 }
 
 #endif
@@ -564,6 +569,9 @@ void main() {
 		// a normal vector is 1.0.
 		normal = vec3(n.x, n.y, sqrt(1.0 - n.x * n.x - n.y * n.y));
 #endif
+		// Invert normal for back faces for correct lighting of faces that
+                // can be looked at from both sides.
+		normal *= float(gl_FrontFacing) * 2.0f - 1.0f;
 		// Light calculations will be performed in tangent space.
 
 		// Convert vectors for the light calculation into tangent space.
@@ -608,6 +616,9 @@ void main() {
 #ifndef NORMAL_MAP_FIXED
 	{
 		normal = normal_var;
+		// Invert normal for back faces for correct lighting of faces that
+                // can be looked at from both sides.
+		normal *= float(gl_FrontFacing) * 2.0f - 1.0f;
 #ifdef NORMALIZE_INTERPOLATED_NORMAL
 		// Normalize the normal vector.
 		normal = normalize(normal);

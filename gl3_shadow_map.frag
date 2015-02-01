@@ -65,9 +65,7 @@ void main() {
 #endif
 
 #if defined(ADD_BIAS) && !defined(CUBE_MAP) && !defined(SPOTLIGHT)
-	// Only apply bias for front (light)-facing triangles of non-closed objects. Since
-	// only back (non-light)-facing triangles of closed objects are drawn, all front
-	// facing triangles encountered are part of a non-closed object.
+	// Only apply bias for front (light)-facing triangles of non-closed objects.
 	float bias = float(gl_FrontFacing);
 	// Directional light. Bias is passed as varying.
 	bias *= bias_var;

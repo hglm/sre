@@ -83,29 +83,44 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     // Blocks with no bottom are only safe for shadow volumes if they are on the ground (since we never look up from below).
     sreModel *block_model_no_bottom = sreCreateBlockModel(scene, 1.0, 1.0, 1.0, SRE_BLOCK_NO_BOTTOM);
     sreModel *block_model_no_top = sreCreateBlockModel(scene, 1.0, 1.0, 1.0, SRE_BLOCK_NO_TOP);
-    sreModel *block_model_no_bottom_no_top = sreCreateBlockModel(scene, 1.0, 1.0, 1.0, SRE_BLOCK_NO_BOTTOM |
-        SRE_BLOCK_NO_TOP);
-    sreModel *block_model_no_bottom_no_top_no_right = sreCreateBlockModel(scene, 1.0, 1.0, 1.0, SRE_BLOCK_NO_BOTTOM |
-        SRE_BLOCK_NO_TOP | SRE_BLOCK_NO_RIGHT);
-    sreModel *block_model_no_bottom_no_top_no_left = sreCreateBlockModel(scene, 1.0, 1.0, 1.0, SRE_BLOCK_NO_BOTTOM |
-        SRE_BLOCK_NO_TOP | SRE_BLOCK_NO_LEFT);
-    sreModel *block_model_no_bottom_no_right = sreCreateBlockModel(scene, 1.0, 1.0, 1.0, SRE_BLOCK_NO_BOTTOM |
-        SRE_BLOCK_NO_RIGHT);
-    sreModel *block_model_no_bottom_no_left = sreCreateBlockModel(scene, 1.0, 1.0, 1.0, SRE_BLOCK_NO_BOTTOM |
-        SRE_BLOCK_NO_LEFT);
+    sreModel *block_model_no_bottom_no_top = sreCreateBlockModel(scene, 1.0, 1.0, 1.0,
+        SRE_BLOCK_NO_BOTTOM | SRE_BLOCK_NO_TOP);
+    sreModel *block_model_no_bottom_no_top_no_right = sreCreateBlockModel(scene, 1.0, 1.0, 1.0,
+        SRE_BLOCK_NO_BOTTOM | SRE_BLOCK_NO_TOP | SRE_BLOCK_NO_RIGHT);
+    sreModel *block_model_no_bottom_no_top_no_left = sreCreateBlockModel(scene, 1.0, 1.0, 1.0,
+        SRE_BLOCK_NO_BOTTOM | SRE_BLOCK_NO_TOP | SRE_BLOCK_NO_LEFT);
+    sreModel *block_model_no_bottom_no_right = sreCreateBlockModel(scene, 1.0, 1.0, 1.0,
+        SRE_BLOCK_NO_BOTTOM | SRE_BLOCK_NO_RIGHT);
+    sreModel *block_model_no_bottom_no_left = sreCreateBlockModel(scene, 1.0, 1.0, 1.0,
+        SRE_BLOCK_NO_BOTTOM | SRE_BLOCK_NO_LEFT);
     sreModel *block_model_no_left_no_right = sreCreateBlockModel(scene, 1.0, 1.0, 1.0,
         SRE_BLOCK_NO_RIGHT | SRE_BLOCK_NO_LEFT);
-    sreModel *block_model_no_bottom_no_left_no_right = sreCreateBlockModel(scene, 1.0, 1.0, 1.0, SRE_BLOCK_NO_BOTTOM |
-        SRE_BLOCK_NO_RIGHT | SRE_BLOCK_NO_LEFT);
-    sreModel *block_model_no_top_no_left = sreCreateBlockModel(scene, 1.0, 1.0, 1.0, SRE_BLOCK_NO_TOP | SRE_BLOCK_NO_LEFT);
-    sreModel *block_model_no_top_no_right = sreCreateBlockModel(scene, 1.0, 1.0, 1.0, SRE_BLOCK_NO_TOP | SRE_BLOCK_NO_RIGHT);
+    sreModel *block_model_no_bottom_no_left_no_right = sreCreateBlockModel(scene, 1.0, 1.0, 1.0,
+        SRE_BLOCK_NO_BOTTOM | SRE_BLOCK_NO_RIGHT | SRE_BLOCK_NO_LEFT);
+    sreModel *block_model_no_top_no_left = sreCreateBlockModel(scene, 1.0, 1.0, 1.0,
+        SRE_BLOCK_NO_TOP | SRE_BLOCK_NO_LEFT);
+    sreModel *block_model_no_top_no_right = sreCreateBlockModel(scene, 1.0, 1.0, 1.0,
+        SRE_BLOCK_NO_TOP | SRE_BLOCK_NO_RIGHT);
+
+    sreModel *block_model_no_bottom_no_right_no_back = sreCreateBlockModel(scene, 1.0, 1.0, 1.0,
+        SRE_BLOCK_NO_BOTTOM | SRE_BLOCK_NO_RIGHT | SRE_BLOCK_NO_BACK);
+    sreModel *block_model_no_bottom_no_left_no_back = sreCreateBlockModel(scene, 1.0, 1.0, 1.0,
+        SRE_BLOCK_NO_BOTTOM | SRE_BLOCK_NO_LEFT | SRE_BLOCK_NO_BACK);
+    sreModel *block_model_no_bottom_no_right_no_front = sreCreateBlockModel(scene, 1.0, 1.0, 1.0,
+        SRE_BLOCK_NO_BOTTOM | SRE_BLOCK_NO_RIGHT | SRE_BLOCK_NO_FRONT);
+    sreModel *block_model_no_bottom_no_left_no_front = sreCreateBlockModel(scene, 1.0, 1.0, 1.0,
+        SRE_BLOCK_NO_BOTTOM | SRE_BLOCK_NO_LEFT | SRE_BLOCK_NO_FRONT);
+    sreModel *block_model_no_bottom_no_front_no_back = sreCreateBlockModel(scene, 1.0, 1.0, 1.0,
+        SRE_BLOCK_NO_BOTTOM | SRE_BLOCK_NO_FRONT | SRE_BLOCK_NO_BACK);
+
     sreTexture *wall_texture = new sreTexture("tijolo", TEXTURE_TYPE_NORMAL);
     scene->SetTexture(wall_texture);
     sreTexture *wall_normals = new sreTexture("tijolo_normal_map", TEXTURE_TYPE_NORMAL_MAP);
     scene->SetNormalMap(wall_normals);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP | SRE_OBJECT_CAST_SHADOWS);
 
-// #define COMPOUND_OPEN_WALL_OBJECT
+// Compound open wall can produce shadow errors with stencil shadows.
+#define COMPOUND_OPEN_WALL_OBJECT
 
 #ifdef COMPOUND_OPEN_WALL_OBJECT
     // Create open wall.
@@ -118,8 +133,8 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     sreAddToCompoundModel(open_wall, block_model_no_bottom_no_right, Point3D(0, 0, 4 * 5.0), Vector3D(0, 0, 0), 5.0);
     // Bottom and top bars.
     for (int i = 0; i < 18; i++) {
-        sreAddToCompoundModel(open_wall, block_model_no_bottom_no_left_no_right, Point3D(i * 5 + 5.0, 0, 0),
-            Vector3D(0, 0, 0), 5.0);
+        sreAddToCompoundModel(open_wall, block_model_no_bottom_no_left_no_right,
+            Point3D(i * 5 + 5.0, 0, 0), Vector3D(0, 0, 0), 5.0);
         sreAddToCompoundModel(open_wall, block_model_no_left_no_right, Point3D(i * 5 + 5.0, 0, 4 * 5.0),
             Vector3D(0, 0, 0), 5.0);
     }
@@ -186,23 +201,29 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     sreTexture *marble_texture = new sreTexture("Marble9", TEXTURE_TYPE_NORMAL);
     scene->SetTexture(marble_texture);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_CAST_SHADOWS);
-    // The pond compound model is irregular, the blocks have not bottom but it would better if the internal
-    // interior sides of the blocks were also missing. Also, the model is technically not closed but
-    // it causes no problems with stencil shadows because it is never lit from below (indicated with
-    // OPEN_SIDE_HIDDEN_FROM_LIGHT).
+    // The pond model is technically not closed but it causes no problems with stencil shadows
+    // because it is never lit from below (indicated with OPEN_SIDE_HIDDEN_FROM_LIGHT).
     sreModel *pond = sreCreateCompoundModel(scene, true, true, SRE_LOD_MODEL_NOT_CLOSED |
         SRE_LOD_MODEL_CONTAINS_HOLES | SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT);
-    for (int i = 0; i < 8; i++) {
-            sreAddToCompoundModel(pond, block_model_no_bottom, Point3D(i * 5 - 50, 10, 0),
-                Vector3D(0, 0, 0), 5.0f);
-            sreAddToCompoundModel(pond, block_model_no_bottom, Point3D(i * 5 - 50, 10 + 7 * 5, 0),
-                Vector3D(0, 0, 0), 5.0f);
+    sreAddToCompoundModel(pond, block_model_no_bottom_no_right_no_back,
+        Point3D(0 * 5.0f - 50.0f, 10.0f, 0), Vector3D(0, 0, 0), 5.0f);
+    sreAddToCompoundModel(pond, block_model_no_bottom_no_left_no_back,
+        Point3D(7 * 5.0f - 50.0f, 10.0f, 0), Vector3D(0, 0, 0), 5.0f);
+    sreAddToCompoundModel(pond, block_model_no_bottom_no_right_no_front,
+        Point3D(0 * 5.0f - 50.0f, 10.0f + 7 * 5.0f, 0), Vector3D(0, 0, 0), 5.0f);
+    sreAddToCompoundModel(pond, block_model_no_bottom_no_left_no_front,
+        Point3D(7 * 5.0f - 50.0f, 10.0f + 7 * 5.0f, 0), Vector3D(0, 0, 0), 5.0f);
+    for (int i = 1; i < 7; i++) {
+            sreAddToCompoundModel(pond, block_model_no_bottom_no_left_no_right,
+                Point3D(i * 5.0f - 50.0f, 10.0f, 0), Vector3D(0, 0, 0), 5.0f);
+            sreAddToCompoundModel(pond, block_model_no_bottom_no_left_no_right,
+                Point3D(i * 5.0f - 50.0f, 10.0f + 7 * 5.0f, 0), Vector3D(0, 0, 0), 5.0f);
     }
-    for (int i = 0; i < 6; i++) {
-            sreAddToCompoundModel(pond, block_model_no_bottom, Point3D(- 50, 15 + i * 5, 0),
-                Vector3D(0, 0, 0), 5.0f);
-            sreAddToCompoundModel(pond, block_model_no_bottom, Point3D(7 * 5 - 50, 15 + i * 5, 0),
-                Vector3D(0, 0, 0), 5.0f);
+    for (int i = 1; i < 7; i++) {
+            sreAddToCompoundModel(pond, block_model_no_bottom_no_front_no_back, Point3D(0 * 5.0f - 50.0f,
+                10.0f + i * 5.0f, 0), Vector3D(0, 0, 0), 5.0f);
+            sreAddToCompoundModel(pond, block_model_no_bottom_no_front_no_back, Point3D(7 * 5.0f - 50.0f,
+                10.0f + i * 5.0f, 0), Vector3D(0, 0, 0), 5.0f);
     }
     sreFinalizeCompoundModel(scene, pond);
     scene->AddObject(pond, 0, 0, 0, 0, 0, 0, 1.0f);

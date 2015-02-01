@@ -54,6 +54,7 @@ static const Demo demo_table[] = {
     { "demo10", Demo10CreateScene, Demo10Step },
     { "demo11", Demo11CreateScene, Demo11Step },
     { "demo4c", Demo4cCreateScene, Demo4cStep },
+    { "demo12", Demo12CreateScene, Demo12Step },
 };
 
 #define NU_DEMOS (sizeof(demo_table) / sizeof(demo_table[0]))
@@ -86,7 +87,8 @@ int main(int argc, char **argv) {
             "Option --benchmark makes the application quit automatically after 20s of\n"
             "rendering, displaying the number of frames per second.\n"
             "Option --preprocess performs T-junction elimination on all static scenery at start-up.\n"
-            "Option --demand-load-shaders enables demand-loading of shaders (experimental).\n";
+            "Option --demand-load-shaders enables demand-loading of shaders (experimental).\n"
+            "Option --large-shadow-maps enabled the use of very large shadow maps.\n";
         const char *text2;
         if (strcmp(sre_internal_backend->name, "GLFW") == 0)
             text2 = 

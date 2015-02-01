@@ -994,7 +994,7 @@ sreModel *sreCreateBlockModel(sreScene *scene, float xdim, float ydim, float zdi
     return model;
 }
 
-// Create a rectangle with a repeating texture pattern.
+// Create a rectangle (in z plane) with a repeating texture pattern.
 
 sreModel *sreCreateRepeatingRectangleModel(sreScene *scene, float size, float unit_size) {
     sreModel *model = new sreModel;

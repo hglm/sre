@@ -53,6 +53,7 @@ static int shadows = SRE_SHADOWS_NONE;
 static bool preprocess = false;
 static int debug_level = 0;
 static bool demand_load_shaders = false;
+static bool large_shadow_maps = false;
 
 void sreSelectBackend(int backend) {
     if (backend == SRE_BACKEND_DEFAULT)
@@ -193,8 +194,14 @@ static void sreBackendProcessOptions(int *argcp, char ***argvp) {
             argi++;
             continue;
         }
+        if (argc >= argi + 1 && strcmp(argv[argi], "--large-shadow-maps") == 0) {
+            large_shadow_maps = true;
+            argi++;
+            continue;
+        }
         break;
     }
+
     if (argi > 1)
         memcpy(argv + 1, argv + 1 + argi - 1, argi - 1);
     *argcp = argc - (argi - 1);
@@ -229,6 +236,12 @@ static void sreBackendInitialize(sreApplication *app, int *argc, char ***argv) {
     sreSetDebugMessageLevel(debug_level);
     if (demand_load_shaders)
         sreSetDemandLoadShaders(true);
+    if (large_shadow_maps)
+#ifdef OPENGL_ES2
+        sreSetMaxShadowMapSize(SRE_MAX_SHADOW_MAP_SIZE_GLES2 * 4);
+#else
+        sreSetMaxShadowMapSize(SRE_MAX_SHADOW_MAP_SIZE_OPENGL * 4);
+#endif
 
     // Initialize GUI and SRE library.
     int actual_width, actual_height;

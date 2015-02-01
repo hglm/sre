@@ -131,7 +131,11 @@ int sre_internal_object_flags_mask = SRE_OBJECT_FLAGS_MASK_FULL;
 int sre_internal_visualized_shadow_map = - 1;
 int sre_internal_max_texture_size;
 int sre_internal_texture_detail_flags;
-int sre_internal_max_shadow_map_size;
+#ifdef OPENGL_ES2
+int sre_internal_max_shadow_map_size = SRE_MAX_SHADOW_MAP_SIZE_GLES2;
+#else
+int sre_internal_max_shadow_map_size = SRE_MAX_SHADOW_MAP_SIZE_OPENGL;
+#endif
 int sre_internal_current_shadow_map_index;
 int sre_internal_nu_shadow_map_size_levels;
 int sre_internal_max_cube_shadow_map_size;
@@ -411,6 +415,11 @@ void sreSetDemandLoadShaders(bool flag) {
     sre_internal_demand_load_shaders = flag;
 }
 
+// Set max shadow map size (power of two).
+void sreSetMaxShadowMapSize(int size) {
+    sre_internal_max_shadow_map_size = size;
+}
+
 void sreSetVisualizedShadowMap(int light_index) {
     sre_internal_visualized_shadow_map = light_index;
 }
@@ -654,11 +663,6 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
 #endif
     sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_MAP_SUPPORT;
     sreInitializeShaders(SRE_SHADER_MASK_SHADOW_MAP);
-#ifdef OPENGL_ES2
-    sre_internal_max_shadow_map_size = SRE_MAX_SHADOW_MAP_SIZE_GLES2;
-#else
-    sre_internal_max_shadow_map_size = SRE_MAX_SHADOW_MAP_SIZE_OPENGL;
-#endif
 
 #ifdef OPENGL_ES2
     sre_internal_nu_shadow_map_size_levels = SRE_MAX_SHADOW_MAP_LEVELS_GLES2;

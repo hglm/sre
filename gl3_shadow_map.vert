@@ -100,6 +100,11 @@ void main() {
 	bias *= 1.0 / shadow_map_dimensions_in.z;
 	// Example bias calculation for directional light, slope = 1.0:
 	// bias = 1.0 * 400.0 * (1.0 / 2048.0) / 400.0 = 1.0 / 2048.0 = 0.000488
+
+	// When Poisson disk shadows are enabled, bias needs to be somewhat greater to reduce
+        // artifacts.
+	bias *= 2.5;
+
 	// Add a little extra so that the bias is greater that the bias used when drawing
         // the triangle in the lighting pass.
 	bias += shadow_map_depth_precision * 2.0;
