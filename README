@@ -245,10 +245,6 @@ Bugs as of January 2015:
 - In demo7, an anomalous triangular shadow is visible at the top right when
   the viewpoint is within the scene.
 
-- Collision detection for the cylinder shapes in demo8 is slightly off.
-
-- Shadow mapping for the beam light in demo8 still has problems.
-
 3. To do list.
 
 - Currently, most of the time cube shadow maps are cleared when generating

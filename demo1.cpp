@@ -231,7 +231,7 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     fluid_scene_object = scene->object[j];
 #endif
     // Add dim directional light source.
-//    scene->AddDirectionalLight(0, Vector3D(0.8, 0.6, - 0.3).Normalize(), Color(0.5, 0.5, 0.5));
+    scene->AddDirectionalLight(0, Vector3D(0.8, 0.6, - 0.3).Normalize(), Color(0.5, 0.5, 0.5));
 
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
 

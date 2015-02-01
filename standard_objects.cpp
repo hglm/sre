@@ -1210,6 +1210,8 @@ bool include_top, bool include_bottom) {
 //    m->CalculateTangentVectors();
 }
 
+// Create cylinder model. Axis runs from (0, 0, 0) to (0, 0, length).
+
 sreModel *sreCreateCylinderModel(sreScene *scene, float zdim, bool include_top, bool include_bottom) {
     sreModel *m = new sreModel;
     m->lod_model[0] = sreNewLODModel();

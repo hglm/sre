@@ -182,25 +182,30 @@ void sreBulletPhysicsApplication::InitializePhysics() {
         switch (collision_shape_type) {
         case SRE_COLLISION_SHAPE_SPHERE :
             // This will normally be equal to the zero vector.
-//            so->collision_shape_center_offset = so->sphere.center - so->position;
-            so->collision_shape_center_offset = (so->rotation_matrix * so->model->sphere.center) *
-               so->scaling;
+            so->collision_shape_center_offset = so->sphere.center - so->position;
+//            so->collision_shape_center_offset = (so->rotation_matrix * so->model->sphere.center) *
+//               so->scaling;
             break;
         case SRE_COLLISION_SHAPE_BOX :
-            so->collision_shape_center_offset = (so->rotation_matrix * so->model->box_center) *
-                so->scaling;
+              so->collision_shape_center_offset = so->box.center - so->position;
+//            so->collision_shape_center_offset = (so->rotation_matrix * so->model->box_center) *
+//                so->scaling;
             break;
         case SRE_COLLISION_SHAPE_CYLINDER :
-            so->collision_shape_center_offset = (so->rotation_matrix * so->model->bv_special.cylinder->center) *
-               so->scaling;
+            // The origin of the cylinder model is the center of the bottom of the cylinder. Calculate
+            // the correct adjustment for the collision shape's geometrical center in the middle of the
+            // cylinder.
+            so->collision_shape_center_offset = 0.5f * so->bv_special.cylinder->axis *
+                so->bv_special.cylinder->length;
             break;
         case SRE_COLLISION_SHAPE_ELLIPSOID :
-            so->collision_shape_center_offset = (so->rotation_matrix * so->model->bv_special.ellipsoid->center) *
-               so->scaling;
+              so->collision_shape_center_offset = so->bv_special.ellipsoid->center - so->position;
+//            so->collision_shape_center_offset = (so->rotation_matrix *
+//               so->model->bv_special.ellipsoid->center) * so->scaling;
             break;
         case SRE_COLLISION_SHAPE_CAPSULE :
             // No adjustment should be necessary, a capsule shape implies a center at the origin
-            // in object space.
+            // in model space.
             break;
         }
         int id = so->model->id;
@@ -330,7 +335,7 @@ void sreBulletPhysicsApplication::InitializePhysics() {
         // SRE_OBJECT_DYNAMIC_POSITION flag set are considered dynamic, others static.
         // When this flag is set, the mass parameter will be passed to Bullet.
         if (collision_shape_is_static[i] && collision_shape_is_absolute[i]) {
-            // Fixed static object with absolute coordinates.
+            // Fixed static object with mesh with absolute coordinates.
             btMotionState* meshMotionState;
             meshMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
             btRigidBody::btRigidBodyConstructionInfo meshRigidBodyCI(0, meshMotionState,
@@ -341,8 +346,11 @@ void sreBulletPhysicsApplication::InitializePhysics() {
             dynamicsWorld->addRigidBody(meshRigidBody);
         }
         else if (!collision_shape_is_absolute[i]) {
-            Point3D pos = so->position;
-            pos += so->collision_shape_center_offset;
+            // The collision shape is a geometric shape (box, sphere, cylinder etc) with a local
+            // coordinate system.
+            // Calculate the object position for Bullet, reflecting the center of the local coordinate
+            // system of the collision shape.
+            Point3D pos = so->position + so->collision_shape_center_offset;
             btMatrix3x3 rot;
             // Set the rotation matrix for Bullet.
             // If the object was converted to static absolute scenery in the preprocessing stage,
