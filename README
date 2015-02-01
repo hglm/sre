@@ -251,11 +251,11 @@ Bugs as of January 2015:
 
 3. To do list.
 
-- Currently, each of the six cube shadow maps is cleared when generating
+- Currently, most of the time cube shadow maps are cleared when generating
   point light shadow maps. Based on information that a shadow map is not
   required for a particular cube face, the corresponding cube map face
-  could be defined as a small, empty shadow map that takes less memory
-  and does not need to be cleared.
+  could potentially be defined as a small, empty shadow map that takes less
+  memory and does not need to be cleared.
 
 4. Potential improvements that are not yet implemented.
 

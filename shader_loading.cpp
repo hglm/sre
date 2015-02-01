@@ -573,6 +573,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define LINEAR_ATTENUATION_RANGE\n"  
     "#define MICROFACET\n"
     "#define SHADOW_CUBE_MAP\n",
+    // SHADER16
     // Complete shadow map lighting pass shader for spot lights with a linear attenuation range
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
@@ -595,7 +596,6 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_ALPHA\n"
     "#define SPOT_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n" 
-//    "#define SHADOW_MAP\n"
     "#define SPOT_LIGHT_SHADOW_MAP\n",
     // Complete microfacet shadow map lighting pass shader for spot lights with a linear attenuation range
     "#define TEXCOORD_IN\n"
@@ -620,8 +620,8 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define SPOT_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n"
     "#define MICROFACET\n" 
-//    "#define SHADOW_MAP\n"
     "#define SPOT_LIGHT_SHADOW_MAP\n",
+    // SHADER18
     // Complete shadow map multi-pass lighting shader for beam light with a linear attenuation range
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"

@@ -875,8 +875,8 @@ static MultiPassShaderList shader_list_spot_light_shadow_map_microfacet = {
 };
 
 static MultiPassShaderList shader_list_beam_light_shadow_map_standard = {
-    3,
-    { SHADER7, SHADER9, SHADER18 }
+    2,
+    { SHADER2, SHADER18 }
 };
 
 static MultiPassShaderList shader_list_beam_light_shadow_map_microfacet = {
@@ -1812,71 +1812,6 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
                 multi_pass_shader[17].uniform_location[UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX], so);
             break;
         case SHADER18 : // Shadow map, beam light.
-            glUseProgram(multi_pass_shader[16].program);
-            GL3InitializeShaderWithMVP(multi_pass_shader[16].uniform_location[UNIFORM_MVP], so);
-            GL3InitializeShaderWithModelMatrix(multi_pass_shader[16].uniform_location[UNIFORM_MODEL_MATRIX], so);
-            GL3InitializeShaderWithModelRotationMatrix(
-                multi_pass_shader[16].uniform_location[UNIFORM_MODEL_ROTATION_MATRIX], so);
-            GL3InitializeShaderWithDiffuseReflectionColor(
-                multi_pass_shader[16].uniform_location[UNIFORM_DIFFUSE_REFLECTION_COLOR], so);
-            GL3InitializeShaderWithMultiColor(multi_pass_shader[16].uniform_location[UNIFORM_USE_MULTI_COLOR], so);
-            GL3InitializeShaderWithUseTexture(multi_pass_shader[16].uniform_location[UNIFORM_USE_TEXTURE_MAP], so);
-            GL3InitializeShaderWithSpecularReflectionColor(
-                multi_pass_shader[16].uniform_location[UNIFORM_SPECULAR_REFLECTION_COLOR], so);
-            GL3InitializeShaderWithSpecularExponent(
-                multi_pass_shader[16].uniform_location[UNIFORM_SPECULAR_EXPONENT], so);
-            if (flags & SRE_OBJECT_USE_TEXTURE)
-                GL3InitializeShaderWithObjectTexture(so);
-            GL3InitializeShaderWithUseNormalMap(multi_pass_shader[16].uniform_location[UNIFORM_USE_NORMAL_MAP], so);
-            if (flags & SRE_OBJECT_USE_NORMAL_MAP)
-                GL3InitializeShaderWithObjectNormalMap(so);
-            GL3InitializeShaderWithUseSpecularMap(multi_pass_shader[16].uniform_location[UNIFORM_USE_SPECULARITY_MAP], so);
-            if (flags & SRE_OBJECT_USE_SPECULARITY_MAP)
-                GL3InitializeShaderWithObjectSpecularMap(so);
-            if (flags & (SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
-            SRE_OBJECT_USE_SPECULARITY_MAP))
-               GL3InitializeShaderWithUVTransform(
-                   multi_pass_shader[16].uniform_location[UNIFORM_UV_TRANSFORM], so);
-            GL3InitializeShaderWithShadowMapTransformationMatrix(
-                multi_pass_shader[16].uniform_location[UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX], so);
-            break;
-        case SHADER19 : // Shadow map, beam light, micro-facet.
-            glUseProgram(multi_pass_shader[17].program);
-            GL3InitializeShaderWithMVP(multi_pass_shader[17].uniform_location[UNIFORM_MVP], so);
-            GL3InitializeShaderWithModelMatrix(multi_pass_shader[17].uniform_location[UNIFORM_MODEL_MATRIX], so);
-            GL3InitializeShaderWithModelRotationMatrix(
-                multi_pass_shader[17].uniform_location[UNIFORM_MODEL_ROTATION_MATRIX], so);
-            GL3InitializeShaderWithDiffuseReflectionColor(
-                multi_pass_shader[17].uniform_location[UNIFORM_DIFFUSE_REFLECTION_COLOR], so);
-            GL3InitializeShaderWithMultiColor(multi_pass_shader[17].uniform_location[UNIFORM_USE_MULTI_COLOR], so);
-            GL3InitializeShaderWithUseTexture(multi_pass_shader[17].uniform_location[UNIFORM_USE_TEXTURE_MAP], so);
-            GL3InitializeShaderWithSpecularReflectionColor(
-                multi_pass_shader[17].uniform_location[UNIFORM_SPECULAR_REFLECTION_COLOR], so);
-            if (flags & SRE_OBJECT_USE_TEXTURE)
-                GL3InitializeShaderWithObjectTexture(so);
-            GL3InitializeShaderWithUseNormalMap(multi_pass_shader[17].uniform_location[UNIFORM_USE_NORMAL_MAP], so);
-            if (flags & SRE_OBJECT_USE_NORMAL_MAP)
-                GL3InitializeShaderWithObjectNormalMap(so);
-            GL3InitializeShaderWithUseSpecularMap(
-                multi_pass_shader[17].uniform_location[UNIFORM_USE_SPECULARITY_MAP], so);
-            if (flags & SRE_OBJECT_USE_SPECULARITY_MAP)
-                GL3InitializeShaderWithObjectSpecularMap(so);
-            if (flags & (SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
-            SRE_OBJECT_USE_SPECULARITY_MAP))
-               GL3InitializeShaderWithUVTransform(
-                   multi_pass_shader[17].uniform_location[UNIFORM_UV_TRANSFORM], so);
-            GL3InitializeShaderWithDiffuseFraction(
-                multi_pass_shader[17].uniform_location[UNIFORM_DIFFUSE_FRACTION], so);
-            GL3InitializeShaderWithRoughness(
-                multi_pass_shader[17].uniform_location[UNIFORM_ROUGHNESS], so);
-            GL3InitializeShaderWithRoughnessWeights(
-                multi_pass_shader[17].uniform_location[UNIFORM_ROUGHNESS_WEIGHTS], so);
-            GL3InitializeShaderWithAnisotropic(
-                multi_pass_shader[17].uniform_location[UNIFORM_ANISOTROPIC], so);
-            GL3InitializeShaderWithShadowMapTransformationMatrix(
-                multi_pass_shader[17].uniform_location[UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX], so);
-            break;
-        case SHADER20 : // Earth shadow map, directional light.
             glUseProgram(multi_pass_shader[18].program);
             GL3InitializeShaderWithMVP(multi_pass_shader[18].uniform_location[UNIFORM_MVP], so);
             GL3InitializeShaderWithModelMatrix(multi_pass_shader[18].uniform_location[UNIFORM_MODEL_MATRIX], so);
@@ -1884,15 +1819,80 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
                 multi_pass_shader[18].uniform_location[UNIFORM_MODEL_ROTATION_MATRIX], so);
             GL3InitializeShaderWithDiffuseReflectionColor(
                 multi_pass_shader[18].uniform_location[UNIFORM_DIFFUSE_REFLECTION_COLOR], so);
+            GL3InitializeShaderWithMultiColor(multi_pass_shader[18].uniform_location[UNIFORM_USE_MULTI_COLOR], so);
+            GL3InitializeShaderWithUseTexture(multi_pass_shader[18].uniform_location[UNIFORM_USE_TEXTURE_MAP], so);
             GL3InitializeShaderWithSpecularReflectionColor(
                 multi_pass_shader[18].uniform_location[UNIFORM_SPECULAR_REFLECTION_COLOR], so);
             GL3InitializeShaderWithSpecularExponent(
                 multi_pass_shader[18].uniform_location[UNIFORM_SPECULAR_EXPONENT], so);
+            if (flags & SRE_OBJECT_USE_TEXTURE)
+                GL3InitializeShaderWithObjectTexture(so);
+            GL3InitializeShaderWithUseNormalMap(multi_pass_shader[18].uniform_location[UNIFORM_USE_NORMAL_MAP], so);
+            if (flags & SRE_OBJECT_USE_NORMAL_MAP)
+                GL3InitializeShaderWithObjectNormalMap(so);
+            GL3InitializeShaderWithUseSpecularMap(multi_pass_shader[18].uniform_location[UNIFORM_USE_SPECULARITY_MAP], so);
+            if (flags & SRE_OBJECT_USE_SPECULARITY_MAP)
+                GL3InitializeShaderWithObjectSpecularMap(so);
+            if (flags & (SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
+            SRE_OBJECT_USE_SPECULARITY_MAP))
+               GL3InitializeShaderWithUVTransform(
+                   multi_pass_shader[18].uniform_location[UNIFORM_UV_TRANSFORM], so);
+            GL3InitializeShaderWithShadowMapTransformationMatrix(
+                multi_pass_shader[18].uniform_location[UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX], so);
+            break;
+        case SHADER19 : // Shadow map, beam light, micro-facet.
+            glUseProgram(multi_pass_shader[19].program);
+            GL3InitializeShaderWithMVP(multi_pass_shader[19].uniform_location[UNIFORM_MVP], so);
+            GL3InitializeShaderWithModelMatrix(multi_pass_shader[19].uniform_location[UNIFORM_MODEL_MATRIX], so);
+            GL3InitializeShaderWithModelRotationMatrix(
+                multi_pass_shader[19].uniform_location[UNIFORM_MODEL_ROTATION_MATRIX], so);
+            GL3InitializeShaderWithDiffuseReflectionColor(
+                multi_pass_shader[19].uniform_location[UNIFORM_DIFFUSE_REFLECTION_COLOR], so);
+            GL3InitializeShaderWithMultiColor(multi_pass_shader[19].uniform_location[UNIFORM_USE_MULTI_COLOR], so);
+            GL3InitializeShaderWithUseTexture(multi_pass_shader[19].uniform_location[UNIFORM_USE_TEXTURE_MAP], so);
+            GL3InitializeShaderWithSpecularReflectionColor(
+                multi_pass_shader[19].uniform_location[UNIFORM_SPECULAR_REFLECTION_COLOR], so);
+            if (flags & SRE_OBJECT_USE_TEXTURE)
+                GL3InitializeShaderWithObjectTexture(so);
+            GL3InitializeShaderWithUseNormalMap(multi_pass_shader[19].uniform_location[UNIFORM_USE_NORMAL_MAP], so);
+            if (flags & SRE_OBJECT_USE_NORMAL_MAP)
+                GL3InitializeShaderWithObjectNormalMap(so);
+            GL3InitializeShaderWithUseSpecularMap(
+                multi_pass_shader[19].uniform_location[UNIFORM_USE_SPECULARITY_MAP], so);
+            if (flags & SRE_OBJECT_USE_SPECULARITY_MAP)
+                GL3InitializeShaderWithObjectSpecularMap(so);
+            if (flags & (SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
+            SRE_OBJECT_USE_SPECULARITY_MAP))
+               GL3InitializeShaderWithUVTransform(
+                   multi_pass_shader[19].uniform_location[UNIFORM_UV_TRANSFORM], so);
+            GL3InitializeShaderWithDiffuseFraction(
+                multi_pass_shader[19].uniform_location[UNIFORM_DIFFUSE_FRACTION], so);
+            GL3InitializeShaderWithRoughness(
+                multi_pass_shader[19].uniform_location[UNIFORM_ROUGHNESS], so);
+            GL3InitializeShaderWithRoughnessWeights(
+                multi_pass_shader[19].uniform_location[UNIFORM_ROUGHNESS_WEIGHTS], so);
+            GL3InitializeShaderWithAnisotropic(
+                multi_pass_shader[19].uniform_location[UNIFORM_ANISOTROPIC], so);
+            GL3InitializeShaderWithShadowMapTransformationMatrix(
+                multi_pass_shader[19].uniform_location[UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX], so);
+            break;
+        case SHADER20 : // Earth shadow map, directional light.
+            glUseProgram(multi_pass_shader[SHADER20].program);
+            GL3InitializeShaderWithMVP(multi_pass_shader[SHADER20].uniform_location[UNIFORM_MVP], so);
+            GL3InitializeShaderWithModelMatrix(multi_pass_shader[SHADER20].uniform_location[UNIFORM_MODEL_MATRIX], so);
+            GL3InitializeShaderWithModelRotationMatrix(
+                multi_pass_shader[SHADER20].uniform_location[UNIFORM_MODEL_ROTATION_MATRIX], so);
+            GL3InitializeShaderWithDiffuseReflectionColor(
+                multi_pass_shader[SHADER20].uniform_location[UNIFORM_DIFFUSE_REFLECTION_COLOR], so);
+            GL3InitializeShaderWithSpecularReflectionColor(
+                multi_pass_shader[SHADER20].uniform_location[UNIFORM_SPECULAR_REFLECTION_COLOR], so);
+            GL3InitializeShaderWithSpecularExponent(
+                multi_pass_shader[SHADER20].uniform_location[UNIFORM_SPECULAR_EXPONENT], so);
             GL3InitializeShaderWithObjectTexture(so);
             GL3InitializeShaderWithObjectSpecularMap(so);
             GL3InitializeShaderWithObjectEmissionMap(so);
             GL3InitializeShaderWithShadowMapTransformationMatrix(
-                multi_pass_shader[18].uniform_location[UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX], so);
+                multi_pass_shader[SHADER20].uniform_location[UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX], so);
             break;
 #endif
         case SHADER21 : // Earth shader, directional light.
