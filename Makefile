@@ -335,7 +335,7 @@ frustum.o bounds.o octree.o fluid.o standard_objects.o text.o scene.o lights.o s
 bounding_volume.o shader_matrix.o shader_loading.o vertex_buffer.o \
 shader_uniform.o draw_object.o
 DEMO_MODULE_OBJECTS = demo_main.o demo1.o demo2.o demo4.o demo4b.o \
-demo5.o demo7.o demo8.o demo9.o demo10.o demo11.o demo12.o textdemo.o
+demo5.o demo7.o demo8.o demo9.o demo10.o demo11.o demo12.o demo13.o textdemo.o
 ALL_DEMO_MODULE_OBJECTS = $(DEMO_MODULE_OBJECTS) game.o
 ALL_BACKEND_MODULE_OBJECTS = sre_backend.o gui-common.o bullet.o glfw.o opengl-x11.o \
 x11-common.o glut.o egl-x11.o egl-common.o egl-allwinner-fb.o egl-rpi-fb.o \

@@ -141,6 +141,9 @@ bool shadow) {
                 buffer_size *= 2;
             glBufferData(GL_ARRAY_BUFFER, buffer_size, attribute_data[i],
                 GetAttributeUsage(i, dynamic_flags));
+//            if (GetAttributeUsage(i, dynamic_flags) == GL_DYNAMIC_DRAW)
+//                sreMessage(SRE_MESSAGE_INFO, "Dynamic draw buffer requested for model %d, attribute %d.",
+//                    id, i);
             if (glGetError() != GL_NO_ERROR)
                 sreFatalError("Error executing glBufferData.");
        }

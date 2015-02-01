@@ -549,6 +549,7 @@ public :
     sreLODModelFluid();
     ~sreLODModelFluid();
     void Evaluate();
+    void UpdateVertexBuffers();
 };
 
 
@@ -1912,7 +1913,7 @@ SRE_API void sreSaveModelToSREBinaryModelFile(sreModel *m, const char *pathname,
     int save_flags);
 
 SRE_API sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d,
-    float t, float c, float mu);
+    float t, float c, float mu, float texcoords_scaling);
 SRE_API void sreEvaluateModelFluid(sreModel *m);
 SRE_API void sreCreateModelFluidDisturbance(sreModel *m, int x, int y, float z);
 

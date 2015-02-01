@@ -157,6 +157,10 @@ sreLODModelFluid::~sreLODModelFluid() {
 void sreLODModelFluid::Evaluate() {
     // Update the fluid state.
     fluid->Evaluate();
+    UpdateVertexBuffers();
+}
+
+void sreLODModelFluid::UpdateVertexBuffers() {
     // Update vertex buffers.
     // Since the vertex buffer has four-dimensions vertices, we have to convert from the
     // fluid state's three-dimensional vertices.
@@ -176,9 +180,8 @@ void sreLODModelFluid::Evaluate() {
     // perform normalization.
     // For reasons that are unclear, the normals have to inverted in order to be not recognized as
     // as back-facing triangles (with no lighting) in the fragment shader.
-    Vector3D *normals = new Vector3D[nu_vertices];
     for (int i = 0; i < nu_vertices; i++) {
-        normals[i] = - fluid->normal[i];
+        vertex_normal[i] = fluid->normal[i];
     }
 #if 0
     for (int i = 0; i < nu_vertices; i++) {
@@ -191,8 +194,7 @@ void sreLODModelFluid::Evaluate() {
     }
 #endif
     glBindBuffer(GL_ARRAY_BUFFER, GL_attribute_buffer[SRE_ATTRIBUTE_NORMAL]);
-    glBufferData(GL_ARRAY_BUFFER, nu_vertices * sizeof(float) * 3, normals, GL_DYNAMIC_DRAW);
-    delete [] normals;
+    glBufferData(GL_ARRAY_BUFFER, nu_vertices * sizeof(float) * 3, vertex_normal, GL_DYNAMIC_DRAW);
 }
 
 void sreEvaluateModelFluid(sreModel *m) {
@@ -207,7 +209,8 @@ void sreCreateModelFluidDisturbance(sreModel *m, int x, int y, float z) {
 
 // Create fluid mesh, width and height must be multiple of 2.
 
-sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d, float t, float c, float mu) {
+sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d, float t, float c,
+float mu, float texcoords_scaling) {
     // Do a sanity check on t, c, and mu.
     if (c < 0 || c >= d * sqrtf(mu * t + 2) / (2 * t)) {
         sreFatalError("Fluid c parameter out of range.\n");
@@ -228,7 +231,8 @@ sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d, f
     for (int y = 0; y <= height; y++)
         for (int x = 0; x <= width; x++) {
             lm->position[y * (width + 1) + x].Set(x * d, y * d, 0);
-            lm->texcoords[y * (width + 1) + x].Set((float)x / width, (float)y / height);
+            lm->texcoords[y * (width + 1) + x].Set((float)x * texcoords_scaling / width,
+                (float)y * texcoords_scaling / height);
         }
     int i = 0;
     for (int y = 0; y < height; y += 2)
@@ -244,11 +248,16 @@ sreModel *sreCreateFluidModel(sreScene *scene, int width, int height, float d, f
             i += 8;
         }
     lm->fluid = new sreFluid(width + 1, height + 1, d, t, c, mu);
-    lm->flags = SRE_POSITION_MASK | SRE_TEXCOORDS_MASK | SRE_LOD_MODEL_VERTEX_BUFFER_DYNAMIC |
-        SRE_LOD_MODEL_IS_FLUID_MODEL |
+    lm->flags = SRE_POSITION_MASK | SRE_TEXCOORDS_MASK | SRE_LOD_MODEL_IS_FLUID_MODEL |
         SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT;
     lm->vertex_normal = new Vector3D[lm->nu_vertices];
-    lm->CalculateNormals(); // Will set SRE_NORMAL_MASK.
+    lm->flags |= SRE_NORMAL_MASK;
+//    lm->CalculateNormals(); // Will set SRE_NORMAL_MASK.
+    // Initialize the vertex normals with the initial values from the Fluid data structure.
+    // They will be uploaded to the GPU by SRE as dynamic buffers, and then the normal vertex buffer will
+    // be updated by the Evaluate() function.
+    for (int i = 0; i < lm->nu_vertices; i++)
+        lm->vertex_normal[i] = - lm->fluid->normal[i];
     // Bounding box z extent should depend on parameters (fix me).
     sreBoundingVolumeAABB AABB;
     AABB.dim_min = Vector3D(0, 0, - 2.0f);

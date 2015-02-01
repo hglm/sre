@@ -231,7 +231,7 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     // Create fluid.
 #if 1
     sreModel *fluid_object = sreCreateFluidModel(scene, FLUID_SIZE, FLUID_SIZE,
-        30.0f / FLUID_SIZE, 1.0f, 0.1f, 0.01f);
+        30.0f / FLUID_SIZE, 1.0f, 0.1f, 0.01f, 1.0f);
 #ifdef USE_WATER
     sreTexture *texture = new sreTexture("water1", TEXTURE_TYPE_NORMAL);
     scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));

@@ -1754,6 +1754,9 @@ void sreScene::UploadModels() const {
                     if (m->flags & SRE_TANGENT_MASK)
                         dynamic_flags |= SRE_TANGENT_MASK;
                 }
+                if (m->flags & SRE_LOD_MODEL_IS_FLUID_MODEL) {
+                    dynamic_flags = SRE_POSITION_MASK | SRE_NORMAL_MASK;
+                }
                 // Upload every used LOD model that we have not already uploaded.
                 if (!(m->flags & SRE_LOD_MODEL_UPLOADED)) {
                     m->UploadToGPU(m->instance_flags, dynamic_flags);

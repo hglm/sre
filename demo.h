@@ -68,6 +68,10 @@ void Demo11Step(sreScene *scene, double demo_time);
 void Demo12CreateScene(sreScene *scene, sreView *view);
 void Demo12Step(sreScene *scene, double demo_time);
 
+// Defined in demo13.cpp
+void Demo13CreateScene(sreScene *scene, sreView *view);
+void Demo13Step(sreScene *scene, double demo_time);
+
 // Defined in texture_test.cpp
 void TextureTestCreateScene(sreScene *scene, bool compressed);
 void TextureTestStep(sreScene *scene, double demo_time);
