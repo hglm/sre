@@ -410,7 +410,7 @@ void CreateMeshObjects(sreScene *scene, sreModel *mesh_model[SUB_MESHES_Y][SUB_M
 #ifdef CLOSED_SEGMENTS_FOR_SHADOW_VOLUMES
             m->nu_vertices += w * 2 + w * 2 + h * 2 + h * 2 + 8 + 4; // Extra edge vertices.
 #endif
-            m->vertex = new Point3DPadded[m->nu_vertices];
+            m->vertex = dstNewAligned <Point3DPadded>(m->nu_vertices, 16);
             m->texcoords = new Point2D[m->nu_vertices];
             m->vertex_normal = new Vector3D[m->nu_vertices];
             float zmin = FLT_MAX;

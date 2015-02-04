@@ -263,10 +263,10 @@ void sreModel::InsertPolygonVertex(int p, int i, const Point3D& Q, float t) {
     polygon[p].vertex_index = new_vertex_index;
     polygon[p].nu_vertices++;
     // Append a new vertex to the vertex array.
-    Point3DPadded *new_vertex = new Point3DPadded[lm->nu_vertices + 1];
+    Point3DPadded *new_vertex = dstNewAligned <Point3DPadded>(lm->nu_vertices + 1, 16);
     memcpy(new_vertex, lm->vertex, sizeof(Point3DPadded) * lm->nu_vertices);
     new_vertex[lm->nu_vertices] = Q;
-    delete [] lm->vertex;
+    free(lm->vertex);
     lm->vertex = new_vertex;
     // Append a new vertex normal.
     Vector3D *new_vertex_normal = new Vector3D[lm->nu_vertices + 1];

@@ -345,7 +345,7 @@ sreBoundingVolumeCylinder& cylinder) const {
        H[i] = vertex[i] - Dot(vertex[i], _PCA[0].vector) * _PCA[0].vector;
 
     int i_Hmin, i_Hmax;
-    dstGetIndicesWithMinAndMaxDotProductNx1(nu_vertices, H, _PCA[1].vector, i_Hmin, i_Hmax);
+    dstGetIndicesWithMinAndMaxDotProductNx1(nu_vertices, (Vector3D *)H, _PCA[1].vector, i_Hmin, i_Hmax);
 
     cylinder.center = (H[i_Hmin] + H[i_Hmax]) * 0.5;
     float r_squared = SquaredMag(H[i_Hmin] - cylinder.center);
@@ -363,9 +363,10 @@ sreBoundingVolumeCylinder& cylinder) const {
     cylinder.axis = _PCA[0].vector;
     cylinder.length = _PCA[0].size;
     float min_dot_product, max_dot_product;
-    dstCalculateMinAndMaxDotProductNx1(nu_vertices, vertex, _PCA[0].vector,
+    dstCalculateMinAndMaxDotProductNx1(nu_vertices, (Vector3DPadded *)vertex, _PCA[0].vector,
         min_dot_product, max_dot_product);
     cylinder.center = (min_dot_product + max_dot_product) * 0.5f * _PCA[0].vector;
+    cylinder.CalculateAxisCoefficients();
 }
 
 void sreBaseModel::CalculateAABB(sreBoundingVolumeAABB& AABB) const {
@@ -390,11 +391,11 @@ void sreModel::CalculateBoundingBox() {
             PCA[0].size, PCA[1].size, PCA[2].size);
 }
 
-void sreModel::CalculateBoundingEllipsoid(sreBoundingVolumeEllipsoid& ellipsoid) {
+void sreModel::CalculateBoundingEllipsoid(sreBoundingVolumeEllipsoid& ellipsoid) const {
     lod_model[0]->CalculatePCABoundingEllipsoid(PCA, ellipsoid);
 }
 
-void sreModel::CalculateBoundingCylinder(sreBoundingVolumeCylinder& cylinder) {
+void sreModel::CalculateBoundingCylinder(sreBoundingVolumeCylinder& cylinder) const {
     lod_model[0]->CalculatePCABoundingCylinder(PCA, cylinder);
 }
 

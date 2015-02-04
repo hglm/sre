@@ -297,7 +297,7 @@ static void InitializeModelFromFaceData(sreLODModel *m) {
     // Just create new vertices and vertex normals from every triangle vertex.
     // We will merge identical vertices later.
     int vertex_count = triangle_count * 3;
-    m->vertex = new Point3DPadded[vertex_count];
+    m->vertex = dstNewAligned <Point3DPadded>(vertex_count, 16);
     m->nu_vertices = 0;
     m->flags |= SRE_POSITION_MASK;
     // Always allocate the normal array (CalculateNormals() will be called

@@ -34,7 +34,7 @@ int LATITUDE_SEGMENTS, float radius_y, float radius_z) {
     float radius = 1;
     int vertex_index = 0;
     m->nu_vertices = (LONGITUDE_SEGMENTS + 1) * (LATITUDE_SEGMENTS + 1);
-    Point3D *vertex = new Point3D[m->nu_vertices];
+    Point3DPadded *vertex = dstNewAligned <Point3DPadded>(m->nu_vertices, 16);
     m->texcoords = new Point2D[m->nu_vertices];
     for (int i = 0; i <= LONGITUDE_SEGMENTS; i++) {
         for (int j = - (LATITUDE_SEGMENTS / 2 ); j <= LATITUDE_SEGMENTS / 2; j++) {
@@ -163,7 +163,7 @@ sreModel *sreCreateBillboardModel(sreScene *scene, bool is_halo) {
     lm->nu_triangles = 0;  // Indicate that no triangle indices are allocated.
     // A single billboard does not have any indices (triangle data).
     // The model is a triangle fan consisting of two triangles.
-    Point3D *vertex = new Point3D[4];
+    Point3DPadded *vertex = dstNewAligned <Point3DPadded>(4, 16);
     lm->SetPositions(vertex);
     lm->SetAttributeFlags(SRE_POSITION_MASK);
     lm->flags |= SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT |
@@ -190,7 +190,7 @@ sreModel *sreCreateParticleSystemModel(sreScene *scene, int n, bool is_halo) {
        lm->triangle[i * 2].AssignVertices(i * 4, i * 4 + 1, i * 4 + 2);
        lm->triangle[i * 2 + 1].AssignVertices(i * 4 + 2, i * 4 + 3, i * 4);
     }
-    Point3D *vertex = new Point3D[4 * n];
+    Point3DPadded *vertex = dstNewAligned <Point3DPadded>(4 * n, 16);
     lm->SetPositions(vertex);
     // Note: normals buffer used as centers of each billboard.
     lm->SetAttributeFlags(SRE_POSITION_MASK | SRE_NORMAL_MASK);
@@ -213,7 +213,7 @@ sreModel *sreCreateUnitBlockModel(sreScene *scene) {
     m->nu_lod_levels = 1;
     lm->nu_triangles = 12;
     lm->nu_vertices = 24;
-    Point3D *vertex = new Point3D[lm->nu_vertices];
+    Point3DPadded *vertex = dstNewAligned <Point3DPadded>(lm->nu_vertices, 16);
     lm->triangle = new sreModelTriangle[lm->nu_triangles];
     lm->texcoords = new Point2D[lm->nu_vertices];
     // We have to define the vertices for each face seperately to allow different normals at the same
@@ -502,7 +502,7 @@ sreModel *sreCreateRampModel(sreScene *scene, float xdim, float ydim, float zdim
     sreModel *m = new sreModel;
     sreLODModel *lm = m->lod_model[0] = sreNewLODModel();
     m->nu_lod_levels = 1;
-    lm->position = new Point3DPadded[max_vertices];
+    lm->position = dstNewAligned <Point3DPadded>(max_vertices, 16);
     lm->triangle = new sreModelTriangle[max_triangles];
     lm->texcoords = new Point2D[max_vertices];
     lm->nu_vertices = 0;
@@ -532,7 +532,7 @@ sreModel *sreCreateRingsModel(sreScene *scene, float min_radius, float max_radiu
     sreLODModel *m = model->lod_model[0] = sreNewLODModel();
     model->nu_lod_levels = 1;
     m->nu_vertices = (RINGS_LONGITUDE_SEGMENTS + 1) * (RINGS_RADIAL_SEGMENTS + 1);
-    Point3D *vertex = new Point3D[m->nu_vertices];
+    Point3DPadded *vertex = dstNewAligned <Point3DPadded>(m->nu_vertices, 16);
     m->texcoords = new Point2D[m->nu_vertices];
     for (int i = 0; i <= RINGS_LONGITUDE_SEGMENTS; i++) {
         for (int j = 0; j <= RINGS_RADIAL_SEGMENTS; j++) {
@@ -595,7 +595,7 @@ Color color1, Color color2) {
     model->nu_lod_levels = 1;
     m->nu_triangles = size * size * 2;
     m->nu_vertices = m->nu_triangles * 3;
-    Point3D *vertex = new Point3D[m->nu_vertices];
+    Point3DPadded *vertex = dstNewAligned <Point3DPadded>(m->nu_vertices, 16);
     m->colors = new Color[m->nu_vertices];
     m->triangle = new sreModelTriangle[m->nu_triangles];
     int i = 0;
@@ -673,7 +673,7 @@ int TORUS_LATITUDE_SEGMENTS, int TORUS_LONGITUDE_SEGMENTS_PER_TEXTURE, int TORUS
         }
     }
     m->nu_vertices = TORUS_LONGITUDE_SEGMENTS * TORUS_LATITUDE_SEGMENTS * 4;
-    Point3D *vertex = new Point3D[m->nu_vertices];
+    Point3DPadded *vertex = dstNewAligned <Point3DPadded>(m->nu_vertices, 16);
     m->texcoords = new Point2D[m->nu_vertices];
     m->nu_triangles = TORUS_LONGITUDE_SEGMENTS * TORUS_LATITUDE_SEGMENTS * 2;
     m->triangle = new sreModelTriangle[m->nu_triangles];
@@ -850,7 +850,7 @@ float GAP_WIDTH, float BAR_WIDTH, float THICKNESS) {
         (NU_HOLES_Y - 1) * 8 + (NU_HOLES_Y - 1) * 6 + 1 * 8 +
         (NU_HOLES_Y - 1) * ((NU_HOLES_X - 1) * (8 + 4 + 8) + 8) + (NU_HOLES_X - 1) * 8;
     int max_vertices = max_triangles * 2;
-    m->position = new Point3DPadded[max_vertices];
+    m->position = dstNewAligned <Point3DPadded>(max_vertices, 16);
     m->triangle = new sreModelTriangle[max_triangles];
     m->texcoords = new Point2D[max_vertices];
     m->nu_vertices = 0;
@@ -973,7 +973,7 @@ sreModel *sreCreateBlockModel(sreScene *scene, float xdim, float ydim, float zdi
     sreModel *model = new sreModel;
     sreLODModel *m = model->lod_model[0] = sreNewLODModel();
     model->nu_lod_levels = 1;
-    m->position = new Point3DPadded[max_vertices];
+    m->position = dstNewAligned <Point3DPadded>(max_vertices, 16);
     m->triangle = new sreModelTriangle[max_triangles];
     m->texcoords = new Point2D[max_vertices];
     m->nu_vertices = 0;
@@ -1008,7 +1008,7 @@ sreModel *sreCreateRepeatingRectangleModel(sreScene *scene, float size, float un
             mesh[y * 2 + x].Set(x * size, y * size, 0);
     m->nu_triangles = 2;
     m->nu_vertices = m->nu_triangles * 3;
-    m->position = new Point3DPadded[m->nu_vertices];
+    m->position = dstNewAligned <Point3DPadded>(m->nu_vertices, 16);
     m->triangle = new sreModelTriangle[m->nu_triangles];
     m->texcoords = new Point2D[m->nu_vertices];
     int i = 0;
@@ -1053,7 +1053,7 @@ static sreModel *FinishPlaneRectangleModel(sreScene *scene, Point3D *mesh) {
     model->nu_lod_levels = 1;
     m->nu_triangles = 2;
     m->nu_vertices = m->nu_triangles * 3;
-    m->position = new Point3DPadded[m->nu_vertices];
+    m->position = dstNewAligned <Point3DPadded>(m->nu_vertices, 16);
     m->triangle = new sreModelTriangle[m->nu_triangles];
     m->texcoords = new Point2D[m->nu_vertices];
     int i = 0;
@@ -1127,7 +1127,7 @@ bool include_top, bool include_bottom) {
         m->nu_vertices += (LONGITUDE_SEGMENTS + 1) + 1;
     if (include_bottom)
         m->nu_vertices += (LONGITUDE_SEGMENTS + 1) + 1;
-    m->position = new Point3DPadded[m->nu_vertices];
+    m->position = dstNewAligned <Point3DPadded>(m->nu_vertices, 16);
     m->texcoords = new Point2D[m->nu_vertices];
     for (int i = 0; i <= LONGITUDE_SEGMENTS; i++) {
             float longitude = i * (360 / (float)LONGITUDE_SEGMENTS) * M_PI / 180;
@@ -1325,7 +1325,7 @@ static void sreInitializeCapsuleModel(sreBaseModel *m, int LONGITUDE_SEGMENTS, i
 float cap_radius, float length, float radius_y, float radius_z) {
     int max_vertices = (LONGITUDE_SEGMENTS + 1) * (LATITUDE_SEGMENTS / 2 + 1) * 2 + // The ellipsoid caps.
         (LONGITUDE_SEGMENTS + 1) * 2; // The cylinder hull.
-    m->position = new Point3DPadded[max_vertices];
+    m->position = dstNewAligned <Point3DPadded>(max_vertices, 16);
     m->nu_vertices = 0;
     int max_triangles = LONGITUDE_SEGMENTS * (LATITUDE_SEGMENTS / 2) * 2 * 2 + LONGITUDE_SEGMENTS * 2;
     m->triangle = new sreModelTriangle[max_triangles];
@@ -1423,7 +1423,8 @@ Vector3D rotation, float scaling) {
         model_transform = (translation_transform * scaling_transform) * rotation_transform;
     }
 
-    Point3DPadded *new_vertex = dstNewAligned <Point3DPadded>(compound_model->nu_vertices + m->nu_vertices, 16);
+    Point3DPadded *new_vertex = dstNewAligned <Point3DPadded>(compound_model->nu_vertices +
+        m->nu_vertices, 16);
     memcpy(new_vertex, compound_model->vertex, sizeof(Point3DPadded) * compound_model->nu_vertices);
     Vector3D *new_vertex_normal = new Vector3D[compound_model->nu_vertices + m->nu_vertices];
     memcpy(new_vertex_normal, compound_model->vertex_normal, sizeof(Vector3D) * compound_model->nu_vertices);

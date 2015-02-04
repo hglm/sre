@@ -1268,7 +1268,8 @@ void sreScene::CalculateStaticLightObjectLists() {
 //                        sreMessage(SRE_MESSAGE_LOG,
 //                            "Object %d has spherical sector shadow volume for light %d",
 //                              so->id, light[i]->id);
-                        sv->SetSphericalSector(axis, radius, cos_half_angular_size);
+                        sv->SetSphericalSector(light[i]->vector.GetPoint3D(), axis, radius,
+                            cos_half_angular_size);
                     }
 #endif
                     sv->light = i;

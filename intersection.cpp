@@ -228,7 +228,7 @@ const sreBoundingVolumeConvexHull &ch) {
             r_eff_squared = sqrf(spherical_sector.radius) * SquaredMag(V);
         }
         float dist = Dot(ch.plane[i], spherical_sector.center);
-        if (dist <= 0 && sqrf(dist) >= r_eff_squared)
+        if (dist <= 0.0f && sqrf(dist) >= r_eff_squared)
             return false;
     }
     return true;
@@ -1238,7 +1238,7 @@ bool Intersects(const sreObject& so, const sreBoundingVolumeConvexHull& ch) {
         // Use the special bounding volume shapes of ellipsoid or cylinder when defined.
         if (so.bv_special.type == SRE_BOUNDING_VOLUME_ELLIPSOID)
             return Intersects(*so.bv_special.ellipsoid, ch);
-        else
+        else // if (so.bv_special.type == SRE_BOUNDING_VOLUME_CYLINDER)
             return Intersects(*so.bv_special.cylinder, ch);
     }
     // When a spherical bounding volume is preferred for the object, use it.
@@ -1620,6 +1620,6 @@ bool Intersects(const sreObject& so, const sreBoundingVolumeFrustum& fr) {
     if (fr.nu_planes == 6 && !Intersects(so.sphere, fr.sphere))
         return false;
 #endif
-    return Intersects(so, (sreBoundingVolumeConvexHull)fr);
+    return Intersects(so, (const sreBoundingVolumeConvexHull &)fr);
 }
 

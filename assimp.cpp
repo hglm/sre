@@ -368,7 +368,7 @@ static sreLODModel *ConvertToModel(int load_flags) {
 
     m->nu_vertices = nu_vertices;
     // Assign vertex positions.
-    m->position = new Point3DPadded[m->nu_vertices];
+    m->position = dstNewAligned <Point3DPadded>(m->nu_vertices, 16);
     for (int i = 0; i < m->nu_vertices; i++) {
         m->position[i].Set(assimp_vertex[i].x, assimp_vertex[i].y, assimp_vertex[i].z);
     }

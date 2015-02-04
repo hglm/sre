@@ -422,6 +422,7 @@ void sreObject::CalculateTemporaryShadowVolume(const sreLight& light, sreShadowV
         sv2->spherical_sector->cos_half_angular_size = (*sv)->pyramid_cone->cos_half_angular_size;
         // The following is very slow.
         sv2->spherical_sector->sin_half_angular_size = sinf(acosf((*sv)->pyramid_cone->cos_half_angular_size));
+        sv2->spherical_sector->center = light.vector.GetPoint3D();
         *sv = sv2;
     }
 #endif

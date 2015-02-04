@@ -98,7 +98,6 @@ public :
     Vector3D axis;
     float cos_half_angular_size;
     float sin_half_angular_size;
-
 };
 
 class sreBoundingVolumeInfiniteSphericalSector : public sreBoundingVolumeSphericalSector {
@@ -291,7 +290,7 @@ public :
     sreBoundingVolumeCapsule *capsule;
     };
 
-    sreBoundingVolume() { }
+    sreBoundingVolume();
     ~sreBoundingVolume();
     void Clear(); 
     // Only the bounding volume types relevant to shadow volumes are fully implemented.
@@ -300,7 +299,8 @@ public :
     void SetPyramid(const Point3D *P, int nu_vertices);
     void SetPyramidCone(const Point3D *P, int nu_vertices, const Vector3D& axis, float radius,
         float cos_half_angular_size);
-    void SetSphericalSector(const Vector3D& axis, float radius, float cos_half_angular_size);
+    void SetSphericalSector(const Point3D& center, const Vector3D& axis, float radius,
+        float cos_half_angular_size);
     void SetHalfCylinder(const Point3D& E, float cylinder_radius, const Vector3D& cylinder_axis);
     void SetCylinder(const Point3D& center, float length, const Vector3D& axis, float radius);
     void CompleteParameters();

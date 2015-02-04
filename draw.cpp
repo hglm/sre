@@ -522,7 +522,7 @@ BoundsCheckResult bounds_check_result) {
         // Dynamically increase the final pass objects array size when needed.
         int *new_final_pass_object = new int[max_final_pass_objects * 2];
         memcpy(new_final_pass_object, final_pass_object, sizeof(int) *
-            max_final_pass_objects * 2);
+            max_final_pass_objects);
         delete [] final_pass_object;
         final_pass_object = new_final_pass_object;
         max_final_pass_objects *= 2;

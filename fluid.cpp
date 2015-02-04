@@ -174,7 +174,7 @@ void sreLODModelFluid::UpdateVertexBuffers() {
     }
     glBindBuffer(GL_ARRAY_BUFFER, GL_attribute_buffer[SRE_ATTRIBUTE_POSITION]);
     glBufferData(GL_ARRAY_BUFFER, nu_vertices * sizeof(float) * 4, &fvertices[0], GL_DYNAMIC_DRAW);
-    delete fvertices;
+    delete [] fvertices;
     // Update normals.
     // Although the normals are not normalized, the lighting pass fragment shader will generally
     // perform normalization.
@@ -224,7 +224,7 @@ float mu, float texcoords_scaling) {
     m->nu_lod_levels = 1;
     // Create object vertices and triangles.
     lm->nu_vertices = (width + 1) * (height + 1);
-    lm->position = new Point3DPadded[lm->nu_vertices];
+    lm->position = dstNewAligned <Point3DPadded>(lm->nu_vertices, 16);
     lm->texcoords = new Point2D[lm->nu_vertices];
     lm->nu_triangles = (height / 2) * (width / 2) * 8;
     lm->triangle = new sreModelTriangle[lm->nu_triangles];

@@ -329,9 +329,7 @@ public :
     void SetNuVertices(int n) {
         nu_vertices = n;
     }
-    // Assign vertex attribute data. The buffer argument may no long point to valid
-    // data after the call.
-    void SetPositions(Point3D *_positions);
+    // Assign vertex attribute data. Makes sure the array is aligned on a 16-byte boundary.
     void SetPositions(Point3DPadded *_positions);
     void SetTexcoords(Point2D *_texcoords);
     void SetColors(Color *_colors);
@@ -651,8 +649,8 @@ public:
     void CalculatePrincipalComponents();
     void CalculateBoundingSphere();
     void CalculateBoundingBox();
-    void CalculateBoundingEllipsoid(sreBoundingVolumeEllipsoid& ellipsoid);
-    void CalculateBoundingCylinder(sreBoundingVolumeCylinder& cylinder);
+    void CalculateBoundingEllipsoid(sreBoundingVolumeEllipsoid& ellipsoid) const;
+    void CalculateBoundingCylinder(sreBoundingVolumeCylinder& cylinder) const;
     void SetBoundingCollisionShapeCapsule(const sreBoundingVolumeCapsule& capsule);
     void CalculateAABB();
     void CalculateBounds();

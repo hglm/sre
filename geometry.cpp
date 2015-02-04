@@ -109,7 +109,6 @@ void sreModelPolygon::AddVertex(int j) {
 sreLODModel::sreLODModel() {
     nu_meshes = 1;
     referenced = false;
-    instance_flags = SRE_ALL_ATTRIBUTES_MASK;
     flags = 0;
     // Note: when a new sreLODModel is created, normally
     // the sreBaseModel constructor and this constructor
@@ -166,6 +165,7 @@ sreBaseModel::sreBaseModel() {
     nu_triangles = 0;
     sorting_dimension = - 1; // Not sorted.
     flags = 0;
+    instance_flags = SRE_ALL_ATTRIBUTES_MASK;
 }
 
 // Base model geometry component constructor.
@@ -184,27 +184,6 @@ sreBaseModel::sreBaseModel(int nu_vertices, int nu_triangles, int flags) {
         colors = new Color[nu_vertices];
 }
 
-void sreBaseModel::SetPositions(Point3D *_positions) {
-    // Allocate to 16-byte boundary for SIMD.
-    // This functions requires special handling for the case when the class
-    // position array pointer is already initialized and passed as _positions.
-    if (((uintptr_t)_positions & 0xF) == 0 && sizeof(Point3D) == sizeof(Point3DPadded)) {
-        position = (Point3DPadded *)_positions;
-        return;
-    }
-    // Buffer has to be realigned.
-    Point3DPadded *new_position = dstNewAligned <Point3DPadded>((size_t)nu_vertices, 16);
-    if (sizeof(Point3D) == sizeof(Point3DPadded))
-        dstMemcpyAlignedLarge(new_position, (Point3DPadded *)_positions,
-		nu_vertices * sizeof(Point3DPadded));
-    else {
-        for (int i = 0; i < nu_vertices; i++)
-            new_position[i] = _positions[i];
-    }
-    free(_positions);
-    position = new_position;
-}
-
 void sreBaseModel::SetPositions(Point3DPadded *_positions) {
     // Allocate to 16-byte boundary for SIMD.
     // This functions requires special handling for the case when the class
@@ -213,11 +192,7 @@ void sreBaseModel::SetPositions(Point3DPadded *_positions) {
         position = _positions;
         return;
     }
-    // Buffer has to be realigned.
-    Point3DPadded *new_position = dstNewAligned <Point3DPadded>((size_t)nu_vertices, 16);
-    dstMemcpyAlignedLarge(new_position, _positions, nu_vertices * sizeof(Point3DPadded));
-    free(_positions);
-    position = new_position;
+    sreFatalError("Vertex positions not aligned.\n");
 }
 
 void sreBaseModel::SetTexcoords(Point2D *_texcoords) {
@@ -323,7 +298,7 @@ void sreBaseModel::RemapVertices(int *vertex_mapping, int n, int *_vertex_mappin
         if (flags & SRE_TANGENT_MASK)
             new_tangents[i] = vertex_tangent[vertex_mapping[i]];
     }
-    delete [] vertex;
+    free(vertex);
     vertex = new_vertex;
     if (flags & SRE_TEXCOORDS_MASK) {
         delete [] texcoords;
@@ -613,7 +588,7 @@ void sreBaseModel::WeldVertices() {
 
 void sreBaseModel::CloneGeometry(sreBaseModel *clone) {
      clone->nu_vertices = nu_vertices;
-     clone->vertex = new Point3DPadded[nu_vertices];
+     clone->vertex = dstNewAligned <Point3DPadded>(nu_vertices, 16);
      for (int i = 0; i < nu_vertices; i++)
          clone->vertex[i] = vertex[i];
      clone->nu_triangles = nu_triangles;
@@ -719,7 +694,7 @@ void sreBaseModel::CalculateNormals(int start_index, int nu_vertices_in_segment,
             for (int k = 0; k < 3; k++) {
                 // Look just above.
                 for (int i = triangle[j].vertex_index[k] + 1;
-                i <= start_index + nu_vertices_in_segment; i++) {
+                i < start_index + nu_vertices_in_segment; i++) {
                     if (vertex[i][sorting_dimension] !=
                     vertex[triangle[j].vertex_index[k]][sorting_dimension])
                         break;

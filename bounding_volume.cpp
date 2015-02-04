@@ -163,9 +163,11 @@ float cos_half_angular_size) {
     is_complete = true;
 }
 
-void sreBoundingVolume::SetSphericalSector(const Vector3D& axis, float radius, float cos_half_angular_size) {
+void sreBoundingVolume::SetSphericalSector(const Point3D& center, const Vector3D& axis, float radius,
+float cos_half_angular_size) {
     type = SRE_BOUNDING_VOLUME_SPHERICAL_SECTOR;
     spherical_sector = new sreBoundingVolumeSphericalSector;
+    spherical_sector->center = center;
     spherical_sector->axis = axis;
     spherical_sector->radius = radius;
     spherical_sector->cos_half_angular_size = cos_half_angular_size; 
@@ -329,6 +331,12 @@ void sreBoundingVolume::Clear() {
         delete half_cylinder;
     else if (type == SRE_BOUNDING_VOLUME_CAPSULE)
         delete capsule;
+    type = SRE_BOUNDING_VOLUME_UNDEFINED;
+}
+
+// Constructor for sreBoundingVolume.
+
+sreBoundingVolume::sreBoundingVolume() {
     type = SRE_BOUNDING_VOLUME_UNDEFINED;
 }
 

@@ -282,6 +282,9 @@ void sreLODModel::UploadToGPU(int attribute_mask, int dynamic_flags) {
             glBufferData(GL_ARRAY_BUFFER, nu_vertices * sizeof(float) * 2, texcoords,
                GL_STATIC_DRAW);
         }
+        // Set the non-interleaved attribute info (just the lower 8 bits are used).
+        // The interleaved information is set to zero.
+        attribute_info.attribute_masks = attribute_mask;
         if (nu_triangles == 0)
             // For single billboards, no triangles are allocated (they always consist
             // of a two triangle fan with the order of the vertex data).

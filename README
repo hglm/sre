@@ -242,16 +242,17 @@ pipeline.
 
 Bugs as of February 2015:
 
-- In demo10, the capsule objects sometimes don't cast shadows (varies by
-  run).
-
 3. To do list.
+
+- sreScene::visible_object and sreScene::final_pass_object should be
+  implemented as dstIntArray.
 
 - Currently, most of the time cube shadow maps are cleared when generating
   point light shadow maps. Based on information that a shadow map is not
   required for a particular cube face, the corresponding cube map face
   could potentially be defined as a small, empty shadow map that takes less
   memory and does not need to be cleared.
+
 
 4. Potential improvements that are not yet implemented.
 
