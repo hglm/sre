@@ -1927,7 +1927,7 @@ enum { RAMP_TOWARDS_BACK, RAMP_TOWARDS_FRONT, RAMP_TOWARDS_LEFT, RAMP_TOWARDS_RI
 SRE_API sreModel *sreCreateRampModel(sreScene *scene, float xdim, float ydim, float zdim, int type);
 SRE_API sreModel *sreCreateRingsModel(sreScene *scene, float min_radius, float max_radius);
 SRE_API sreModel *sreCreateCheckerboardModel(sreScene *scene, int size,
-    int unit_size, Color color1, Color color2);
+    float unit_size, Color color1, Color color2);
 #define TORUS_RADIUS 5
 #define TORUS_RADIUS2 2
 SRE_API sreModel *sreCreateTorusModel(sreScene *scene);

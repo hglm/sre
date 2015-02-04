@@ -85,14 +85,14 @@ void Demo12CreateScene(sreScene *scene, sreView *view) {
     scene->AddObject(sphere_model, Point3D(0, - 40.0f, 3.0f), Vector3D(0, 0, 0), 3.0f);
 
     // Add ground
-    sreModel *checkerboard_model = sreCreateCheckerboardModel(scene, 4, 50,
-        Color(0.5, 0.2, 0.2), Color(0.2, 0.2, 1.0));
+    sreModel *checkerboard_model = sreCreateCheckerboardModel(scene, 4, 12.5f,
+        Color(0.5f, 0.2f, 0.2f), Color(0.2f, 0.2f, 1.0f));
     scene->SetFlags(SRE_OBJECT_MULTI_COLOR | SRE_OBJECT_NO_BACKFACE_CULLING |
          SRE_OBJECT_NO_PHYSICS | SRE_OBJECT_NOT_OCCLUDING);
     scene->SetEmissionColor(Color(0, 0, 0));
-    for (int x = - 4; x <= 4; x++)
-        for(int y = - 4; y <= 4; y++)
-            scene->AddObject(checkerboard_model, - 100.0 + x * 200.0, y * 200.0, 0, 0, 0, 0, 1);
+    for (int x = - 16; x <= 16; x++)
+        for(int y = - 16; y <= 16; y++)
+            scene->AddObject(checkerboard_model, - 100.0 + x * 50.0f, y * 50.0f, 0, 0, 0, 0, 1);
 
     sreTexture *grating_tex = CreateGratingTexture();
     y_plane_rect_model = sreCreateCenteredYPlaneRectangleModel(scene, 1.0f, 1.0f);
@@ -108,9 +108,11 @@ void Demo12CreateScene(sreScene *scene, sreView *view) {
     x_plane_rect_model = sreCreateCenteredXPlaneRectangleModel(scene, 1.0f, 1.0f);
     z_plane_rect_model = sreCreateCenteredZPlaneRectangleModel(scene, 1.0f, 1.0f);
     scene->SetDiffuseReflectionColor(Color(0.3f, 0.9f, 0.3f));
+    // Small cage.
     AddCage(scene, Point3D(50.0f, 50.0f, 0.0f), 40.0f);
 
     scene->SetDiffuseReflectionColor(Color(0.8f, 0.8f, 0.2f));
+    // Big cage.
     AddCage(scene, Point3D(- 200.0f, - 200.0f, 0.0f), 400.0f);
     scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
 
@@ -121,6 +123,9 @@ void Demo12CreateScene(sreScene *scene, sreView *view) {
     scene->AddObject(sphere_model, 50000.0, - 60000.0, 50000.0, 0, 0, 0, 1000.0);
     scene->AddDirectionalLight(0, Vector3D(- 0.5, 0.6, - 0.5).Normalize(),
        Color(1.0f, 1.0f, 1.0f));
+
+    // Make the maximum shadow map region for directional lights larger so that all shadows are visible.
+    sreSetShadowMapRegion(Vector3D(- 200.0, -200.0, -300.0) * 2.0f, Vector3D(200.0, 200.0, 300.0) * 2.0f);
 }
 
 void Demo12Step(sreScene *scene, double demo_time) {

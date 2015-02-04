@@ -582,7 +582,9 @@ sreModel *sreCreateRingsModel(sreScene *scene, float min_radius, float max_radiu
     return model;
 }
 
-sreModel *sreCreateCheckerboardModel(sreScene *scene, int size, int unit_size,
+// Create a checkerboard plane with size rectangles of unit_size using the given colors.
+
+sreModel *sreCreateCheckerboardModel(sreScene *scene, int size, float unit_size,
 Color color1, Color color2) {
     Point3D *mesh = new Point3D[(size + 1) * (size + 1)];
     for (int y = 0; y <= size; y++)
