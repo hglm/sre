@@ -722,8 +722,8 @@ void main() {
 
 #ifdef SHADOW_MAP
 	// Directional or beam light, orthogonal transformation shadow map.
-	bool out_of_shadow_bounds = any(lessThan(shadow_map_coord_var.xy, vec2(0.0, 0.0))) ||
-            any(greaterThan(shadow_map_coord_var.xy, vec2(1.0, 1.0)));
+	bool out_of_shadow_bounds = any(lessThan(shadow_map_coord_var.xyz, vec3(0.0, 0.0, 0.0))) ||
+            any(greaterThan(shadow_map_coord_var.xyz, vec3(1.0, 1.0, 1.0)));
         // The following variable holds the amount of shadow received by the fragment ([0, 1.0]
         float shadow_light_factor = 1.0;
 	if (!out_of_shadow_bounds)

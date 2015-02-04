@@ -242,12 +242,8 @@ pipeline.
 
 Bugs as of February 2015:
 
-- With directional light shadow mapping, an anomalous shadow area
-  is visible in th direction away from the light with shadow mapping when
-  the viewpoint is within the scene. This area become larger when viewing
-  the scene from increasing height.
-
-- In demo10, the capsule objects don't cast shadows.
+- In demo10, the capsule objects sometimes don't cast shadows (varies by
+  run).
 
 3. To do list.
 
