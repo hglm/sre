@@ -85,7 +85,7 @@ static const GLfloat HDR_full_screen_vertex_buffer_data[12] = {
 int sre_internal_shadows = SRE_SHADOWS_NONE;
 int sre_internal_scissors = SRE_SCISSORS_GEOMETRY;
 // Many rendering flags are consolidated into a single variable.
-int sre_internal_rendering_flags = 0;
+int sre_internal_rendering_flags = SRE_RENDERING_FLAG_SHADOW_VOLUME_SUPPORT;
 bool sre_internal_light_attenuation_enabled = true;
 bool sre_internal_shadow_caster_volume_culling_enabled = true;
 bool sre_internal_multi_pass_rendering = false;
@@ -949,6 +949,9 @@ skip_cube_shadow_map:
     }
 #endif
 
+    if (!(sre_internal_rendering_flags & SRE_RENDERING_FLAG_SHADOW_VOLUME_SUPPORT))
+        goto skip_stencil_shadow_volumes;
+
 #ifndef NO_PRIMITIVE_RESTART
     // Enable primitive restart when available.
     if (GLEW_NV_primitive_restart) {
@@ -959,8 +962,7 @@ skip_cube_shadow_map:
         sre_internal_rendering_flags |= SRE_RENDERING_FLAG_USE_TRIANGLE_STRIPS_FOR_SHADOW_VOLUMES;
     }
 #endif
-
-    // Set default rendering flags.
+    // Set default rendering flags for stencil shadow volumes.
     sre_internal_rendering_flags |= SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES;
     sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_CACHE_ENABLED;
     sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_VOLUME_VISIBILITY_TEST;
@@ -968,6 +970,10 @@ skip_cube_shadow_map:
 //    sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_VOLUME_DARKCAP_VISIBILITY_TEST;
     // Provide shadow volume support by default.
     sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_VOLUME_SUPPORT;
+
+skip_stencil_shadow_volumes :
+
+    // Enable geometry scissors cache by default.
     sre_internal_rendering_flags |= SRE_RENDERING_FLAG_GEOMETRY_SCISSORS_CACHE_ENABLED;
 
     const char *texture_detail_str;

@@ -19,7 +19,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // X11 (low-level) OpenGL(GLX) interface.
 // Uses X11 handling in x11-common.c.
 // Currently requires freeglut to get around issues with
-// initializing GLEW and destroying atemporary window at
+// initializing GLEW and destroying a temporary window at
 // start-up.
 
 #include <stdlib.h>
@@ -48,7 +48,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 class sreBackendGLX11 : public sreBackend {
 public :
     virtual void Initialize(int *argc, char ***argv, int requested_width, int requested_height,
-         int& actual_width, int& actual_height);
+         int& actual_width, int& actual_height, unsigned int backend_flags);
     virtual void Finalize();
     virtual void GLSwapBuffers();
     virtual void GLSync();
@@ -80,10 +80,9 @@ static GLXFBConfig chosen_fb_config;
 
 #define check() assert(glGetError() == 0)
 
-// Default Open GL context settings: 8-bit truecolor with alpha,
-// 24-bit depth buffer, 8-bit stencil, 4 sample MSAA.
+// Default Open GL context settings: 8-bit truecolor with alpha.
 
-static GLint visual_attributes[] = {
+static const GLint visual_attributes_base[] = {
     GLX_X_RENDERABLE, True,
     GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
     GLX_RENDER_TYPE, GLX_RGBA_BIT,
@@ -92,21 +91,49 @@ static GLint visual_attributes[] = {
     GLX_GREEN_SIZE, 8,
     GLX_BLUE_SIZE, 8,
     GLX_ALPHA_SIZE, 8,
+    GLX_DOUBLEBUFFER, True,
+    None,
+};
+
+static const GLint visual_attributes_stencil_buffer[] = {
     GLX_DEPTH_SIZE, 24,
     GLX_STENCIL_SIZE, 8,
-    GLX_DOUBLEBUFFER, True,
-#ifndef NO_MULTI_SAMPLE
-    GLX_SAMPLE_BUFFERS, 1,	// Use MSAA
-    GLX_SAMPLES, 4,
-#endif
     None
 };
+
+static const GLint visual_attributes_no_stencil_buffer[] = {
+    GLX_DEPTH_SIZE, 24,
+    None
+};
+
+static const GLint visual_attributes_multi_sample[] = {
+    GLX_SAMPLE_BUFFERS, 1,	// Use MSAA
+    GLX_SAMPLES, 4,
+    None
+};
+
+#define MAX_VISUAL_ATTRIBUTES_SIZE ((sizeof(visual_attributes_base) + \
+    sizeof(visual_attributes_stencil_buffer) + \
+    sizeof(visual_attributes_multi_sample)) / sizeof(GLint))
+
+static void AddAttributes(GLint *attributes, const GLint *extra_attributes) {
+    int i = 0;
+    while (attributes[i] != None)
+        i++;
+    int j = 0;
+    while (extra_attributes[j] != None) {
+        attributes[i] = extra_attributes[j];
+        i++;
+        j++;
+    }
+    attributes[i] = None;
+}
 
 void CloseGlutWindow() {
 }
 
 void sreBackendGLX11::Initialize(int *argc, char ***argv, int requested_width, int requested_height,
-int& actual_width, int& actual_height) {
+int& actual_width, int& actual_height, unsigned int backend_flags) {
     // To call GLX functions with glew, we need to call glewInit()
     // first, but it needs an active OpenGL context to be present. So we have to
     // create a temporary GL context.
@@ -142,6 +169,17 @@ int& actual_width, int& actual_height) {
             glx_major, glx_minor);
     }
     sreMessage(SRE_MESSAGE_LOG, "GLX version: %d.%d", glx_major, glx_minor);
+
+    // Create visual attributes structure.
+    GLint visual_attributes[MAX_VISUAL_ATTRIBUTES_SIZE];
+    visual_attributes[0] = None;
+    AddAttributes(visual_attributes, visual_attributes_base);
+    if (backend_flags & SRE_BACKEND_FLAG_STENCIL_BUFFER)
+        AddAttributes(visual_attributes, visual_attributes_stencil_buffer);
+    else
+        AddAttributes(visual_attributes, visual_attributes_no_stencil_buffer);
+    if (backend_flags & SRE_BACKEND_FLAG_MULTI_SAMPLE)
+        AddAttributes(visual_attributes, visual_attributes_multi_sample);
 
     // Obtain appropriate GLX framebuffer configurations.
     GLint num_config;

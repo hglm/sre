@@ -32,7 +32,7 @@ void EGLDeinitializeSubsystem();
 // Functions defined in egl-common.cpp.
 
 void EGLInitialize(int *argc, char ***argv, int requested_width, int requested_height,
-    int& actual_width, int& actual_height);
+    int& actual_width, int& actual_height, unsigned int backend_flags);
 void EGLFinalize();
 void EGLSwapBuffers();
 void EGLSync();

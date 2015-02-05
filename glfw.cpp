@@ -128,19 +128,21 @@ void sreBackendGLFW::ProcessGUIEvents() {
 }
 
 void sreBackendGLFW::Initialize(int *argc, char ***argv, int requested_width, int requested_height,
-int& actual_width, int& actual_height) {
+int& actual_width, int& actual_height, unsigned int backend_flags) {
     glfwInit();
     // Require OpenGL >= 3.0.
 //    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
 //    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 0);
     // Because we use glBindAttribute for compability with OpenGL ES 2.0, we do not have forward compability.
 //    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#ifndef NO_MULTI_SAMPLE
-    // Enable multi-sample anti-aliasing
-    glfwOpenWindowHint(GLFW_FSAA_SAMPLES, 4);
-#endif
+    if (backend_flags & SRE_BACKEND_FLAG_MULTI_SAMPLE)
+        // Enable multi-sample anti-aliasing
+        glfwOpenWindowHint(GLFW_FSAA_SAMPLES, 4);
     int r;
-    r = glfwOpenWindow(requested_width, requested_height, 8, 8, 8, 8, 24, 8, GLFW_WINDOW);
+    if (backend_flags & SRE_BACKEND_FLAG_STENCIL_BUFFER)
+        r = glfwOpenWindow(requested_width, requested_height, 8, 8, 8, 8, 24, 8, GLFW_WINDOW);
+    else
+        r = glfwOpenWindow(requested_width, requested_height, 8, 8, 8, 8, 24, 0, GLFW_WINDOW);
     if (!r) {
         printf("Failed to open GLFW window.\n");
         glfwTerminate();

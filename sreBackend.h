@@ -21,12 +21,17 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define WINDOW_HEIGHT 576
 #endif
 
+enum {
+     SRE_BACKEND_FLAG_MULTI_SAMPLE = 0x1,
+     SRE_BACKEND_FLAG_STENCIL_BUFFER = 0x2,
+};
+
 class sreBackend {
 public :
     int index;
     const char *name;
     virtual void Initialize(int *argc, char ***argv, int requested_width, int requested_height,
-        int& actual_width, int& actual_height) = 0;
+        int& actual_width, int& actual_height, unsigned int backend_flags) = 0;
     virtual void Finalize() = 0;
     virtual void GLSwapBuffers() = 0;
     virtual void GLSync() = 0;
@@ -68,7 +73,13 @@ enum {
     // When executing sreRunApplication(), upload all (LOD)-models (do not exclude
     // unreferenced ones).
     SRE_APPLICATION_FLAG_UPLOAD_ALL_MODELS = 0x400,
-    SRE_APPLICATION_FLAG_REUSE_OCTREES = 0x800
+    SRE_APPLICATION_FLAG_REUSE_OCTREES = 0x800,
+    // Settings flags affecting rendering that override options settings.
+    SRE_APPLICATION_FLAG_ENABLE_MULTI_SAMPLE = 0x10000,
+    SRE_APPLICATION_FLAG_DISABLE_MULTI_SAMPLE = 0x20000,
+    SRE_APPLICATION_FLAG_ENABLE_STENCIL_BUFFER = 0x40000,
+    // Disable stencil buffer (no stencil shadows), allowing use of 32-bit depth buffer.
+    SRE_APPLICATION_FLAG_DISABLE_STENCIL_BUFFER = 0x40000,
 };
 
 enum {

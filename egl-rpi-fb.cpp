@@ -37,7 +37,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 class sreBackendGLES2RPIFB : public sreBackend {
 public :
     virtual void Initialize(int *argc, char ***argv, int requested_width,
-        int requested_height, int& actual_width, int& actual_height);
+        int requested_height, int& actual_width, int& actual_height, unsigned int backend_flags);
     virtual void Finalize();
     virtual void GLSwapBuffers();
     virtual void GLSync();
@@ -117,9 +117,9 @@ void EGLDeinitializeSubsystem() {
 
 void sreBackendGLES2RPIFB::Initialize(int *argc, char ***argv,
 int requested_width, int requested_height,
-int& actual_width, int& actual_height) {
+int& actual_width, int& actual_height, unsigned int backend_flags) {
     EGLInitialize(argc, argv, requested_width, requested_height,
-        actual_width, actual_height);
+        actual_width, actual_height, backend_flags);
 }
 
 void sreBackendGLES2RPIFB::Finalize() {

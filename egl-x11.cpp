@@ -31,7 +31,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 class sreBackendGLES2X11 : public sreBackend {
 public :
     virtual void Initialize(int *argc, char ***argv, int window_width, int window_height,
-        int& actual_width, int& actual_height);
+        int& actual_width, int& actual_height, unsigned int backend_flags);
     virtual void Finalize();
     virtual void GLSwapBuffers();
     virtual void GLSync();

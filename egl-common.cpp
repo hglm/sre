@@ -73,26 +73,54 @@ static const EGLint egl_context_attributes[] =
     EGL_NONE
 };
 
-static const EGLint attribute_list[] = {
+static const EGLint attribute_list_base[] = {
     EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
     EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
     EGL_RED_SIZE, 8,
     EGL_GREEN_SIZE, 8,
     EGL_BLUE_SIZE, 8,
     EGL_ALPHA_SIZE, 8,
+    EGL_NATIVE_RENDERABLE, EGL_TRUE,
+    EGL_NONE,
+};
+
+static const EGLint attribute_list_stencil_buffer[] = {
     EGL_DEPTH_SIZE, 24,
     EGL_STENCIL_SIZE, 8,
-    EGL_NATIVE_RENDERABLE, EGL_TRUE,
-#ifndef NO_MULTI_SAMPLE
+    EGL_NONE,
+};
+
+static const EGLint attribute_list_no_stencil_buffer[] = {
+    EGL_DEPTH_SIZE, 24,
+    EGL_STENCIL_SIZE, 0,
+    EGL_NONE,
+};
+
+static const EGLint attribute_list_multi_sample[] =  {
     // Enable 4-sample MSAA.
 #ifdef OPENGL_ES2_RPI
     EGL_SAMPLE_BUFFERS, 1,
 #endif
     EGL_SAMPLES, 4,
-#endif
     EGL_NONE
-   };
+};
 
+#define MAX_ATTRIBUTES_SIZE ((sizeof(attribute_list_base[]) + \
+    sizeof(attribute_list_stencil_buffer) + \
+    sizeof(attribute_list_multi_sample)) / sizeof(EGLint))
+
+static void AddAttributes(EGLint *attributes, EGLint *extra_attributes) {
+    int i = 0;
+    while (attributes[i] != EGL_NONE)
+        i++;
+    int j = 0;
+    while (extra_attributes[j] != EGL_NONE) {
+        attributes[i] = extra_attributes[j];
+        i++;
+        j++;
+    }
+    attributes[i] = EGL_NONE;
+}
 
 static EGLConfig *egl_config;
 static int egl_chosen_config;
@@ -129,6 +157,17 @@ int requested_width, int requested_height) {
         result = eglInitialize(state->display, &egl_major, &egl_minor);
     assert(result != EGL_FALSE);
     check();
+
+    // Arrange attribute list.
+    EGLint attribute_list[MAX_ATTRIBUTES_SIZE];
+    attribute_list[0] = None;
+    AddAttributes(attributes_list, attribute_list_base);
+    if (backend_flags & SRE_BACKEND_FLAG_STENCIL_BUFFER)
+        AddAttributes(attribute_list, attribute_list_stencil_buffer);
+    else
+        AddAttributes(attribute_list, attributes_list_no_stencil_buffer);
+    if (backend_flags & SRE_BACKEND_FLAG_MULTI_SAMPLE)
+        AddAttributes(attribute_list, attributes_list_multi_sample);
 
     // Get the number of appropriate EGL framebuffer configurations.
     result = eglChooseConfig(state->display, attribute_list, NULL, 1, &num_config);
@@ -177,7 +216,7 @@ int requested_width, int requested_height) {
 }
 
 void EGLInitialize(int *argc, char ***argv, int requested_width, int requested_height,
-int& actual_width, int& actual_height) {
+int& actual_width, int& actual_height, unsigned int backend_flags) {
     EGLNativeDisplayType native_display = (EGLNativeDisplayType)EGLGetNativeDisplay();
 
     state = (EGL_STATE_T *)malloc(sizeof(EGL_STATE_T));
@@ -185,7 +224,7 @@ int& actual_width, int& actual_height) {
     memset(state, 0, sizeof(*state ));
 
     // Start GLES2.
-    EGLOpenWindow(state, native_display, requested_width, requested_height);
+    EGLOpenWindow(state, native_display, requested_width, requested_height, backend_flags);
     actual_width = state->screen_width;
     actual_height = state->screen_height;
     sreMessage(SRE_MESSAGE_INFO, "Opened OpenGL-ES2 state, width = %d, height = %d",

@@ -54,6 +54,16 @@ static bool preprocess = false;
 static int debug_level = 0;
 static bool demand_load_shaders = false;
 static bool large_shadow_maps = false;
+#ifdef NO_MULTI_SAMPLE
+static bool multi_sample = false;
+#else
+static bool multi_sample = true;
+#endif
+#ifdef NO_STENCIL_BUFFER
+static bool stencil_buffer = false;
+#else
+static bool stencil_buffer = true;
+#endif
 
 void sreSelectBackend(int backend) {
     if (backend == SRE_BACKEND_DEFAULT)
@@ -199,6 +209,26 @@ static void sreBackendProcessOptions(int *argcp, char ***argvp) {
             argi++;
             continue;
         }
+        if (argc >= argi + 1 && strcmp(argv[argi], "--multi-sample") == 0) {
+            multi_sample = true;
+            argi++;
+            continue;
+        }
+        if (argc >= argi + 1 && strcmp(argv[argi], "--no-multi-sample") == 0) {
+            multi_sample = false;
+            argi++;
+            continue;
+        }
+        if (argc >= argi + 1 && strcmp(argv[argi], "--stencil-buffer") == 0) {
+            stencil_buffer = true;
+            argi++;
+            continue;
+        }
+        if (argc >= argi + 1 && strcmp(argv[argi], "--no-stencil-buffer") == 0) {
+            stencil_buffer = false;
+            argi++;
+            continue;
+        }
         break;
     }
 
@@ -244,8 +274,18 @@ static void sreBackendInitialize(sreApplication *app, int *argc, char ***argv) {
 #endif
 
     // Initialize GUI and SRE library.
+    int backend_flags = 0;
+    if (multi_sample)
+         backend_flags |= SRE_BACKEND_FLAG_MULTI_SAMPLE;
+    if (stencil_buffer) {
+         backend_flags |= SRE_BACKEND_FLAG_STENCIL_BUFFER;
+         sreSetShadowVolumeSupport(true);
+    }
+    else
+         sreSetShadowVolumeSupport(false);
     int actual_width, actual_height;
-    sre_internal_backend->Initialize(argc, argv, WINDOW_WIDTH, WINDOW_HEIGHT, actual_width, actual_height);
+    sre_internal_backend->Initialize(argc, argv, WINDOW_WIDTH, WINDOW_HEIGHT, actual_width,
+        actual_height, backend_flags);
     app->window_width = actual_width;
     app->window_height = actual_height;
     sreInitialize(actual_width, actual_height, sreBackendGLSwapBuffers);

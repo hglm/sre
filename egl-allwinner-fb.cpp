@@ -44,7 +44,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 class sreBackendGLES2AllwinnerMaliFB : public sreBackend {
 public :
     virtual void Initialize(int *argc, char ***argv, int requested_width, int requested_height,
-         int& actual_width, int& actual_height);
+         int& actual_width, int& actual_height, unsigned int backend_flags);
     virtual void Finalize();
     virtual void GLSwapBuffers();
     virtual void GLSync();
@@ -233,9 +233,10 @@ void EGLDeinitializeSubsystem() {
 
 // Back-end class implementation.
 
-void sreBackendGLES2AllwinnerMaliFB::Initialize(int *argc, char ***argv, int requested_width, int requested_height,
-int& actual_width, int& actual_height) {
-    EGLInitialize(argc, argv, requested_width, requested_height, actual_width, actual_height);
+void sreBackendGLES2AllwinnerMaliFB::Initialize(int *argc, char ***argv, int requested_width,
+int requested_height, int& actual_width, int& actual_height, unsigned int backend_flags) {
+    EGLInitialize(argc, argv, requested_width, requested_height, actual_width, actual_height,
+        backend_flags);
 }
 
 void sreBackendGLES2AllwinnerMaliFB::Finalize() {
