@@ -34,7 +34,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <GL/gl.h>
 #endif
 
+#ifdef USE_SIMD
 #include <dstSIMD.h>
+#endif
 
 #include "sre.h"
 #include "sre_internal.h"

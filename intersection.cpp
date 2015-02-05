@@ -29,7 +29,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre_bounds.h"
 #include "win32_compat.h"
 
+#ifdef USE_SIMD
 #include <dstVectorMathSIMD.h>
+#endif
 
 // Intersection tests against a hull (a collection of vertex positions).
 

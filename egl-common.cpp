@@ -105,11 +105,11 @@ static const EGLint attribute_list_multi_sample[] =  {
     EGL_NONE
 };
 
-#define MAX_ATTRIBUTES_SIZE ((sizeof(attribute_list_base[]) + \
+#define MAX_ATTRIBUTES_SIZE ((sizeof(attribute_list_base) + \
     sizeof(attribute_list_stencil_buffer) + \
     sizeof(attribute_list_multi_sample)) / sizeof(EGLint))
 
-static void AddAttributes(EGLint *attributes, EGLint *extra_attributes) {
+static void AddAttributes(EGLint *attributes, const EGLint *extra_attributes) {
     int i = 0;
     while (attributes[i] != EGL_NONE)
         i++;
@@ -131,7 +131,7 @@ static int egl_chosen_config;
 // (e.g. a full-screen framebuffer).
 
 static void EGLOpenWindow(EGL_STATE_T *state, EGLNativeDisplayType native_display,
-int requested_width, int requested_height) {
+int requested_width, int requested_height, unsigned int backend_flags) {
     // First initialize the native window.
     int width, height;
     void *window;
@@ -160,14 +160,14 @@ int requested_width, int requested_height) {
 
     // Arrange attribute list.
     EGLint attribute_list[MAX_ATTRIBUTES_SIZE];
-    attribute_list[0] = None;
-    AddAttributes(attributes_list, attribute_list_base);
+    attribute_list[0] = EGL_NONE;
+    AddAttributes(attribute_list, attribute_list_base);
     if (backend_flags & SRE_BACKEND_FLAG_STENCIL_BUFFER)
         AddAttributes(attribute_list, attribute_list_stencil_buffer);
     else
-        AddAttributes(attribute_list, attributes_list_no_stencil_buffer);
+        AddAttributes(attribute_list, attribute_list_no_stencil_buffer);
     if (backend_flags & SRE_BACKEND_FLAG_MULTI_SAMPLE)
-        AddAttributes(attribute_list, attributes_list_multi_sample);
+        AddAttributes(attribute_list, attribute_list_multi_sample);
 
     // Get the number of appropriate EGL framebuffer configurations.
     result = eglChooseConfig(state->display, attribute_list, NULL, 1, &num_config);

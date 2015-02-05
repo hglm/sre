@@ -73,7 +73,11 @@ uniform mat4x3 shadow_map_transformation_matrix;
 // For use with shadow map parameter precalculation (directional/beam lights).
 uniform vec4 shadow_map_dimensions_in;
 uniform sampler2D shadow_map_in;
+#ifdef GL_ES
+uniform mediump float light_parameters_in[NU_LIGHT_PARAMETERS_MAX];
+#else
 uniform float light_parameters_in[NU_LIGHT_PARAMETERS_MAX];
+#endif
 #endif
 attribute vec4 position_in;
 #ifdef TEXCOORD_IN

@@ -75,8 +75,8 @@ void EGLDeinitializeSubsystem() {
 // Back-end class implementation.
 
 void sreBackendGLES2X11::Initialize(int *argc, char ***argv, int requested_width, int requested_height,
-int& actual_width, int& actual_height) {
-    EGLInitialize(argc, argv, requested_width, requested_height, actual_width, actual_height);
+int& actual_width, int& actual_height, unsigned int backend_flags) {
+    EGLInitialize(argc, argv, requested_width, requested_height, actual_width, actual_height, backend_flags);
 }
 
 void sreBackendGLES2X11::Finalize() {

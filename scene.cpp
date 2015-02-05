@@ -24,8 +24,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <math.h>
 #include <float.h>
 
-#include <dstSIMD.h>
-
 #include "win32_compat.h"
 #include "sre.h"
 #include "sre_internal.h"

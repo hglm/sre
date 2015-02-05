@@ -230,7 +230,7 @@ float SampleShadowPoisson(sampler2D shadow_map, vec3 coords, float bias, float f
 
 #endif
 
-float SampleShadowSimple(sampler2D shadow_map, vec3 coords, float bias, float factor) {
+float SampleShadowSimple(sampler2D shadow_map, vec3 coords, float bias) {
 	// When rendering closed models in the shadow map, only back faces are rendered
 	// so the bias has to be added to the calculated z coordinates to prevent light
         // "bleeding" from around the back faces.
@@ -280,10 +280,12 @@ float CalculateShadow() {
 	bias += shadow_map_depth_precision_var;
 
 	// Produce slightly soft shadows with the Poisson disk.
+#ifndef GL_ES
 	return SampleShadowPoisson(shadow_map_in, shadow_map_coord_var, bias,
 		poisson_factor);
-//	return SampleShadowSimple(shadow_map_in, shadow_map_coord_var, bias,
-//		poisson_factor);
+#else
+	return SampleShadowSimple(shadow_map_in, shadow_map_coord_var, bias);
+#endif
 }
 
 #endif
@@ -333,13 +335,13 @@ void main() {
 	// Shaders (such as multi-pass light shader 0) currently also exist that support all
 	// kinds of light).
 #ifdef DIRECTIONAL_LIGHT
-	light_parameters_position.w = 0.0f;
+	light_parameters_position.w = 0.0;
 #ifdef ENABLE_DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR
 	float light_parameters_spill_over_factor =
             light_parameters_in[DIRECTIONAL_LIGHT_SPILL_OVER_FACTOR];
 #endif
 #else
-	light_parameters_position.w = 1.0f;
+	light_parameters_position.w = 1.0;
 	float light_parameters_linear_attenuation_range =
 		light_parameters_in[LIGHT_LINEAR_ATTENUATION_RANGE];
 #if defined(SPOT_LIGHT) || defined(BEAM_LIGHT) || defined(GENERAL_LOCAL_LIGHT)
@@ -571,7 +573,7 @@ void main() {
 #endif
 		// Invert normal for back faces for correct lighting of faces that
                 // can be looked at from both sides.
-		normal *= float(gl_FrontFacing) * 2.0f - 1.0f;
+		normal *= float(gl_FrontFacing) * 2.0 - 1.0;
 
 		// Light calculations will be performed in tangent space.
 
@@ -619,7 +621,7 @@ void main() {
 		normal = normal_var;
 		// Invert normal for back faces for correct lighting of faces that
                 // can be looked at from both sides.
-		normal *= float(gl_FrontFacing) * 2.0f - 1.0f;
+		normal *= float(gl_FrontFacing) * 2.0 - 1.0;
 #ifdef NORMALIZE_INTERPOLATED_NORMAL
 		// Normalize the normal vector.
 		normal = normalize(normal);
@@ -860,9 +862,9 @@ void main() {
 		// The specular color contribution should not depend on the color of the
 		// light, but only its intrinsic intensity.
 		const vec3 Crgb = vec3(
-		    0.212655f, // Red factor
-		    0.715158f, // Green factor
-		    0.072187f  // Blue factor
+		    0.212655, // Red factor
+		    0.715158, // Green factor
+		    0.072187  // Blue factor
 		    );
 		float light_intensity = dot(light_parameters_color, Crgb);
 		c += light_att * light_intensity * specular_map_color * specular_component;
