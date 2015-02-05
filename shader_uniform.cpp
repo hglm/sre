@@ -631,7 +631,7 @@ enum MultiPassShaderSelection {
 enum SinglePassShaderSelection {
     SINGLE_PASS_SHADER0 = 0, SINGLE_PASS_SHADER1, SINGLE_PASS_SHADER2,
     SINGLE_PASS_SHADER3, SINGLE_PASS_SHADER4, SINGLE_PASS_SHADER5, SINGLE_PASS_SHADER6,
-    SINGLE_PASS_SHADER7
+    SINGLE_PASS_SHADER7, SINGLE_PASS_SHADER8, SINGLE_PASS_SHADER9
 };
 
 
@@ -1933,14 +1933,24 @@ static SinglePassShaderSelection sreSelectSinglePassShader(const sreObject& so) 
 #endif
     if (flags & SRE_OBJECT_TRANSPARENT_TEXTURE)
         if (sre_internal_current_light->type & SRE_LIGHT_LINEAR_ATTENUATION_RANGE)
-            shader = SINGLE_PASS_SHADER6;
+            // The specific point source, spot and beam light shaders also support
+            // transparent textures (TEXTURE_MAP_ALPHA).
+            if (sre_internal_current_light->type & SRE_LIGHT_POINT_SOURCE)
+                shader = SINGLE_PASS_SHADER6;
+            else if (sre_internal_current_light->type & SRE_LIGHT_SPOT)
+                shader = SINGLE_PASS_SHADER8;
+            else
+                // Beam light.
+                shader = SINGLE_PASS_SHADER9;
         else
+            // Directional light.
             shader = SINGLE_PASS_SHADER1;
     else
     if (sre_internal_current_light->type & SRE_LIGHT_DIRECTIONAL) {
         int map_flags = flags & (SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
             SRE_OBJECT_USE_SPECULARITY_MAP | SRE_OBJECT_USE_EMISSION_MAP);
-        // Directional light
+        // Directional light. Several optimized shaders for particular texture combinations
+        // are available.
         if (map_flags == 0)
             shader = SINGLE_PASS_SHADER2;
         else if (map_flags == SRE_OBJECT_USE_TEXTURE)
@@ -1953,9 +1963,16 @@ static SinglePassShaderSelection sreSelectSinglePassShader(const sreObject& so) 
     else
         if (sre_internal_current_light->type
         & SRE_LIGHT_LINEAR_ATTENUATION_RANGE)
-            shader = SINGLE_PASS_SHADER6;
+            if (sre_internal_current_light->type & SRE_LIGHT_POINT_SOURCE)
+                shader = SINGLE_PASS_SHADER6;
+            else if (sre_internal_current_light->type & SRE_LIGHT_SPOT)
+                shader = SINGLE_PASS_SHADER8;
+            else
+                // Beam light.
+                shader = SINGLE_PASS_SHADER9;
         else
-            shader = SINGLE_PASS_SHADER0;
+            // Traditional attenuation range.
+            shader = SINGLE_PASS_SHADER0; // Not fully functional.
     return shader;
 }
 
@@ -2142,6 +2159,70 @@ static void sreInitializeSinglePassShader(const sreObject& so, SinglePassShaderS
         GL3InitializeShaderWithEmissionColor(
             single_pass_shader[7].uniform_location[UNIFORM_EMISSION_COLOR], so);
         break;
+    case SINGLE_PASS_SHADER8 :	// Complete single pass pass shader for spot lights with a linear
+                                // attenuation range.
+        glUseProgram(single_pass_shader[SHADER8].program);
+        GL3InitializeShaderWithMVP(single_pass_shader[SHADER8].uniform_location[UNIFORM_MVP], so);
+        GL3InitializeShaderWithModelMatrix(single_pass_shader[SHADER8].uniform_location[UNIFORM_MODEL_MATRIX], so);
+        GL3InitializeShaderWithModelRotationMatrix(
+            single_pass_shader[SHADER8].uniform_location[UNIFORM_MODEL_ROTATION_MATRIX], so);
+        GL3InitializeShaderWithDiffuseReflectionColor(
+            single_pass_shader[SHADER8].uniform_location[UNIFORM_DIFFUSE_REFLECTION_COLOR], so);
+        GL3InitializeShaderWithMultiColor(single_pass_shader[SHADER8].uniform_location[UNIFORM_USE_MULTI_COLOR], so);
+        GL3InitializeShaderWithUseTexture(single_pass_shader[SHADER8].uniform_location[UNIFORM_USE_TEXTURE_MAP], so);
+        GL3InitializeShaderWithSpecularReflectionColor(
+            single_pass_shader[SHADER8].uniform_location[UNIFORM_SPECULAR_REFLECTION_COLOR], so);
+        GL3InitializeShaderWithSpecularExponent(
+            single_pass_shader[SHADER8].uniform_location[UNIFORM_SPECULAR_EXPONENT], so);
+        if (flags & SRE_OBJECT_USE_TEXTURE)
+            GL3InitializeShaderWithObjectTexture(so);
+        GL3InitializeShaderWithUseNormalMap(single_pass_shader[SHADER8].uniform_location[UNIFORM_USE_NORMAL_MAP], so);
+        if (flags & SRE_OBJECT_USE_NORMAL_MAP)
+            GL3InitializeShaderWithObjectNormalMap(so);
+        GL3InitializeShaderWithUseSpecularMap(single_pass_shader[SHADER8].uniform_location[UNIFORM_USE_SPECULARITY_MAP], so);
+        if (flags & SRE_OBJECT_USE_SPECULARITY_MAP)
+            GL3InitializeShaderWithObjectSpecularMap(so);
+        GL3InitializeShaderWithEmissionColor(single_pass_shader[SHADER8].uniform_location[UNIFORM_EMISSION_COLOR], so);
+        GL3InitializeShaderWithUseEmissionMap(single_pass_shader[SHADER8].uniform_location[UNIFORM_USE_EMISSION_MAP], so);
+        if (flags & SRE_OBJECT_USE_EMISSION_MAP)
+            GL3InitializeShaderWithObjectEmissionMap(so);
+        if (flags & (SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
+        SRE_OBJECT_USE_SPECULARITY_MAP | SRE_OBJECT_USE_EMISSION_MAP))
+            GL3InitializeShaderWithUVTransform(
+                single_pass_shader[SHADER8].uniform_location[UNIFORM_UV_TRANSFORM], so);
+        break;  
+    case SINGLE_PASS_SHADER9 :	// Complete single pass pass shader for beam lights with a linear
+                                // attenuation range.
+        glUseProgram(single_pass_shader[SHADER9].program);
+        GL3InitializeShaderWithMVP(single_pass_shader[SHADER9].uniform_location[UNIFORM_MVP], so);
+        GL3InitializeShaderWithModelMatrix(single_pass_shader[SHADER9].uniform_location[UNIFORM_MODEL_MATRIX], so);
+        GL3InitializeShaderWithModelRotationMatrix(
+            single_pass_shader[SHADER9].uniform_location[UNIFORM_MODEL_ROTATION_MATRIX], so);
+        GL3InitializeShaderWithDiffuseReflectionColor(
+            single_pass_shader[SHADER9].uniform_location[UNIFORM_DIFFUSE_REFLECTION_COLOR], so);
+        GL3InitializeShaderWithMultiColor(single_pass_shader[SHADER9].uniform_location[UNIFORM_USE_MULTI_COLOR], so);
+        GL3InitializeShaderWithUseTexture(single_pass_shader[SHADER9].uniform_location[UNIFORM_USE_TEXTURE_MAP], so);
+        GL3InitializeShaderWithSpecularReflectionColor(
+            single_pass_shader[SHADER9].uniform_location[UNIFORM_SPECULAR_REFLECTION_COLOR], so);
+        GL3InitializeShaderWithSpecularExponent(
+            single_pass_shader[SHADER9].uniform_location[UNIFORM_SPECULAR_EXPONENT], so);
+        if (flags & SRE_OBJECT_USE_TEXTURE)
+            GL3InitializeShaderWithObjectTexture(so);
+        GL3InitializeShaderWithUseNormalMap(single_pass_shader[SHADER9].uniform_location[UNIFORM_USE_NORMAL_MAP], so);
+        if (flags & SRE_OBJECT_USE_NORMAL_MAP)
+            GL3InitializeShaderWithObjectNormalMap(so);
+        GL3InitializeShaderWithUseSpecularMap(single_pass_shader[SHADER9].uniform_location[UNIFORM_USE_SPECULARITY_MAP], so);
+        if (flags & SRE_OBJECT_USE_SPECULARITY_MAP)
+            GL3InitializeShaderWithObjectSpecularMap(so);
+        GL3InitializeShaderWithEmissionColor(single_pass_shader[SHADER9].uniform_location[UNIFORM_EMISSION_COLOR], so);
+        GL3InitializeShaderWithUseEmissionMap(single_pass_shader[SHADER9].uniform_location[UNIFORM_USE_EMISSION_MAP], so);
+        if (flags & SRE_OBJECT_USE_EMISSION_MAP)
+            GL3InitializeShaderWithObjectEmissionMap(so);
+        if (flags & (SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
+        SRE_OBJECT_USE_SPECULARITY_MAP | SRE_OBJECT_USE_EMISSION_MAP))
+            GL3InitializeShaderWithUVTransform(
+                single_pass_shader[SHADER9].uniform_location[UNIFORM_UV_TRANSFORM], so);
+        break;  
     }
 }
 

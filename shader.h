@@ -44,7 +44,7 @@ extern unsigned int sre_internal_attribute_list_table[1 << SRE_NU_VERTEX_ATTRIBU
 
 // Shader definitions.
 
-#define NU_SINGLE_PASS_SHADERS 8
+#define NU_SINGLE_PASS_SHADERS 10
 #ifdef NO_SHADOW_MAP
 #define NU_MULTI_PASS_SHADERS 13
 #else

@@ -747,10 +747,21 @@ static ShaderInfo single_pass_shader_info[NU_SINGLE_PASS_SHADERS] = {
     (1 << UNIFORM_MVP) | (1 << UNIFORM_EMISSION_COLOR) |
     (1 << UNIFORM_USE_MULTI_COLOR),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_COLOR) },
+    { "Complete single pass shader for spot lights with a linear attenuation range",
+    UNIFORM_MASK_COMMON,
+    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
+    (1 << ATTRIBUTE_TANGENT) |
+    (1 << ATTRIBUTE_COLOR) },
+    { "Complete single pass shader for beam lights with a linear attenuation range",
+    UNIFORM_MASK_COMMON,
+    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
+    (1 << ATTRIBUTE_TANGENT) |
+    (1 << ATTRIBUTE_COLOR) },
 };
 
 const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     // Complete versatile single pass shader for local lights with support for all options.
+    // Not fully functional.
     "#define SINGLE_PASS\n"
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
@@ -801,6 +812,7 @@ const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     "#define EMISSION_COLOR_IN\n"
     "#define EMISSION_MAP_OPTION\n"
     "#define EMISSION_MAP_SAMPLER\n"
+    "#define TEXTURE_MAP_ALPHA\n"
     "#define DIRECTIONAL_LIGHT\n",
     // Phong shading-only single pass shader for directional lights (no support for any maps).
     "#define SINGLE_PASS\n"
@@ -859,7 +871,8 @@ const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     "#define AMBIENT_COLOR_IN\n"
     "#define EMISSION_COLOR_IN\n"
     "#define DIRECTIONAL_LIGHT\n",
-    // Complete single pass shader for local lights (point, beam, spot) with a linear attenuation range.
+    // SHADER6
+    // Complete single pass shader for point source lights with a linear attenuation range.
     "#define SINGLE_PASS\n"
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
@@ -884,7 +897,7 @@ const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     "#define EMISSION_MAP_OPTION\n"
     "#define EMISSION_MAP_SAMPLER\n"
     "#define TEXTURE_MAP_ALPHA\n"
-    "#define GENERAL_LOCAL_LIGHT\n"
+    "#define POINT_SOURCE_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n",
     // Constant shading-only single pass shader (no lighting or texture)
     // supporting multi-color and emission color. Diffuse reflection color
@@ -894,7 +907,63 @@ const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     "#define MULTI_COLOR_OPTION\n"
     "#define EMISSION_COLOR_IN\n"
     "#define NO_SMOOTH_SHADING\n"
-    "#define ADD_DIFFUSE_TO_EMISSION\n"
+    "#define ADD_DIFFUSE_TO_EMISSION\n",
+    // SHADER8
+    // Complete single pass shader for spot lights with a linear attenuation range.
+    "#define SINGLE_PASS\n"
+    "#define TEXCOORD_IN\n"
+    "#define UV_TRANSFORM\n"
+    "#define NORMAL_IN\n"
+    "#define TANGENT_IN\n"
+    "#define COLOR_IN\n"
+    "#define POSITION_WORLD_VAR\n"
+    "#define NORMAL_VAR\n"
+    "#define TBN_MATRIX_VAR\n"
+    "#define TEXCOORD_VAR\n"
+    "#define MULTI_COLOR_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
+    "#define NORMAL_MAP_OPTION\n"
+    "#define SPECULARITY_MAP_OPTION\n"
+    "#define VIEWPOINT_IN\n"
+    "#define LIGHT_PARAMETERS\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
+    "#define NORMAL_MAP_SAMPLER\n"
+    "#define SPECULARITY_MAP_SAMPLER\n"
+    "#define AMBIENT_COLOR_IN\n"
+    "#define EMISSION_COLOR_IN\n"
+    "#define EMISSION_MAP_OPTION\n"
+    "#define EMISSION_MAP_SAMPLER\n"
+    "#define TEXTURE_MAP_ALPHA\n"
+    "#define SPOT_LIGHT\n"
+    "#define LINEAR_ATTENUATION_RANGE\n",
+    // SHADER9
+    // Complete single pass shader for beam light with a linear attenuation range.
+    "#define SINGLE_PASS\n"
+    "#define TEXCOORD_IN\n"
+    "#define UV_TRANSFORM\n"
+    "#define NORMAL_IN\n"
+    "#define TANGENT_IN\n"
+    "#define COLOR_IN\n"
+    "#define POSITION_WORLD_VAR\n"
+    "#define NORMAL_VAR\n"
+    "#define TBN_MATRIX_VAR\n"
+    "#define TEXCOORD_VAR\n"
+    "#define MULTI_COLOR_OPTION\n"
+    "#define TEXTURE_MAP_OPTION\n"
+    "#define NORMAL_MAP_OPTION\n"
+    "#define SPECULARITY_MAP_OPTION\n"
+    "#define VIEWPOINT_IN\n"
+    "#define LIGHT_PARAMETERS\n"
+    "#define TEXTURE_MAP_SAMPLER\n"
+    "#define NORMAL_MAP_SAMPLER\n"
+    "#define SPECULARITY_MAP_SAMPLER\n"
+    "#define AMBIENT_COLOR_IN\n"
+    "#define EMISSION_COLOR_IN\n"
+    "#define EMISSION_MAP_OPTION\n"
+    "#define EMISSION_MAP_SAMPLER\n"
+    "#define TEXTURE_MAP_ALPHA\n"
+    "#define BEAM_LIGHT\n"
+    "#define LINEAR_ATTENUATION_RANGE\n",
 };
 
 static char *newstrcat(const char *s1, const char *s2) {
