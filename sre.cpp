@@ -662,6 +662,8 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
             "with OpenGL-ES 2.0 not available.");
         goto skip_shadow_map;
     }
+    sreMessage(SRE_MESSAGE_INFO, "GL_OES_depth_texture extension available to support shadow mapping "
+        "with OpenGL-ES 2.0.");
 #endif
     sre_internal_rendering_flags |= SRE_RENDERING_FLAG_SHADOW_MAP_SUPPORT;
     sreInitializeShaders(SRE_SHADER_MASK_SHADOW_MAP);
@@ -740,11 +742,13 @@ skip_shadow_map:
     // OES_depth_texture_cube_map exists. Older hardware drivers may already support
     // cube map textures with only OES_depth_texture.
 #ifdef OPENGL_ES2
-    if (strstr(extensions_str, "GL_OES_depth_texture") == NULL) {
+    if (strstr(extensions_str, "GL_OES_depth_texture_cube_map") == NULL) {
         sreMessage(SRE_MESSAGE_INFO, "GL_OES_depth_texture_cube_map extension to support cube "
             "shadow mapping with OpenGL-ES 2.0 not available.");
         goto skip_cube_shadow_map;
     }
+    sreMessage(SRE_MESSAGE_INFO, "GL_OES_depth_texture_cube_map extension available to support cube "
+        "shadow mapping with OpenGL-ES 2.0.");
 #endif
     sre_internal_rendering_flags |= SRE_RENDERING_FLAG_CUBE_SHADOW_MAP_SUPPORT;
     sreInitializeShaders(SRE_SHADER_MASK_CUBE_SHADOW_MAP);
