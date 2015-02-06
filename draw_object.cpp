@@ -457,7 +457,9 @@ void sreDrawObjectFinalPass(sreObject *so) {
     // in that case, simply skip the object.
     if (!(so->render_flags & SRE_OBJECT_EMISSION_ONLY))
         return;
+    CHECK_GL_ERROR("Error before sreInitializeObjectShaderEmissionOnly.\n");
     bool select_new_shader = sreInitializeObjectShaderEmissionOnly(*so);
+    CHECK_GL_ERROR("Error after sreInitializeObjectShaderEmissionOnly.\n");
 
     if (so->render_flags & SRE_OBJECT_INFINITE_DISTANCE) {
         // Disable writing into depth buffer.

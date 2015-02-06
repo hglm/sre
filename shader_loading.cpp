@@ -745,7 +745,7 @@ static ShaderInfo single_pass_shader_info[NU_SINGLE_PASS_SHADERS] = {
     (1 << ATTRIBUTE_COLOR) },
     { "Single-pass constant shader with multi-color support",
     (1 << UNIFORM_MVP) | (1 << UNIFORM_EMISSION_COLOR) |
-    (1 << UNIFORM_USE_MULTI_COLOR),
+    (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_USE_MULTI_COLOR),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_COLOR) },
     { "Complete single pass shader for spot lights with a linear attenuation range",
     UNIFORM_MASK_COMMON,
@@ -899,6 +899,7 @@ const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
     "#define TEXTURE_MAP_ALPHA\n"
     "#define POINT_SOURCE_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n",
+    // SHADER7
     // Constant shading-only single pass shader (no lighting or texture)
     // supporting multi-color and emission color. Diffuse reflection color
     // is added to emission color.

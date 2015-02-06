@@ -30,14 +30,16 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // Enabling shadows degrades performance significantly on OpenGL ES 2.0
 // devices.
+//#define SHADOWS
+
 #ifndef OPENGL_ES2
-#define SHADOWS
 #define BUMP_MAPPED_SPHERE
 #endif
 
 void Demo10CreateScene(sreScene *scene, sreView *view) {
     // Add player sphere as scene object 0.
     sreModel *sphere_model = sreCreateSphereModel(scene, 0);
+    int cast_shadows = 0;
 #ifndef SHADOWS
     // Reduce the level detail.
     scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 1, - 1, 1.0, 0);
@@ -45,6 +47,7 @@ void Demo10CreateScene(sreScene *scene, sreView *view) {
     // Reduce the number of triangles in the models also when shadows
     // are enabled.
     scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 2.0, 0);
+    cast_shadows = SRE_OBJECT_CAST_SHADOWS;
 #endif
 
     // Set diffuse fraction to 0.6 and two roughness values of 0.1 and 0.25 with weight 0.4 and 0.6,
@@ -52,7 +55,7 @@ void Demo10CreateScene(sreScene *scene, sreView *view) {
     scene->SetMicrofacetParameters(0.6, 0.1, 0.4, 0.25, 0.6, false);
     scene->SetSpecularExponent(40.0f);
 
-    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_CAST_SHADOWS |
+    scene->SetFlags(SRE_OBJECT_DYNAMIC_POSITION | cast_shadows |
         SRE_OBJECT_USE_TEXTURE);
     scene->SetTexture(sreCreateStripesTexture(TEXTURE_TYPE_LINEAR,
         256, 256, 32, Color(0, 0.5f, 0.8f), Color(0.9f, 0.9f, 1.0f)));
@@ -86,12 +89,12 @@ void Demo10CreateScene(sreScene *scene, sreView *view) {
     // Add sphere
     // With OpenGL, show two bump-mapped spheres with different texture compression formats.
 #ifdef BUMP_MAPPED_SPHERE
-    scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_DYNAMIC_POSITION |
+    scene->SetFlags(cast_shadows | SRE_OBJECT_DYNAMIC_POSITION |
         SRE_OBJECT_USE_NORMAL_MAP);
     scene->SetNormalMap(new sreTexture("bump_map_512", TEXTURE_TYPE_NORMAL_MAP));
 #else
-    scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_DYNAMIC_POSITION);
-#endif 
+    scene->SetFlags(cast_shadows | SRE_OBJECT_DYNAMIC_POSITION);
+#endif
     scene->SetDiffuseReflectionColor(Color(0.75, 0.75, 1.0));
     scene->SetMass(0.3);
     scene->AddObject(sphere_model, 40, 30, 7.0, 0, 0, 0, 7.0);
@@ -104,7 +107,7 @@ void Demo10CreateScene(sreScene *scene, sreView *view) {
 
     // Add movable ellipsoids.
     sreModel *ellipsoid_model = sreCreateEllipsoidModel(scene, 0.8, 0.6);
-    scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_DYNAMIC_POSITION);
+    scene->SetFlags(cast_shadows | SRE_OBJECT_DYNAMIC_POSITION);
     scene->SetMass(0.8);
     for (int i = 0; i < 8; i++) {
         Color color;
@@ -117,7 +120,7 @@ void Demo10CreateScene(sreScene *scene, sreView *view) {
 
     // Add movable capsules.
     sreModel *capsule_model = sreCreateCapsuleModel(scene, 1.0, 2.0, 1.0, 1.0);
-    scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_DYNAMIC_POSITION);
+    scene->SetFlags(cast_shadows | SRE_OBJECT_DYNAMIC_POSITION);
     scene->SetDiffuseReflectionColor(Color(1.0, 0.7, 0.4));
     scene->SetMass(0.8);
     for (int i = 0; i < 8; i++) {

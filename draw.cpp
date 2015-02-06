@@ -246,6 +246,7 @@ void sreScene::Render(sreView *view) {
         glDepthFunc(GL_EQUAL); 
 #endif
         RenderLightingPasses(frustum, view);
+        CHECK_GL_ERROR("Error after lighting pass (shadow mapping).\n");
         // Perform the final pass.
         // Disable blending
         glDisable(GL_BLEND);
@@ -254,8 +255,10 @@ void sreScene::Render(sreView *view) {
         glDepthFunc(GL_LEQUAL);
 #endif
         glDepthMask(GL_TRUE);
+        CHECK_GL_ERROR("Error before final pass (shadow mapping).\n");
         RenderFinalPassObjectsMultiPass(*frustum);
     }
+    CHECK_GL_ERROR("Error after rendering.\n");
 
     // Post-processing for HDR rendering.
 #ifndef NO_HDR
