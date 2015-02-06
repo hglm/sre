@@ -357,20 +357,22 @@ void sreBulletPhysicsApplication::InitializePhysics() {
             // so that the rotation matrix for the object was set to identity, recover the original
             // rotation matrix.
             if (so->model->is_static) {
-                rot[0] = btVector3((*so->original_rotation_matrix)[0][0], (*so->original_rotation_matrix)[1][0],
-                    (*so->original_rotation_matrix)[2][0]);
-                rot[1] = btVector3((*so->original_rotation_matrix)[0][1], (*so->original_rotation_matrix)[1][1],
-                    (*so->original_rotation_matrix)[2][1]);
-                rot[2] = btVector3((*so->original_rotation_matrix)[0][2], (*so->original_rotation_matrix)[1][2],
-                    (*so->original_rotation_matrix)[2][2]);
+		Vector3D row0, row1, row2;
+		row0 = so->original_rotation_matrix->GetRow(0);
+		row1 = so->original_rotation_matrix->GetRow(1);
+		row2 = so->original_rotation_matrix->GetRow(2);
+                rot[0] = btVector3(row0.x, row0.y, row0.z);
+                rot[1] = btVector3(row1.x, row1.y, row1.z);
+                rot[2] = btVector3(row2.x, row2.y, row2.z);
             }
             else {
-                rot[0] = btVector3(so->rotation_matrix[0][0], so->rotation_matrix[1][0],
-                    so->rotation_matrix[2][0]);
-                rot[1] = btVector3(so->rotation_matrix[0][1], so->rotation_matrix[1][1],
-                    so->rotation_matrix[2][1]);
-                rot[2] = btVector3(so->rotation_matrix[0][2], so->rotation_matrix[1][2],
-                    so->rotation_matrix[2][2]);
+		Vector3D row0, row1, row2;
+		row0 = so->rotation_matrix.GetRow(0);
+		row1 = so->rotation_matrix.GetRow(1);
+		row2 = so->rotation_matrix.GetRow(2);
+                rot[0] = btVector3(row0.x, row0.y, row0.z);
+                rot[1] = btVector3(row1.x, row1.y, row1.z);
+                rot[2] = btVector3(row2.x, row2.y, row2.z);
             }
             if (collision_shape_is_static[i]) {
                 // Static object instantiation.
@@ -603,8 +605,12 @@ void sreScene::BulletChangeRotationMatrix(int soi, const Matrix3D& rot_matrix) c
     }
     else
         world_transform = object_rigid_body[soi]->getWorldTransform();
-    btMatrix3x3 basis = btMatrix3x3(rot_matrix[0][0], rot_matrix[1][0], rot_matrix[2][0], rot_matrix[0][1], rot_matrix[1][1],
-        rot_matrix[2][1], rot_matrix[0][2], rot_matrix[1][2], rot_matrix[2][2]);
+    Vector3D row0, row1, row2;
+    row0 = rot_matrix.GetRow(0);
+    row1 = rot_matrix.GetRow(1);
+    row2 = rot_matrix.GetRow(2);
+    btMatrix3x3 basis = btMatrix3x3(row0.x, row0.y, row0.z, row1.x, row1.y, row1.z,
+        row2.x, row2.y, row2.z);
     world_transform.setBasis(basis);
     if (object[soi]->flags & SRE_OBJECT_KINEMATIC_BODY)
         motion_state->setKinematicPosition(world_transform);
