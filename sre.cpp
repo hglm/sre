@@ -1193,32 +1193,28 @@ void sreView::SetZoom(float _zoom) {
     last_projection_change = sre_internal_current_frame;
 }
 
-static void PrintMatrix4D(Matrix4D &m) {
-	printf("(%f %f %f %f, %f %f %f %f, %f %f %f %f, %f, %f, %f, %f)\n",
-		m.n[0][0], m.n[0][1], m.n[0][2], m.n[0][3],
-		m.n[1][0], m.n[1][1], m.n[1][2], m.n[1][3],
-		m.n[2][0], m.n[2][1], m.n[2][2], m.n[2][3],
-		m.n[3][0], m.n[3][1], m.n[3][2], m.n[3][3]);
-}
-
 // Set view direction and up vector based on current viewing angles.
 
 void sreView::CalculateViewDirection() {
-    Vector4D v4(0, 1, 0, 1);
+    Vector4D v4(0, 1.0f, 0, 1.0f);
     Matrix4D r1;
     r1.AssignRotationAlongZAxis(angles.z * M_PI / 180.0f);
     Matrix4D r2;
     r2.AssignRotationAlongXAxis(angles.x * M_PI / 180.0f);
-//    PrintMatrix4D(r1);
-//    PrintMatrix4D(r2);
-//    view_direction = ((r1 * r2) * v4).GetVector3D();
     Matrix4D r1_times_r2 = r1 * r2;
-//    PrintMatrix4D(r1_times_r2);
     view_direction = (r1_times_r2 * v4).GetVector3D();
 //    printf("angles.z = %f, angles.x = %f, direction = (%f, %f, %f)\n", angles.z, angles.x,
 //        view_direction.x, view_direction.y, view_direction.z);
-    Vector4D v5(0, 0, 1, 1);
+    Vector4D v5(0, 0, 1.0f, 1.0f);
     view_upvector = (r1_times_r2 * v5).GetVector3D();
+#if 0
+    char *s1, *s2;
+    s1 = view_direction.GetString();
+    s2 = view_upvector.GetString();
+    sreMessage(SRE_MESSAGE_INFO, "View direction: %s, up vector: %s", s1, s2);
+    delete [] s1;
+    delete [] s2;
+#endif
 }
 
 // Update lookat parameters (viewpoint, lookat position and up vector) and

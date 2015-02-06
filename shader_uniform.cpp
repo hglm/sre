@@ -62,9 +62,12 @@ static void GL3InitializeShaderWithMVP(int loc, const sreObject& so) {
 
 static void GL3InitializeShaderWithModelMatrix(int loc, const sreObject& so) {
 #ifdef OPENGL_ES2
-    Matrix4D m = Matrix4D(so.model_matrix);
+    // Convert Matrix4x3RM to Matrix4D.
+    Matrix4D m = so.model_matrix;
     glUniformMatrix4fv(loc, 1, GL_FALSE, (const float *)&m);
 #else
+    // so.model_matrix is in row-major format, the shader expects column-major, so
+    // set the transpose flag to GL_TRUE.
     glUniformMatrix4x3fv(loc, 1, GL_TRUE, (const float *)&so.model_matrix);
 #endif
 }

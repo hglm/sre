@@ -278,39 +278,3 @@ void GL3CalculateShadowMapMatrixAlwaysLight() {
         0.0f, 0.0f, 0.0f, 0.5f);
 }
 
-#if 0
-
-void GL3CalculateGeometryScissorsMatrixAndSetViewport(const sreScissors& scissors) {
-    Matrix4D clip_matrix;
-    if (scissors.left == - 1.0 && scissors.right == 1.0 && scissors.bottom == -1.0 && scissors.top == 1.0) {
-        sre_internal_geometry_matrix_scissors_projection_matrix = sre_internal_projection_matrix;
-        return;
-    }
-    float left_pixel = round((scissors.left + 1.0) * 0.5 * sre_internal_window_width);
-    float width_pixels = round((scissors.right + 1.0) * 0.5 * sre_internal_window_width) - left_pixel;
-    float bottom_pixel = round((scissors.bottom + 1.0) * 0.5 * sre_internal_window_height);
-    float height_pixels = round((scissors.top + 1.0) * 0.5 * sre_internal_window_height) - bottom_pixel;
-// printf("Scissors at (%f, %f) of size (%f, %f)\n", left_pixel, bottom_pixel, width_pixels, height_pixels);
-    float factor_x = sre_internal_window_width / width_pixels;
-    float factor_y = sre_internal_window_height / height_pixels;
-    float left = 2.0 * left_pixel / sre_internal_window_width - 1.0;
-    float width = 2.0 * width_pixels / sre_internal_window_width;
-    float bottom = 2.0 * bottom_pixel / sre_internal_window_height - 1.0;
-    float height = 2.0 * height_pixels / sre_internal_window_height;
-    // Set the matrix that maps clip space coordinates to where the scissors rectangle ranges from [-1, 1].
-    clip_matrix.Set(
-        factor_x, 0, 0, 1.0 - factor_x * (left + width),
-        0, factor_y, 0, 1.0 - factor_y * (bottom + height), 
-        0, 0, 1.0, 0,
-        0, 0, 0, 1.0
-        );
-    // x = left -> x_clip = factor_x * left + 1.0 - factor_x * (left + width);
-    //          = 1.0 + factor_x * (left - left - width)
-    //          = 1.0 - factor_x * width;
-    //          = 1.0 - factor_x * (2.0 / factor_x) = - 1.0 
-    glViewport(left_pixel, bottom_pixel, width_pixels, height_pixels);
-    glDepthFunc(GL_LEQUAL);
-    sre_internal_geometry_matrix_scissors_projection_matrix = clip_matrix * sre_internal_projection_matrix;
-}
-
-#endif
