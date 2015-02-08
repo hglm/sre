@@ -94,7 +94,9 @@ void sreScene::Render(sreView *view) {
     glEnable(GL_CULL_FACE);
     glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_TRUE);
+#ifdef OPENGL_ES2
     glDepthRangef(0, 1.0f);
+#endif
 
     CHECK_GL_ERROR("Error before frame.\n");
     if (sre_internal_HDR_enabled) {
