@@ -913,6 +913,9 @@ int array_buffer_flags, int nu_vertices) {
     else {
         glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
         glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
+#ifdef OPENGL_ES2
+        glDepthRangef(0, 1.0f);
+#endif
     }
 
     // Enable the vertex buffer of the model  (if it wasn't already set up).
@@ -958,6 +961,11 @@ int array_buffer_flags, int nu_vertices) {
         glDrawElements(mode, nu_vertices, GL_UNSIGNED_SHORT, (void *)0);
     else
         glDrawElements(mode, nu_vertices, GL_UNSIGNED_INT, (void *)0);
+
+#ifdef OPENGL_ES2
+    if (!(type & TYPE_DEPTH_PASS))
+        glDepthRangef(0, 0.99998f);
+#endif
 }
 
 // Draw shadow volume after it has been calculated.
@@ -1441,6 +1449,9 @@ const Vector4D& lightpos_model, sreLODModelShadowVolume *m, int type, int cache_
             // Depth-fail rendering.
             glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
             glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
+#ifdef OPENGL_ES2
+            glDepthRangef(0, 1.0f);
+#endif
             if ((type & (TYPE_SKIP_SIDES | TYPE_SKIP_DARKCAP | TYPE_SKIP_LIGHTCAP)) ==
             (TYPE_SKIP_DARKCAP | TYPE_SKIP_LIGHTCAP)) {
                 // Just sides required.
@@ -1489,6 +1500,9 @@ const Vector4D& lightpos_model, sreLODModelShadowVolume *m, int type, int cache_
                     DrawShadowVolumeGL(m, array_buffer_flags, cache_used);
 		}
             }
+#ifdef OPENGL_ES2
+            glDepthRangef(0, 0.99998f);
+#endif
         }
 
         // Add to the cache when applicable.

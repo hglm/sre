@@ -94,6 +94,7 @@ void sreScene::Render(sreView *view) {
     glEnable(GL_CULL_FACE);
     glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_TRUE);
+    glDepthRangef(0, 1.0f);
 
     CHECK_GL_ERROR("Error before frame.\n");
     if (sre_internal_HDR_enabled) {
@@ -188,6 +189,22 @@ void sreScene::Render(sreView *view) {
         // Perform the ambient pass.
         sre_internal_current_light_index = - 1;
         GL3InitializeShadersBeforeLight();
+#ifdef OPENGL_ES2
+        // With a tile-based rendering architecture like ARM Mali-400, depth values are
+	// non-deterministic between different lighting passes. The depth range mapping
+        // can be adjusted to remedy this. With stencil shadows, care must be taken that
+        // depth fail stencil shadows render correctly. The following glDepthRangef are
+        // used for different stencil shadows stages:
+        // - Ambient pass: Initialize depth buffer with depth range (0, 0.99999f).
+        // - Stencil shadow volume passes:
+        //  - Depth-pass shadow volumes: Use depth range (0, 0.99998f)
+        //  - Depth-fail shadow volumes: Use depth range (0, 1.0f)
+        // - Lighting passes: Use depth range (0, 0.99998f) to avoid artifacts when
+        //   depth values for the same fragment differ slightly between the lighting
+        //   pass and the ambient pass.
+        // - Final pass: Use depth range (0, 0.99999f).
+        glDepthRangef(0, 0.99999f);
+#endif
         // Render the ambient pass which also initializes the depth buffer.
         RenderVisibleObjectsAmbientPass(*frustum);
         // Perform the lighting passes.
@@ -202,24 +219,22 @@ void sreScene::Render(sreView *view) {
         glDepthMask(GL_FALSE);
         // On some OpenGL-ES2 GPU's, GL_EQUAL is slower than the default GL_LEQUAL
         // so only use GL_EQUAL with OpenGL.
-#ifndef OPENGL_ES2
+#if !defined(OPENGL_ES2)
         glDepthFunc(GL_EQUAL);
 #else
-        // Provide a small offset so that depth buffer precision is less of a problem
-        // for additive lighting passes with a non-deterministic tile-based rendering
-        // architecture.
-        glDepthRangef(0, 0.99999f);
+	// For OpenGL ES 2.0 with stencil shadows, glDepthRangef is used by
+        // RenderLightingPasses as appropriate.
 #endif
         RenderLightingPasses(frustum, view);
         // Perform the final pass.
         glDisable(GL_STENCIL_TEST);
         // Disable blending
         glDisable(GL_BLEND);
-#ifndef OPENGL_ES2
+#if !defined(OPENGL_ES2)
         // For OpenGL, restore the GL_LEQUAL depth test for the final pass.
         glDepthFunc(GL_LEQUAL);
 #else
-        glDepthRangef(0, 1.0f);
+        glDepthRangef(0, 0.99999f);
 #endif
         glDepthMask(GL_TRUE);
         RenderFinalPassObjectsMultiPass(*frustum);
@@ -245,6 +260,8 @@ void sreScene::Render(sreView *view) {
 #ifndef OPENGL_ES2
         glDepthFunc(GL_EQUAL); 
 #endif
+	// For OpenGL ES 2.0 with stencil shadows, glDepthRangef is used by
+        // RenderLightingPasses as appropriate.
         RenderLightingPasses(frustum, view);
         CHECK_GL_ERROR("Error after lighting pass (shadow mapping).\n");
         // Perform the final pass.
@@ -1005,7 +1022,7 @@ static void SetScissorsBeforeLight(const sreScissors& scissors) {
         glEnable(GL_SCISSOR_TEST);
         SetGLScissors(scissors);
     }
-    CHECK_GL_ERROR("Error after scissors set up.");
+    CHECK_GL_ERROR("Error after scissors set up.\n");
 
 #ifndef NO_DEPTH_BOUNDS
     if (GLEW_EXT_depth_bounds_test) {
@@ -1963,7 +1980,13 @@ void sreScene::RenderLightingPasses(sreFrustum *frustum, sreView *view) {
             glDisable(GL_BLEND);
             // Enable writes to the depth buffer.
             glDepthMask(GL_TRUE);
+#ifdef OPENGL_ES2
+	    glDepthRangef(0, 1.0f);
+#endif
             bool r = GL3RenderShadowMapWithOctree(this, *sre_internal_current_light, *frustum);
+#ifdef OPENGL_ES2
+            glDepthRangef(0, 0.99999f);
+#endif
             glDepthMask(GL_FALSE);
             if (!r) {
                 // There are no shadow casters and no shadow (or light) receivers for this light.
@@ -2024,7 +2047,15 @@ skip_scissors :
         glEnable(GL_STENCIL_TEST);
         // Disable blending.
         glDisable(GL_BLEND);
+#ifdef OPENGL_ES2
+        // Provide a small offset so that depth buffer precision is less of a problem
+        // for additive lighting passes with a non-deterministic tile-based rendering
+        // architecture. For depth-fail shadow volumes, the depth range will be temporarily
+        // reset to (0, 1.0f).
+        glDepthRangef(0, 0.99998f);
+#endif
         sreRenderShadowVolumes(this, sre_internal_current_light, *frustum);
+        glDepthRangef(0, 0.99998f);
 
         if ((sre_internal_scissors & SRE_SCISSORS_LIGHT_MASK) && !(sre_internal_current_light->type &
         SRE_LIGHT_DIRECTIONAL))
@@ -2048,7 +2079,6 @@ do_lighting_pass :
         // Render the objects affected by this light.
         GL3InitializeShadersBeforeLight();
         RenderVisibleObjectsLightingPass(*frustum, *sre_internal_current_light);
-
     }
     DisableScissors();
 
