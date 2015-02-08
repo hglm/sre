@@ -246,6 +246,8 @@ pipeline.
 
 Bugs as of February 2015:
 
+- On OpenGL, stencil shadows show occasional errors (for example in demo1).
+
 - Although stencil shadows (shadow volumes) mostly works for directional
   lights on the OpenGL-ES2 platform with Mali, there are some errors
   (objects frequently erroneously fall completely into shadow; possibly

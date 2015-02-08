@@ -215,7 +215,7 @@ const sreBoundingVolumeConvexHull &ch) {
         else if (dot <= - spherical_sector.sin_half_angular_size)
             // When the angle is 90 degrees or more greater than the half angular size,
             // the effective radius is precisely zero.
-            r_eff_squared = 0;
+            r_eff_squared = 0.0f;
         else {
             // Otherwise, r_eff varies, determined by the difference in distance to the
             // plane between the side of the spherical cap at the exterior end of the sector
@@ -223,11 +223,29 @@ const sreBoundingVolumeConvexHull &ch) {
             // plane normal and the plane delimiting the nearest side (which is the angle
             // between the plane normal and the axis minus the half angular size).
             //
-            // We can simply project the plane normal onto the sector axis to get this distance.
-            Vector3D V = ProjectOnto(ch.plane[i].GetVector3D(), spherical_sector.axis);
-            // Scale by the sector radius and use the squared distance to avoid square root
-            // calculation.
-            r_eff_squared = sqrf(spherical_sector.radius) * SquaredMag(V);
+            // r_eff =  spherical_sector.radius * sin(C)
+	    //      where C is the relevant angle.
+	    //
+	    // Given the following known values:
+	    // cos(Ha) = spherical_sector.cos_half_angular_size
+	    // sin(Ha) = spherical_sector.sin_half_angular_size
+	    // cos(B) = dot
+	    //
+	    // sin(C) is given by:
+	    // sin(C) = cos(Ha) * cos(B) + sin(Ha) * sin(B)
+	    //
+	    // which, when 0 <= B < = 0.5 * M_PI, is equal to
+	    // cos(Ha) * cos(B) + sin(Ha) * sqrt(1 - sqr(cos(B)))
+	    //
+            // Otherwise, we can calculate sin(B) as sin(acos(cos(B))).
+            float sin_B;
+            if (dot >= 0.0)
+                sin_B = sqrtf(1.0f - sqrf(dot));
+            else
+                sin_B = sinf(acosf(dot));
+            float sin_C = spherical_sector.cos_half_angular_size * dot +
+                    spherical_sector.sin_half_angular_size * sin_B;
+            r_eff_squared = sqrf(spherical_sector.radius) * sqrf(sin_C);
         }
         float dist = Dot(ch.plane[i], spherical_sector.center);
         if (dist <= 0.0f && sqrf(dist) >= r_eff_squared)
