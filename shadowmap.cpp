@@ -163,6 +163,8 @@ static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
 }
 
 static void RenderShadowMapFromCasterArray(sreScene *scene, const sreLight& light) {
+//    sreMessage(SRE_MESSAGE_INFO, "Rendering %d objects into shadow map for light %d.",
+//        scene->shadow_caster_array.Size(), light.id);
     for (int i = 0; i < scene->shadow_caster_array.Size(); i++)
         RenderShadowMapObject(scene->object[
             scene->shadow_caster_array.Get(i)], light);
@@ -915,6 +917,9 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
 #ifdef OPENGL_ES2
     glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_shadow_map_framebuffer[
         sre_internal_current_shadow_map_index]);
+    // DEBUG
+//    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
+//        sre_internal_depth_texture[sre_internal_current_shadow_map_index], 0);
 #else
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sre_internal_shadow_map_framebuffer[
         sre_internal_current_shadow_map_index]);
@@ -929,6 +934,7 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
     if (sre_internal_use_depth_clamping)
         glDisable(GL_DEPTH_CLAMP);
 #endif
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
     glClear(GL_DEPTH_BUFFER_BIT);
 
     // Clip the shadow receivers AABB against the AABB of the view frustum (including far plane).
@@ -1042,14 +1048,8 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
     // Clip the AABB against the shadow mapping region so that the AABB is not too large.
     UpdateAABBWithIntersection(AABB, frustum.shadow_map_region_AABB);
 #if 0
-    AABB.dim_min.x = maxf(AABB.dim_min.x, frustum.shadow_map_region_AABB.dim_min.x);
-    AABB.dim_max.x = minf(AABB.dim_max.x, frustum.shadow_map_region_AABB.dim_max.x);
-    AABB.dim_min.y = maxf(AABB.dim_min.y, frustum.shadow_map_region_AABB.dim_min.y);
-    AABB.dim_max.y = minf(AABB.dim_max.y, frustum.shadow_map_region_AABB.dim_max.y);
-    AABB.dim_min.z = maxf(AABB.dim_min.z, frustum.shadow_map_region_AABB.dim_min.z);
-    AABB.dim_max.z = minf(AABB.dim_max.z, frustum.shadow_map_region_AABB.dim_max.z);
-// printf("AABB = (%f, %f, %f) - (%f, %f, %f)\n", AABB.dim_min.x, AABB.dim_min.y, AABB.dim_min.z,
-//    AABB.dim_max.x, AABB.dim_max.y, AABB.dim_max.z);
+printf("AABB = (%f, %f, %f) - (%f, %f, %f)\n", AABB.dim_min.x, AABB.dim_min.y, AABB.dim_min.z,
+    AABB.dim_max.x, AABB.dim_max.y, AABB.dim_max.z);
 #endif
 #if 0
     // Calculate the vertex for which the plane defined by the light direction is furthest from the center
@@ -1078,8 +1078,8 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
     AABB_vertex[5] = Point3D(AABB.dim_max.x, AABB.dim_min.y, AABB.dim_max.z);
     AABB_vertex[6] = Point3D(AABB.dim_min.x, AABB.dim_max.y, AABB.dim_max.z);
     AABB_vertex[7] = Point3D(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_max.z);
-    Point3D center = Point3D(0, 0, 0) + 0.5 * (AABB.dim_min + AABB.dim_max);
-    float max_dist = 0;
+    Point3D center = Point3D(0.0f, 0.0f, 0.0f) + 0.5f * (AABB.dim_min + AABB.dim_max);
+    float max_dist = 0.0f;
     Vector4D K_temp, K;
     for (int i = 0; i < 8; i++) {
         K_temp = Vector4D(light.vector.GetVector3D(), - Dot(AABB_vertex[i], light.vector.GetVector3D()));
@@ -1089,7 +1089,7 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
             K = K_temp;
         }
     }
-    if (max_dist == 0) {
+    if (max_dist == 0.0f || isnan(max_dist)) {
         sreMessage(SRE_MESSAGE_WARNING,
             "Warning: Max distance from camera for directional light shadow map is invalid.");
     }
@@ -1163,6 +1163,7 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
         glBindFramebuffer(GL_FRAMEBUFFER, sre_internal_HDR_multisample_framebuffer);
     else
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     glViewport(0, 0, sre_internal_window_width, sre_internal_window_height);
     glCullFace(GL_BACK);
     glEnable(GL_CULL_FACE);
@@ -1198,8 +1199,10 @@ void sreScene::sreVisualizeShadowMap(int light_index, sreFrustum *frustum) {
     glDepthMask(GL_FALSE);
     // The shadow map generation binds the multi-sample framebuffer when finished, switch
     // back to the final framebuffer.
+#ifndef NO_HDR
     if (sre_internal_HDR_enabled)
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+#endif
     // Disable the depth test.
     glDisable(GL_DEPTH_TEST);
 

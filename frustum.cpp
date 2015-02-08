@@ -112,20 +112,20 @@ void sreFrustum::Calculate() {
     if (sre_internal_shadows == SRE_SHADOWS_SHADOW_MAPPING) {
         Point3DPadded vertex[8], vertex2[8];
         sreBoundingVolumeAABB AABB = sre_internal_shadow_map_AABB;
-        vertex[0] = Point3D(AABB.dim_min.x, AABB.dim_min.y, AABB.dim_min.z);
-        vertex[1] = Point3D(AABB.dim_max.x, AABB.dim_min.y, AABB.dim_min.z);
-        vertex[2] = Point3D(AABB.dim_min.x, AABB.dim_max.y, AABB.dim_min.z);
-        vertex[3] = Point3D(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_min.z);
-        vertex[4] = Point3D(AABB.dim_min.x, AABB.dim_min.y, AABB.dim_max.z);
-        vertex[5] = Point3D(AABB.dim_max.x, AABB.dim_min.y, AABB.dim_max.z);
-        vertex[6] = Point3D(AABB.dim_min.x, AABB.dim_max.y, AABB.dim_max.z);
-        vertex[7] = Point3D(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_max.z);
+        vertex[0] = Point3DPadded(AABB.dim_min.x, AABB.dim_min.y, AABB.dim_min.z);
+        vertex[1] = Point3DPadded(AABB.dim_max.x, AABB.dim_min.y, AABB.dim_min.z);
+        vertex[2] = Point3DPadded(AABB.dim_min.x, AABB.dim_max.y, AABB.dim_min.z);
+        vertex[3] = Point3DPadded(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_min.z);
+        vertex[4] = Point3DPadded(AABB.dim_min.x, AABB.dim_min.y, AABB.dim_max.z);
+        vertex[5] = Point3DPadded(AABB.dim_max.x, AABB.dim_min.y, AABB.dim_max.z);
+        vertex[6] = Point3DPadded(AABB.dim_min.x, AABB.dim_max.y, AABB.dim_max.z);
+        vertex[7] = Point3DPadded(AABB.dim_max.x, AABB.dim_max.y, AABB.dim_max.z);
         dstMatrixMultiplyVectors1xN(8, inverse_view_matrix, vertex, vertex2);
         sreBoundingVolumeAABB empty_AABB;
         empty_AABB.dim_min =
-            Point3D(POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT, POSITIVE_INFINITY_FLOAT);
+            Point3D(FLT_MAX, FLT_MAX, FLT_MAX);
         empty_AABB.dim_max =
-            Point3D(NEGATIVE_INFINITY_FLOAT, NEGATIVE_INFINITY_FLOAT, NEGATIVE_INFINITY_FLOAT);
+            Point3D(- FLT_MAX, - FLT_MAX, - FLT_MAX);
 #ifdef USE_SIMD
         sreBoundingVolumeAABB_SIMD region_AABB;
         region_AABB.Set(empty_AABB);
@@ -138,6 +138,11 @@ void sreFrustum::Calculate() {
         region_AABB.Get(shadow_map_region_AABB);
 #else
         shadow_map_region_AABB = region_AABB;
+#endif
+#if 0
+        sreMessage(SRE_MESSAGE_LOG, "Shadow map region AABB = (%f, %f, %f) - (%f, %f, %f)\n",
+            shadow_map_region_AABB.dim_min.x, shadow_map_region_AABB.dim_min.y, shadow_map_region_AABB.dim_min.z,
+            shadow_map_region_AABB.dim_max.x, shadow_map_region_AABB.dim_max.y, shadow_map_region_AABB.dim_max.z);
 #endif
     }
 #endif

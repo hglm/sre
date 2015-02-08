@@ -139,10 +139,17 @@ Vector3D y_direction, Vector3D dim_min, Vector3D dim_max) {
     MatrixTransform M;
     // Note that the y direction has to be negated in order to preserve the handedness of
     // triangles when rendering the shadow map.
+#if 0
+    M.Set(
+        x_direction.x, y_direction.x, - light_direction.x, 0.0f,
+	x_direction.x, y_direction.y, - light_direction.y, 0.0f,
+	x_direction.z, y_direction.z, - light_direction.z, 0.0f);
+#else
     M.Set(
         x_direction.x, x_direction.y, x_direction.z, 0.0f,
         - y_direction.x, - y_direction.y, - y_direction.z, 0.0f,
         - light_direction.x, - light_direction.y, - light_direction.z, 0.0f);
+#endif
     MatrixTransform T;
     T.AssignTranslation(- viewp);
     // Set orthographic projection matrix.
@@ -159,6 +166,29 @@ Vector3D y_direction, Vector3D dim_min, Vector3D dim_max) {
         0.0f, 0.5f, 0.0f, 0.5f,
         0.0f, 0.0f, 0.5f, 0.5f);
     shadow_map_lighting_pass_matrix = shadow_map_viewport_matrix * shadow_map_matrix;
+
+#if 0
+    char *dim_max_str = dim_max.GetString();
+    sreMessage(SRE_MESSAGE_LOG, "dim_max = %s", dim_max_str);
+    delete [] dim_max_str;
+    Point3D P1 = viewp + light_direction * dim_max.z;
+    Point3D P2 = viewp;
+    Point3D P3 = viewp + x_direction * dim_max.x + y_direction * dim_max.y;
+    Vector4D P1_proj = shadow_map_matrix * P1;
+    Vector4D P2_proj = shadow_map_matrix * P2;
+    Vector4D P3_proj = shadow_map_matrix * P3;
+    Vector3D P1_norm = P1_proj.GetVector3D();
+    Vector3D P2_norm = P2_proj.GetVector3D();
+    Vector3D P3_norm = P3_proj.GetVector3D();
+    char *P1_norm_str = P1_norm.GetString();
+    char *P2_norm_str = P2_norm.GetString();
+    char *P3_norm_str = P3_norm.GetString();
+    sreMessage(SRE_MESSAGE_LOG, "CalculateShadowMapMatrix: Point transformations "
+        "%s, %s and %s.", P1_norm_str, P2_norm_str, P3_norm_str);
+    delete P1_norm_str;
+    delete P2_norm_str;
+    delete P3_norm_str;
+#endif
 }
 
 void GL3CalculateCubeShadowMapMatrix(Vector3D light_position, Vector3D zdir,

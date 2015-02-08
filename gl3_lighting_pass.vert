@@ -205,6 +205,8 @@ void main() {
 
 #ifdef SHADOW_MAP 
 	shadow_map_coord_var = (shadow_map_transformation_matrix * position_in).xyz;
+	// shadow_map_coord_var maps to ([0, 1.0], [0, 1.0], [0, 1.0]) for the shadow
+	// map region.
 #endif
 
 	// Precalculate shadow map parameters for directional and beam lights.
@@ -239,6 +241,10 @@ void main() {
         // Limit slope to 100.0.
 	slope_var = min(slope_var, 100.0);
 
+#ifdef GL_ES
+	// GLES2 currently uses only 16-bit depth buffers.
+	shadow_map_depth_precision_var = 0.5 / pow(2.0, 16.0);
+#else
 	// Set depth buffer precision.
 	if (shadow_map_dimensions_in.w >= 2047.0)
 		// Float depth buffer.
@@ -246,6 +252,7 @@ void main() {
 	else
 		// Half-float depth buffer.
 	        shadow_map_depth_precision_var = 0.5 / pow(2.0, 11.0);
+#endif
 	shadow_map_dimensions_var = shadow_map_dimensions_in.xyz;
 #endif // defined(SHADOW_MAP)
 

@@ -84,12 +84,16 @@ void main() {
 	slope = min(slope, 100.0);
 	// Set depth buffer precision.
 	float shadow_map_depth_precision;
+#ifdef GL_ES
+        shadow_map_depth_precision = 1.0 / pow(2.0, 16.0);
+#else
 	if (shadow_map_dimensions_in.w >= 2047.0)
 		// Float depth buffer.
 		shadow_map_depth_precision = 0.5 / pow(2.0, 23.0);
 	else
 		// Half-float depth buffer.
 	        shadow_map_depth_precision = 0.5 / pow(2.0, 11.0);
+#endif
 	float reprocical_shadow_map_size = 1.0 / shadow_map_dimensions_in.w;
 	// Directional or beam light. Calculate bias.
 	// Apply bias to all triangles of non-closed-objects.
@@ -115,7 +119,14 @@ void main() {
 	position_world_var = (model_matrix * position_in).xyz;
 	gl_Position = MVP * position_in;
 #else
+#ifdef GL_ES
+	// With OpenGL ES 2.0, the transformed vertex position needs to generate the correct
+	// depth value for the fixed-function pipeline.
 	gl_Position = vec4((MVP * position_in).xyz, 1.0);
+#else
+	// The w value does not matter.
+	gl_Position = vec4((MVP * position_in).xyz, 1.0);
+#endif
 #endif
 }
 

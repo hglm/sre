@@ -30,7 +30,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // Enabling shadows degrades performance significantly on OpenGL ES 2.0
 // devices.
-//#define SHADOWS
+#define SHADOWS
 
 #ifndef OPENGL_ES2
 #define BUMP_MAPPED_SPHERE

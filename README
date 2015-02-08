@@ -5,7 +5,7 @@ Edit Makefile.conf to edit the configuration. It is possible to
 compile the library and demo program without installing by setting
 the library configuration to STATIC.
 
-The current version as of July 2014 has been tested and works
+The current version as of February 2015 has been tested and works
 correctly with full features with OpenGL on a Linux PC platform,
 although it has not been tested much beyond a discrete NVIDIA GPU.
 On NVIDIA-based devices, installing NVIDIA's optimized Linux drivers
@@ -31,7 +31,7 @@ one of which must be supplied as an argument. For example,
 "./sre-demo demo10".
 
 Demos that should work include demo1, demo2, demo5, demo6, demo7, demo8,
-demo9, demo10 and demo11.
+demo9, demo10, demo11, demo12 and demo13.
 
 game is simple game in which a ball must be pushed onto the ground.
 
@@ -94,16 +94,20 @@ and moving objects near point-source lights can present a problem for
 shadow volumes because the CPU has to calculate the silhouettes/shadow
 volume every frame; this is mainly a problem when the triangle count
 for shadow casting objects is high. In other situation (for example
-with a directional light), the shadow cache ensures good peformance.
+with a directional light), the shadow cache ensures good performance.
+Stencil shadows also work with OpenGL ES 2.0, but performance may be
+slow and there may be errors.
 
 The shadow mapping implementation uses a regular shadow map with
 configurable resolution as well as cube shadow maps for point lights
 and spot lights. It is fairly optimized with regard to only rendering
 objects that can cast a shadow. There might be some pixelization near
-the shadow edges. Increasing the resolution of the shadow map helps
-but has limitations. In some cases "shadow acne" may be observed. The
-advantage of shadow mapping is that it is much less affected by slow
-downs with moving objects near point source lights or moving lights.
+the shadow edges. The library tries to automatically select a suitably
+high resolution for the shadow map but this has limitations. In some
+cases "shadow acne" may be observed. The advantage of shadow mapping 
+is that it is much less affected by slowdowns with moving objects near
+point source lights or moving lights. Shadow mapping works with
+OpenGL ES 2.0, but only for one directional light.
 
 --- Models/Objects ---
 
@@ -242,6 +246,16 @@ pipeline.
 
 Bugs as of February 2015:
 
+- Although stencil shadows (shadow volumes) mostly works for directional
+  lights on the OpenGL-ES2 platform with Mali, there are some errors
+  (objects frequently erroneously fall completely into shadow; possibly
+  related to depth-fail shadow volume rendering).
+
+- Shadow mapping for point and spot light shadows do not work with
+  OpenGL ES 2.0, and would be hard to make to work because storing distances
+  rather than depth is not compatible with the OpenGL-ES2 extensions depth
+  (cube) map textures.
+
 3. To do list.
 
 - sreScene::visible_object and sreScene::final_pass_object should be
@@ -252,7 +266,6 @@ Bugs as of February 2015:
   required for a particular cube face, the corresponding cube map face
   could potentially be defined as a small, empty shadow map that takes less
   memory and does not need to be cleared.
-
 
 4. Potential improvements that are not yet implemented.
 

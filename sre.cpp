@@ -680,6 +680,8 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
         glBindTexture(GL_TEXTURE_2D, sre_internal_depth_texture[level]);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         // Use 16-bit half-float precision. 32-bit float precision might be an option
         // on fast hardware.
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, size, size, 0,

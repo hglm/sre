@@ -46,7 +46,16 @@ varying float bias_var;
 #ifdef GL_ES
 
 void WriteDepth(float z) {
+#if defined(CUBE_MAP) || defined(SPOTLIGHT)
+	// We want to write the distance, which might be impossible in OpenGL ES 2.0
+	// depending on the implementation of GL_OES_depth_texture_cube_map.
+	// At least make the shader depend on z to avoid compilation errors.
 	gl_FragColor.z = z;
+#else
+	// With OpenGL ES 2.0, the depth is written using as a fixed function
+	// side effect, the color doesn't matter.
+	gl_FragColor = vec4(1.0);
+#endif
 }
 
 #else

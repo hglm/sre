@@ -2,7 +2,7 @@
 
 include Makefile.conf
 
-VERSION = 0.4
+VERSION = 0.5
 VERSION_MAJOR = 0
 
 CCPLUSPLUS = g++
@@ -41,9 +41,7 @@ endif
 
 # CFLAGS with optional tuning for CPU
 ifeq ($(LIBRARY_CONFIGURATION), DEBUG)
-# Using some optimization helps propagating constants which can otherwise
-# break debugging version compilation.
-OPTCFLAGS = -ggdb -O
+OPTCFLAGS = -ggdb
 else
 OPTCFLAGS = -Ofast -ffast-math
 endif
