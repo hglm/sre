@@ -44,7 +44,7 @@ static void SetFrustum(sreScene *scene, sreFrustum *frustum, sreView *view) {
     Point3D viewpoint = view->GetViewPoint();
     Vector3D lookat = view->GetLookatPosition();
     Vector3D upvector = view->GetUpVector();
-    GL3LookAt(viewpoint.x, viewpoint.y, viewpoint.z, lookat.x, lookat.y, lookat.z,
+    sreLookAt(viewpoint.x, viewpoint.y, viewpoint.z, lookat.x, lookat.y, lookat.z,
         upvector.x, upvector.y, upvector.z);
 
     // Set the viewpoint for shader set-up.

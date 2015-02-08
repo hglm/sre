@@ -58,7 +58,7 @@ Vector3D sre_internal_camera_vector;
 // shaders are loaded.
 float sre_internal_aspect_ratio;
 
-void GL3Perspective(float fov, float aspect, float nearp, float farp) {
+void srePerspective(float fov, float aspect, float nearp, float farp) {
 #if 0
     float f = 1 / tan((fov * M_PI/ 180) / 2);
     projection_matrix.Set(
@@ -85,7 +85,7 @@ void GL3Perspective(float fov, float aspect, float nearp, float farp) {
         0.0f, 0.0f, - 1.0f, 0.0f);
 }
 
-void GL3PerspectiveTweaked(float fov, float aspect, float nearp, float farp) {
+void srePerspectiveTweaked(float fov, float aspect, float nearp, float farp) {
     if (aspect != sre_internal_aspect_ratio) {
         sre_internal_aspect_ratio = aspect;
         sre_internal_aspect_changed = true;
@@ -97,15 +97,15 @@ void GL3PerspectiveTweaked(float fov, float aspect, float nearp, float farp) {
     float b = - (1 / aspect) * n / e;
     float t = (1 / aspect) * n / e;
     // Set up a projection matrix with an infinite view frustum. Tweaked with small constant epsilon.
-    const float epsilon = 0.001;
+    const float epsilon = 0.001f;
     sre_internal_projection_matrix.Set(
         2 * n / (r - l), 0.0f, (r + l) / (r - l), 0.0f,
         0.0f, 2 * n / (t - b), (t + b) / (t - b), 0.0f,
-        0.0f, 0.0f, epsilon - 1.0f, n * (epsilon - 2),
+        0.0f, 0.0f, epsilon - 1.0f, n * (epsilon - 2.0f),
         0.0f, 0.0f, - 1.0f, 0.0f);
 }
 
-void GL3LookAt(float viewpx, float viewpy, float viewpz, float lookx, float looky, float lookz,
+void sreLookAt(float viewpx, float viewpy, float viewpz, float lookx, float looky, float lookz,
 float upx, float upy, float upz) {
     Vector3D F = Vector3D(lookx, looky, lookz) - Vector3D(viewpx, viewpy, viewpz);
     Vector3D Up = Vector3D(upx, upy, upz);

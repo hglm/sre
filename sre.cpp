@@ -945,13 +945,13 @@ skip_cube_shadow_map:
 #endif
     if (!sre_internal_use_depth_clamping)
         // Use a tweaked matrix to avoid precision problems for normalized device coordinates close to 1.
-        GL3PerspectiveTweaked(60.0 * default_zoom, (float)window_width / window_height, sre_internal_near_plane_distance, - 1.0);
+        srePerspectiveTweaked(60.0f * default_zoom, (float)window_width / window_height, sre_internal_near_plane_distance, - 1.0f);
 #if !defined(NO_DEPTH_CLAMP)
     else {
         glEnable(GL_DEPTH_CLAMP);
         CHECK_GL_ERROR("Error after enabling depth clamping.\n");
         // Set up perspective with infinite far plane.
-        GL3Perspective(60.0 * default_zoom, (float)window_width / window_height, sre_internal_near_plane_distance, - 1.0);
+        srePerspective(60.0f * default_zoom, (float)window_width / window_height, sre_internal_near_plane_distance, - 1.0f);
     }
 #endif
 
@@ -1018,12 +1018,15 @@ skip_stencil_shadow_volumes :
 }
 
 void sreResize(sreView *view, int window_width, int window_height) {
-// Note: tweaked perspective matrix not supported.
     sre_internal_window_width = window_width;
     sre_internal_window_height = window_height;
     glViewport(0, 0, window_width, window_height);
-    GL3Perspective(60.0 * view->GetZoom(),
-       (float)window_width / window_height, sre_internal_near_plane_distance, - 1.0);
+    if (sre_internal_use_depth_clamping)
+        srePerspective(60.0f * view->GetZoom(),
+           (float)window_width / window_height, sre_internal_near_plane_distance, - 1.0f);
+    else
+        srePerspectiveTweaked(60.0f * view->GetZoom(),
+           (float)window_width / window_height, sre_internal_near_plane_distance, - 1.0f);
 #ifndef NO_HDR
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDeleteRenderbuffers(1, &sre_internal_HDR_multisample_color_renderbuffer);
@@ -1108,14 +1111,18 @@ void sreMessage(int priority, const char *format, ...) {
 }
 
 // Globally apply new zoom settings. Default field of view is 60 degrees.
-// Note: tweaked perspective matrix not supported.
 
 void sreApplyNewZoom(sreView *view) {
     // Some effects shaders that work in screen coordinates need access to the zoom factor.
     sre_internal_zoom = view->GetZoom();
-    GL3Perspective(60.0f * sre_internal_zoom,
-        (float)sre_internal_window_width / sre_internal_window_height,
-        sre_internal_near_plane_distance, - 1.0);
+    if (sre_internal_use_depth_clamping)
+        srePerspective(60.0f * sre_internal_zoom,
+            (float)sre_internal_window_width / sre_internal_window_height,
+            sre_internal_near_plane_distance, - 1.0f);
+    else
+        srePerspectiveTweaked(60.0f * sre_internal_zoom,
+            (float)sre_internal_window_width / sre_internal_window_height,
+            sre_internal_near_plane_distance, - 1.0f);
 }
 
 // sreView

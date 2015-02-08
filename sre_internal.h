@@ -119,10 +119,9 @@ extern Vector4D sre_internal_current_shadow_map_dimensions;
 extern Matrix3D *sre_internal_standard_UV_transformation_matrix;
 
 // Defined in shader_matrix.cpp:
-SRE_LOCAL void GL3Perspective(float fov, float aspect, float nearp, float farp);
-SRE_LOCAL void GL3PerspectiveTweaked(float fov, float aspect, float nearp, float farp);
-SRE_LOCAL void GL3SkyPerspective(float fov, float aspect, float nearp, float farp);
-SRE_LOCAL void GL3LookAt(float viewpx, float viewpy, float viewpz, float lookx, float looky, float lookz, float upx, float upy,
+SRE_LOCAL void srePerspective(float fov, float aspect, float nearp, float farp);
+SRE_LOCAL void srePerspectiveTweaked(float fov, float aspect, float nearp, float farp);
+SRE_LOCAL void sreLookAt(float viewpx, float viewpy, float viewpz, float lookx, float looky, float lookz, float upx, float upy,
     float upz);
 SRE_LOCAL void GL3CalculateShadowMapMatrix(Vector3D viewpoint, Vector3D light_direction, Vector3D normal_x, Vector3D normal_y,
     Vector3D dim_min, Vector3D dim_max);
