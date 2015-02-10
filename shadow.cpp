@@ -451,7 +451,6 @@ model_not_closed :
 #endif
         ea->SetFaceType(i, face_flags);
     }
-#if 1
     for (int i = 0; i < m->nu_edges; i++) {
         ModelEdge *e = &m->edge[i];
         unsigned char face_type0 = ea->GetFaceType(e->triangle_index[0]);
@@ -492,10 +491,12 @@ model_not_closed :
         }
         // The edge is part of a non-closed model that is not a single plane and not an
         // object for which the open side is hidden from lights.
+#if 0
         if (AlmostEqual(Dot(m->triangle[e->triangle_index[0]].normal,
         m->triangle[e->triangle_index[1]].normal), 1.0f))
-            // Ignore (interior) edges between triangles in the same plane.
-            continue;
+           // Ignore (interior) edges between triangles in the same plane.
+           continue;
+#endif
         unsigned int reversed_bit0 = (unsigned int)face_type0 << 31;
         unsigned int reversed_bit1 = (unsigned int)face_type1 << 31;
         if (reversed_bit0 != reversed_bit1) {
@@ -503,107 +504,6 @@ model_not_closed :
             ea->AppendEdge(i | reversed_bit0);
         }
     }
-#else
-    for (int i = 0; i < m->nu_edges; i++) {
-        ModelEdge *e = &m->edge[i];
-        if (e->triangle_index[1] == -1) {
-            // The edge has only one triangle. 
-            bool swapped = false;
-            if (!ea->IsLightFacing(e->triangle_index[0]))
-                swapped = true;
-            if (e->vertex_index[1] < e->vertex_index[0])
-                swapped = !swapped;
-            int vertex_index0, vertex_index1;
-            if (swapped) {
-                vertex_index0 = e->vertex_index[1];
-                vertex_index1 = e->vertex_index[0];
-            }
-            else {
-                vertex_index0 = e->vertex_index[0];
-                vertex_index1 = e->vertex_index[1];
-            }
-            // Have to make sure normal of side triangle will be pointed outward from the shadow volume.
-            Vector3D light_direction = lightpos.w * m->vertex[m->triangle[e->triangle_index[0]]
-                .vertex_index[0]] - lightpos.GetPoint3D();
-            if (lightpos.w > 0)
-                light_direction.Normalize();
-            Vector3D E = m->vertex[vertex_index1] - m->vertex[vertex_index0];
-            Vector3D N = Cross(E, light_direction);
-            N.Normalize();
-            // Calculate the plane perpendicular to the light direction going through edge vertex 0.
-            Vector4D L = Vector4D(light_direction, - Dot(light_direction, m->vertex[vertex_index0]));
-            // Move the model's center along the light direction to the plane L.
-            Point3D center = ea->full_model->sphere.center - light_direction
-                * Dot(L, ea->full_model->sphere.center);
-            // Calculate the plane of the side triangle going through edge vertex 0.
-            Vector4D K = Vector4D(N, - Dot(N, m->vertex[vertex_index0]));
-            // Make sure the normal is pointed outward by taking the distance to the projected center.
-            if ((Dot(K, center) < 0) ^ swapped)
-                ea->AppendEdge(i);
-            else
-                ea->AppendEdgeReversed(i);
-            continue;
-        }
-        // Check the orientation of the faces with the respect to the light to determine the
-        // silhouette edge.
-        unsigned char face_type0 = ea->GetFaceType(e->triangle_index[0]);
-        unsigned char face_type1 = ea->GetFaceType(e->triangle_index[1]);
-#if 0
-        if ((face_type0 & PERPENDICULAR_TO_LIGHT) || (face_type1 & PERPENDICULAR_TO_LIGHT)) {
-            printf("At least one face perpendicular to light (edge %d).\n", i);
-            if ((face_type0 & 1) != (face_type1 & 1)) {
-                if ((face_type0 & 1) == NON_LIGHT_FACING)
-                    ea->AppendEdge(e);
-                else
-                    ea->AppendEdgeReversed(e);
-                continue;
-            }
-            printf("Further test necessary.\n");
-            bool swapped = false;
-            if ((face_type0 & 1) == NON_LIGHT_FACING)
-                swapped = true;
-            int vertex_index0, vertex_index1;
-            if (swapped) {
-                vertex_index0 = e->vertex_index[1];
-                vertex_index1 = e->vertex_index[0];
-            }
-            else {
-                vertex_index0 = e->vertex_index[0];
-                vertex_index1 = e->vertex_index[1];
-            }
-            // Have to make sure normal of side triangle will be pointed outward from the shadow volume.
-            Vector3D light_direction = lightpos.w * m->vertex[m->triangle[e->triangle_index[0]].vertex_index[0]] -
-                lightpos.GetPoint3D();
-            if (lightpos.w > 0)
-                light_direction.Normalize();
-            Vector3D E = m->vertex[vertex_index1] - m->vertex[vertex_index0];
-            Vector3D N = Cross(E, light_direction);
-            N.Normalize();
-            // Calculate the plane perpendicular to the light direction going through edge vertex 0.
-            Vector4D L = Vector4D(light_direction, - Dot(light_direction, m->vertex[vertex_index0]));
-            // Move the model's center along the light direction to the plane L.
-            Point3D center = ea->full_model->sphere.center - light_direction * Dot(L, ea->full_model->sphere.center);
-            // Calculate the plane of the side triangle going through edge vertex 0.
-            Vector4D K = Vector4D(N, - Dot(N, m->vertex[vertex_index0]));
-            // Make sure the normal is pointed outward by taking the distance to the projected center.
-            if ((Dot(K, center) < 0) ^ swapped)
-                ea->AppendEdge(i);
-            else
-                ea->AppendEdgeReversed(i);
-            continue;
-        }
-#endif
-        if ((face_type0 & SRE_FACE_FLAG_LIGHT_FACING)
-        != (face_type1 & SRE_FACE_FLAG_LIGHT_FACING)) {
-            // Convention is that e0 to e1 is counterclockwise in face 0 and clockwise in
-            // face 1.
-            if (!(face_type0 & SRE_FACE_FLAG_LIGHT_FACING))
-                ea->AppendEdge(i);
-            else
-                ea->AppendEdgeReversed(i);
-        }
-    }
-#endif
     return;
 
 //    printf("Found %d edges in silhouette\n", ea->nu_edges);
@@ -988,19 +888,7 @@ add_dark_cap_not_closed_int :
 
 static void FinishDrawingShadowVolume(int type, sreLODModelShadowVolume *model, GLuint opengl_id,
 int array_buffer_flags, int nu_vertices) {
-    if (type & TYPE_COMPLEX_NON_CLOSED)
-        if (type & TYPE_DEPTH_PASS) {
-            glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
-            glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
-        }
-        else {
-            glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
-            glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
-#ifdef OPENGL_ES2
-            glDepthRangef(0, 1.0f);
-#endif
-        }
-    else if (type & TYPE_DEPTH_PASS) {
+    if (type & TYPE_DEPTH_PASS) {
         glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
         glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
     }
@@ -1495,14 +1383,8 @@ const Vector4D& lightpos_model, sreLODModelShadowVolume *m, int type, int cache_
         nu_shadow_volume_vertices = 0;
         if (type & TYPE_DEPTH_PASS) {
             // Depth-pass rendering.
-             if (type & TYPE_COMPLEX_NON_CLOSED) {
-                glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
-                glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
-            }
-            else {
-                glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
-                glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
-            }
+            glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
+            glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
             if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES)
             && cache_used != 0 && (light->type & (SRE_LIGHT_DIRECTIONAL | SRE_LIGHT_BEAM))
             && !(m->flags & (SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_CONTAINS_HOLES))) {
@@ -1546,14 +1428,8 @@ const Vector4D& lightpos_model, sreLODModelShadowVolume *m, int type, int cache_
         }
         else {
             // Depth-fail rendering.
-             if (type & TYPE_COMPLEX_NON_CLOSED) {
-                glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
-                glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
-            }
-            else {
-                glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
-                glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
-            }
+            glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
+            glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
 #ifdef OPENGL_ES2
             glDepthRangef(0, 1.0f);
 #endif
