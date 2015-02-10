@@ -520,7 +520,7 @@ model_not_closed :
     nu_shadow_volume_vertices++;
 
 #define NU_ELEMENT_BUFFERS 1
-static GLuint element_buffer_id[NU_ELEMENT_BUFFERS];
+static GLuint *element_buffer_id = NULL;
 static int current_element_buffer;
 static GLuint last_vertexbuffer_id;
 
@@ -2220,8 +2220,11 @@ void sreRenderShadowVolumes(sreScene *scene, sreLight *light, sreFrustum &frustu
     }
 
     // One-pass two-sided stencil rendering.
-    for (int i = 0; i < NU_ELEMENT_BUFFERS; i++)
-        glGenBuffers(1, &element_buffer_id[i]);
+    if (element_buffer_id == NULL) {
+        element_buffer_id = new GLuint[NU_ELEMENT_BUFFERS];
+        for (int i = 0; i < NU_ELEMENT_BUFFERS; i++)
+            glGenBuffers(1, &element_buffer_id[i]);
+    }
     current_element_buffer = 0;
 
     last_vertexbuffer_id = 0xFFFFFFFF;
@@ -2239,7 +2242,57 @@ void sreRenderShadowVolumes(sreScene *scene, sreLight *light, sreFrustum &frustu
     custom_depth_bounds_set = false;
 
     // Clear the stencil buffer, taking advantage of the scissor region.
-    glClear(GL_STENCIL_BUFFER_BIT);
+    if (!sre_internal_stencil_buffer_is_clear) {
+        if (!(sre_internal_scissors & SRE_SCISSORS_LIGHT_MASK)) {
+            glClear(GL_STENCIL_BUFFER_BIT);
+        }
+        else if (light->type & SRE_LIGHT_DIRECTIONAL) {
+            glClear(GL_STENCIL_BUFFER_BIT);
+            sre_internal_last_stencil_scissors_region.SetFullRegion();
+        }
+        else {
+            // Calculate the intersection of the current light scissors and
+            // sre_internal_last_stencil_scissors_region.
+            sreScissors scissors = frustum.scissors;
+            scissors.UpdateRegionWithIntersection(sre_internal_last_stencil_scissors_region);
+            if (scissors.RegionIsEmpty()) {
+                // The regions do not overlap.
+                // Clear the light scissors region.
+                glClear(GL_STENCIL_BUFFER_BIT);
+                sre_internal_last_stencil_scissors_region.UpdateRegionWithUnion(frustum.scissors);
+            }
+            else {
+                // The regions overlap. scissors contains the intersection.
+                sre_internal_last_stencil_scissors_region.UpdateRegionWithUnion(frustum.scissors);
+#if 0
+                if (sre_internal_last_stencil_scissors_region.Area() <= 1.5f * frustum.scissors.Area()) {
+                    // When the total dirty region after the current operation is not that much larger
+                    // that the light scissors region, extend the region to the total dirty region.
+                    sre_internal_last_stencil_scissors_region = frustum.scissors;
+                    sre_internal_last_stencil_scissors_region.SetGL();
+                    sreMessage(SRE_MESSAGE_INFO,
+                        "Light %d scissors area %f, clear area %f, new dirty region area %f.",
+                        light->id, frustum.scissors.Area(),
+                        sre_internal_last_stencil_scissors_region.Area(),
+                        sre_internal_last_stencil_scissors_region.Area());
+                }
+                else {
+#endif
+                    scissors.SetGL();
+#if 0
+                    sreMessage(SRE_MESSAGE_INFO,
+                        "Light %d scissors area %f, clear area %f, new dirty region area %f.",
+                        light->id, frustum.scissors.Area(),
+                        scissors.Area(),
+                        sre_internal_last_stencil_scissors_region.Area());
+#endif
+//                }
+                glClear(GL_STENCIL_BUFFER_BIT);
+                frustum.scissors.SetGL();
+            }
+        }
+    }
+    sre_internal_stencil_buffer_is_clear = false;
 
     // Calculate near clip volume from the light source to the viewport.
     frustum.CalculateNearClipVolume(scene->light[sre_internal_current_light_index]->vector);
@@ -2308,9 +2361,11 @@ void sreRenderShadowVolumes(sreScene *scene, sreLight *light, sreFrustum &frustu
 //    delete [] shadow_volume_vertex;
 //    delete silhouette_edges;
     glDisableVertexAttribArray(0);
+#if 0
     for (int i = 0; i < NU_ELEMENT_BUFFERS; i++)
         if (element_buffer_id[0] != 0xFFFFFFFF)
             glDeleteBuffers(1, &element_buffer_id[i]);
+#endif
 }
 
 void sreReportShadowCacheStats() {

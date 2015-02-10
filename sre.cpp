@@ -57,6 +57,9 @@ int sre_internal_silhouette_count;
 void (*sreDrawTextOverlayFunc)();
 Matrix3D *sre_internal_standard_UV_transformation_matrix;
 bool sre_internal_invalidate_geometry_scissors_cache = false;
+bool sre_internal_stencil_buffer_is_clear;
+// The stencil scissors region that has recently been modified (the rest should be clear).
+sreScissors sre_internal_last_stencil_scissors_region;
 
 SRE_GLUINT sre_internal_depth_texture[SRE_MAX_SHADOW_MAP_LEVELS_OPENGL];
 SRE_GLUINT sre_internal_shadow_map_framebuffer[SRE_MAX_SHADOW_MAP_LEVELS_OPENGL];

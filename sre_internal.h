@@ -96,6 +96,8 @@ extern int sre_internal_shader_loading_mask;
 extern const char *sre_internal_shader_path;
 extern bool sre_internal_demand_load_shaders;
 extern bool sre_internal_invalidate_geometry_scissors_cache;
+extern bool sre_internal_stencil_buffer_is_clear;
+extern sreScissors sre_internal_last_stencil_scissors_region;
 enum {
     SRE_INTERLEAVED_BUFFERS_DISABLED,
     SRE_INTERLEAVED_BUFFERS_ENABLED

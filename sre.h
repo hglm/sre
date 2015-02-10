@@ -829,6 +829,21 @@ public :
         if (bottom > top)
             bottom = top = 0;
     }
+    void UpdateRegionWithIntersection(const sreScissors& scissors) {
+        left = maxf(left, scissors.left);
+        right = minf(right, scissors.right);
+        bottom = maxf(bottom, scissors.bottom);
+        top = minf(top, scissors.top);
+    }
+    void UpdateRegionWithUnion(const sreScissors& scissors) {
+        left = minf(left, scissors.left);
+        right = maxf(right, scissors.right);
+        bottom = minf(bottom, scissors.bottom);
+        top = maxf(top, scissors.top);
+    }
+    bool RegionIsEmpty() const {
+        return left >= right || bottom >= top;
+    }
     bool IsEmptyOrOutside() const {
         if (near >= far)
             return true;
@@ -853,11 +868,17 @@ public :
     bool DepthBoundsAreEqual(const sreScissors& scissors) const {
         return near == scissors.near && far == scissors.far;
     }
+    float Area() const {
+        if (RegionIsEmpty())
+            return 0.0f;
+        return (right - left) * (top - bottom);
+    }
     void UpdateWithProjectedPoint(float x, float y, double z);
     void UpdateWithWorldSpaceBoundingHull(Point3DPadded *P, int n);
     bool UpdateWithWorldSpaceBoundingBox(Point3DPadded *P, int n, const sreFrustum& frustum);
     bool UpdateWithWorldSpaceBoundingPolyhedron(Point3DPadded *P, int n, const sreFrustum& frustum);
     sreScissorsRegionType UpdateWithWorldSpaceBoundingPyramid(Point3DPadded *P, int n, const sreFrustum& frustum);
+    void SetGL();
     void Print();
 };
 

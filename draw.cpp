@@ -113,7 +113,13 @@ void sreScene::Render(sreView *view) {
 #endif
     glClearStencil(0x00);
     glDisable(GL_STENCIL_TEST);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    if (sre_internal_shadows == SRE_SHADOWS_SHADOW_VOLUMES) {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        sre_internal_stencil_buffer_is_clear = true;
+        sre_internal_last_stencil_scissors_region.SetEmptyRegion();
+    }
+    else
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (sre_internal_multi_pass_rendering) {
         // In case of multi-pass rendering, we can already initialize the shaders
@@ -999,6 +1005,10 @@ static void SetGLScissors(const sreScissors& scissors) {
     fesetround(FE_TONEAREST);
 #endif
     glScissor(left, bottom, right - left, top - bottom);
+}
+
+void sreScissors::SetGL() {
+    SetGLScissors(*this);
 }
 
 static void DisableScissors() {
@@ -2012,13 +2022,13 @@ void sreScene::RenderLightingPasses(sreFrustum *frustum, sreView *view) {
             goto skip_scissors;
         if (sre_internal_current_light->type & SRE_LIGHT_DIRECTIONAL) {
             DisableScissors();
+            frustum->scissors.SetFullRegion();
             goto skip_scissors;
         }
         // Calculate the scissors region on the viewport where the point light source has influence.
         frustum->CalculateLightScissors(sre_internal_current_light);
         // If the scissors region is empty, skip the light.
-        if (frustum->scissors.left == frustum->scissors.right || frustum->scissors.bottom ==
-        frustum->scissors.top || frustum->scissors.near == frustum->scissors.far) {
+        if (frustum->scissors.RegionIsEmpty() || frustum->scissors.near >= frustum->scissors.far) {
             UpdateGeometryScissorsCacheData(*frustum, *sre_internal_current_light);
             continue;
         }
@@ -2159,13 +2169,13 @@ void sreScene::RenderLightingPassesNoShadow(sreFrustum *frustum, sreView *view) 
             goto skip_scissors;
         if (sre_internal_current_light->type & SRE_LIGHT_DIRECTIONAL) {
             DisableScissors();
+            frustum->scissors.SetFullRegion();
             goto skip_scissors;
         }
         // Calculate the scissors region on the viewport where the point light source has influence.
         frustum->CalculateLightScissors(sre_internal_current_light);
         // If the scissors region is empty, skip the light.
-        if (frustum->scissors.left == frustum->scissors.right || frustum->scissors.bottom ==
-        frustum->scissors.top || frustum->scissors.near == frustum->scissors.far) {
+        if (frustum->scissors.RegionIsEmpty() || frustum->scissors.near >= frustum->scissors.far) {
             UpdateGeometryScissorsCacheData(*frustum, *sre_internal_current_light);
             continue;
         }
