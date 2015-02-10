@@ -1010,9 +1010,9 @@ static int BuildEdges(int vertexCount, int triangleCount,
                     }
                 }
                 if (!success) {
-                    // The edge has only one triangle, and the winding is clockwise.
-                    edgeArray[edgeCount].vertex_index[0] = i2;
-                    edgeArray[edgeCount].vertex_index[1] = i1;
+                    // The edge has only one triangle. Make the winding counterclockwise.
+                    edgeArray[edgeCount].vertex_index[0] = i1;
+                    edgeArray[edgeCount].vertex_index[1] = i2;
                     edgeArray[edgeCount].triangle_index[0] = a;
                     edgeArray[edgeCount].triangle_index[1] = - 1;
                     edgeCount++;

@@ -21,6 +21,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // It has been written to be compatible with both OpenGL 2.0+ and OpenGL ES 2.0.
 
 void main() {
-	gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+	gl_FragColor = vec4(1.0);
 }
 

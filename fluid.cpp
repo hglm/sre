@@ -249,7 +249,7 @@ float mu, float texcoords_scaling) {
         }
     lm->fluid = new sreFluid(width + 1, height + 1, d, t, c, mu);
     lm->flags = SRE_POSITION_MASK | SRE_TEXCOORDS_MASK | SRE_LOD_MODEL_IS_FLUID_MODEL |
-        SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT;
+        SRE_LOD_MODEL_NOT_CLOSED;
     lm->vertex_normal = new Vector3D[lm->nu_vertices];
     lm->flags |= SRE_NORMAL_MASK;
 //    lm->CalculateNormals(); // Will set SRE_NORMAL_MASK.

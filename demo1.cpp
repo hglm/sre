@@ -112,20 +112,22 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
         SRE_BLOCK_NO_BOTTOM | SRE_BLOCK_NO_LEFT | SRE_BLOCK_NO_FRONT);
     sreModel *block_model_no_bottom_no_front_no_back = sreCreateBlockModel(scene, 1.0, 1.0, 1.0,
         SRE_BLOCK_NO_BOTTOM | SRE_BLOCK_NO_FRONT | SRE_BLOCK_NO_BACK);
+    sreModel *block_model_no_front = sreCreateBlockModel(scene, 1.0, 1.0, 1.0,
+        SRE_BLOCK_NO_FRONT);
 
     sreTexture *wall_texture = new sreTexture("tijolo", TEXTURE_TYPE_NORMAL);
     scene->SetTexture(wall_texture);
     sreTexture *wall_normals = new sreTexture("tijolo_normal_map", TEXTURE_TYPE_NORMAL_MAP);
     scene->SetNormalMap(wall_normals);
-    scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP | SRE_OBJECT_CAST_SHADOWS);
+    scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP | SRE_OBJECT_CAST_SHADOWS |
+        SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT);
 
-// Compound open wall can produce shadow errors with stencil shadows.
 #define COMPOUND_OPEN_WALL_OBJECT
 
 #ifdef COMPOUND_OPEN_WALL_OBJECT
     // Create open wall.
     sreModel *open_wall = sreCreateCompoundModel(scene, true, true, SRE_LOD_MODEL_CONTAINS_HOLES |
-        SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT);
+        SRE_LOD_MODEL_NOT_CLOSED);
     // Bottom left corner.
     sreAddToCompoundModel(open_wall, block_model_no_bottom_no_top_no_right, Point3D(0, 0, 0),
         Vector3D(0, 0, 0), 5.0);
@@ -152,11 +154,10 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
             Vector3D(0, 0, 0), 5.0);
     }
     sreFinalizeCompoundModel(scene, open_wall);
+
     scene->AddObject(open_wall, 0, 10.0, 0, 0, 0, 0, 1.0);
 #else
     // Create open wall uses individual block objects. For objects on the ground, the bottom is ommitted.
-    block_model_no_bottom->SetLODModelFlags(SRE_LOD_MODEL_NOT_CLOSED |
-        SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT);
     // Bottom left corner.
     scene->AddObject(block_model_no_bottom, Point3D(0, 0, 0), Vector3D(0, 0, 0), 5.0);
     // Top left corner.
@@ -200,11 +201,12 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     // Create pond boundary.
     sreTexture *marble_texture = new sreTexture("Marble9", TEXTURE_TYPE_NORMAL);
     scene->SetTexture(marble_texture);
-    scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_CAST_SHADOWS);
+    scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_CAST_SHADOWS |
+        SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT);
     // The pond model is technically not closed but it causes no problems with stencil shadows
-    // because it is never lit from below (indicated with OPEN_SIDE_HIDDEN_FROM_LIGHT).
+    // because it is never lit from below (indicated with SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT).
     sreModel *pond = sreCreateCompoundModel(scene, true, true, SRE_LOD_MODEL_NOT_CLOSED |
-        SRE_LOD_MODEL_CONTAINS_HOLES | SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT);
+        SRE_LOD_MODEL_CONTAINS_HOLES);
     sreAddToCompoundModel(pond, block_model_no_bottom_no_right_no_back,
         Point3D(0 * 5.0f - 50.0f, 10.0f, 0), Vector3D(0, 0, 0), 5.0f);
     sreAddToCompoundModel(pond, block_model_no_bottom_no_left_no_back,
@@ -236,7 +238,7 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     sreTexture *texture = new sreTexture("water1", TEXTURE_TYPE_NORMAL);
     scene->SetDiffuseReflectionColor(Color(1.0, 1.0, 1.0));
     scene->SetSpecularReflectionColor(liquid_specular_reflection_color);
-    scene->SetFlags(SRE_OBJECT_NO_BACKFACE_CULLING | SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_NO_PHYSICS | SRE_OBJECT_DYNAMIC_POSITION);
+    scene->SetFlags(SRE_OBJECT_NO_BACKFACE_CULLING | SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_NO_PHYSICS | SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT);
     scene->SetTexture(texture);
     scene->SetSpecularExponent(120.0);
 #else
@@ -310,6 +312,26 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_DYNAMIC_POSITION);
     scene->AddObject(block_model, -20.0f, -20.0f, 0, 0, 0, 0, 8.0f);
     scene->AddObject(block_model, 20.0f, - 7.0f, 0, 0, 0, 0, 5.0f);
+
+    // Add test block with no bottom.
+    scene->SetDiffuseReflectionColor(Color(0.4f, 1.0f, 0.3f));
+    scene->SetMass(0.0f);
+    scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT);
+    scene->AddObject(block_model_no_bottom, Point3D(40.0f, -50.0f, 0.0f),
+        Vector3D(0.0f, 0.0f, 0.0f), 10.0f);
+    // Add test block with no front.
+    scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_NO_BACKFACE_CULLING);
+    // Put the object at z = 0.1f to avoid overlap with the ground.
+    scene->AddObject(block_model_no_front, Point3D(15.0f, -40.0f, 0.1f),
+        Vector3D(0.0f, 0.0f, 0.0f), 10.0f);
+    // Add single plane objects.
+    sreModel *rect_model = sreCreateCenteredYPlaneRectangleModel(scene, 20.0f, 10.0f);
+    scene->AddObject(rect_model, Point3D(-5.0f, -55.0f, 0.0f),
+        Vector3D(0.0f, 0.0f, M_PI), 1.0f);
+    scene->AddObject(rect_model, Point3D(-30.0f, -45.0f, 0.0f),
+        Vector3D(0.0f, 0.0f, 0.0f), 1.0f);
+    scene->AddObject(rect_model, Point3D(-40.0f, -50.0f, 0.0f),
+        Vector3D(0.0f, 0.0f, 0.0f), 1.0f);
 }
 
 static double demo1_previous_time = 0;

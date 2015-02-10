@@ -73,8 +73,8 @@ static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
     // version), the MVP matrix uniform is set, and when a transparent texture is used it is
     // bound to GL_TEXTURE0 and the UV transformation matrix is set.
     sreLODModel *m = sreCalculateLODModel(*so);
-    bool non_closed_model_handling = (m->flags & (SRE_LOD_MODEL_NOT_CLOSED |
-        SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT)) == SRE_LOD_MODEL_NOT_CLOSED;
+    bool non_closed_model_handling = (m->flags & SRE_LOD_MODEL_NOT_CLOSED) &&
+        !(so->flags & SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT);
     if (non_closed_model_handling)
         // Disable front-face culling for non-closed models.
         glDisable(GL_CULL_FACE);

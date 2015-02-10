@@ -67,8 +67,11 @@ class EdgeArray {
 public :
     sreLODModelShadowVolume *m;
     sreModel *full_model;
-    // The silhouette is defined by edge indices (when bit 31 is cleared) into
-    // model's edge array. When bit 31 is set, the edge should be reversed.
+    // The silhouette is defined by edge indices into model's edge array.
+    // When bit 31 of the index is clear, the edge is assumed to be in clockwise vertex order,
+    // ready to be sequentially as part of a side triangle of the shadow volume.
+    // When bit 31 is set, the edge is in counter-clockwise order, and should be reversed before
+    // being output sequentially as part of a side triangle.
     unsigned int *edge_index;
     int nu_edges;
     int max_edges;
@@ -79,12 +82,12 @@ public :
 
     EdgeArray();
     void CheckEdgeCapacity(int nu_edges_required);
-    inline void AppendEdge(int model_edge_index) {
+    inline void AppendEdge(unsigned int model_edge_index) {
         edge_index[nu_edges] = model_edge_index;
         nu_edges++;    
     }
-    inline void AppendEdgeReversed(int model_edge_index) {
-        edge_index[nu_edges] = model_edge_index | 0x80000000;
+    inline void AppendEdgeReversed(unsigned int model_edge_index) {
+        edge_index[nu_edges] = model_edge_index ^ 0x80000000;
         nu_edges++;    
     }
     inline void GetVertices(unsigned int i, unsigned int& v0, unsigned int &v1) {
@@ -97,7 +100,10 @@ public :
             (m->edge[index].vertex_index[1] & mask0);
     }
     inline void GetFirstVertex(unsigned int i, unsigned int& v0) {
+        // Select the correct first vertex (the second vertex when the
+        // reversed bit is set for the edge index).
         unsigned int index = edge_index[i] & 0x7FFFFFFF;
+        // mask1 = 0xFFFFFFFF when bit 31 of edge_index[i] is set.
         unsigned int mask1 = (int)((edge_index[i] & 0x80000000)) >> 31;
         unsigned int mask0 = ~mask1;
         v0 = (m->edge[index].vertex_index[0] & mask0) +
@@ -195,7 +201,21 @@ void EdgeArray::CheckFaceTypeCapacity(int nu_faces_required) {
 
 static EdgeArray *silhouette_edges = NULL;
 
-static void CalculateSilhouetteEdges(const Vector4D& lightpos, EdgeArray *ea) {
+// Shadow volume flags. These flags are not intrinsically tied to the model (information
+// that can be derived from the model flags and never changes should not be stored in
+// the shadow volume type flags.
+
+enum {
+  TYPE_DEPTH_PASS = 0x1,
+  TYPE_DEPTH_FAIL = 0x2,
+  TYPE_SKIP_SIDES = 0x4,
+  TYPE_SKIP_LIGHTCAP = 0x8,
+  TYPE_SKIP_DARKCAP = 0x10,
+  TYPE_OPEN_SIDE_HIDDEN_FROM_LIGHT = 0x20,
+  TYPE_COMPLEX_NON_CLOSED = 0x40,
+};
+
+static void CalculateSilhouetteEdges(const Vector4D& lightpos, EdgeArray *ea, int type) {
     sreLODModelShadowVolume *m = ea->m;
 
     // Dynamically reallocate the face type buffer when required.
@@ -206,13 +226,15 @@ static void CalculateSilhouetteEdges(const Vector4D& lightpos, EdgeArray *ea) {
 
     ea->nu_edges = 0;
 
-    // Determine which triangles are facing the light.
-    // Note that lightpos is in model space.
+    // Determine which triangles are facing the light. Note that lightpos is in model space.
     // In the VBO edges implementation, it is acceptable to do this in the model's
     // original data structure instead of the VBO data.
-    if ((m->flags & (SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT)) ==
-    SRE_LOD_MODEL_NOT_CLOSED)
-         goto model_not_closed;
+
+    // Special handling for non-closed models. When the open side is always hidden from the light
+    // and depth-pass rendering is used, no special handling is required.
+    if ((m->flags & SRE_LOD_MODEL_NOT_CLOSED) &&
+    ((type & TYPE_DEPTH_FAIL) || !(type & TYPE_OPEN_SIDE_HIDDEN_FROM_LIGHT)))
+        goto model_not_closed;
 
 // Configuration for SIMD light facing triangle calculation.
 // TRIANGLES_AT_A_TIME must be 4.
@@ -397,9 +419,13 @@ static void CalculateSilhouetteEdges(const Vector4D& lightpos, EdgeArray *ea) {
         unsigned char face_type0 = ea->GetFaceType(e->triangle_index[0]);
         unsigned char face_type1 = ea->GetFaceType(e->triangle_index[1]);
         if (face_type0 != face_type1) {
-            // Convention is that e0 to e1 is counterclockwise in face 0 and clockwise in
-            // face 1.
-            // Set the "reverse edge" bit when triangle 0 faces the light.
+            // When the face on on side of the edge faces the light, and the one on the other
+            // side does not, the edge is part of the silhouette.
+            // Convention for an edge in the model's edge array is that v0 to v1 is
+            // counterclockwise in face 0 and clockwise in face 1.
+            // Set the "reverse edge" bit when triangle 0 faces the light to ensure that the
+            // edge is in clockwise order with respect to the silhouette, ready to be output
+            // in sequential order as part of a shadow volume side triangle.
             unsigned int reversed_bit = (unsigned int)face_type0 << 31;
             ea->AppendEdge(i | reversed_bit);
         }
@@ -409,19 +435,75 @@ static void CalculateSilhouetteEdges(const Vector4D& lightpos, EdgeArray *ea) {
 
 model_not_closed :
     for (int i = 0; i < m->nu_triangles; i++) {
-        Vector3D light_vector = lightpos.GetPoint3D() - lightpos.w * m->vertex[m->triangle[i].vertex_index[0]];
+        Vector3D light_vector = lightpos.GetPoint3D() - lightpos.w *
+            m->vertex[m->triangle[i].vertex_index[0]];
         float dot = Dot(light_vector, m->triangle[i].normal);
         int face_flags;
-        if (dot < 0)
+        if (dot < 0.0f)
             face_flags = 0;
         else
             face_flags = SRE_FACE_FLAG_LIGHT_FACING;
+#if 0
 #if SRE_FACE_FLAG_BITS > 1
         if (dot > - 0.01f && dot < 0.01f)
             face_flags |= SRE_FACE_FLAG_PERPENDICULAR_TO_LIGHT;
 #endif
+#endif
         ea->SetFaceType(i, face_flags);
     }
+#if 1
+    for (int i = 0; i < m->nu_edges; i++) {
+        ModelEdge *e = &m->edge[i];
+        unsigned char face_type0 = ea->GetFaceType(e->triangle_index[0]);
+        if (e->triangle_index[1] == -1) {
+            // The other side of the edge is open.
+            if (type & TYPE_OPEN_SIDE_HIDDEN_FROM_LIGHT) {
+                // If the open side is guaranteed to be hidden from the light, add the edge
+                // when the triangle faces the light because it must be part of the silhouette.
+                // The winding of an edge with only one triangle is counterclockwise
+                // (see CalculateEdges).
+                if (face_type0 & SRE_FACE_FLAG_LIGHT_FACING)
+                    // The edge is in counterclockwise order, so output it in reversed order.
+                    ea->AppendEdgeReversed(i);
+                continue;
+            }
+            if (m->flags & SRE_LOD_MODEL_SINGLE_PLANE) {
+                unsigned int reversed_bit = ((unsigned int)face_type0 << 31);
+                ea->AppendEdge(i | reversed_bit);
+                continue;
+            }
+            // Non-closed models more complex than a single plane.
+            // Output every edge.
+            unsigned int reversed_bit = ((unsigned int)face_type0 << 31);
+            ea->AppendEdge(i | reversed_bit);
+            continue;
+        }
+        if (m->flags & SRE_LOD_MODEL_SINGLE_PLANE)
+            // Don't output interior edges within the plane.
+            continue;
+        unsigned char face_type1 = ea->GetFaceType(e->triangle_index[1]);
+        if (type & TYPE_OPEN_SIDE_HIDDEN_FROM_LIGHT) {
+            if ((face_type0 & SRE_FACE_FLAG_LIGHT_FACING)
+            != (face_type1 & SRE_FACE_FLAG_LIGHT_FACING)) {
+                unsigned int reversed_bit = (unsigned int)face_type0 << 31;
+                ea->AppendEdge(i | reversed_bit);
+            }
+            continue;
+        }
+        // The edge is part of a non-closed model that is not a single plane and not an
+        // object for which the open side is hidden from lights.
+        if (AlmostEqual(Dot(m->triangle[e->triangle_index[0]].normal,
+        m->triangle[e->triangle_index[1]].normal), 1.0f))
+            // Ignore (interior) edges between triangles in the same plane.
+            continue;
+        unsigned int reversed_bit0 = (unsigned int)face_type0 << 31;
+        unsigned int reversed_bit1 = (unsigned int)face_type1 << 31;
+        if (reversed_bit0 != reversed_bit1) {
+            ea->AppendEdge(i | reversed_bit0);
+            ea->AppendEdge(i | reversed_bit0);
+        }
+    }
+#else
     for (int i = 0; i < m->nu_edges; i++) {
         ModelEdge *e = &m->edge[i];
         if (e->triangle_index[1] == -1) {
@@ -521,6 +603,7 @@ model_not_closed :
                 ea->AppendEdgeReversed(i);
         }
     }
+#endif
     return;
 
 //    printf("Found %d edges in silhouette\n", ea->nu_edges);
@@ -634,21 +717,6 @@ int array_buffer_flags) {
     // projected to the dark cap, a w component of 0 is used.
     if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
         goto add_sides_triangle_strip_int;
-    if (light.type & (SRE_LIGHT_DIRECTIONAL | SRE_LIGHT_BEAM)) {
-        // Directional light. The sides converge to a single point -L extruded to infinity.
-        // Or a beam light, in which case the sides converge to the beam light direction
-        // extruded to infinity. The extruded vertex index used doesn't matter, as long as
-        // the w component is 0.
-        // Construct a triangle strip.
-        for (int i = 0; i < ea->nu_edges; i++) {
-            unsigned int v0, v1;
-            ea->GetVertices(i, v0, v1);
-            EmitVertexShort(v0);
-            EmitVertexShort(v1);
-            EmitVertexShort(ea->m->vertex_index_shadow_offset);
-        }
-        return;
-    }
     // The light is guaranteed to be a point light or spot light; the sides are extruded to infinity,
     // allowing the use of a small triangle strip for each pair of side triangles.
     // Each silhouette edge vertex is extruded to infinity to help
@@ -772,7 +840,7 @@ add_sides_triangle_fan_int :
 }
 
 
-static void AddLightCap(EdgeArray *ea, int array_buffer_flags) {
+static void AddLightCap(EdgeArray *ea, int array_buffer_flags, int type) {
     sreLODModelShadowVolume *m = ea->m;
     // A light cap may be required for point or spot lights for depth-fail rendering.
     // The light cap consists of all model triangles that face the light.
@@ -798,41 +866,45 @@ add_light_cap_int :
     return;
 
 add_light_cap_not_closed :
+    bool output_light_facing = true;
+    bool output_non_light_facing = ((type & TYPE_OPEN_SIDE_HIDDEN_FROM_LIGHT) == 0);
+//        && ((m->flags & SRE_LOD_MODEL_SINGLE_PLANE) != 0);
     if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
         goto add_light_cap_not_closed_int;
     for (int i = 0; i < m->nu_triangles; i++)
         if (ea->IsLightFacing(i)) {
-            EmitVertexShort(m->triangle[i].vertex_index[0]);
-            EmitVertexShort(m->triangle[i].vertex_index[1]);
-            EmitVertexShort(m->triangle[i].vertex_index[2]);
+            if (output_light_facing) {
+                EmitVertexShort(m->triangle[i].vertex_index[0]);
+                EmitVertexShort(m->triangle[i].vertex_index[1]);
+                EmitVertexShort(m->triangle[i].vertex_index[2]);
+            }
         }
-#if 0
-        else {
+        else if (output_non_light_facing) {
+            // printf("Output non light facing, triangle %d of %d.\n", i, m->nu_triangles);
             EmitVertexShort(m->triangle[i].vertex_index[2]);
             EmitVertexShort(m->triangle[i].vertex_index[1]);
             EmitVertexShort(m->triangle[i].vertex_index[0]);
         }
-#endif
     return;
 
 add_light_cap_not_closed_int :
     for (int i = 0; i < m->nu_triangles; i++)
         if (ea->IsLightFacing(i)) {
-            EmitVertexInt(m->triangle[i].vertex_index[0]);
-            EmitVertexInt(m->triangle[i].vertex_index[1]);
-            EmitVertexInt(m->triangle[i].vertex_index[2]);
+            if (output_light_facing) {
+                EmitVertexInt(m->triangle[i].vertex_index[0]);
+                EmitVertexInt(m->triangle[i].vertex_index[1]);
+                EmitVertexInt(m->triangle[i].vertex_index[2]);
+            }
         }
-#if 0
-        else {
+        else if (output_non_light_facing) {
             EmitVertexInt(m->triangle[i].vertex_index[2]);
             EmitVertexInt(m->triangle[i].vertex_index[1]);
             EmitVertexInt(m->triangle[i].vertex_index[0]);
         }
-#endif
     return;
 }
 
-static void AddDarkCap(EdgeArray *ea, int array_buffer_flags) {
+static void AddDarkCap(EdgeArray *ea, int array_buffer_flags, int type) {
     sreLODModelShadowVolume *m = ea->m;
     // A dark cap may be required for point or spot lights for depth-fail rendering.
     if (m->flags & SRE_LOD_MODEL_NOT_CLOSED)
@@ -859,54 +931,76 @@ add_dark_cap_int :
 add_dark_cap_not_closed :
     if (!(array_buffer_flags & SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_SHORT_INDEX))
         goto add_dark_cap_not_closed_int;
+    if (type & TYPE_OPEN_SIDE_HIDDEN_FROM_LIGHT) {
+        // When the open side is hidden from the light, the light facing triangles (normally the
+        // light cap) can be used as the dark cap when extruded to infinity in reversed order.
+        for (int i = 0; i < m->nu_triangles; i++)
+            if (ea->IsLightFacing(i)) {
+                EmitVertexShort(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
+                EmitVertexShort(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
+                EmitVertexShort(m->triangle[i].vertex_index[0] + m->vertex_index_shadow_offset);
+            }
+        return;
+    }
     for (int i = 0; i < m->nu_triangles; i++)
         if (!ea->IsLightFacing(i)) {
             EmitVertexShort(m->triangle[i].vertex_index[0] + m->vertex_index_shadow_offset);
             EmitVertexShort(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
             EmitVertexShort(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
         }
-#if 0
-        else {
-            EmitVertexShort(m->triangle[i].vertex_index[0] + m->vertex_index_shadow_offset);
-            EmitVertexShort(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
+        else if ((m->flags & SRE_LOD_MODEL_SINGLE_PLANE) | (type & TYPE_COMPLEX_NON_CLOSED)) {
             EmitVertexShort(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
+            EmitVertexShort(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
+            EmitVertexShort(m->triangle[i].vertex_index[0] + m->vertex_index_shadow_offset);
         }
-#endif
     return;
 
 add_dark_cap_not_closed_int :
+    if (type & TYPE_OPEN_SIDE_HIDDEN_FROM_LIGHT) {
+        // When the open side is hidden from the light, the light facing triangles (normally the
+        // light cap) can be used as the dark cap when extruded to infinity in reversed order.
+        for (int i = 0; i < m->nu_triangles; i++)
+            if (ea->IsLightFacing(i)) {
+                EmitVertexInt(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
+                EmitVertexInt(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
+                EmitVertexInt(m->triangle[i].vertex_index[0] + m->vertex_index_shadow_offset);
+            }
+        return;
+    }
     for (int i = 0; i < m->nu_triangles; i++)
         if (!ea->IsLightFacing(i)) {
             EmitVertexInt(m->triangle[i].vertex_index[0] + m->vertex_index_shadow_offset);
             EmitVertexInt(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
             EmitVertexInt(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
         }
-#if 0
-        else {
-            EmitVertexInt(m->triangle[i].vertex_index[0] + m->vertex_index_shadow_offset);
-            EmitVertexInt(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
+        else if ((m->flags & SRE_LOD_MODEL_SINGLE_PLANE) | (type & TYPE_COMPLEX_NON_CLOSED)) {
             EmitVertexInt(m->triangle[i].vertex_index[2] + m->vertex_index_shadow_offset);
+            EmitVertexInt(m->triangle[i].vertex_index[1] + m->vertex_index_shadow_offset);
+            EmitVertexInt(m->triangle[i].vertex_index[0] + m->vertex_index_shadow_offset);
         }
-#endif
     return;
 }
 
 // Drawing a shadow volume,
-
-enum {
-  TYPE_DEPTH_PASS = 1,
-  TYPE_DEPTH_FAIL = 2,
-  TYPE_SKIP_SIDES = 4,
-  TYPE_SKIP_LIGHTCAP = 8,
-  TYPE_SKIP_DARKCAP = 16,
-};
 
 // After the shader has been initialized, draw the shadow volume. Used by both types of cache
 // after a hit.
 
 static void FinishDrawingShadowVolume(int type, sreLODModelShadowVolume *model, GLuint opengl_id,
 int array_buffer_flags, int nu_vertices) {
-    if (type & TYPE_DEPTH_PASS) {
+    if (type & TYPE_COMPLEX_NON_CLOSED)
+        if (type & TYPE_DEPTH_PASS) {
+            glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
+            glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
+        }
+        else {
+            glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
+            glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
+#ifdef OPENGL_ES2
+            glDepthRangef(0, 1.0f);
+#endif
+        }
+    else if (type & TYPE_DEPTH_PASS) {
         glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
         glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
     }
@@ -1401,8 +1495,14 @@ const Vector4D& lightpos_model, sreLODModelShadowVolume *m, int type, int cache_
         nu_shadow_volume_vertices = 0;
         if (type & TYPE_DEPTH_PASS) {
             // Depth-pass rendering.
-            glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
-            glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
+             if (type & TYPE_COMPLEX_NON_CLOSED) {
+                glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
+                glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
+            }
+            else {
+                glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
+                glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
+            }
             if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES)
             && cache_used != 0 && (light->type & (SRE_LIGHT_DIRECTIONAL | SRE_LIGHT_BEAM))
             && !(m->flags & (SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_CONTAINS_HOLES))) {
@@ -1411,7 +1511,6 @@ const Vector4D& lightpos_model, sreLODModelShadowVolume *m, int type, int cache_
                 // Because constructing a triangle fan is more processor/memory intensive than
                 // a regular shadow volume, only try when the shadow volume will be cached
                 // subsequently.
-                array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN;
                 bool r = AddSidesTriangleFan(silhouette_edges, *light, array_buffer_flags);
                 if (r) {
                     array_buffer_flags |= SRE_SHADOW_VOLUME_ARRAY_BUFFER_FLAG_TRIANGLE_FAN;
@@ -1447,15 +1546,22 @@ const Vector4D& lightpos_model, sreLODModelShadowVolume *m, int type, int cache_
         }
         else {
             // Depth-fail rendering.
-            glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
-            glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
+             if (type & TYPE_COMPLEX_NON_CLOSED) {
+                glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
+                glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
+            }
+            else {
+                glStencilOpSeparate(GL_BACK, GL_KEEP, GL_INCR_WRAP, GL_KEEP);
+                glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_DECR_WRAP, GL_KEEP);
+            }
 #ifdef OPENGL_ES2
             glDepthRangef(0, 1.0f);
 #endif
             if ((type & (TYPE_SKIP_SIDES | TYPE_SKIP_DARKCAP | TYPE_SKIP_LIGHTCAP)) ==
             (TYPE_SKIP_DARKCAP | TYPE_SKIP_LIGHTCAP)) {
                 // Just sides required.
-                if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES)
+                if ((sre_internal_rendering_flags &
+                SRE_RENDERING_FLAG_USE_TRIANGLE_FANS_FOR_SHADOW_VOLUMES)
                 && cache_used != 0 && (light->type & (SRE_LIGHT_DIRECTIONAL | SRE_LIGHT_BEAM))
                 && !(m->flags & (SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_CONTAINS_HOLES))) {
                     // For closed models with a directional light or beam light, we can create a
@@ -1475,7 +1581,8 @@ const Vector4D& lightpos_model, sreLODModelShadowVolume *m, int type, int cache_
                 }
                 else
 #ifndef NO_PRIMITIVE_RESTART
-                if ((sre_internal_rendering_flags & SRE_RENDERING_FLAG_USE_TRIANGLE_STRIPS_FOR_SHADOW_VOLUMES)
+                if ((sre_internal_rendering_flags &
+                SRE_RENDERING_FLAG_USE_TRIANGLE_STRIPS_FOR_SHADOW_VOLUMES)
                 && (light->type & (SRE_LIGHT_SPOT | SRE_LIGHT_POINT_SOURCE))) {
                     // When we just need the sides for a point or spot light, we can use triangle strips with
                     // primitive restart for all of the shadow volume.
@@ -1493,10 +1600,10 @@ const Vector4D& lightpos_model, sreLODModelShadowVolume *m, int type, int cache_
                     AddSides(silhouette_edges, *light, array_buffer_flags);
  		}
                 if (!(type & TYPE_SKIP_DARKCAP)) {
-                    AddDarkCap(silhouette_edges, array_buffer_flags);
+                    AddDarkCap(silhouette_edges, array_buffer_flags, type);
 		}
                 if (!(type & TYPE_SKIP_LIGHTCAP)) {
-                    AddLightCap(silhouette_edges, array_buffer_flags);
+                    AddLightCap(silhouette_edges, array_buffer_flags, type);
                     DrawShadowVolumeGL(m, array_buffer_flags, cache_used);
 		}
             }
@@ -1629,6 +1736,14 @@ static void DrawShadowVolume(sreObject *so, sreLight *light, sreFrustum &frustum
             }
             // At least the sides will need to be drawn.
         }
+
+        // Determine the LOD model.
+        sreLODModelShadowVolume *m = (sreLODModelShadowVolume *)sreCalculateLODModel(*so);
+
+        if (so->flags & SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT)
+            type |= TYPE_OPEN_SIDE_HIDDEN_FROM_LIGHT;
+        else if ((m->flags & SRE_LOD_MODEL_NOT_CLOSED) && !(m->flags & SRE_LOD_MODEL_SINGLE_PLANE))
+            type |= TYPE_COMPLEX_NON_CLOSED;
         sre_internal_shadow_volume_count++;
 
         // Calculate the light position in model space.
@@ -1644,8 +1759,6 @@ static void DrawShadowVolume(sreObject *so, sreLight *light, sreFrustum &frustum
             // and spot lights, and the negative light direction with a w component of 0 for
             // directional lights).
             lightpos_model = so->inverted_model_matrix * light->vector;
-        // Determine the LOD model.
-        sreLODModelShadowVolume *m = (sreLODModelShadowVolume *)sreCalculateLODModel(*so);
 
         // Keep track of the cache use for this object, 0 is no cache, 1 is object
         // cache, 2 is model cache.
@@ -1711,12 +1824,12 @@ skip_cache :
 
 #ifndef THREADED_SILHOUETTE_CALCULATION
 
-        CalculateSilhouetteEdges(lightpos_model, silhouette_edges);
+        CalculateSilhouetteEdges(lightpos_model, silhouette_edges, type);
 	RenderCalculatedShadowVolume(so, light, lightpos_model, m, type, cache_used);
 
 #else
 
-	silhouette_task_group.Add
+//	silhouette_task_group.Add
 
 	sreShadowVolumeQueueEntry entry(so, lightpos_model, m, type, cache_used, scissors);
 	shadow_volume_queue.Add(entry);

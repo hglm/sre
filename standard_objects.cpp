@@ -624,7 +624,8 @@ Color color1, Color color2) {
     delete [] mesh;
     m->SetPositions(vertex);
     m->SetAttributeFlags(SRE_POSITION_MASK | SRE_COLOR_MASK);
-    m->flags |= SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT;
+    m->flags |= SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT |
+        SRE_LOD_MODEL_SINGLE_PLANE;
     m->SortVertices(0); // Sort on x-coordinate.
     m->MergeIdenticalVertices();
     m->vertex_normal = new Vector3D[m->nu_vertices];
@@ -1034,7 +1035,7 @@ sreModel *sreCreateRepeatingRectangleModel(sreScene *scene, float size, float un
     m->SetPositions(m->position);
     m->SetAttributeFlags(SRE_POSITION_MASK);
     m->flags |= /* SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT | */
-        SRE_LOD_MODEL_NOT_CLOSED | SRE_TEXCOORDS_MASK;
+        SRE_LOD_MODEL_NOT_CLOSED | SRE_TEXCOORDS_MASK | SRE_LOD_MODEL_SINGLE_PLANE;
     m->SortVertices(0); // Sort on x-coordinate.
     m->MergeIdenticalVertices();
     m->vertex_normal = new Vector3D[m->nu_vertices];
@@ -1079,7 +1080,7 @@ static sreModel *FinishPlaneRectangleModel(sreScene *scene, Point3D *mesh) {
     m->SetPositions(m->position);
     m->SetAttributeFlags(SRE_POSITION_MASK);
     m->flags |= /* SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT | */
-        SRE_LOD_MODEL_NOT_CLOSED | SRE_TEXCOORDS_MASK;
+        SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_SINGLE_PLANE | SRE_TEXCOORDS_MASK;
     m->SortVertices(0); // Sort on x-coordinate.
     m->MergeIdenticalVertices();
     m->vertex_normal = new Vector3D[m->nu_vertices];

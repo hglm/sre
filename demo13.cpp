@@ -105,7 +105,7 @@ void Demo13CreateScene(sreScene *scene, sreView *view) {
     sreTexture *texture = new sreTexture("volcanic8", TEXTURE_TYPE_NORMAL |
         SRE_TEXTURE_TYPE_FLAG_WRAP_REPEAT);
     scene->SetFlags(SRE_OBJECT_NO_BACKFACE_CULLING | SRE_OBJECT_USE_EMISSION_MAP | SRE_OBJECT_NO_PHYSICS |
-        SRE_OBJECT_DYNAMIC_POSITION);
+        SRE_OBJECT_DYNAMIC_POSITION | SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT);
     scene->SetEmissionColor(Color(1.0, 1.0, 1.0));
     scene->SetEmissionMap(texture);
     scene->SetDiffuseReflectionColor(Color(0.4, 0, 0));

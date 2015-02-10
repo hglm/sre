@@ -155,7 +155,6 @@ void Demo2CreateScene(sreScene *scene, sreView *view) {
 
     // Add cylinders in concentric circles.
     sreModel *cylinder_model = sreCreateCylinderModel(scene, 15.0, true, false); // Without bottom.
-    cylinder_model->SetLODModelFlags(SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT);
     for (int i = 0; i < 30; i++) {
        Color color = Color(
            rng->RandomFloat(1.0f) * 0.8 + 0.2,
@@ -167,7 +166,7 @@ void Demo2CreateScene(sreScene *scene, sreView *view) {
             float y = 100.0 + sinf((j / 50.0 + (i & 1) * 0.5) * 2.0 * M_PI) * (i * 100.0 + 200.0);
             scene->SetDiffuseReflectionColor(color);
             scene->SetEmissionColor(Color(0, 0, 0));
-            scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
+            scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT);
             // Because the cylinder is thin, we don't need the highest level of detail.
             scene->SetLevelOfDetail(SRE_LOD_DYNAMIC, 0, - 1, 2.0f, 0);
             scene->AddObject(cylinder_model, x, y, 0, 0, 0, 0, 2.0f);
@@ -184,7 +183,7 @@ void Demo2CreateScene(sreScene *scene, sreView *view) {
     }
     // Add central cylinder.
     scene->SetEmissionColor(Color(0, 0, 0));
-    scene->SetFlags(SRE_OBJECT_CAST_SHADOWS);
+    scene->SetFlags(SRE_OBJECT_CAST_SHADOWS | SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT);
     scene->SetDiffuseReflectionColor(Color(0.2, 1.0, 0.2));
     scene->AddObject(cylinder_model, 0, 100.0, 0, 0, 0, 0, 2.0);
     // The light is represented by a sphere (emission only, not a shadow caster).

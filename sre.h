@@ -295,9 +295,8 @@ enum {
     SRE_LOD_MODEL_NOT_CLOSED = 0x100,
     // Whether the model has any holes (which has consequences for its silhouette and shadow).
     SRE_LOD_MODEL_CONTAINS_HOLES = 0x200,
-    // Whether the open side of a non-closed model is always hidden from any light; this allows
-    // simpler shadow volume construction (treating the object as closed).
-    SRE_LOD_MODEL_OPEN_SIDE_HIDDEN_FROM_LIGHT = 0x400
+    // Whether the model is limited to a single plane.
+    SRE_LOD_MODEL_SINGLE_PLANE = 0x400,
 };
 
 // The base model class with basic geometry and attribute value information.
@@ -924,7 +923,9 @@ enum {
     SRE_OBJECT_HIDDEN = 0x1000000,
     // Object is animated. For semi-static objects like fluid (DYNAMIC_POSITION not set), 
     // reprocessing is skipped.
-    SRE_OBJECT_ANIMATED = 0x2000000
+    SRE_OBJECT_ANIMATED = 0x2000000,
+    // The open side of an object with a non-closed model is always hidden from lights.
+    SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT = 0x4000000
 };
 
 class sreScissorsCacheEntry : public sreScissors {
