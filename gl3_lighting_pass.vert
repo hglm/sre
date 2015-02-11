@@ -62,12 +62,15 @@ uniform bool use_emission_map_in;
 #ifdef MULTI_COLOR_OPTION
 uniform vec3 diffuse_reflection_color_in;
 #endif
-#if defined(SHADOW_MAP) 
+#if defined(SHADOW_MAP)
 #if defined(GL_ES)
 uniform mat4 shadow_map_transformation_matrix;
 #else
 uniform mat4x3 shadow_map_transformation_matrix;
 #endif
+#endif
+#ifdef SPOT_LIGHT_SHADOW_MAP
+uniform mat4 shadow_map_transformation_matrix;
 #endif
 #ifdef SHADOW_MAP
 // For use with shadow map parameter precalculation (directional/beam lights).
@@ -117,8 +120,13 @@ varying vec2 texcoord_var;
 #ifdef MICROFACET
 varying vec3 tangent_var;
 #endif
-#ifdef SHADOW_MAP
+#if defined(SHADOW_MAP)
 varying vec3 shadow_map_coord_var;
+#endif
+#if defined(SPOT_LIGHT_SHADOW_MAP)
+varying vec4 shadow_map_coord_var;
+#endif
+#ifdef SHADOW_MAP
 invariant varying float reprocical_shadow_map_size_var;
 varying float slope_var;
 invariant varying float shadow_map_depth_precision_var;
@@ -203,12 +211,17 @@ void main() {
 #endif
 #endif
 
-#ifdef SHADOW_MAP 
+#if defined(SHADOW_MAP)
 	shadow_map_coord_var = (shadow_map_transformation_matrix * position_in).xyz;
 	// shadow_map_coord_var maps to ([0, 1.0], [0, 1.0], [0, 1.0]) for the shadow
 	// map region.
 #endif
-
+#if defined(SPOT_LIGHT_SHADOW_MAP)
+	shadow_map_coord_var = shadow_map_transformation_matrix * vec4(position_world_var, 1.0);
+	// shadow_map_coord_var.xyz / shadow_map_coord_var.w maps to
+	// ([-1.0, 1.0], [-1.0, 1.0], [-1.0, 1.0]) for the shadow
+	// map region.
+#endif
 	// Precalculate shadow map parameters for directional and beam lights.
 #ifdef SHADOW_MAP
 	reprocical_shadow_map_size_var = 1.0 / shadow_map_dimensions_in.w;

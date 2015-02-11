@@ -96,9 +96,6 @@ uniform sampler2D specular_map_in;
 #ifdef EMISSION_MAP_SAMPLER
 uniform sampler2D emission_map_in;
 #endif
-#ifdef SPOT_LIGHT_SHADOW_MAP
-uniform mat4 shadow_map_transformation_matrix;
-#endif
 #if defined(SHADOW_MAP) || defined(SPOT_LIGHT_SHADOW_MAP)
 uniform sampler2D shadow_map_in;
 #endif
@@ -130,6 +127,9 @@ varying vec3 tangent_var;
 #endif
 #ifdef SHADOW_MAP
 varying vec3 shadow_map_coord_var;
+#endif
+#ifdef SPOT_LIGHT_SHADOW_MAP
+varying vec4 shadow_map_coord_var;
 #endif
 #ifdef SHADOW_MAP
 invariant varying float reprocical_shadow_map_size_var;
@@ -740,7 +740,7 @@ void main() {
         light_att *= shadow_light_factor;
 #endif
 
-#if defined(SHADOW_CUBE_MAP) || defined (SPOT_LIGHT_SHADOW_MAP)
+#if defined(SHADOW_CUBE_MAP) || defined(SPOT_LIGHT_SHADOW_MAP)
 	vec3 space_vector_from_light = position_world_var - light_parameters_position.xyz;
 
 #ifdef SHADOW_CUBE_MAP
@@ -752,7 +752,7 @@ void main() {
 	// Spotlight shadow map. Only one shadow map is used.
 	// shadow_map_transformation_matrix is expected to be the projection transformation
 	// for the spot light.
-	vec4 P_proj = shadow_map_transformation_matrix * vec4(position_world_var, 1.0);
+	vec4 P_proj = shadow_map_coord_var;
 	// If the fragment is outside of the spot light volume, just discard it.
 	vec3 P_normalized = P_proj.xyz / P_proj.w;
 	bool out_of_spotlight_bounds = any(lessThan(P_normalized.xyz, vec3(- 1.0, - 1.0, - 1.0))) ||
