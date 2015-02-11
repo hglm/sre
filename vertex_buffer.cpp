@@ -292,6 +292,27 @@ void sreLODModel::UploadToGPU(int attribute_mask, int dynamic_flags) {
         goto copy_indices;
     }
 
+    // Determine a sorting order that optimizes cache coherency.
+    {
+    sreBaseModel *clone = new sreBaseModel;
+    CloneGeometry(clone);
+    uint64_t best_cost = UINT64_MAX;
+    int best_sorting_dimension = 0;
+    for (int dim = 0; dim < 48; dim++) {
+        clone->SortVertices(dim);
+        uint64_t cost = clone->CalculateCacheCoherency();
+//        sreMessage(SRE_MESSAGE_INFO, "Sorting dimension = %d, cost = %llu.", dim, cost);
+        if (cost < best_cost) {
+            best_cost = cost;
+            best_sorting_dimension = dim;
+        }
+    }
+    delete clone;
+    SortVertices(best_sorting_dimension);
+    sreMessage(SRE_MESSAGE_LOG, "sreLODModel::UploadToGPU: Model %d sorting order = %d.", id,
+        best_sorting_dimension);
+    }
+
     int total_nu_vertices;
     sreLODModelShadowVolume *model_shadow_volume;
     if (shadow) {

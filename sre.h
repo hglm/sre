@@ -355,6 +355,7 @@ public :
         bool check_vertex_normals, float vertex_normal_threshold, int *saved_indices);
     void ReduceTriangleCount(float max_surface_roughness, float cost_threshold,
         bool check_vertex_normals, float vertex_normal_threshold);
+    uint64_t CalculateCacheCoherency();
     // Bounding volume calculation.
     void CalculatePrincipalComponents(srePCAComponent *PCA, Point3D& center) const;
     void CalculatePCABoundingSphere(const srePCAComponent *PCA, sreBoundingVolumeSphere& sphere) const;

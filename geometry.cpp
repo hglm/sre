@@ -30,6 +30,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre_bounds.h"
 
 #include <dstMemory.h>
+#include <dstMath.h>
 
 // Higher level model class constuctor.
 
@@ -320,35 +321,88 @@ void sreBaseModel::RemapVertices(int *vertex_mapping, int n, int *_vertex_mappin
 
 // Sorting.
 
-static int qsort_sorting_dimension;
+static int *qsort_sorting_dimension;
 static sreBaseModel *qsort_object;
+static int qsort_ascending[3], qsort_descending[3];
+
+static int qsort_dimension_table[6][3] = {
+    { 0, 1, 2 },
+    { 1, 0, 2 },
+    { 2, 0, 1 },
+    { 0, 2, 1 },
+    { 1, 2, 0 },
+    { 2, 1, 0 }
+};
 
 static int CompareVertices(const void *e1, const void *e2) {
     int i1 = *(int *)e1;
     int i2 = *(int *)e2;
-    if (qsort_object->vertex[i1][qsort_sorting_dimension] <
-    qsort_object->vertex[i2][qsort_sorting_dimension])
-        return - 1;
-    if (qsort_object->vertex[i1][qsort_sorting_dimension] >
-    qsort_object->vertex[i2][qsort_sorting_dimension])
-        return 1;
+    int sorting_dimension0 = qsort_sorting_dimension[0];
+    if (qsort_object->vertex[i1][sorting_dimension0] <
+    qsort_object->vertex[i2][sorting_dimension0])
+        return qsort_ascending[0];
+    if (qsort_object->vertex[i1][sorting_dimension0] >
+    qsort_object->vertex[i2][sorting_dimension0])
+        return qsort_descending[0];
+    int sorting_dimension1 = qsort_sorting_dimension[1];
+    if (qsort_object->vertex[i1][sorting_dimension1] <
+    qsort_object->vertex[i2][sorting_dimension1])
+        return qsort_ascending[1];
+    if (qsort_object->vertex[i1][sorting_dimension1] >
+    qsort_object->vertex[i2][sorting_dimension1])
+        return qsort_descending[1];
+    int sorting_dimension2 = qsort_sorting_dimension[2];
+    if (qsort_object->vertex[i1][sorting_dimension2] <
+    qsort_object->vertex[i2][sorting_dimension2])
+        return qsort_ascending[2];
+    if (qsort_object->vertex[i1][sorting_dimension2] >
+    qsort_object->vertex[i2][sorting_dimension2])
+        return qsort_descending[2];
     return 0;
 }
 
 // Sort vertices on the given coordinate dimension. Sorted models greatly increase the speed
 // of operations such as merging identical vertices, calculating vertex normals, etc.
+// Apart from dimensions 0, 1, 2, higher values specify further variations for second and
+// third sorting dimensions, as well as order direction for each dimension, for a total of
+// 48 possible sorting orders.
 
 void sreBaseModel::SortVertices(int dimension) {
     // Vertex mapping from new index to original index.
     int *vertex_mapping = new int[nu_vertices];
     for (int i = 0; i < nu_vertices; i++)
         vertex_mapping[i] = i;
-    qsort_sorting_dimension = dimension;
     qsort_object = this;
+    bool reversed[3];
+    for (int i = 0; i < 3; i++)
+        reversed[i] = false;
+    int dim = dimension;
+    if (dim >= 24) {
+        reversed[2] = true;
+        dim -= 24;
+    }
+    if (dim >= 12) {
+        reversed[1] = true;
+        dim -= 12;
+    }
+    if (dim >= 6) {
+        reversed[0] = true;
+        dim -= 6;
+    }
+    qsort_sorting_dimension = qsort_dimension_table[dim];
+    for (int i = 0; i < 3; i++)
+        if (reversed[i]) {
+            qsort_ascending[i] = 1;
+            qsort_descending[i] = - 1;
+        }
+        else {
+            qsort_ascending[i] = - 1;
+            qsort_descending[i] = 1;
+        }
     qsort(vertex_mapping, nu_vertices, sizeof(int), CompareVertices);
     RemapVertices(vertex_mapping, nu_vertices, NULL);
     delete [] vertex_mapping;
-    sorting_dimension = dimension; // Indicate on which dimension the object has been sorted.
+    sorting_dimension = dimension % 3; // Indicate on which dimension the object has been sorted.
 }
 
 // Find the optimal sorting dimension (the one with the least number of vertices
@@ -363,7 +417,7 @@ void sreBaseModel::SortVerticesOptimalDimension() {
         vertex_mapping[dim] = new int[nu_vertices];
         for (int i = 0; i < nu_vertices; i++)
             vertex_mapping[dim][i] = i;
-        qsort_sorting_dimension = dim;
+        qsort_sorting_dimension = qsort_dimension_table[dim];
         qsort_object = this;
         qsort(vertex_mapping[dim], nu_vertices, sizeof(int), CompareVertices);
         // Determine the number number of vertices that share exactly the same
@@ -1127,8 +1181,7 @@ void sreLODModelShadowVolume::CalculateEdges() {
 #endif
     // The deconstructor should automatically free vertex positions and triangles.
     delete clone;
-    if (sre_internal_debug_message_level >= 2)
-        printf("CalculateEdges (geometry only): found %d edges.\n", nu_edges);
+    sreMessage(SRE_MESSAGE_LOG, "CalculateEdges (geometry only): found %d edges.", nu_edges);
 }
 
 void sreLODModelShadowVolume::DestroyEdges() {
@@ -1528,6 +1581,64 @@ again :
     delete [] is_boundary_vertex;
     delete [] edge;
     printf("ReduceTriangleCount: number of triangles reduced from %d to %d.\n", original_nu_triangles, nu_triangles);
+}
+
+// Multiplication factor for cost penalty based on log2(vertex_index_difference).
+
+static uint8_t log2_penalty[26] = {
+    2,	// Difference of 64 (2^6)
+    3,  // 128
+    4,  // 256
+    6,  // 512
+    8,  // 1024
+    10, // 2048
+    14, // 4096
+    18, // 8192
+    22, // 16384
+    30, // 32768
+    38, // 65536
+    46, // 2^17
+    62, // 2^18
+    78,
+    94,
+    126,
+    126,
+    126,
+    126, // 2^24
+    126,
+    126,
+    126,
+    126,
+    126,
+    126,
+    126
+};
+
+uint64_t sreBaseModel::CalculateCacheCoherency() {
+     int previous_v_index = - 1;
+     uint64_t total_cost = 0;
+     for (int i = 0; i < nu_triangles; i++)
+         for (int j = 0; j < 3; j++) {
+              int v_index = triangle[i].vertex_index[j];
+              if (previous_v_index >= 0) {
+                   int diff = v_index - previous_v_index;
+                   unsigned int abs_diff = abs(diff);
+                   int log2_diff = dstCalculateLog2(abs_diff);
+                   uint64_t cost;
+                   // Look-ahead is more costly than look-back.
+                   if (diff < 0)
+                       cost = - diff;
+                   else
+                       cost = diff * 4;
+                   // Starting from differences >= 64, multiply cost by two;
+                   // multiply cost by three for difference >= 128, etc.
+                   if (log2_diff >= 6)
+                       cost *= log2_penalty[log2_diff - 6];
+                   total_cost += cost;
+              }
+              previous_v_index = v_index;
+         }
+     return total_cost;
 }
 
 void sreBaseModel::ReduceTriangleCount(float max_surface_roughness, float cost_threshold,
