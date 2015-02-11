@@ -299,6 +299,22 @@ enum {
     SRE_LOD_MODEL_SINGLE_PLANE = 0x400,
 };
 
+enum {
+    SRE_SORTING_HINT_XYZ = 0,
+    SRE_SORTING_HINT_YXZ = 1,
+    SRE_SORTING_HINT_ZXY = 2,
+    SRE_SORTING_HINT_XZY = 3,
+    SRE_SORTING_HINT_YZX = 4,
+    SRE_SORTING_HINT_ZYX = 5,
+    SRE_SORTING_HINT_FIRST_ASCENDING = 0,
+    SRE_SORTING_HINT_FIRST_DESCENDING = 6,
+    SRE_SORTING_HINT_SECOND_ASCENDING = 0,
+    SRE_SORTING_HINT_SECOND_DESCENDING = 12,
+    SRE_SORTING_HINT_THIRD_ASCENDING = 0,
+    SRE_SORTING_HINT_THIRD_DESCENDING = 24,
+    SRE_SORTING_HINT_UNDEFINED = 0xFF
+};
+
 // The base model class with basic geometry and attribute value information.
 
 class SRE_API sreBaseModel {
@@ -315,7 +331,8 @@ public :
     Point2D *texcoords;
     Color *colors;
     int flags;
-    int sorting_dimension;
+    unsigned char sorting_dimension;
+    unsigned char cache_coherency_sorting_hint;
     // Instancing (indicates which attributes are not shared with another model).
     int instance_flags;
 

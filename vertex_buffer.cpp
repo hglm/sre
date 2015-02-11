@@ -294,23 +294,31 @@ void sreLODModel::UploadToGPU(int attribute_mask, int dynamic_flags) {
 
     // Determine a sorting order that optimizes cache coherency.
     {
-    sreBaseModel *clone = new sreBaseModel;
-    CloneGeometry(clone);
     uint64_t best_cost = UINT64_MAX;
     int best_sorting_dimension = 0;
-    for (int dim = 0; dim < 48; dim++) {
-        clone->SortVertices(dim);
-        uint64_t cost = clone->CalculateCacheCoherency();
-//        sreMessage(SRE_MESSAGE_INFO, "Sorting dimension = %d, cost = %llu.", dim, cost);
-        if (cost < best_cost) {
-            best_cost = cost;
-            best_sorting_dimension = dim;
-        }
+    const char *predefined_str;
+    if (cache_coherency_sorting_hint != SRE_SORTING_HINT_UNDEFINED) {
+        best_sorting_dimension = cache_coherency_sorting_hint;
+        predefined_str = "predefined";
     }
-    delete clone;
+    else {
+        predefined_str = "calculated";
+        sreBaseModel *clone = new sreBaseModel;
+        CloneGeometry(clone);
+        for (int dim = 0; dim < 48; dim++) {
+            clone->SortVertices(dim);
+            uint64_t cost = clone->CalculateCacheCoherency();
+//            sreMessage(SRE_MESSAGE_INFO, "Sorting dimension = %d, cost = %llu.", dim, cost);
+            if (cost < best_cost) {
+               best_cost = cost;
+               best_sorting_dimension = dim;
+            }
+        }
+        delete clone;
+    }
     SortVertices(best_sorting_dimension);
-    sreMessage(SRE_MESSAGE_LOG, "sreLODModel::UploadToGPU: Model %d sorting order = %d.", id,
-        best_sorting_dimension);
+    sreMessage(SRE_MESSAGE_LOG, "sreLODModel::UploadToGPU: Model %d sorting order %d (%s).", id,
+        best_sorting_dimension, predefined_str);
     }
 
     int total_nu_vertices;

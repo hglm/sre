@@ -165,6 +165,7 @@ sreBaseModel::sreBaseModel() {
     nu_vertices = 0;
     nu_triangles = 0;
     sorting_dimension = - 1; // Not sorted.
+    cache_coherency_sorting_hint = SRE_SORTING_HINT_UNDEFINED;
     flags = 0;
     instance_flags = SRE_ALL_ATTRIBUTES_MASK;
 }

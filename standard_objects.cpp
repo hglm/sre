@@ -93,12 +93,16 @@ sreModel *sreCreateEllipsoidModel(sreScene *scene, float radius_y, float radius_
     sreModel *m = new sreModel;
     m->lod_model[0] = sreNewLODModel();
     sreInitializeEllipsoidModel(m->lod_model[0], 64, 32, radius_y, radius_z);
+    m->lod_model[0]->cache_coherency_sorting_hint = 18;
     m->lod_model[1] = sreNewLODModel();
     sreInitializeEllipsoidModel(m->lod_model[1], 32, 16, radius_y, radius_z);
+    m->lod_model[1]->cache_coherency_sorting_hint = 23;
     m->lod_model[2] = sreNewLODModel();
     sreInitializeEllipsoidModel(m->lod_model[2], 16, 8, radius_y, radius_z);
+    m->lod_model[2]->cache_coherency_sorting_hint = 23;
     m->lod_model[3] = sreNewLODModel();
     sreInitializeEllipsoidModel(m->lod_model[3], 8, 4, radius_y, radius_z);
+    m->lod_model[3]->cache_coherency_sorting_hint = 14;
     m->nu_lod_levels = 4;
     m->CalculateBounds();
     if (radius_y == 1.0 && radius_z == 1.0) {
@@ -117,12 +121,16 @@ sreModel *sreCreateSphereModel(sreScene *scene, float oblateness) {
     sreModel *m = new sreModel;
     m->lod_model[0] = sreNewLODModel();
     sreInitializeEllipsoidModel(m->lod_model[0], 64, 32, 1.0f, 1.0f - oblateness);
+    m->lod_model[0]->cache_coherency_sorting_hint = 18;
     m->lod_model[1] = sreNewLODModel();
     sreInitializeEllipsoidModel(m->lod_model[1], 32, 16, 1.0f, 1.0f - oblateness);
+    m->lod_model[1]->cache_coherency_sorting_hint = 23;
     m->lod_model[2] = sreNewLODModel();
     sreInitializeEllipsoidModel(m->lod_model[2], 16, 8, 1.0f, 1.0f - oblateness);
+    m->lod_model[2]->cache_coherency_sorting_hint = 23;
     m->lod_model[3] = sreNewLODModel();
     sreInitializeEllipsoidModel(m->lod_model[3], 8, 4, 1.0f, 1.0f - oblateness);
+    m->lod_model[3]->cache_coherency_sorting_hint = 14;
     m->nu_lod_levels = 4;
     m->CalculateBounds();
     if (oblateness == 0) {
@@ -627,6 +635,7 @@ Color color1, Color color2) {
     m->flags |= SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_NO_SHADOW_VOLUME_SUPPORT |
         SRE_LOD_MODEL_SINGLE_PLANE;
     m->SortVertices(0); // Sort on x-coordinate.
+    m->cache_coherency_sorting_hint = 19;
     m->MergeIdenticalVertices();
     m->vertex_normal = new Vector3D[m->nu_vertices];
     m->CalculateNormals();
@@ -717,12 +726,16 @@ sreModel *sreCreateTorusModel(sreScene *scene) {
 #if 1
     m->lod_model[0] = sreNewLODModel();
     sreInitializeTorusModel(m->lod_model[0], 64, 32, 64, 21);
+    m->lod_model[0]->cache_coherency_sorting_hint = 30;
     m->lod_model[1] = sreNewLODModel();
     sreInitializeTorusModel(m->lod_model[1], 32, 16, 32, 16);
+    m->lod_model[1]->cache_coherency_sorting_hint = 6;
     m->lod_model[2] = sreNewLODModel();
     sreInitializeTorusModel(m->lod_model[2], 16, 8, 16, 8);
+    m->lod_model[2]->cache_coherency_sorting_hint = 12;
     m->lod_model[3] = sreNewLODModel();
     sreInitializeTorusModel(m->lod_model[3], 8, 4, 8, 4);
+    m->lod_model[3]->cache_coherency_sorting_hint = 0;
 #else
     m->lod_model[0] = sreNewLODModel();
     sreInitializeTorusModel(m->lod_model[0], 64, 32, 8, 4);
@@ -1348,12 +1361,16 @@ sreModel *sreCreateCapsuleModel(sreScene *scene, float cap_radius, float length,
     sreModel *m = new sreModel;
     m->lod_model[0] = sreNewLODModel();
     sreInitializeCapsuleModel(m->lod_model[0], 64, 32, cap_radius, length, radius_y, radius_z);
+    m->lod_model[0]->cache_coherency_sorting_hint = 6;
     m->lod_model[1] = sreNewLODModel();
     sreInitializeCapsuleModel(m->lod_model[1], 32, 16, cap_radius, length, radius_y, radius_z);
+    m->lod_model[1]->cache_coherency_sorting_hint = 30;
     m->lod_model[2] = sreNewLODModel();
     sreInitializeCapsuleModel(m->lod_model[2], 16, 8, cap_radius, length, radius_y, radius_z);
+    m->lod_model[2]->cache_coherency_sorting_hint = 38;
     m->lod_model[3] = sreNewLODModel();
     sreInitializeCapsuleModel(m->lod_model[3], 8, 4, cap_radius, length, radius_y, radius_z);
+    m->lod_model[3]->cache_coherency_sorting_hint = 12;
     m->nu_lod_levels = 4;
     m->CalculateBounds();
     m->collision_shape_static = SRE_COLLISION_SHAPE_CAPSULE;
