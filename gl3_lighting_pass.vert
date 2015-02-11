@@ -219,8 +219,7 @@ void main() {
 #if defined(SPOT_LIGHT_SHADOW_MAP)
 	shadow_map_coord_var = shadow_map_transformation_matrix * vec4(position_world_var, 1.0);
 	// shadow_map_coord_var.xyz / shadow_map_coord_var.w maps to
-	// ([-1.0, 1.0], [-1.0, 1.0], [-1.0, 1.0]) for the shadow
-	// map region.
+	// ([0.0, 1.0], [0.0, 1.0], [0.0, 1.0]) for the shadow map region.
 #endif
 	// Precalculate shadow map parameters for directional and beam lights.
 #ifdef SHADOW_MAP

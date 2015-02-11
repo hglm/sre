@@ -752,14 +752,14 @@ void main() {
 	// Spotlight shadow map. Only one shadow map is used.
 	// shadow_map_transformation_matrix is expected to be the projection transformation
 	// for the spot light.
-	vec4 P_proj = shadow_map_coord_var;
+	vec4 P_trans = shadow_map_coord_var;
 	// If the fragment is outside of the spot light volume, just discard it.
-	vec3 P_normalized = P_proj.xyz / P_proj.w;
-	bool out_of_spotlight_bounds = any(lessThan(P_normalized.xyz, vec3(- 1.0, - 1.0, - 1.0))) ||
-		any(greaterThan(P_normalized.xyz, vec3(1.0, 1.0, 1.0)));
+	vec3 P_proj = P_trans.xyz / P_trans.w;
+	bool out_of_spotlight_bounds = any(lessThan(P_proj.xyz, vec3(0.0, 0.0, 0.0))) ||
+		any(greaterThan(P_proj.xyz, vec3(1.0, 1.0, 1.0)));
 	if (out_of_spotlight_bounds)
 		discard;
-	float shadow_radial_dist = texture2D(shadow_map_in, P_normalized.xy * 0.5 + vec2(0.5, 0.5)).z;
+	float shadow_radial_dist = texture2D(shadow_map_in, P_proj.xy).z;
 #endif
         // Calculate the radial distance of the world position from the light position,
         // and scale it so that the range [0, 1] corresponds to the values stored in the

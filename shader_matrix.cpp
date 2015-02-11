@@ -274,9 +274,9 @@ Vector3D x_direction, Vector3D y_direction, float zmax) {
         0.5f, 0.0f, 0.0f, 0.5f,
         0.0f, 0.5f, 0.0f, 0.5f,
         0.0f, 0.0f, 0.5f, 0.5f);
-//    projection_shadow_map_lighting_pass_matrix = shadow_map_viewport_matrix *
-//        projection_shadow_map_matrix;
-    projection_shadow_map_lighting_pass_matrix = projection_shadow_map_matrix;
+    projection_shadow_map_lighting_pass_matrix = shadow_map_viewport_matrix *
+        projection_shadow_map_matrix;
+//    projection_shadow_map_lighting_pass_matrix = projection_shadow_map_matrix;
 
 #if 0
     Point3D P1 = viewp + light_direction * n;
