@@ -578,11 +578,10 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
     if (light.type & SRE_LIGHT_BEAM) {
         GL3CalculateShadowMapMatrix(light.vector.GetPoint3D(), light.spotlight.GetVector3D(),
             x_dir, y_dir, dim_min, dim_max);
-        sre_internal_current_shadow_map_dimensions = Vector4D(light.cylinder.radius,
-            light.cylinder.radius, zmax,
-            sre_internal_max_shadow_map_size >>
-            sre_internal_current_shadow_map_index);
-        GL3InitializeShadowMapShadersBeforeLight(sre_internal_current_shadow_map_dimensions);
+        sre_internal_current_shadow_map_dimensions = Vector3D(light.cylinder.radius,
+            light.cylinder.radius, zmax);
+        GL3InitializeShadowMapShadersBeforeLight(Vector4D(sre_internal_current_shadow_map_dimensions,
+            sre_internal_max_shadow_map_size >> sre_internal_current_shadow_map_index));
     }
     else {
         // Spotlight. Use a projection shadow map matrix.
@@ -590,9 +589,16 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
 //            light.spotlight.GetVector3D(), x_dir, y_dir, zmax);
         GL3CalculateProjectionShadowMapMatrix(light.vector.GetPoint3D(),
             light.spotlight.GetVector3D(), x_dir, y_dir, light.spherical_sector.radius);
+        // Only the fourth component of the shadow map dimensions (the size in pixels of the
+        // shadow map) is used (and only by the lighting pass shaders, not the shadow map shaders).
+        sre_internal_current_shadow_map_dimensions = Vector3D(light.cylinder.radius,
+            light.cylinder.radius, light.spherical_sector.radius);
         GL3InitializeSpotlightShadowMapShadersBeforeLight();
+	// The spot light shadow maps now store depth, not scaled distance.
+#if 0
         GL3UpdateShadowMapSegmentDistanceScaling((1.0f / light.spherical_sector.radius) * 0.999f);
         GL3InitializeSpotlightShadowMapShadersWithSegmentDistanceScaling();
+#endif
     }
 
     RenderShadowMapFromCasterArray(scene, light);
@@ -674,10 +680,12 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
         glViewport(0, 0,
             sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index,
             sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index);
+#ifdef CUBE_MAP_STORES_DISTANCE
         // In the new shadow map method, the distance scaling is the same for all segments
         // (light volume radius corresponds to [0, 1]).
         GL3UpdateShadowMapSegmentDistanceScaling((1.0f / light.sphere.radius) * 0.999f);
         GL3InitializeCubeShadowMapShadersWithSegmentDistanceScaling();
+#endif
 
         int cube_map_mask = 0;
         for (int i = 0; i < 6; i++) {
@@ -765,7 +773,7 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
                 continue;
             cube_map_mask |= (1 << i);
             GL3CalculateCubeShadowMapMatrix(light.vector.GetVector3D(), cube_map_zdir[i],
-                cube_map_up_vector[i], zmax);
+                cube_map_up_vector[i], light.sphere.radius);
             GL3InitializeCubeShadowMapShadersBeforeLight();
 //                Vector4D(zmax, zmax, zmax,
 //                sre_internal_max_cube_shadow_map_size >>
@@ -1151,10 +1159,11 @@ printf("AABB = (%f, %f, %f) - (%f, %f, %f)\n", AABB.dim_min.x, AABB.dim_min.y, A
     GL3CalculateShadowMapMatrix(camera_position, - light.vector.GetVector3D(),
         x_dir, y_dir, dim_min, dim_max);
     float dim_xy = maxf(dim_max.x - dim_min.x, dim_max.y - dim_min.y);
-    sre_internal_current_shadow_map_dimensions = Vector4D(dim_xy, dim_xy, dim_max.z,
-        sre_internal_max_shadow_map_size);
+    sre_internal_current_shadow_map_dimensions = Vector3D(dim_xy, dim_xy, dim_max.z);
     CHECK_GL_ERROR("Error before GL3InitializeShadowMapShadersBeforeLight.\n");
-    GL3InitializeShadowMapShadersBeforeLight(sre_internal_current_shadow_map_dimensions);
+    GL3InitializeShadowMapShadersBeforeLight(Vector4D(
+        sre_internal_current_shadow_map_dimensions,
+        sre_internal_max_shadow_map_size >> sre_internal_current_shadow_map_index));
     CHECK_GL_ERROR("Error after GL3InitializeShadowMapShadersBeforeLight.\n");
     RenderShadowMapFromCasterArray(scene, light);
 

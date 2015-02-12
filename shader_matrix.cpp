@@ -206,7 +206,7 @@ Vector3D up_vector, float zmax) {
     // Calculate the projection matrix with a field of view of 90 degrees.
     float aspect = 1.0;
     float e = 1 / tanf((90.0f * M_PI / 180) / 2);
-    float n = zmax * 0.001f;
+    float n = zmax * SRE_SHADOW_CUBE_MAP_NEAR_PLANE_DISTANCE;
     float f = zmax;
     float l = - n / e;
     float r = n / e;
@@ -256,7 +256,7 @@ Vector3D x_direction, Vector3D y_direction, float zmax) {
     // Calculate the projection matrix with a field of view of 90 degrees.
     float aspect = 1.0;
     float e = 1 / tanf((90.0 * M_PI / 180) / 2);
-    float n = zmax * 0.001f;
+    float n = zmax * 0.01f;
     float f = zmax;
     float l = - n / e;
     float r = n / e;

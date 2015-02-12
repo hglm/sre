@@ -37,7 +37,7 @@ varying vec2 texcoord_var;
 // 3D transformation matrix to apply to the texcoords.
 uniform mat3 uv_transform_in;
 #endif
-#if defined(CUBE_MAP) || defined(SPOTLIGHT)
+#if defined(CUBE_MAP) && defined(CUBE_MAP_STORES_DISTANCE)
 #ifdef GL_ES
 uniform mat4 model_matrix;
 #else
@@ -115,16 +115,16 @@ void main() {
 	bias_var = bias;	
 #endif
 
-#if defined(CUBE_MAP) || defined (SPOTLIGHT)
+#if defined(CUBE_MAP) && defined(CUBE_MAP_STORES_DISTANCE)
 	position_world_var = (model_matrix * position_in).xyz;
 	gl_Position = MVP * position_in;
 #else
-#ifdef GL_ES
 	// With OpenGL ES 2.0, the transformed vertex position needs to generate the correct
 	// depth value for the fixed-function pipeline.
-	gl_Position = vec4((MVP * position_in).xyz, 1.0);
+	// For directional light/beam light shadow maps, the w value does not matter.
+#if defined(SPOTLIGHT) || defined(CUBE_MAP)
+	gl_Position = MVP * position_in;
 #else
-	// The w value does not matter.
 	gl_Position = vec4((MVP * position_in).xyz, 1.0);
 #endif
 #endif

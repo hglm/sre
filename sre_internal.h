@@ -58,8 +58,10 @@ extern bool sre_internal_use_depth_clamping;
 extern void (*sreDrawTextOverlayFunc)();
 extern SRE_GLUINT sre_internal_depth_texture[SRE_MAX_SHADOW_MAP_LEVELS_OPENGL];
 extern SRE_GLUINT sre_internal_shadow_map_framebuffer[SRE_MAX_SHADOW_MAP_LEVELS_OPENGL];
+extern float sre_internal_depth_texture_precision[SRE_MAX_SHADOW_MAP_LEVELS_OPENGL];
 extern SRE_GLUINT sre_internal_depth_cube_map_texture[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL];
 extern SRE_GLUINT sre_internal_cube_shadow_map_framebuffer[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL][6];
+extern float sre_internal_depth_cube_map_texture_precision[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL];
 extern bool sre_internal_depth_cube_map_texture_is_clear[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL][6];
 extern SRE_GLUINT sre_internal_HDR_color_texture;
 extern SRE_GLUINT sre_internal_HDR_multisample_framebuffer;
@@ -116,7 +118,7 @@ extern int sre_internal_max_cube_shadow_map_size;
 extern int sre_internal_current_cube_shadow_map_index;
 extern int sre_internal_nu_cube_shadow_map_size_levels;
 extern SRE_GLUINT sre_internal_current_depth_cube_map_texture;
-extern Vector4D sre_internal_current_shadow_map_dimensions;
+extern Vector3D sre_internal_current_shadow_map_dimensions;
 
 extern Matrix3D *sre_internal_standard_UV_transformation_matrix;
 

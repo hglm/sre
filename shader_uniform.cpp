@@ -36,6 +36,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre_internal.h"
 #include "shader.h"
 #include "light_parameters.h"
+#include "shadow_map_parameters.h"
 
 // Shadow cube map parameters.
 
@@ -259,6 +260,48 @@ static void InitializeShaderLightParameters(int loc) {
     }
     glUniform1fv(loc, nu_light_parameters, &light_parameters[0]);
 }
+
+// Number of shadow map parameters indexed by light type index;
+
+static const char nu_shadow_map_parameters_table[4] = {
+    NU_SHADOW_MAP_PARAMETERS_DIRECTIONAL_BEAM_LIGHT,
+    NU_SHADOW_MAP_PARAMETERS_POINT_LIGHT,
+    NU_SHADOW_MAP_PARAMETERS_SPOT_LIGHT,
+    NU_SHADOW_MAP_PARAMETERS_DIRECTIONAL_BEAM_LIGHT,
+};
+
+static void sreInitializeShaderShadowMapParameters(int loc) {
+    float shadow_map_parameters[NU_SHADOW_MAP_PARAMETERS_MAX];
+    int type = sre_internal_current_light->type_index;
+    int nu_shadow_map_parameters = nu_shadow_map_parameters_table[type];
+    if (type == SRE_LIGHT_TYPE_POINT_SOURCE) {
+        shadow_map_parameters[SHADOW_MAP_SIZE] =
+            sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index;
+        shadow_map_parameters[SHADOW_MAP_DEPTH_PRECISION] =
+            sre_internal_depth_cube_map_texture_precision[sre_internal_current_cube_shadow_map_index];
+#ifdef CUBE_SHADOW_MAP_STORES_DISTANCE
+        shadow_map_parameters[SHADOW_MAP_SEGMENT_DISTANCE_SCALING] =
+            sre_internal_shadow_segment_distance_scaling;
+        nu_shadow_map_parameters = 3;
+#else
+        float f = sre_internal_current_light->attenuation.x;
+        float n = SRE_SHADOW_CUBE_MAP_NEAR_PLANE_DISTANCE;
+	shadow_map_parameters[SHADOW_MAP_F_N_COEFFICIENT_1] = (f + n) / (f - n);
+        shadow_map_parameters[SHADOW_MAP_F_N_COEFFICIENT_2] = 2 * f * n / (f - n);
+#endif
+    }
+    else {
+        shadow_map_parameters[SHADOW_MAP_SIZE] =
+            sre_internal_max_shadow_map_size >> sre_internal_current_shadow_map_index;
+        shadow_map_parameters[SHADOW_MAP_DEPTH_PRECISION] =
+            sre_internal_depth_texture_precision[sre_internal_current_shadow_map_index];
+        if (type != SRE_LIGHT_TYPE_BEAM) {
+            shadow_map_parameters[SHADOW_MAP_DIMENSIONS_X] = sre_internal_current_shadow_map_dimensions.x;
+            shadow_map_parameters[SHADOW_MAP_DIMENSIONS_Z] = sre_internal_current_shadow_map_dimensions.z;
+        }
+    }
+    glUniform1fv(loc, nu_shadow_map_parameters, &shadow_map_parameters[0]);
+} 
 
 #else
 
@@ -549,6 +592,8 @@ void sreBindShadowMapTexture(sreLight *light) {
         GL3InitializeShaderWithCubeShadowMapTexture();
 }
 
+#if 0
+
 static void GL3InitializeShaderWithSegmentDistanceScaling(int loc) {
     glUniform1f(loc, sre_internal_shadow_segment_distance_scaling);
 }
@@ -556,6 +601,8 @@ static void GL3InitializeShaderWithSegmentDistanceScaling(int loc) {
 static void GL3InitializeShaderWithShadowMapDimensions(int loc) {
     glUniform4fv(loc, 1, (GLfloat *)&sre_internal_current_shadow_map_dimensions);
 }
+
+#endif
 
 #endif
 
@@ -1008,12 +1055,12 @@ void GL3InitializeShadersBeforeLight() {
                 multi_pass_shader[j].uniform_location[UNIFORM_SPOTLIGHT]);
 #endif
 #ifndef NO_SHADOW_MAP
-        if (multi_pass_shader[j].uniform_mask & (1 << UNIFORM_SEGMENT_DISTANCE_SCALING))
-            GL3InitializeShaderWithSegmentDistanceScaling(
-                multi_pass_shader[j].uniform_location[UNIFORM_SEGMENT_DISTANCE_SCALING]);
-        if (multi_pass_shader[j].uniform_mask & (1 << UNIFORM_SHADOW_MAP_DIMENSIONS))
-            GL3InitializeShaderWithShadowMapDimensions(
-                multi_pass_shader[j].uniform_location[UNIFORM_SHADOW_MAP_DIMENSIONS]);
+        if (multi_pass_shader[j].uniform_mask & (1 << UNIFORM_SHADOW_MAP_PARAMETERS))
+            sreInitializeShaderShadowMapParameters(
+                multi_pass_shader[j].uniform_location[UNIFORM_SHADOW_MAP_PARAMETERS]);
+//        if (multi_pass_shader[j].uniform_mask & (1 << UNIFORM_SEGMENT_DISTANCE_SCALING))
+//            GL3InitializeShaderWithSegmentDistanceScaling(
+//                multi_pass_shader[j].uniform_location[UNIFORM_SEGMENT_DISTANCE_SCALING]);
 #endif
     }
 }
@@ -1024,7 +1071,7 @@ void GL3InitializeShadersBeforeLight() {
 // Note the checks whether the shaders are loaded should be unnecessary if the status of the
 // shaders is properly checked when shadow mapping is enabled (just load them).
 //
-// dim.xyz is world space dimensions, dim.w is shadow map size in pixels.
+// dim.xyz is world space dimensions.
 
 void GL3InitializeShadowMapShadersBeforeLight(const Vector4D& dim) {
     if (misc_shader[SRE_MISC_SHADER_SHADOW_MAP].status == SRE_SHADER_STATUS_LOADED) {
@@ -1087,6 +1134,8 @@ void GL3InitializeShadowMapShadersBeforeLight(const Vector4D& dim) {
 }
 
 void GL3InitializeSpotlightShadowMapShadersBeforeLight() {
+#if 0
+    // Spot light shadow map shaders no longer use light position (they only write depth).
     if (misc_shader[SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP].status == SRE_SHADER_STATUS_LOADED) {
         glUseProgram(misc_shader[SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP].program);
         GL3InitializeShadowMapShaderWithLightPosition(
@@ -1099,6 +1148,7 @@ void GL3InitializeSpotlightShadowMapShadersBeforeLight() {
            misc_shader[SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP_TRANSPARENT].
                uniform_location[UNIFORM_MISC_LIGHT_POSITION]);
     }
+#endif
 }
 
 void GL3InitializeSpotlightShadowMapShadersWithSegmentDistanceScaling() {
@@ -1117,6 +1167,7 @@ void GL3InitializeSpotlightShadowMapShadersWithSegmentDistanceScaling() {
 }
 
 void GL3InitializeCubeShadowMapShadersBeforeLight() {
+#ifdef CUBE_MAP_STORES_DISTANCE
     if (misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP].status == SRE_SHADER_STATUS_LOADED) {
         glUseProgram(misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP].program);
         GL3InitializeShadowMapShaderWithLightPosition(
@@ -1129,6 +1180,7 @@ void GL3InitializeCubeShadowMapShadersBeforeLight() {
            misc_shader[SRE_MISC_SHADER_CUBE_SHADOW_MAP_TRANSPARENT].
                uniform_location[UNIFORM_MISC_LIGHT_POSITION]);
     }
+#endif
 }
 
 void GL3InitializeCubeShadowMapShadersWithSegmentDistanceScaling() {
@@ -2595,8 +2647,6 @@ void GL3InitializeShadowMapShader(const sreObject& so) {
     }
 }
 
-
-// This function does not yet support transparent textures.
 void GL3InitializeShadowMapShaderNonClosedObject(const sreObject& so) {
     if (so.render_flags & SRE_OBJECT_TRANSPARENT_TEXTURE) {
         glUseProgram(misc_shader[SRE_MISC_SHADER_SHADOW_MAP_NON_CLOSED_OBJECT_TRANSPARENT].program);
@@ -2663,9 +2713,9 @@ void GL3InitializeSpotlightShadowMapShader(const sreObject& so) {
         glUseProgram(misc_shader[SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP_TRANSPARENT].program);
         GL3InitializeShadowMapShaderWithSpotlightShadowMapMVP(misc_shader[
             SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP_TRANSPARENT].uniform_location[UNIFORM_MISC_MVP], so);
-        GL3InitializeShaderWithModelMatrix(
-            misc_shader[SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP_TRANSPARENT]
-            .uniform_location[UNIFORM_MISC_MODEL_MATRIX], so);
+//        GL3InitializeShaderWithModelMatrix(
+//            misc_shader[SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP_TRANSPARENT]
+//            .uniform_location[UNIFORM_MISC_MODEL_MATRIX], so);
         GL3InitializeShaderWithUVTransform(
             misc_shader[SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP_TRANSPARENT].
             uniform_location[UNIFORM_MISC_UV_TRANSFORM], so);
@@ -2680,9 +2730,9 @@ void GL3InitializeSpotlightShadowMapShader(const sreObject& so) {
         glUseProgram(misc_shader[SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP].program);
         GL3InitializeShadowMapShaderWithSpotlightShadowMapMVP(
             misc_shader[SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP].uniform_location[UNIFORM_MISC_MVP], so);
-        GL3InitializeShaderWithModelMatrix(
-            misc_shader[SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP].uniform_location[UNIFORM_MISC_MODEL_MATRIX],
-            so);
+//        GL3InitializeShaderWithModelMatrix(
+//            misc_shader[SRE_MISC_SHADER_SPOTLIGHT_SHADOW_MAP].uniform_location[UNIFORM_MISC_MODEL_MATRIX],
+//            so);
     }
 }
 

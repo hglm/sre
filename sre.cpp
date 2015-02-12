@@ -63,8 +63,10 @@ sreScissors sre_internal_last_stencil_scissors_region;
 
 SRE_GLUINT sre_internal_depth_texture[SRE_MAX_SHADOW_MAP_LEVELS_OPENGL];
 SRE_GLUINT sre_internal_shadow_map_framebuffer[SRE_MAX_SHADOW_MAP_LEVELS_OPENGL];
+float sre_internal_depth_texture_precision[SRE_MAX_SHADOW_MAP_LEVELS_OPENGL];
 SRE_GLUINT sre_internal_depth_cube_map_texture[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL];
 SRE_GLUINT sre_internal_cube_shadow_map_framebuffer[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL][6];
+float sre_internal_depth_cube_map_texture_precision[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL];
 SRE_GLUINT sre_internal_current_depth_cube_map_texture;
 bool sre_internal_depth_cube_map_texture_is_clear[SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL][6];
 SRE_GLUINT sre_internal_HDR_multisample_color_renderbuffer = 0;
@@ -144,7 +146,7 @@ int sre_internal_nu_shadow_map_size_levels;
 int sre_internal_max_cube_shadow_map_size;
 int sre_internal_current_cube_shadow_map_index;
 int sre_internal_nu_cube_shadow_map_size_levels;
-Vector4D sre_internal_current_shadow_map_dimensions;
+Vector3D sre_internal_current_shadow_map_dimensions;
 
 void sreSetShadowsMethod(int method) {
     if (method == SRE_SHADOWS_SHADOW_VOLUMES &&
@@ -681,18 +683,19 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
         glGenTextures(1, &sre_internal_depth_texture[level]);
 #ifdef OPENGL_ES2
         glBindTexture(GL_TEXTURE_2D, sre_internal_depth_texture[level]);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         // Use 16-bit half-float precision. 32-bit float precision might be an option
         // on fast hardware.
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, size, size, 0,
             GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, 0);
+        sre_internal_depth_texture_precision[level] = 1.0f / powf(2.0f, 16.0f);
 #else
         glBindTexture(GL_TEXTURE_2D, sre_internal_depth_texture[level]);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         // Use 32-bit float precision for largest shadow maps (used for directional
@@ -702,15 +705,21 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
         if (level == 0) {
             gl_depth = GL_DEPTH_COMPONENT32;
             gl_type = GL_FLOAT;
+            sre_internal_depth_texture_precision[level] = 1.0f / powf(2.0f, 23.0f);
         }
         else {
             gl_depth = GL_DEPTH_COMPONENT16;
-            gl_type = GL_HALF_FLOAT;
+            gl_type = GL_UNSIGNED_SHORT;
+            sre_internal_depth_texture_precision[level] = 1.0f / powf(2.0f, 16.0f);
         }
         glTexImage2D(GL_TEXTURE_2D, 0, gl_depth, size, size, 0,
             GL_DEPTH_COMPONENT, gl_type, 0);
 #endif
-        CHECK_GL_ERROR("Error after shadow map initialization.\n");
+#ifdef USE_SHADOW_SAMPLER
+        // Required when using sampler2DShadow in shader.
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+#endif
+	CHECK_GL_ERROR("Error after shadow map initialization.\n");
 
         glGenFramebuffers(1, &sre_internal_shadow_map_framebuffer[level]);
 #ifdef OPENGL_ES2
@@ -775,29 +784,36 @@ skip_shadow_map:
         glGenTextures(1, &sre_internal_depth_cube_map_texture[level]);
 #ifdef OPENGL_ES2
         glBindTexture(GL_TEXTURE_CUBE_MAP, sre_internal_depth_cube_map_texture[level]);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         for (int i = 0; i < 6; i++) {
             glTexImage2D(cube_map_target[i], 0, GL_DEPTH_COMPONENT, size, size, 0,
                 GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, 0);
         }
+        sre_internal_depth_cube_map_texture_precision[level] = 1.0f / powf(2.0f, 16.0f);
 #else
         // Use the built-in cube map format.
         glBindTexture(GL_TEXTURE_CUBE_MAP, sre_internal_depth_cube_map_texture[level]);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 //        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_DEPTH_TEXTURE_MODE, GL_INTENSITY);
+        sre_internal_depth_cube_map_texture_precision[level] = 1.0f / powf(2.0f, 16.0f);
         for (int i = 0; i < 6; i++) {
             glTexImage2D(cube_map_target[i], 0, GL_DEPTH_COMPONENT16, size, size, 0,
-                GL_DEPTH_COMPONENT, GL_HALF_FLOAT, 0);
+                GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, 0);
             CHECK_GL_ERROR("Error after cube map face initialization.\n");
             sre_internal_depth_cube_map_texture_is_clear[level][i] = false;
         }
+#endif
+#ifdef USE_SHADOW_SAMPLER
+        // Required when using samplerCubeShadow in shader.
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+        CHECK_GL_ERROR("Error after setting texture compare mode for shadow cube texture.\n");
 #endif
 
         for (int i = 0; i < 6; i++) {

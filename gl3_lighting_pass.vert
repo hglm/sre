@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2014 Harm Hanemaaijer <fgenfb@yahoo.com>
+Copyright (c) 2015 Harm Hanemaaijer <fgenfb@yahoo.com>
 
 Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
@@ -72,10 +72,7 @@ uniform mat4x3 shadow_map_transformation_matrix;
 #ifdef SPOT_LIGHT_SHADOW_MAP
 uniform mat4 shadow_map_transformation_matrix;
 #endif
-#ifdef SHADOW_MAP
-// For use with shadow map parameter precalculation (directional/beam lights).
-uniform vec4 shadow_map_dimensions_in;
-uniform sampler2D shadow_map_in;
+#if defined(SHADOW_MAP) || defined(SPOT_LIGHT_SHADOW_MAP)
 #ifdef GL_ES
 uniform mediump float light_parameters_in[NU_LIGHT_PARAMETERS_MAX];
 #else
@@ -126,11 +123,8 @@ varying vec3 shadow_map_coord_var;
 #if defined(SPOT_LIGHT_SHADOW_MAP)
 varying vec4 shadow_map_coord_var;
 #endif
-#ifdef SHADOW_MAP
-invariant varying float reprocical_shadow_map_size_var;
+#if defined(SHADOW_MAP) || defined(SPOT_LIGHT_SHADOW_MAP)
 varying float slope_var;
-invariant varying float shadow_map_depth_precision_var;
-invariant varying vec3 shadow_map_dimensions_var;
 #endif
 
 
@@ -160,7 +154,7 @@ void main() {
 #ifdef NORMAL_VAR
 	// Normal given is in model space.
         // Convert normal from model space to world space.
-	vec3 normal = model_rotation_matrix * normalize(normal_in);
+	vec3 normal = model_rotation_matrix * normal_in;
 	normal_var = normal;
 #endif
 
@@ -211,19 +205,12 @@ void main() {
 #endif
 #endif
 
-#if defined(SHADOW_MAP)
-	shadow_map_coord_var = (shadow_map_transformation_matrix * position_in).xyz;
-	// shadow_map_coord_var maps to ([0, 1.0], [0, 1.0], [0, 1.0]) for the shadow
-	// map region.
-#endif
-#if defined(SPOT_LIGHT_SHADOW_MAP)
-	shadow_map_coord_var = shadow_map_transformation_matrix * vec4(position_world_var, 1.0);
-	// shadow_map_coord_var.xyz / shadow_map_coord_var.w maps to
-	// ([0.0, 1.0], [0.0, 1.0], [0.0, 1.0]) for the shadow map region.
-#endif
-	// Precalculate shadow map parameters for directional and beam lights.
-#ifdef SHADOW_MAP
-	reprocical_shadow_map_size_var = 1.0 / shadow_map_dimensions_in.w;
+
+#if defined(SHADOW_MAP) || defined(SPOT_LIGHT_SHADOW_MAP)
+	// For directional, beam and spot light shadow maps, we want to calculate and interpolate
+	// the slope value (the orientation of the triangle relative tot the shadow map light
+	// direction).
+	// First calculate L_bias, the inverted shadow map light direction.
 	vec3 L_bias;
 
       	vec3 light_parameters_position;
@@ -237,7 +224,8 @@ void main() {
 	L_bias = light_parameters_position;
 #else
 	// For a beam light, the direction of light remains the z axis even for points away
-	// from the central axis.
+	// from the central axis. For spot lights, this calculation is also correct with respect
+	// to the slope value in the depth buffer.
 	vec3 light_parameters_axis_direction;
         light_parameters_axis_direction = vec3(
 		light_parameters_in[LIGHT_AXIS_DIRECTION_X],
@@ -246,27 +234,26 @@ void main() {
 		);
 	L_bias = - light_parameters_axis_direction;
 #endif
+
 	// Calculate the slope of the triangle relative to direction of the light
 	// (direction of increasing depth in shadow map).
-	// Use the vertex normal.
+	// Use the vertex normal. For double-sided surfaces, the slope value will be correct
+	// even if the normal faces the wrong side.
 	slope_var = tan(acos(clamp(dot(normal, L_bias), 0.001, 1.0)));
         // Limit slope to 100.0.
 	slope_var = min(slope_var, 100.0);
-
-#ifdef GL_ES
-	// GLES2 currently uses only 16-bit depth buffers.
-	shadow_map_depth_precision_var = 0.5 / pow(2.0, 16.0);
-#else
-	// Set depth buffer precision.
-	if (shadow_map_dimensions_in.w >= 2047.0)
-		// Float depth buffer.
-		shadow_map_depth_precision_var = 0.5 / pow(2.0, 23.0);
-	else
-		// Half-float depth buffer.
-	        shadow_map_depth_precision_var = 0.5 / pow(2.0, 11.0);
 #endif
-	shadow_map_dimensions_var = shadow_map_dimensions_in.xyz;
-#endif // defined(SHADOW_MAP)
+
+#if defined(SHADOW_MAP)
+	shadow_map_coord_var = (shadow_map_transformation_matrix * position_in).xyz;
+	// shadow_map_coord_var maps to ([0, 1.0], [0, 1.0], [0, 1.0]) for the shadow
+	// map region.
+#endif
+#if defined(SPOT_LIGHT_SHADOW_MAP)
+	shadow_map_coord_var = shadow_map_transformation_matrix * vec4(position_world_var, 1.0);
+	// shadow_map_coord_var.xyz / shadow_map_coord_var.w maps to
+	// ([0.0, 1.0], [0.0, 1.0], [0.0, 1.0]) for the shadow map region.
+#endif
 
 	gl_Position = MVP * position_in;
 }

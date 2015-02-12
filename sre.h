@@ -137,6 +137,7 @@ typedef Matrix4x3RM MatrixTransform;
 // The maximum number of cube shadow map levels.
 #define SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL 6
 #define SRE_MAX_CUBE_SHADOW_MAP_LEVELS_GLES2 4
+#define SRE_SHADOW_CUBE_MAP_NEAR_PLANE_DISTANCE 0.01f
 // The maximum depth for the octrees used for scene entities (objects and lights).
 #define SRE_MAX_OCTREE_DEPTH 12
 
