@@ -59,6 +59,9 @@ uniform bool use_specular_map_in;
 #ifdef EMISSION_MAP_OPTION
 uniform bool use_emission_map_in;
 #endif
+#ifdef VIEWPOINT_IN
+uniform vec3 viewpoint_in;
+#endif
 #ifdef MULTI_COLOR_OPTION
 uniform vec3 diffuse_reflection_color_in;
 #endif
@@ -72,7 +75,7 @@ uniform mat4x3 shadow_map_transformation_matrix;
 #ifdef SPOT_LIGHT_SHADOW_MAP
 uniform mat4 shadow_map_transformation_matrix;
 #endif
-#if defined(SHADOW_MAP) || defined(SPOT_LIGHT_SHADOW_MAP)
+#if defined(SHADOW_MAP) || defined(SPOT_LIGHT_SHADOW_MAP) || defined(NORMAL_MAP_TANGENT_SPACE_VECTORS)
 #ifdef GL_ES
 uniform mediump float light_parameters_in[NU_LIGHT_PARAMETERS_MAX];
 #else
@@ -126,7 +129,10 @@ varying vec4 shadow_map_coord_var;
 #if defined(SHADOW_MAP) || defined(SPOT_LIGHT_SHADOW_MAP)
 varying float slope_var;
 #endif
-
+#ifdef NORMAL_MAP_TANGENT_SPACE_VECTORS
+varying vec3 V_tangent_var;
+varying vec3 L_tangent_var;
+#endif
 
 #ifdef COMPRESS_COLOR_ATTRIBUTE
 
@@ -171,6 +177,9 @@ void main() {
 #endif
 #endif
 
+#if defined(NORMAL_MAP_OPTION) || defined(NORMAL_MAP_FIXED)
+	mat3 tbn_matrix;
+#endif
 #ifdef NORMAL_MAP_OPTION
 	// Normal mapping.
 	if (use_normal_map_in) {
@@ -181,9 +190,12 @@ void main() {
 		// Calculate the bitangent; handedness is in the w coordinate of the input tangent.
 	        vec3 b = normalize(cross(normal, t)) * tangent_in.w;
 		// Calculate the matrix to convert from world to tangent space.
-		tbn_matrix_var = mat3(t.x, b.x, normal.x,
+		tbn_matrix = mat3(t.x, b.x, normal.x,
 			t.y, b.y, normal.y,
 			t.z, b.z, normal.z);
+#ifndef NORMAL_MAP_TANGENT_SPACE_VECTORS
+		tbn_matrix_var = tbn_matrix;
+#endif
 #endif
 #ifdef NORMAL_MAP_OPTION
 	}
@@ -205,6 +217,21 @@ void main() {
 #endif
 #endif
 
+#if defined(SHADOW_MAP) || defined(SPOT_LIGHT_SHADOW_MAP) || defined(NORMAL_MAP_TANGENT_SPACE_VECTORS)
+	// Prepare light parameters.
+      	vec3 light_parameters_position;
+        light_parameters_position = vec3(
+		light_parameters_in[LIGHT_POSITION_X],
+		light_parameters_in[LIGHT_POSITION_Y],
+		light_parameters_in[LIGHT_POSITION_Z]
+		);
+	vec3 light_parameters_axis_direction;
+        light_parameters_axis_direction = vec3(
+		light_parameters_in[LIGHT_AXIS_DIRECTION_X],
+		light_parameters_in[LIGHT_AXIS_DIRECTION_Y],
+		light_parameters_in[LIGHT_AXIS_DIRECTION_Z]
+		);
+#endif
 
 #if defined(SHADOW_MAP) || defined(SPOT_LIGHT_SHADOW_MAP)
 	// For directional, beam and spot light shadow maps, we want to calculate and interpolate
@@ -212,37 +239,43 @@ void main() {
 	// direction).
 	// First calculate L_bias, the inverted shadow map light direction.
 	vec3 L_bias;
-
-      	vec3 light_parameters_position;
-        light_parameters_position = vec3(
-		light_parameters_in[LIGHT_POSITION_X],
-		light_parameters_in[LIGHT_POSITION_Y],
-		light_parameters_in[LIGHT_POSITION_Z]
-		);
-
 #ifdef DIRECTIONAL_LIGHT
 	L_bias = light_parameters_position;
 #else
 	// For a beam light, the direction of light remains the z axis even for points away
 	// from the central axis. For spot lights, this calculation is also correct with respect
 	// to the slope value in the depth buffer.
-	vec3 light_parameters_axis_direction;
-        light_parameters_axis_direction = vec3(
-		light_parameters_in[LIGHT_AXIS_DIRECTION_X],
-		light_parameters_in[LIGHT_AXIS_DIRECTION_Y],
-		light_parameters_in[LIGHT_AXIS_DIRECTION_Z]
-		);
 	L_bias = - light_parameters_axis_direction;
 #endif
-
 	// Calculate the slope of the triangle relative to direction of the light
 	// (direction of increasing depth in shadow map).
 	// Use the vertex normal. For double-sided surfaces, the slope value will be correct
 	// even if the normal faces the wrong side.
-	slope_var = tan(acos(clamp(dot(normal, L_bias), 0.001, 1.0)));
-        // Limit slope to 100.0.
-	slope_var = min(slope_var, 100.0);
+	// This equation limits slope to approximately 100.0.
+	slope_var = tan(acos(clamp(dot(normal, L_bias), 0.01, 1.0)));
 #endif
+
+#ifdef NORMAL_MAP_TANGENT_SPACE_VECTORS
+	// Convert light and view vectors to tangent space.
+	// Calculate the light vector L.
+	vec3 L;
+#ifdef DIRECTIONAL_LIGHT
+	L = light_parameters_position;
+#endif
+#if defined(POINT_SOURCE_LIGHT) || defined(SPOT_LIGHT)
+	// The light vector for point and spot lights is unnormalized. It will be normalized
+	// by the fragment shader.
+	L = light_parameters_position.xyz - position_world_var;
+#endif
+#ifdef BEAM_LIGHT
+	L = - light_parameters_axis_direction;
+#endif
+	// Calculate the unnormalized inverse view direction V.
+        vec3 V = viewpoint_in - position_world_var;
+	// Convert L and V to tangent space.
+	L_tangent_var = tbn_matrix * L;
+	V_tangent_var = tbn_matrix * V;
+#endif	// defined(NORMAL_MAP_TANGENT_SPACE_VECTORS)
 
 #if defined(SHADOW_MAP)
 	shadow_map_coord_var = (shadow_map_transformation_matrix * position_in).xyz;

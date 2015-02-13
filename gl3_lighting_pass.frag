@@ -142,6 +142,10 @@ varying float slope_var;
 #if defined(SHADOW_MAP) || defined(SPOT_LIGHT_SHADOW_MAP) || defined(SHADOW_CUBE_MAP)
 uniform float shadow_map_parameters_in[NU_SHADOW_MAP_PARAMETERS_MAX];
 #endif
+#ifdef NORMAL_MAP_TANGENT_SPACE_VECTORS
+varying vec3 V_tangent_var;
+varying vec3 L_tangent_var;
+#endif
 
 #ifdef GL_ES
 #define TEXTURE_CUBE_FUNC textureCube
@@ -538,18 +542,18 @@ void main() {
 	// Calculate light direction of point source light or directional light
 	MEDIUMP vec3 L;
 #ifdef DIRECTIONAL_LIGHT
-        L = light_parameters_position.xyz;
-#else
-	// Calculated normalized negative light direction (for all kinds of lights, even
-        // directional).
-	L = normalize(light_parameters_position.xyz - light_parameters_position.w *
-		position_world_var);
+	L = light_parameters_position.xyz;
+#endif
+#if defined(POINT_SOURCE_LIGHT) || defined(SPOT_LIGHT)
+	L = normalize(light_parameters_position.xyz - position_world_var);
+#endif
+#ifdef BEAM_LIGHT
+	L = - light_parameters_axis_direction;
 #endif
 #ifdef USE_REFLECTION_VECTOR
         MEDIUMP vec3 R;
 #else	
-	// Calculate the halfway vector.
-	MEDIUMP vec3 H = normalize(V + L);
+	MEDIUMP vec3 H;
 #endif
 
 	// Declaring and calculating dot products early and seperately within all if/then
@@ -589,6 +593,7 @@ void main() {
 		// Move range from [0,1] to [-1, 1].
 		n.xy = n.xy * 2.0 - vec2(1.0, 1.0);
                 // Calculating z with accuracy is important for correct highlights.
+		// Normalizing n might be an alternative?
 		normal = vec3(n.x, n.y, sqrt(1.0 - n.x * n.x - n.y * n.y));;
 #else
 		if (n.z != 0.0)
@@ -611,6 +616,10 @@ void main() {
 		// otherwise exaggerated highlights appear and performance is worse on
 		// OpenGL ES 2.0 (maybe because of the power function involved in the
 		// specular light calculation).
+#ifdef NORMAL_MAP_TANGENT_SPACE_VECTORS
+		L = normalize(L_tangent_var);
+		V = normalize(V_tangent_var);
+#else
 		L = tbn_matrix_var * L;
 #if defined(NORMALIZE_TANGENT_SPACE_VECTORS) || defined(USE_REFLECTION_VECTOR)
 		L = normalize(L);
@@ -621,16 +630,17 @@ void main() {
 		V = normalize(V);
 #endif
 #endif
+#endif // !defined(NORMAL_MAP_TANGENT_SPACE_VECTORS)
+
 #ifdef USE_REFLECTION_VECTOR
-		// Calculate the reflection vector.
+		// Calculate the tangent space reflection vector.
         	R = - reflect(L, normal);
 		// R is already in tangent space
 #else
-                H = tbn_matrix_var * H;
-#ifdef NORMALIZE_TANGENT_SPACE_VECTORS
-		H = normalize(H);
+		// Calculate the tangent space halfway vector.
+		H = normalize(V + L);
 #endif
-#endif
+
 		NdotL = dot(normal, L);
 #ifdef USE_REFLECTION_VECTOR
 		RdotV = max(dot(R, V), 0.0);
@@ -645,6 +655,7 @@ void main() {
 #endif
 #ifndef NORMAL_MAP_FIXED
 	{
+		// Calculate normal, NdotL and NdotV/NdotH (no normal mapping).
 		normal = normal_var;
 		// Invert normal for back faces for correct lighting of faces that
                 // can be looked at from both sides.
@@ -656,6 +667,9 @@ void main() {
 #ifdef USE_REFLECTION_VECTOR
 		// Calculate the reflection vector.
         	R = - reflect(L, normal);
+#else
+		// Calculate the halfway vector.
+		H = normalize(V + L);
 #endif
 		NdotL = dot(normal, L);
 #ifdef USE_REFLECTION_VECTOR
