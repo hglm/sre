@@ -56,7 +56,7 @@ void main() {
 #if defined(CUBE_MAP) && defined(CUBE_MAP_STORES_DISTANCE)
 	// Write the distance to the depth buffer. This is impossible in OpenGL ES 2.0.
 	gl_FragDepth = distance(position_world_var, light_position_in) *
-		segment_distance_scaling_in);
+		segment_distance_scaling_in;
 #else
 #ifdef ADD_BIAS
 	gl_FragDepth = gl_FragCoord.z + bias;

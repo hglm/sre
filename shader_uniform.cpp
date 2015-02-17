@@ -38,12 +38,18 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "light_parameters.h"
 #include "shadow_map_parameters.h"
 
-// Shadow cube map parameters.
+// Shadow map parameters.
 
 static float sre_internal_shadow_segment_distance_scaling;
+// Near plane distance for projection matrix for point and spot light shadow map.
+static float sre_internal_shadow_map_near_plane_distance;
 
-void GL3UpdateShadowMapSegmentDistanceScaling(float segment_distance_scaling) {
+void sreUpdateShadowMapSegmentDistanceScaling(float segment_distance_scaling) {
     sre_internal_shadow_segment_distance_scaling = segment_distance_scaling;
+}
+
+void sreUpdateShadowMapNearPlaneDistance(float n) {
+    sre_internal_shadow_map_near_plane_distance = n;
 }
 
 // Functions to update shader uniforms are defined below. This includes functions
@@ -285,7 +291,7 @@ static void sreInitializeShaderShadowMapParameters(int loc) {
         nu_shadow_map_parameters = 3;
 #else
         float f = sre_internal_current_light->attenuation.x;
-        float n = SRE_SHADOW_CUBE_MAP_NEAR_PLANE_DISTANCE;
+        float n = sre_internal_shadow_map_near_plane_distance;
 	shadow_map_parameters[SHADOW_MAP_F_N_COEFFICIENT_1] = (f + n) / (f - n);
         shadow_map_parameters[SHADOW_MAP_F_N_COEFFICIENT_2] = 2 * f * n / (f - n);
 #endif

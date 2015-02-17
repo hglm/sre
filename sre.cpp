@@ -28,6 +28,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #ifdef OPENGL
 #include <GL/glew.h>
 #include <GL/gl.h>
+#include <GL/glx.h>
 #endif
 
 #include "sre.h"
@@ -633,6 +634,11 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
     }
     // Draw the splash screen.
     if (sre_internal_splash_screen != SRE_SPLASH_NONE) {
+#ifdef OPENGL
+	// This isn't elegant but it takes time for the window to be finalized, otherwise
+        // the splash screen will not appear.
+	sleep(1);
+#endif
         glClear(GL_COLOR_BUFFER_BIT);
         if (sre_internal_splash_screen == SRE_SPLASH_LOGO &&
         (sre_internal_shader_loading_mask & SRE_SHADER_MASK_TEXT))
@@ -698,6 +704,11 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+#ifdef USE_SHADOW_SAMPLER
+        // Required when using sampler2DShadow in shader.
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+#endif
         // Use 32-bit float precision for largest shadow maps (used for directional
         // lights).
         GLenum gl_depth;
@@ -714,10 +725,6 @@ void sreInitialize(int window_width, int window_height, sreSwapBuffersFunc swap_
         }
         glTexImage2D(GL_TEXTURE_2D, 0, gl_depth, size, size, 0,
             GL_DEPTH_COMPONENT, gl_type, 0);
-#endif
-#ifdef USE_SHADOW_SAMPLER
-        // Required when using sampler2DShadow in shader.
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 #endif
 	CHECK_GL_ERROR("Error after shadow map initialization.\n");
 
@@ -802,18 +809,19 @@ skip_shadow_map:
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 //        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_DEPTH_TEXTURE_MODE, GL_INTENSITY);
+#ifdef USE_SHADOW_SAMPLER
+        // Required when using samplerCubeShadow in shader.
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+        CHECK_GL_ERROR("Error after setting texture compare mode for shadow cube texture.\n");
+#endif
         sre_internal_depth_cube_map_texture_precision[level] = 1.0f / powf(2.0f, 16.0f);
         for (int i = 0; i < 6; i++) {
-            glTexImage2D(cube_map_target[i], 0, GL_DEPTH_COMPONENT16, size, size, 0,
+            glTexImage2D(cube_map_target[i], 0, GL_DEPTH_COMPONENT, size, size, 0,
                 GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, 0);
             CHECK_GL_ERROR("Error after cube map face initialization.\n");
             sre_internal_depth_cube_map_texture_is_clear[level][i] = false;
         }
-#endif
-#ifdef USE_SHADOW_SAMPLER
-        // Required when using samplerCubeShadow in shader.
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-        CHECK_GL_ERROR("Error after setting texture compare mode for shadow cube texture.\n");
 #endif
 
         for (int i = 0; i < 6; i++) {

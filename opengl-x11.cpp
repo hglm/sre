@@ -250,6 +250,8 @@ int& actual_width, int& actual_height, unsigned int backend_flags) {
 
     glXMakeCurrent(state->XDisplay, X11GetWindow(), state->context);
     check();
+    glXWaitX();
+    glXWaitGL();
 }
 
 void sreBackendGLX11::Finalize() {

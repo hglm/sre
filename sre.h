@@ -137,7 +137,7 @@ typedef Matrix4x3RM MatrixTransform;
 // The maximum number of cube shadow map levels.
 #define SRE_MAX_CUBE_SHADOW_MAP_LEVELS_OPENGL 6
 #define SRE_MAX_CUBE_SHADOW_MAP_LEVELS_GLES2 4
-#define SRE_SHADOW_CUBE_MAP_NEAR_PLANE_DISTANCE 0.01f
+#define SRE_MIN_SHADOW_CUBE_MAP_NEAR_PLANE_DISTANCE 0.01f
 // The maximum depth for the octrees used for scene entities (objects and lights).
 #define SRE_MAX_OCTREE_DEPTH 12
 
@@ -298,6 +298,10 @@ enum {
     SRE_LOD_MODEL_CONTAINS_HOLES = 0x200,
     // Whether the model is limited to a single plane.
     SRE_LOD_MODEL_SINGLE_PLANE = 0x400,
+    // Whether the model is almost perfectly closed when the SRE_LOD_MODEL_NOT_CLOSED flag is
+    // set. Such models can be treated as closed models in some cases (e.g. shadow mapping)
+    // while having to be treated as non-closed models in other cases (e.g. stencil shadows).
+    SRE_LOD_MODEL_ALMOST_CLOSED = 0x800
 };
 
 enum {
@@ -313,6 +317,7 @@ enum {
     SRE_SORTING_HINT_SECOND_DESCENDING = 12,
     SRE_SORTING_HINT_THIRD_ASCENDING = 0,
     SRE_SORTING_HINT_THIRD_DESCENDING = 24,
+    SRE_SORTING_HINT_DO_NOT_SORT = 0xFE,
     SRE_SORTING_HINT_UNDEFINED = 0xFF
 };
 
@@ -965,7 +970,9 @@ enum {
     // reprocessing is skipped.
     SRE_OBJECT_ANIMATED = 0x2000000,
     // The open side of an object with a non-closed model is always hidden from lights.
-    SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT = 0x4000000
+    SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT = 0x4000000,
+    // The open side of an object with a non-closed model is always hidden from view.
+    SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_VIEW = 0x8000000
 };
 
 class sreScissorsCacheEntry : public sreScissors {

@@ -125,14 +125,15 @@ extern Matrix3D *sre_internal_standard_UV_transformation_matrix;
 // Defined in shader_matrix.cpp:
 SRE_LOCAL void srePerspective(float fov, float aspect, float nearp, float farp);
 SRE_LOCAL void srePerspectiveTweaked(float fov, float aspect, float nearp, float farp);
-SRE_LOCAL void sreLookAt(float viewpx, float viewpy, float viewpz, float lookx, float looky, float lookz, float upx, float upy,
-    float upz);
-SRE_LOCAL void GL3CalculateShadowMapMatrix(Vector3D viewpoint, Vector3D light_direction, Vector3D normal_x, Vector3D normal_y,
-    Vector3D dim_min, Vector3D dim_max);
-SRE_LOCAL void GL3CalculateProjectionShadowMapMatrix(Vector3D viewp, Vector3D light_direction, Vector3D x_direction,
-    Vector3D y_direction, float zmax);
+SRE_LOCAL void sreLookAt(float viewpx, float viewpy, float viewpz, float lookx, float looky, float lookz,
+    float upx, float upy, float upz);
+SRE_LOCAL void GL3CalculateShadowMapMatrix(Vector3D viewpoint, Vector3D light_direction,
+    Vector3D normal_x, Vector3D normal_y, Vector3D dim_min, Vector3D dim_max);
+SRE_LOCAL void GL3CalculateProjectionShadowMapMatrix(Vector3D viewp, Vector3D light_direction,
+    Vector3D x_direction, Vector3D y_direction, float zmin, float zmax);
 SRE_LOCAL void GL3CalculateShadowMapMatrixAlwaysLight();
-SRE_LOCAL void GL3CalculateCubeShadowMapMatrix(Vector3D light_position, Vector3D zdir, Vector3D up_vector, float zmax);
+SRE_LOCAL void GL3CalculateCubeShadowMapMatrix(Vector3D light_position, Vector3D zdir,
+    Vector3D cube_s_vector, Vector3D cube_t_vector, float zmin, float zmax);
 SRE_LOCAL void GL3CalculateGeometryScissorsMatrixAndSetViewport(const sreScissors& scissors);
 
 // vertex_buffers.cpp
@@ -164,7 +165,8 @@ SRE_LOCAL void GL3InitializeSpotlightShadowMapShader(const sreObject& so);
 SRE_LOCAL void GL3InitializeSpotlightShadowMapShaderNonClosedObject(const sreObject& so);
 SRE_LOCAL void GL3InitializeSpotlightShadowMapShadersWithSegmentDistanceScaling();
 SRE_LOCAL void GL3InitializeCubeShadowMapShader(const sreObject& so);
-SRE_LOCAL void GL3UpdateShadowMapSegmentDistanceScaling(float segment_distance_scaling);
+SRE_LOCAL void sreUpdateShadowMapSegmentDistanceScaling(float segment_distance_scaling);
+SRE_LOCAL void sreUpdateShadowMapNearPlaneDistance(float n);
 SRE_LOCAL void GL3InitializeCubeShadowMapShadersWithSegmentDistanceScaling();
 SRE_LOCAL void sreBindShadowMapTexture(sreLight *light);
 SRE_LOCAL void GL3InitializeHDRLogLuminanceShader();

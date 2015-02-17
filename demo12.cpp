@@ -27,9 +27,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sreBackend.h"
 #include "demo.h"
 
-sreModel *x_plane_rect_model;
-sreModel *y_plane_rect_model;
-sreModel *z_plane_rect_model;
+static sreModel *x_plane_rect_model;
+static sreModel *y_plane_rect_model;
+static sreModel *z_plane_rect_model;
 
 static sreTexture *CreateGratingTexture() {
     unsigned int color_pixel = 0xFFFFFFFF;
@@ -82,7 +82,7 @@ void Demo12CreateScene(sreScene *scene, sreView *view) {
         256, 256, 32, Color(0, 0.5f, 0.8f), Color(0.9f, 0.9f, 1.0f)));
     scene->SetDiffuseReflectionColor(Color(1.0f, 1.0f, 1.0f));
     scene->SetSpecularReflectionColor(Color(1.0f, 1.0f, 1.0f));
-    scene->AddObject(sphere_model, Point3D(0, - 40.0f, 3.0f), Vector3D(0, 0, 0), 3.0f);
+    scene->AddObject(sphere_model, Point3D(0, - 10.0f, 3.0f), Vector3D(0, 0, 0), 3.0f);
 
     // Add ground
     sreModel *checkerboard_model = sreCreateCheckerboardModel(scene, 4, 12.5f,

@@ -192,21 +192,18 @@ Vector3D y_direction, Vector3D dim_min, Vector3D dim_max) {
 }
 
 void GL3CalculateCubeShadowMapMatrix(Vector3D light_position, Vector3D zdir,
-Vector3D up_vector, float zmax) {
-    Vector3D fvec = zdir;
-    Vector3D s = Cross(fvec, up_vector);
-    Vector3D u = Cross(s, fvec);
+Vector3D cube_s_vector, Vector3D cube_t_vector, float zmin, float zmax) {
     MatrixTransform M;
     M.Set(
-        s.x, s.y, s.z, 0.0f,
-        u.x, u.y, u.z, 0.0f,
-        - fvec.x, - fvec.y, - fvec.z, 0.0f);
+        cube_s_vector.x, cube_s_vector.y, cube_s_vector.z, 0.0f,
+        cube_t_vector.x, cube_t_vector.y, cube_t_vector.z, 0.0f,
+        - zdir.x, - zdir.y, - zdir.z, 0.0f);
     MatrixTransform T;
     T.AssignTranslation(- light_position);
     // Calculate the projection matrix with a field of view of 90 degrees.
     float aspect = 1.0;
     float e = 1 / tanf((90.0f * M_PI / 180) / 2);
-    float n = zmax * SRE_SHADOW_CUBE_MAP_NEAR_PLANE_DISTANCE;
+    float n = zmin;
     float f = zmax;
     float l = - n / e;
     float r = n / e;
@@ -224,7 +221,7 @@ Vector3D up_vector, float zmax) {
 // Calculate projection shadow map matrix, used for generating spotlight shadow maps.
 
 void GL3CalculateProjectionShadowMapMatrix(Vector3D viewp, Vector3D light_direction,
-Vector3D x_direction, Vector3D y_direction, float zmax) {
+Vector3D x_direction, Vector3D y_direction, float zmin, float zmax) {
 #if 0
     char *s1 = light_direction.GetString();
     char *s2 = x_direction.GetString();
@@ -256,7 +253,7 @@ Vector3D x_direction, Vector3D y_direction, float zmax) {
     // Calculate the projection matrix with a field of view of 90 degrees.
     float aspect = 1.0;
     float e = 1 / tanf((90.0 * M_PI / 180) / 2);
-    float n = zmax * 0.01f;
+    float n = zmin;
     float f = zmax;
     float l = - n / e;
     float r = n / e;

@@ -168,8 +168,8 @@ EXTRA_PKG_CONFIG_DEMO = gl glew
 EXTRA_PKG_CONFIG_LIB = gl glew
 PKG_CONFIG_REQUIREMENTS += gl glew
 DEFINES_LIB = -DOPENGL
-DEFINES_LIBS += -DUSE_SHADOW_SAMPLER #-DCUBE_MAP_STORES_DISTANCE 
-	#-DNO_SHADOW_MAP -DNO_HDR -DNO_SRGB -DNO_DEPTH_CLAMP -DNO_MULTI_SAMPLE
+DEFINES_LIB += -DUSE_SHADOW_SAMPLER #-DCUBE_MAP_STORES_DISTANCE
+#DNO_SHADOW_MAP -DNO_HDR -DNO_SRGB -DNO_DEPTH_CLAMP -DNO_MULTI_SAMPLE
 DEFINES_DEMO = -DOPENGL #-DNO_LARGE_TEXTURES
 LFLAGS_DEMO =
 PLATFORM_MODULE_OBJECTS =
@@ -339,7 +339,7 @@ frustum.o bounds.o octree.o fluid.o standard_objects.o text.o scene.o lights.o s
 bounding_volume.o shader_matrix.o shader_loading.o vertex_buffer.o \
 shader_uniform.o draw_object.o
 DEMO_MODULE_OBJECTS = demo_main.o demo1.o demo2.o demo4.o demo4b.o \
-demo5.o demo7.o demo8.o demo9.o demo10.o demo11.o demo12.o demo13.o textdemo.o
+demo5.o demo7.o demo8.o demo9.o demo10.o demo11.o demo12.o demo13.o demo14.o textdemo.o
 ALL_DEMO_MODULE_OBJECTS = $(DEMO_MODULE_OBJECTS) game.o
 ALL_BACKEND_MODULE_OBJECTS = sre_backend.o gui-common.o bullet.o glfw.o opengl-x11.o \
 x11-common.o glut.o egl-x11.o egl-common.o egl-allwinner-fb.o egl-rpi-fb.o \

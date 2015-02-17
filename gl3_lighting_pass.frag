@@ -233,7 +233,7 @@ float SampleShadowPoisson(sampler2D shadow_map, vec3 coords, float bias, float f
 		);
 	float light_factor = 1.0;
 	for (int i = 0; i < 4; i++)
-		if (texture2D(shadow_map, coords.xy + poisson_disk[i] * factor).z
+		if (texture2D(shadow_map, coords.xy + poisson_disk[i] * factor).r
 		< coords.z + bias)
 			light_factor -= 0.25;
 	return light_factor;
@@ -252,7 +252,7 @@ float SampleShadowSimple(sampler2D shadow_map, vec3 coords, float bias) {
 	// in the shadow map when rendering a non-closed model. This bias should be somewhat
         // greater than the bias calculated when drawing the same object in the lighting pass
 	// to prevent self-shadowing.
-	if (texture2D(shadow_map, coords.xy).z < coords.z + bias)
+	if (texture2D(shadow_map, coords.xy).r < coords.z + bias)
 		return 0.0;
 	else
 		return 1.0;
@@ -567,9 +567,6 @@ void main() {
 
 	// The normal for lighting calculations, affected by normal maps.
 	MEDIUMP vec3 normal;
-	// The surface (triangle) normal. This is equivalent to the normal_var except when
-	// the normal of a double-sided triangle is inverted.
-	MEDIUMP vec3 surface_normal;
 	// Save normalized light direction in case it is needed later, before light vectors
 	// are converted to tangent space when a normal map is used.
         MEDIUMP vec3 V_orig = V;
@@ -682,8 +679,9 @@ void main() {
 #endif
 
 	// Calculate light attenuation.
-	LOWP float light_att = 1.0;
+	LOWP float light_att;
 #ifdef DIRECTIONAL_LIGHT
+	light_att = 1.0;
 #else
 	// Calculate light attenuation of a local light.
 	// The code currently assumes that the light is either:
@@ -769,7 +767,10 @@ void main() {
 	// Directional or beam light, orthogonal transformation shadow map.
 #ifdef USE_SHADOW_SAMPLER
 	vec3 coords = shadow_map_coord_var;
-        float bias = 0.00005 * slope_var;
+        float bias = 0.00005 * slope_var * shadow_map_parameters_in[SHADOW_MAP_SIZE] / 2048.0;
+	// Since only back faces with respect to the light have been written to the shadow map,
+	// the bias value has to be added to the depth comparison value, so that the depth comparison
+	// will fail (shadow) for fragments very close but away from the back face surface.
         coords.z += bias;
 	shadow_light_factor = texture(shadow_map_in, coords);
 #else
@@ -806,29 +807,29 @@ void main() {
 	if (out_of_spotlight_bounds)
 		discard;
 	vec3 space_vector_from_light = position_world_var - light_parameters_position.xyz;
-	float shadow_radial_dist = texture2D(shadow_map_in, P_proj.xy).z;
-       // Calculate the radial distance of the world position from the light position,
+	float shadow_radial_dist = texture2D(shadow_map_in, P_proj.xy).r;
+        // Calculate the radial distance of the world position from the light position,
         // and scale it so that the range [0, 1] corresponds to the values stored in the
         // shadow map segments.
-	float radial_dist = length(space_vector_from_light) * segment_distance_scaling_in;
+	float radial_dist_compare = length(space_vector_from_light) * segment_distance_scaling_in;
 	float bias = 0.001 * slope_var;
         bias = clamp(bias, 0.0005, 0.002);
-	if (shadow_radial_dist < radial_dist - bias)
+	if (shadow_radial_dist < radial_dist_compare + bias)
 		discard;
 #endif
 #endif
 #endif
 
 #if defined(SHADOW_CUBE_MAP)
-	vec3 space_vector_from_light = position_world_var - light_parameters_position.xyz;
-#ifdef CUBE_MAP_STORES_DISTANCE
 	// Point source light shadow cube map (six sides).
-	// Use an optimized method using built-in cube map texture look up functions.
+	// Support several optimized methods using built-in cube map texture look up functions.
+	vec3 space_vector_from_light = position_world_var - light_parameters_position.xyz;
 
+#ifdef CUBE_MAP_STORES_DISTANCE
         // Calculate the radial distance of the world position from the light position,
         // and scale it so that the range [0, 1] corresponds to the values stored in the
         // shadow map segments.
-	float radial_dist = length(space_vector_from_light) *
+	float radial_dist_compare = length(space_vector_from_light) *
 		shadow_map_parameters_in[SHADOW_MAP_SEGMENT_DISTANCE_SCALING];
 	// For cube map, it is difficult to incorporate the slope of the surface into a
 	// bias value calculation.
@@ -836,12 +837,12 @@ void main() {
 #ifdef USE_SHADOW_SAMPLER
 	// Use cube shadow texture lookup with texture compare mode.
 	shadow_light_factor = TEXTURE_CUBE_FUNC(cube_shadow_map_in,
-		vec4(space_vector_from_light, radial_dist - bias));
+		vec4(space_vector_from_light, radial_dist_compare + bias));
 #else
 	// Look up radial distance where shadow begins from the cube map.
-	float shadow_radial_dist = TEXTURE_CUBE_FUNC(cube_shadow_map_in, space_vector_from_light).z;
+	float shadow_radial_dist = TEXTURE_CUBE_FUNC(cube_shadow_map_in, space_vector_from_light).r;
 	// Set shadow light factor to 0.0 if shadow, 1.0 if no shadow.
-	shadow_light_factor = float(shadow_radial_dist >= radial_dist - bias);
+	shadow_light_factor = float(shadow_radial_dist >= radial_dist_compare + bias);
 #endif
 
 #else
@@ -852,11 +853,17 @@ void main() {
         // Calculate (f + n) / (f - n) - 2 * f * n / (local_z_comp * (f - n));
 	float norm_z_comp = shadow_map_parameters_in[SHADOW_MAP_F_N_COEFFICIENT_1] -
             shadow_map_parameters_in[SHADOW_MAP_F_N_COEFFICIENT_2] / local_z_comp;
+#if 0
+	float n = 0.01;
+	float f = light_parameters_linear_attenuation_range + min(0.000001, 0.000001 * shadow_map_parameters_in[SHADOW_MAP_F_N_COEFFICIENT_1]);
+	norm_z_comp = (f + n) / (f - n) - 2 * f * n / (local_z_comp * (f - n));
+#endif
 	float depth = (norm_z_comp + 1.0) * 0.5;
 	const float bias = 0.00005;
-	// Since only back faces have been written to the shadow map, the bias value has to be
-        // substracted from the depth comparison value.
-	depth -= bias;
+	// Since only back faces with respect to the light have been written to the shadow map,
+	// the bias value has to be added to the depth comparison value, so that the depth comparison
+	// will fail (shadow) for fragments very close but away from the back face surface.
+	depth += bias;
 #ifdef USE_SHADOW_SAMPLER
 	shadow_light_factor = TEXTURE_CUBE_FUNC(cube_shadow_map_in, vec4(space_vector_from_light,
 		depth));

@@ -73,8 +73,15 @@ static void RenderShadowMapObject(sreObject *so, const sreLight& light) {
     // version), the MVP matrix uniform is set, and when a transparent texture is used it is
     // bound to GL_TEXTURE0 and the UV transformation matrix is set.
     sreLODModel *m = sreCalculateLODModel(*so);
-    bool non_closed_model_handling = (m->flags & SRE_LOD_MODEL_NOT_CLOSED) &&
-        !(so->flags & SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT);
+    // Non-closed model handling is activated from non-closed models that are not "almost closed"
+    // (virtually perfect for shadow mapping purposes). Additionally, when the open side of a
+    // non-closed model is permanently hidden from light as well as from view, special handling is
+    // not required.
+    bool non_closed_model_handling =
+        ((m->flags & (SRE_LOD_MODEL_NOT_CLOSED | SRE_LOD_MODEL_ALMOST_CLOSED))
+        == SRE_LOD_MODEL_NOT_CLOSED) &&
+        !((so->flags & (SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT | SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_VIEW))
+        == (SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT | SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_VIEW));
     if (non_closed_model_handling)
         // Disable front-face culling for non-closed models.
         glDisable(GL_CULL_FACE);
@@ -186,6 +193,9 @@ static void RenderCubeShadowMapFromCasterArray(sreScene *scene, const sreLight& 
 // The calculated shadow AABBs are stored in a global variable.
 static sreBoundingVolumeAABB AABB_shadow_receiver;
 static sreBoundingVolumeAABB AABB_shadow_caster;
+// For point lights, calculate the minimum depth of any object over all shadow cube map segments.
+// This is similar to the distance between the light and the closest bounding volume of an object.
+static float min_segment_depth;
 
 // During shadow AABB determination, SIMD registers/code may be used.
 #ifdef USE_SIMD
@@ -309,27 +319,92 @@ static const Vector3D cube_map_plane_normal[6][4] = {
     }
 };
 
+static sreBoundingVolumeConvexHull cube_segment_ch[6];
+static Vector4D cube_segment_ch_plane[6][4];
+
+static void CalculateCubeSegmentHulls(const sreLight& light) {
+    sreBoundingVolumeConvexHull ch;
+    unsigned int mask = 0;
+    for (int i = 0; i < 6; i++) {
+        cube_segment_ch[i].nu_planes = 4;
+        cube_segment_ch[i].plane = &cube_segment_ch_plane[i][0];
+        // Take the plane orientation from the table and make it go through
+        // the light position.
+        for (int j = 0; j < 4; j++)
+            cube_segment_ch[i].plane[j] = Vector4D(cube_map_plane_normal[i][j],
+                - Dot(cube_map_plane_normal[i][j], light.sphere.center));
+    }
+}
+
 static unsigned int GetSegmentMask(const sreLight& light, const sreObject& so) {
     // Check whether object is inside each convex hull representing the six
     // cube segments of the light volume.
     // This could be optimized because each plane test is identical to one of the plane
     // tests for another segment. SIMD could be used.
-    sreBoundingVolumeConvexHull ch;
-    Vector4D plane[4];
-    ch.nu_planes = 4;
-    ch.plane = &plane[0];
     unsigned int mask = 0;
     for (int i = 5; i >= 0; i--) {
         mask <<= 1;
-        // Take the plane orientation from the table and make it go through
-        // the light position.
-        for (int j = 0; j < 4; j++)
-            plane[j] = Vector4D(cube_map_plane_normal[i][j], - Dot(cube_map_plane_normal[i][j],
-                light.sphere.center));
-        if (Intersects(so, ch))
+        if (Intersects(so, cube_segment_ch[i]))
             mask |= 1;
     }
     return mask;
+}
+
+static void CalculateObjectAABB(const sreObject& so, sreBoundingVolumeAABB& object_AABB) {
+     if (!(so.flags & SRE_OBJECT_DYNAMIC_POSITION))
+         // Static object, use the precalculated precise AABB.
+         object_AABB = so.AABB;
+     else
+         // Dynamic object.
+         if (so.model->bounds_flags & SRE_BOUNDS_PREFER_SPHERE) {
+             object_AABB.dim_min =  so.sphere.center - Vector3D(1.0f, 1.0f, 1.0f) * so.sphere.radius;
+             object_AABB.dim_max =  so.sphere.center + Vector3D(1.0f, 1.0f, 1.0f) * so.sphere.radius;
+         }
+         else {
+             // SRE_BOUNDS_PREFER_BOX or SRE_BOUNDS_PREFER_BOX_LINE_SEGMENT
+             Vector3D max_extents;
+             max_extents.Set(
+                 max3f(so.box.PCA[0].vector.x, so.box.PCA[1].vector.x, so.box.PCA[2].vector.x),
+                 max3f(so.box.PCA[0].vector.y, so.box.PCA[1].vector.y, so.box.PCA[2].vector.y),
+                 max3f(so.box.PCA[0].vector.z, so.box.PCA[1].vector.z, so.box.PCA[2].vector.z)
+                 );
+             object_AABB.dim_min = so.box.center - 0.5f * max_extents;
+             object_AABB.dim_max = so.box.center + 0.5f * max_extents;
+         }
+}
+
+static void UpdateMinSegmentDepth(const sreLight& light, const sreObject& so) {
+    if (min_segment_depth == 0.0f)
+        return;
+    sreBoundingVolumeAABB object_AABB;
+    CalculateObjectAABB(so, object_AABB);
+    // Check whether the bounding volume intersects the light position; if so, there is no
+    // bound on the minimum segment depth.
+    if (Intersects(light.sphere.center, object_AABB)) {
+        min_segment_depth = 0.0f;
+        return;
+    }
+    // Calculate the distance from the light to the AABB.
+    float max_dist = 0.0f;
+    // X-positive segment.
+    if (object_AABB.dim_min.x >= light.sphere.center.x)
+        max_dist = object_AABB.dim_min.x - light.sphere.center.x;
+    // X-negative segment.
+    if (object_AABB.dim_max.x <= light.sphere.center.x)
+        max_dist = maxf(max_dist, light.sphere.center.x - object_AABB.dim_max.x);
+    // Y-positive segment.
+    if (object_AABB.dim_min.y >= light.sphere.center.y)
+        max_dist = maxf(max_dist, object_AABB.dim_min.y - light.sphere.center.y);
+    // Y-negative segment.
+    if (object_AABB.dim_max.y <= light.sphere.center.y)
+        max_dist = maxf(max_dist, light.sphere.center.y - object_AABB.dim_max.y);
+    // Z-positive segment.
+    if (object_AABB.dim_min.z >= light.sphere.center.z)
+        max_dist = maxf(max_dist, object_AABB.dim_min.z - light.sphere.center.z);
+    // Z-negative segment.
+    if (object_AABB.dim_max.z <= light.sphere.center.z)
+        max_dist = maxf(max_dist, light.sphere.center.z - object_AABB.dim_max.z);
+    min_segment_depth = minf(min_segment_depth, max_dist);
 }
 
 // Find the AABB for a directional light. Bounds checks are performed starting from the
@@ -431,6 +506,8 @@ const sreFrustum& frustum, const sreLight& light, BoundsCheckResult octree_bound
                             unsigned int segment_mask = GetSegmentMask(light, *so);
                             scene->shadow_caster_array.Add(so->id | (segment_mask << 26));
                             segment_non_empty_mask |= segment_mask;
+                            // Update the minimum segment depth.
+                            UpdateMinSegmentDepth(light, *so);
                         }
                         else
                             scene->shadow_caster_array.Add(so->id);
@@ -585,20 +662,13 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
     }
     else {
         // Spotlight. Use a projection shadow map matrix.
-//        GL3CalculateProjectionShadowMapMatrix(light.vector.GetPoint3D(),
-//            light.spotlight.GetVector3D(), x_dir, y_dir, zmax);
         GL3CalculateProjectionShadowMapMatrix(light.vector.GetPoint3D(),
-            light.spotlight.GetVector3D(), x_dir, y_dir, light.spherical_sector.radius);
+            light.spotlight.GetVector3D(), x_dir, y_dir, 0.01f, light.spherical_sector.radius);
         // Only the fourth component of the shadow map dimensions (the size in pixels of the
         // shadow map) is used (and only by the lighting pass shaders, not the shadow map shaders).
         sre_internal_current_shadow_map_dimensions = Vector3D(light.cylinder.radius,
             light.cylinder.radius, light.spherical_sector.radius);
         GL3InitializeSpotlightShadowMapShadersBeforeLight();
-	// The spot light shadow maps now store depth, not scaled distance.
-#if 0
-        GL3UpdateShadowMapSegmentDistanceScaling((1.0f / light.spherical_sector.radius) * 0.999f);
-        GL3InitializeSpotlightShadowMapShadersWithSegmentDistanceScaling();
-#endif
     }
 
     RenderShadowMapFromCasterArray(scene, light);
@@ -619,14 +689,37 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
 }
 
 static Vector3D cube_map_zdir[6] = {
-    Vector3D(1.0f, 0, 0), Vector3D(- 1.0f, 0, 0), Vector3D(0, 1.0f, 0),
-    Vector3D(0, - 1.0f, 0), Vector3D(0, 0, 1.0f), Vector3D(0, 0, - 1.0f)
+    Vector3D(1.0f, 0, 0), Vector3D(- 1.0f, 0, 0),
+    Vector3D(0, 1.0f, 0), Vector3D(0, - 1.0f, 0),
+    Vector3D(0, 0, 1.0f), Vector3D(0, 0, - 1.0f)
     };
 
-static Vector3D cube_map_up_vector[6] = {
-    Vector3D(0, - 1.0f, 0), Vector3D(0, - 1.0f, 0), Vector3D(0, 0, 1.0f),
-    Vector3D(0, 0, - 1.0f), Vector3D(0, - 1.0f, 0), Vector3D(0, - 1.0f, 0)
+#if 1
+static Vector3D cube_map_s_vector[6] = {
+    Vector3D(0, 0.0f, - 1.0f), Vector3D(0, 0.0f, 1.0f),
+    Vector3D(1.0f, 0.0f, 0.0f), Vector3D(1.0f, 0.0f, 0.0f),
+    Vector3D(1.0f, 0.0f, 0.0f), Vector3D(- 1.0f, 0.0f, 0.0f)
     };
+
+
+static Vector3D cube_map_t_vector[6] = {
+    Vector3D(0, - 1.0f, 0.0f), Vector3D(0, - 1.0f, 0.0f),
+    Vector3D(0, 0, 1.0f), Vector3D(0, 0, - 1.0f),
+    Vector3D(0, - 1.0f, 0), Vector3D(0, - 1.0f, 0)
+    };
+#else
+static Vector3D cube_map_s_vector[6] = {
+    Vector3D(0, 0.0f, - 1.0f), Vector3D(0, 0.0f, 1.0f),
+    Vector3D(1.0f, 0.0f, 0.0f), Vector3D(1.0f, 0.0f, 0.0f),
+    Vector3D(1.0f, 0.0f, 0.0f), Vector3D(- 1.0f, 0.0f, 0.0f)
+    };
+
+static Vector3D cube_map_t_vector[6] = {
+    Vector3D(0, - 1.0f, 0.0f), Vector3D(0, - 1.0f, 0.0f),
+    Vector3D(0, 0, 1.0f), Vector3D(0, 0, - 1.0f),
+    Vector3D(0, - 1.0f, 0), Vector3D(0, - 1.0f, 0)
+    };
+#endif
 
 static void BindAndClearCubeMap(int i) {
 #ifdef OPENGL_ES2
@@ -680,12 +773,42 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
         glViewport(0, 0,
             sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index,
             sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index);
+
+	float zmax[6], zmax_casters[6], zmin_casters[6];
+        // Calculate the extents within all segments
+	// zmin_all_faces is the minimum z for casters over all segments. This can be used
+        // as the near plane distance in the projection matrix for the cube faces. When a
+        // segment is empty, AABB_shadow_caster.dim_max.x/y/z will be equal to - FLT_MAX.
+        zmax[0] = AABB_shadow_receiver.dim_max.x - light.vector.x;
+        zmax_casters[0] = AABB_shadow_caster.dim_max.x - light.vector.x;
+        zmin_casters[0] = maxf(AABB_shadow_caster.dim_min.x - light.vector.x, 0.0f);
+        zmax[1] = light.vector.x - AABB_shadow_receiver.dim_min.x;
+        zmax_casters[1] = light.vector.x - AABB_shadow_caster.dim_min.x;
+        zmin_casters[1] = maxf(light.vector.x - AABB_shadow_caster.dim_max.x, 0.0f);
+        zmax[2] = AABB_shadow_receiver.dim_max.y - light.vector.y;
+        zmax_casters[2] = AABB_shadow_caster.dim_max.y - light.vector.y;
+        zmin_casters[2] = maxf(AABB_shadow_caster.dim_min.y - light.vector.y, 0.0f);
+        zmax[3] = light.vector.y - AABB_shadow_receiver.dim_min.y;
+        zmax_casters[3] = light.vector.y - AABB_shadow_caster.dim_min.y;
+        zmin_casters[3] = maxf(light.vector.y - AABB_shadow_caster.dim_max.y, 0.0f);
+        zmax[4] = AABB_shadow_receiver.dim_max.z - light.vector.z;
+        zmax_casters[4] = AABB_shadow_caster.dim_max.z - light.vector.z;
+        zmin_casters[4] = maxf(AABB_shadow_caster.dim_min.z - light.vector.z, 0.0f);
+        zmax[5] = light.vector.z - AABB_shadow_receiver.dim_min.z;
+        zmax_casters[5] = light.vector.z - AABB_shadow_caster.dim_min.z;
+        zmin_casters[5] = maxf(light.vector.z - AABB_shadow_caster.dim_max.z, 0.0f);
+
+//        sreMessage(SRE_MESSAGE_INFO, "min_segment_depth = %f", min_segment_depth);
+        min_segment_depth = maxf(min_segment_depth, SRE_MIN_SHADOW_CUBE_MAP_NEAR_PLANE_DISTANCE);
+
+        sreUpdateShadowMapNearPlaneDistance(min_segment_depth);
 #ifdef CUBE_MAP_STORES_DISTANCE
         // In the new shadow map method, the distance scaling is the same for all segments
         // (light volume radius corresponds to [0, 1]).
-        GL3UpdateShadowMapSegmentDistanceScaling((1.0f / light.sphere.radius) * 0.999f);
+        sreUpdateShadowMapSegmentDistanceScaling((1.0f / light.sphere.radius) * 0.999f);
         GL3InitializeCubeShadowMapShadersWithSegmentDistanceScaling();
 #endif
+        GL3InitializeCubeShadowMapShadersBeforeLight();
 
         int cube_map_mask = 0;
         for (int i = 0; i < 6; i++) {
@@ -698,74 +821,13 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
                 continue;
             }
 
-            float zmax, xmin, xmax, ymin, ymax;
-            float zmax_casters, zmin_casters;
-            // Calculate the extents within the segment.
-            // For xmin/xmax and ymin/ymax the axi may not be correct but it's not important because
-            // we are only interested in the maximum distance.
-            switch (i) {
-            case 0 :
-                zmax = AABB_shadow_receiver.dim_max.x - light.vector.x;
-                zmax_casters = AABB_shadow_caster.dim_max.x - light.vector.x;
-                zmin_casters = AABB_shadow_caster.dim_min.x - light.vector.x;
-                xmax = AABB_shadow_receiver.dim_max.y - light.vector.y;
-                xmin = AABB_shadow_receiver.dim_min.y - light.vector.y;
-                ymax = AABB_shadow_receiver.dim_max.z - light.vector.z;
-                ymin = AABB_shadow_receiver.dim_min.z - light.vector.z;
-                break;
-            case 1 :
-                zmax = light.vector.x - AABB_shadow_receiver.dim_min.x;
-                zmax_casters = light.vector.x - AABB_shadow_caster.dim_min.x;
-                zmin_casters = light.vector.x - AABB_shadow_caster.dim_max.x;
-                xmax = AABB_shadow_receiver.dim_max.y - light.vector.y;
-                xmin = AABB_shadow_receiver.dim_min.y - light.vector.y;
-                ymax = AABB_shadow_receiver.dim_max.z - light.vector.z;
-                ymin = AABB_shadow_receiver.dim_min.z - light.vector.z;
-                break;
-            case 2 :
-                zmax = AABB_shadow_receiver.dim_max.y - light.vector.y;
-                zmax_casters = AABB_shadow_caster.dim_max.y - light.vector.y;
-                zmin_casters = AABB_shadow_caster.dim_min.y - light.vector.y;
-                xmax = AABB_shadow_receiver.dim_max.x - light.vector.x;
-                xmin = AABB_shadow_receiver.dim_min.x - light.vector.x;
-                ymax = AABB_shadow_receiver.dim_max.z - light.vector.z;
-                ymin = AABB_shadow_receiver.dim_min.z - light.vector.z;
-                break;
-            case 3 :
-                zmax = light.vector.y - AABB_shadow_receiver.dim_min.y;
-                zmax_casters = light.vector.y - AABB_shadow_caster.dim_min.y;
-                zmin_casters = light.vector.y - AABB_shadow_caster.dim_max.y;
-                xmax = AABB_shadow_receiver.dim_max.x - light.vector.x;
-                xmin = AABB_shadow_receiver.dim_min.x - light.vector.x;
-                ymax = AABB_shadow_receiver.dim_max.z - light.vector.z;
-                ymin = AABB_shadow_receiver.dim_min.z - light.vector.z;
-                break;
-            case 4 :
-                zmax = AABB_shadow_receiver.dim_max.z - light.vector.z;
-                zmax_casters = AABB_shadow_caster.dim_max.z - light.vector.z;
-                zmin_casters = AABB_shadow_caster.dim_min.z - light.vector.z;
-                xmax = AABB_shadow_receiver.dim_max.x - light.vector.x;
-                xmin = AABB_shadow_receiver.dim_min.x - light.vector.x;
-                ymax = AABB_shadow_receiver.dim_max.y - light.vector.y;
-                ymin = AABB_shadow_receiver.dim_min.y - light.vector.y;
-                break;
-            case 5 :
-                zmax = light.vector.z - AABB_shadow_receiver.dim_min.z;
-                zmax_casters = light.vector.z - AABB_shadow_caster.dim_min.z;
-                zmin_casters = light.vector.z - AABB_shadow_caster.dim_max.z;
-                xmax = AABB_shadow_receiver.dim_max.x - light.vector.x;
-                xmin = AABB_shadow_receiver.dim_min.x - light.vector.x;
-                ymax = AABB_shadow_receiver.dim_max.y - light.vector.y;
-                ymin = AABB_shadow_receiver.dim_min.y - light.vector.y;
-                break;
-            }
             // We now have a shadow receiver AABB in a coordinate system relative to the cube map
-            // defined by (xmin, ymin, zmin) to (xmax, ymax, zmax), which is oriented with
+            // with z values ranging from zmin_caster[i] to zmax[i], which is oriented with
             // the z-coordinate directed into the direction of the cube segment away from
             // the light source, which is at (0, 0, 0). We are only interested in objects
-            // that overlap with the z range [0, zmax].
+            // that overlap with the z range [0, zmax[i]].
             bool skip = false;
-            if (zmax <= 0 || zmax_casters <= 0 || zmin_casters > zmax)
+            if (zmax[i] <= 0 || zmax_casters[i] <= 0 || zmin_casters[i] > zmax[i])
                 // If the segment has no casters or receivers, skip it.
                 // Also skip if the casters bounds are completely beyond the receivers bounds in z.
                 skip = true;
@@ -773,11 +835,7 @@ void RenderPointLightShadowMap(sreScene *scene, const sreLight& light, const sre
                 continue;
             cube_map_mask |= (1 << i);
             GL3CalculateCubeShadowMapMatrix(light.vector.GetVector3D(), cube_map_zdir[i],
-                cube_map_up_vector[i], light.sphere.radius);
-            GL3InitializeCubeShadowMapShadersBeforeLight();
-//                Vector4D(zmax, zmax, zmax,
-//                sre_internal_max_cube_shadow_map_size >>
-//                sre_internal_current_cube_shadow_map_index));
+                cube_map_s_vector[i], cube_map_t_vector[i], min_segment_depth, light.attenuation.x);
             CHECK_GL_ERROR("Error after GL3InitializeShadowMapShadersBeforeLight\n");
             RenderCubeShadowMapFromCasterArray(scene, light, i);
             CHECK_GL_ERROR("Error after RenderCubeShadowMapFromCasterArray\n");
@@ -843,6 +901,8 @@ bool GL3RenderShadowMapWithOctree(sreScene *scene, sreLight& light, sreFrustum &
         // Find the AABB for all potential shadow casters and receivers within the range of the light.
         sreShadowAABBGenerationInfo AABB_generation_info;
         AABB_generation_info.Initialize();
+        CalculateCubeSegmentHulls(light);
+        min_segment_depth = FLT_MAX;
         segment_non_empty_mask = 0;
         // Note: infinite distance objects do not cast shadows, their octrees can be skipped.
         FindAABBLocalLight(AABB_generation_info,

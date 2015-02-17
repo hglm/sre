@@ -56,6 +56,7 @@ static const Demo demo_table[] = {
     { "demo4c", Demo4cCreateScene, Demo4cStep },
     { "demo12", Demo12CreateScene, Demo12Step },
     { "demo13", Demo13CreateScene, Demo13Step },
+    { "demo14", Demo14CreateScene, Demo14Step },
 };
 
 #define NU_DEMOS (sizeof(demo_table) / sizeof(demo_table[0]))
