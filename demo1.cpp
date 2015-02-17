@@ -21,7 +21,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <math.h>
 
 #include "sre.h"
-#include "sreRandom.h"
 #include "demo.h"
 
 #ifndef OPENGL_ES2

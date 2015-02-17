@@ -23,8 +23,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include "sre.h"
 #include "sreBackend.h"
-#include "sreRandom.h"
-
 #include "demo.h"
 
 #define ROBOTS

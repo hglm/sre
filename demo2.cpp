@@ -26,8 +26,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <math.h>
 
 #include "sre.h"
-#include "sreRandom.h"
-
 #include "demo.h"
 
 static dstRNG *rng;

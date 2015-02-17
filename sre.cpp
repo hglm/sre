@@ -32,7 +32,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #endif
 
 #include "sre.h"
-#include "sreRandom.h"
 #include "sre_internal.h"
 #include "shader.h"
 
