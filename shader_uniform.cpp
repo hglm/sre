@@ -279,7 +279,7 @@ static void sreInitializeShaderShadowMapParameters(int loc) {
             sre_internal_max_cube_shadow_map_size >> sre_internal_current_cube_shadow_map_index;
         shadow_map_parameters[SHADOW_MAP_DEPTH_PRECISION] =
             sre_internal_depth_cube_map_texture_precision[sre_internal_current_cube_shadow_map_index];
-#ifdef CUBE_SHADOW_MAP_STORES_DISTANCE
+#ifdef CUBE_MAP_STORES_DISTANCE
         shadow_map_parameters[SHADOW_MAP_SEGMENT_DISTANCE_SCALING] =
             sre_internal_shadow_segment_distance_scaling;
         nu_shadow_map_parameters = 3;
@@ -1286,11 +1286,14 @@ static MultiPassShaderSelection sreSelectMultiPassShader(const sreObject& so) {
         else
         if (sre_internal_current_light->type & SRE_LIGHT_DIRECTIONAL) {
             // Directional light.
-            if ((flags & (SRE_OBJECT_MULTI_COLOR | SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
-            SRE_OBJECT_USE_SPECULARITY_MAP)) == SRE_OBJECT_USE_TEXTURE)
-                shader = SHADER5;
-            else
-            if (flags & SRE_OBJECT_EARTH_SHADER)
+            if ((flags & (SRE_OBJECT_MULTI_COLOR | SRE_OBJECT_USE_TEXTURE |
+            SRE_OBJECT_USE_SPECULARITY_MAP | SRE_OBJECT_USE_EMISSION_MAP)) == SRE_OBJECT_USE_TEXTURE
+            && so.emission_color == Color(0.0f, 0.0f, 0.0f))
+                if (flags & SRE_OBJECT_USE_NORMAL_MAP)
+                    shader = SHADER0;
+                else
+                    shader = SHADER5;
+            else if (flags & SRE_OBJECT_EARTH_SHADER)
                 shader = SHADER21;
             else
                 shader = SHADER4;
@@ -1301,7 +1304,8 @@ static MultiPassShaderSelection sreSelectMultiPassShader(const sreObject& so) {
         SRE_LIGHT_LINEAR_ATTENUATION_RANGE))
             // Point source light with linear attenuation range.
             if ((flags & (SRE_OBJECT_MULTI_COLOR | SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
-            SRE_OBJECT_USE_SPECULARITY_MAP)) == 0)
+            SRE_OBJECT_USE_SPECULARITY_MAP | SRE_OBJECT_USE_EMISSION_MAP)) == 0 &&
+            so.emission_color == Color(0.0f, 0.0f, 0.0f))
                 shader = SHADER9;
             else
                 shader = SHADER7;
@@ -1378,8 +1382,9 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
         }
         int flags = so.render_flags;
         switch (shader) {
-        case SHADER0 :	// Complete lighting pass shader.
-            sreMessage(SRE_MESSAGE_WARNING, "Using deprecated multi-pass lighting shader");
+        case SHADER0 :
+            // Multi-pass lighting shader for directional lights with objects with texture
+            // (non-transparent) and normal map.
             glUseProgram(multi_pass_shader[SHADER0].program);
             GL3InitializeShaderWithMVP(multi_pass_shader[SHADER0].uniform_location[UNIFORM_MVP], so);
             GL3InitializeShaderWithModelMatrix(multi_pass_shader[SHADER0].uniform_location[UNIFORM_MODEL_MATRIX], so);
@@ -1387,23 +1392,13 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
                 multi_pass_shader[SHADER0].uniform_location[UNIFORM_MODEL_ROTATION_MATRIX], so);
             GL3InitializeShaderWithDiffuseReflectionColor(
                 multi_pass_shader[SHADER0].uniform_location[UNIFORM_DIFFUSE_REFLECTION_COLOR], so);
-            GL3InitializeShaderWithMultiColor(multi_pass_shader[SHADER0].uniform_location[UNIFORM_USE_MULTI_COLOR], so);
             GL3InitializeShaderWithSpecularReflectionColor(
                 multi_pass_shader[SHADER0].uniform_location[UNIFORM_SPECULAR_REFLECTION_COLOR], so);
             GL3InitializeShaderWithSpecularExponent(
                 multi_pass_shader[SHADER0].uniform_location[UNIFORM_SPECULAR_EXPONENT], so);
-            GL3InitializeShaderWithUseTexture(multi_pass_shader[SHADER0].uniform_location[UNIFORM_USE_TEXTURE_MAP], so);
-            if (flags & SRE_OBJECT_USE_TEXTURE)
-                GL3InitializeShaderWithObjectTexture(so);
-            GL3InitializeShaderWithUseNormalMap(multi_pass_shader[SHADER0].uniform_location[UNIFORM_USE_NORMAL_MAP], so);
-            if (flags & SRE_OBJECT_USE_NORMAL_MAP)
-                GL3InitializeShaderWithObjectNormalMap(so);
-            GL3InitializeShaderWithUseSpecularMap(multi_pass_shader[SHADER0].uniform_location[UNIFORM_USE_SPECULARITY_MAP], so);
-            if (flags & SRE_OBJECT_USE_SPECULARITY_MAP)
-                GL3InitializeShaderWithObjectSpecularMap(so);
-            if (flags & (SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
-            SRE_OBJECT_USE_SPECULARITY_MAP))
-               GL3InitializeShaderWithUVTransform( 
+            GL3InitializeShaderWithObjectTexture(so);
+            GL3InitializeShaderWithObjectNormalMap(so);
+            GL3InitializeShaderWithUVTransform( 
                    multi_pass_shader[SHADER0].uniform_location[UNIFORM_UV_TRANSFORM], so);
             break;
         case SHADER1 : // Ambient-pass shader plus emission color and map.
@@ -2012,6 +2007,8 @@ static SinglePassShaderSelection sreSelectSinglePassShader(const sreObject& so) 
             shader = SINGLE_PASS_SHADER4;
         else if (map_flags == (SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP))
             shader = SINGLE_PASS_SHADER5;
+        else if (map_flags == SRE_OBJECT_USE_NORMAL_MAP)
+            shader = SINGLE_PASS_SHADER0;
         else
             shader = SINGLE_PASS_SHADER1;
     }
@@ -2027,7 +2024,7 @@ static SinglePassShaderSelection sreSelectSinglePassShader(const sreObject& so) 
                 shader = SINGLE_PASS_SHADER9;
         else
             // Traditional attenuation range.
-            shader = SINGLE_PASS_SHADER0; // Not fully functional.
+            shader = SINGLE_PASS_SHADER0; // Not functional (wrong shader).
     return shader;
 }
 
@@ -2041,8 +2038,8 @@ static void sreInitializeSinglePassShader(const sreObject& so, SinglePassShaderS
     }
     int flags = so.render_flags;
     switch (shader) {
-    case SINGLE_PASS_SHADER0 :	// Complete single pass pass shader.
-        sreMessage(SRE_MESSAGE_WARNING, "Using deprecated single-pass lighting shader");
+    case SINGLE_PASS_SHADER0 :
+        // Single-pass phong normal map-only shader for directional light
         glUseProgram(single_pass_shader[SHADER0].program);
         GL3InitializeShaderWithMVP(single_pass_shader[SHADER0].uniform_location[UNIFORM_MVP], so);
         GL3InitializeShaderWithModelMatrix(single_pass_shader[SHADER0].uniform_location[UNIFORM_MODEL_MATRIX], so);
@@ -2050,28 +2047,15 @@ static void sreInitializeSinglePassShader(const sreObject& so, SinglePassShaderS
             single_pass_shader[SHADER0].uniform_location[UNIFORM_MODEL_ROTATION_MATRIX], so);
         GL3InitializeShaderWithDiffuseReflectionColor(
             single_pass_shader[SHADER0].uniform_location[UNIFORM_DIFFUSE_REFLECTION_COLOR], so);
-        GL3InitializeShaderWithMultiColor(single_pass_shader[SHADER0].uniform_location[UNIFORM_USE_MULTI_COLOR], so);
-        GL3InitializeShaderWithUseTexture(single_pass_shader[SHADER0].uniform_location[UNIFORM_USE_TEXTURE_MAP], so);
         GL3InitializeShaderWithSpecularReflectionColor(
             single_pass_shader[SHADER0].uniform_location[UNIFORM_SPECULAR_REFLECTION_COLOR], so);
         GL3InitializeShaderWithSpecularExponent(
             single_pass_shader[SHADER0].uniform_location[UNIFORM_SPECULAR_EXPONENT], so);
-        if (flags & SRE_OBJECT_USE_TEXTURE)
-            GL3InitializeShaderWithObjectTexture(so);
-        GL3InitializeShaderWithUseNormalMap(single_pass_shader[SHADER0].uniform_location[UNIFORM_USE_NORMAL_MAP], so);
-        if (flags & SRE_OBJECT_USE_NORMAL_MAP)
-            GL3InitializeShaderWithObjectNormalMap(so);
-        GL3InitializeShaderWithUseSpecularMap(single_pass_shader[SHADER0].uniform_location[UNIFORM_USE_SPECULARITY_MAP], so);
-        if (flags & SRE_OBJECT_USE_SPECULARITY_MAP)
-            GL3InitializeShaderWithObjectSpecularMap(so);
-        GL3InitializeShaderWithEmissionColor(single_pass_shader[SHADER0].uniform_location[UNIFORM_EMISSION_COLOR], so);
-        GL3InitializeShaderWithUseEmissionMap(single_pass_shader[SHADER0].uniform_location[UNIFORM_USE_EMISSION_MAP], so);
-        if (flags & SRE_OBJECT_USE_EMISSION_MAP)
-            GL3InitializeShaderWithObjectEmissionMap(so);
-        if (flags & (SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
-        SRE_OBJECT_USE_SPECULARITY_MAP | SRE_OBJECT_USE_EMISSION_MAP))
-            GL3InitializeShaderWithUVTransform(
-                single_pass_shader[SHADER0].uniform_location[UNIFORM_UV_TRANSFORM], so);
+        GL3InitializeShaderWithObjectNormalMap(so);
+        GL3InitializeShaderWithEmissionColor(
+            single_pass_shader[SHADER0].uniform_location[UNIFORM_EMISSION_COLOR], so);
+        GL3InitializeShaderWithUVTransform(
+            single_pass_shader[SHADER0].uniform_location[UNIFORM_UV_TRANSFORM], so);
         break;
     case SINGLE_PASS_SHADER1 : // Complete single pass shader for directional lights.
         glUseProgram(single_pass_shader[SHADER1].program);

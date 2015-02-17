@@ -78,11 +78,15 @@ public :
 
 static ShaderInfo multi_pass_shader_info[NU_MULTI_PASS_SHADERS] = {
     // SHADER0
-    { "Complete multi-pass lighting shader", UNIFORM_MASK_COMMON ^ (
-    (1 << UNIFORM_AMBIENT_COLOR) | (1 << UNIFORM_EMISSION_COLOR) |
-    (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER)),
-    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
-    (1 << ATTRIBUTE_COLOR) },
+    { "Multi-pass lighting shader for directional lights with objects with texture "
+    "(non-transparent) and normal map.",(1 << UNIFORM_MVP) |
+    (1 << UNIFORM_MODEL_MATRIX) | (1 << UNIFORM_MODEL_ROTATION_MATRIX) |
+    (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) |
+    (UNIFORM_LIGHT_PARAMETERS_MASK) | (1 << UNIFORM_TEXTURE_MAP_SAMPLER) |
+    (1 << UNIFORM_NORMAL_MAP_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM),
+    (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
+    (1 << ATTRIBUTE_TANGENT) },
+    // SHADER1
     { "Ambient multi-pass lighting shader", (1 << UNIFORM_MVP) | (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) |
     (1 << UNIFORM_USE_MULTI_COLOR) | (1 << UNIFORM_USE_TEXTURE_MAP) | (1 << UNIFORM_AMBIENT_COLOR) |
     (1 << UNIFORM_TEXTURE_MAP_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM) | (1 << UNIFORM_EMISSION_COLOR) |
@@ -106,6 +110,7 @@ static ShaderInfo multi_pass_shader_info[NU_MULTI_PASS_SHADERS] = {
     (1 << UNIFORM_EMISSION_COLOR) | (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER)),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
+    // SHADER5
     { "Plain texture mapped object multi-pass lighting shader for directional lights", (1 << UNIFORM_MVP) |
     (1 << UNIFORM_MODEL_MATRIX) | (1 << UNIFORM_MODEL_ROTATION_MATRIX) |
     (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) |
@@ -251,29 +256,23 @@ static ShaderInfo multi_pass_shader_info[NU_MULTI_PASS_SHADERS] = {
 };
 
 const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
-    // Complete versatile lighting pass shader for local lights with support for all
-    // options except emission color and map (obsolete)
+    // Multi-pass lighting shader for directional lights with objects with texture
+    // (non-transparent) and normal map.
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
     "#define NORMAL_IN\n"
     "#define TANGENT_IN\n"
-    "#define COLOR_IN\n"
     "#define POSITION_WORLD_VAR\n"
     "#define NORMAL_VAR\n"
-    "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
-    "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_MAP_OPTION\n"
-    "#define NORMAL_MAP_OPTION\n"
-    "#define SPECULARITY_MAP_OPTION\n"
+    "#define TEXTURE_MAP_FIXED\n"
+    "#define NORMAL_MAP_FIXED\n"
+    "#define NORMAL_MAP_TANGENT_SPACE_VECTORS\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
-    "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define TEXTURE_MAP_ALPHA\n"
-    "#define GENERAL_LOCAL_LIGHT\n"
-    "#define LINEAR_ATTENUATION_RANGE\n",
+    "#define DIRECTIONAL_LIGHT\n",
     // Complete ambient pass shader.
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
@@ -740,10 +739,15 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
 // Single pass lighting shader definition.
 
 static ShaderInfo single_pass_shader_info[NU_SINGLE_PASS_SHADERS] = {
-    { "Complete single pass shader for local lights with a linear attenuation range",
-    UNIFORM_MASK_COMMON,
+    { "Single-pass phong normal map-only shader for directional light",
+    (1 << UNIFORM_MVP) |
+    (1 << UNIFORM_MODEL_MATRIX) | (1 << UNIFORM_MODEL_ROTATION_MATRIX) |
+    (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_AMBIENT_COLOR) |
+    (1 << UNIFORM_VIEWPOINT) | (UNIFORM_LIGHT_PARAMETERS_MASK) |
+    (1 << UNIFORM_EMISSION_COLOR) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM) |
+    (1 << UNIFORM_NORMAL_MAP_SAMPLER),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
-    (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
+    (1 << ATTRIBUTE_TANGENT) },
     { "Complete single pass shader for directional light", UNIFORM_MASK_COMMON,
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) | (1 << ATTRIBUTE_TANGENT) |
     (1 << ATTRIBUTE_COLOR) },
@@ -793,34 +797,23 @@ static ShaderInfo single_pass_shader_info[NU_SINGLE_PASS_SHADERS] = {
 };
 
 const char *single_pass_shader_prologue[NU_SINGLE_PASS_SHADERS] = {
-    // Complete versatile single pass shader for local lights with support for all options.
-    // Not fully functional.
+    // Single-pass phong normal map-only shader for directional light.
     "#define SINGLE_PASS\n"
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
     "#define NORMAL_IN\n"
     "#define TANGENT_IN\n"
-    "#define COLOR_IN\n"
     "#define POSITION_WORLD_VAR\n"
     "#define NORMAL_VAR\n"
-    "#define TBN_MATRIX_VAR\n"
     "#define TEXCOORD_VAR\n"
-    "#define MULTI_COLOR_OPTION\n"
-    "#define TEXTURE_MAP_OPTION\n"
-    "#define NORMAL_MAP_OPTION\n"
-    "#define SPECULARITY_MAP_OPTION\n"
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
-    "#define TEXTURE_MAP_SAMPLER\n"
+    "#define NORMAL_MAP_FIXED\n"
+    "#define NORMAL_MAP_TANGENT_SPACE_VECTORS\n"
     "#define NORMAL_MAP_SAMPLER\n"
-    "#define SPECULARITY_MAP_SAMPLER\n"
     "#define AMBIENT_COLOR_IN\n"
     "#define EMISSION_COLOR_IN\n"
-    "#define EMISSION_MAP_OPTION\n"
-    "#define EMISSION_MAP_SAMPLER\n"
-    "#define TEXTURE_MAP_ALPHA\n"
-    "#define GENERAL_LOCAL_LIGHT\n"
-    "#define LINEAR_ATTENUATION_RANGE\n",
+    "#define DIRECTIONAL_LIGHT\n",
     // Complete versatile single pass shader for directional lights with support for all options.
     "#define SINGLE_PASS\n"
     "#define TEXCOORD_IN\n"
