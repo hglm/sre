@@ -32,7 +32,7 @@ ifeq ($(DETECTED_CPU), X86)
 DEFAULT_BACKEND=GL_X11
 BACKEND_DESCRIPTION="Automatically selected back-end: GL_X11 (x86 platform)" 
 else ifeq ($(DETECTED_CPU), ARM)
-RPI_DETECT := $(shell if [-d /opt/vc/lib ]; then echo YES; fi)
+RPI_DETECT := $(shell if [ -d /opt/vc/lib ]; then echo YES; fi)
 ifeq ($(RPI_DETECT),YES)
 DEFAULT_BACK_END=GLES2_RPI_FB
 BACKEND_DESCRIPTION="Automatically selected back-end: GLES2_RPI_FB (Raspberry Pi)"
