@@ -26,6 +26,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <bcm_host.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <EGL/eglplatform.h>
 #include <GLES2/gl2.h>
 
 #include "sre.h"
@@ -61,6 +62,8 @@ void *EGLGetNativeDisplay() {
 }
 
 #define check() assert(glGetError() == 0)
+
+static EGL_DISPMANX_WINDOW_T native_window;
 
 void EGLInitializeSubsystemWindow(int requested_width, int requested_height,
 int& width, int& height, void *&window) {
@@ -107,6 +110,11 @@ int& width, int& height, void *&window) {
     check();
 
     LinuxFBInitializeUI(width, height);
+
+    native_window.element = dispman_element;
+    native_window.width = width;
+    native_window.height = height;
+    window = &native_window;
 }
 
 void EGLDeinitializeSubsystem() {

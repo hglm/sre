@@ -98,7 +98,7 @@ static const EGLint attribute_list_no_stencil_buffer[] = {
 
 static const EGLint attribute_list_multi_sample[] =  {
     // Enable 4-sample MSAA.
-#ifdef OPENGL_ES2_RPI
+#ifdef OPENGL_ES2_PLATFORM_RPI
     EGL_SAMPLE_BUFFERS, 1,
 #endif
     EGL_SAMPLES, 4,

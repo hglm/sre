@@ -1,5 +1,8 @@
 # Do not edit normally. Configuration settings are in Makefile.conf.
 
+
+TARGET_MACHINE := $(shell gcc -dumpmachine)
+
 include Makefile.conf
 
 VERSION = 0.5
@@ -10,6 +13,43 @@ LINKER_SELECTION_FLAGS = -fuse-ld=gold
 
 DEMO_PROGRAM = sre-demo
 ALL_DEMO_PROGRAMS = $(DEMO_PROGRAM) game
+
+# Autodetect platform based on TARGET_MACHINE
+ifneq (,$(findstring x86,$(TARGET_MACHINE)))
+DETECTED_CPU=X86
+CPU_DESCRIPTION="Detected CPU platform: x86"
+else
+ifneq (,$(findstring arm,$(TARGET_MACHINE)))
+DETECTED_CPU=ARM
+CPU_DESCRIPTION="Detected CPU platform: ARM"
+else
+endif
+endif
+
+# Detect the back-end when required.
+ifeq (,$(DEFAULT_BACKEND))
+ifeq ($(DETECTED_CPU), X86)
+DEFAULT_BACKEND=GL_X11
+BACKEND_DESCRIPTION="Automatically selected back-end: GL_X11 (x86 platform)" 
+else ifeq ($(DETECTED_CPU), ARM)
+RPI_DETECT := $(shell if [-d /opt/vc/lib ]; then echo YES; fi)
+ifeq ($(RPI_DETECT),YES)
+DEFAULT_BACK_END=GLES2_RPI_FB
+BACKEND_DESCRIPTION="Automatically selected back-end: GLES2_RPI_FB (Raspberry Pi)"
+else
+DEFAULT_BACKEND=GLES2_X11
+BACKEND_DESCRIPTION="Automatically selected back-end: GLES2_X11 (ARM platform)"
+endif
+else
+DEFAULT_BACKEND=GL_X11
+endif
+else
+BACKEND_DESCRIPTION=Selected back-end $(DEFAULT_BACKEND)
+endif
+# When SUPPORTED_BACKENDS is empty, assign the default backend.
+ifeq (,$(SUPPORTED_BACKENDS))
+SUPPORTED_BACKENDS=$(DEFAULT_BACKEND)
+endif
 
 ifeq ($(SHADOWS), SHADOW_VOLUMES)
 DEMO_STARTUP_DEFINES = -DSHADOW_VOLUMES
@@ -102,6 +142,11 @@ OPENGL_ES2 = ALLWINNER_MALI_FB
 endif
 ifeq ($(DEFAULT_BACKEND), GLES2_RPI_FB)
 OPENGL_ES2 = RPI_FB
+OPENGL_ES2_PLATFORM = RPI
+endif
+
+ifeq ($(GLES2_PLATFORM), RPI)
+OPENGL_ES2_PLATFORM = RPI
 endif
 
 FRAMEBUFFER_COMMON_MODULE_OBJECTS = CriticalSection.o MouseEventQueue.o linux-fb-ui.o
@@ -124,13 +169,19 @@ ifeq ($(OPENGL_ES2), X11)
 DEFINES_OPENGL_ES2 = -DOPENGL_ES2_X11
 PLATFORM_MODULE_OBJECTS += egl-x11.o
 endif
+
 ifeq ($(OPENGL_ES2), RPI_FB)
-# Raspberry Pi with Broadcom VideoCore.
-DEFINES_OPENGL_ES2 = -DOPENGL_ES2_RPI
-DEFINES_GLES2_FEATURES += -DGLES2_GLSL_NO_ARRAY_INDEXING \
--DFLOATING_POINT_TEXT_STRING -DGLES2_GLSL_LIMITED_UNIFORM_INT_PRECISION
+# Raspberry Pi with Broadcom VideoCore, console.
+OPENGL_ES2_PLATFORM = RPI
 PLATFORM_MODULE_OBJECTS += egl-rpi-fb.o
 endif
+ifeq ($(OPENGL_ES2_PLATFORM), RPI)
+# Raspberry Pi (console or X11)
+DEFINES_OPENGL_ES2 = -DOPENGL_ES2_PLATFORM_RPI
+DEFINES_GLES2_FEATURES += -DGLES2_GLSL_NO_ARRAY_INDEXING \
+-DFLOATING_POINT_TEXT_STRING -DGLES2_GLSL_LIMITED_UNIFORM_INT_PRECISION
+endif
+
 ifeq ($(OPENGL_ES2), ALLWINNER_MALI_FB)
 # Allwinner A1x/A20 platform with ARM Mali-400, framebuffer.
 DEFINES_OPENGL_ES2 = -DOPENGL_ES2_MALI -DOPENGL_ES2_A10 # -DOPENGL_ES2_A10_SCALE
@@ -149,8 +200,8 @@ PLATFORM_MODULE_OBJECTS += $(FRAMEBUFFER_COMMON_MODULE_OBJECTS)
 endif
 
 ifeq ($(OPENGL_ES2), RPI_FB)
-# RPi as of 2013 requires specific include paths and libraries
-# (no pkgconfig configuration available).
+# RPi as of 2013 requires specific include paths and libraries for
+# console (no pkgconfig configuration available).
 EXTRA_CFLAGS_LIB += -I/opt/vc/include/ \
 -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/libs/ilclient \
 -I/opt/vc/libs/vgfont -I/opt/vc/include/interface/vmcs_host/linux
@@ -303,6 +354,7 @@ ifeq ($(BULLET_PHYSICS), YES)
 DEFINES_DEMO += -DUSE_BULLET
 PLATFORM_MODULE_OBJECTS += bullet.o
 PKG_CONFIG_REQUIREMENTS += bullet
+EXTRA_PKG_CONFIG_DEMO += bullet
 endif
 
 LFLAGS_DEMO += -ldatasetturbo -lpthread
@@ -328,8 +380,8 @@ CFLAGS_LIB += $(EXTRA_CFLAGS_LIB) $(CFLAGS) $(DEFINES_LIB) -I.
 CFLAGS_DEMO = $(EXTRA_CFLAGS_BACKEND) $(CFLAGS) $(DEFINES_DEMO) $(DEFINES_BACKEND) -I.
 
 # Set pkg-config definitions.
-PKG_CONFIG_CFLAGS_DEMO = `pkg-config --cflags datasetturbo bullet $(EXTRA_PKG_CONFIG_DEMO)`
-PKG_CONFIG_LIBS_DEMO = `pkg-config --libs datasetturbo bullet $(EXTRA_PKG_CONFIG_DEMO)`
+PKG_CONFIG_CFLAGS_DEMO = `pkg-config --cflags datasetturbo $(EXTRA_PKG_CONFIG_DEMO)`
+PKG_CONFIG_LIBS_DEMO = `pkg-config --libs datasetturbo $(EXTRA_PKG_CONFIG_DEMO)`
 
 ALL_LFLAGS_DEMO=$(LIBRARY_LFLAGS_DEMO) $(LFLAGS_DEMO) $(PKG_CONFIG_LIBS_DEMO)
 
@@ -374,7 +426,11 @@ endif
 
 default : library backend
 
-library : $(LIBRARY_OBJECT)
+library : echo_config $(LIBRARY_OBJECT)
+
+echo_config :
+	@echo $(CPU_DESCRIPTION)
+	@echo $(BACKEND_DESCRIPTION)
 
 libsre.so.$(VERSION) : $(LIBRARY_MODULE_OBJECTS)
 	$(CCPLUSPLUS) $(LINKER_SELECTION_FLAGS) -shared -Wl,-soname,libsre.so.$(VERSION_MAJOR) -fPIC -o libsre.so.$(VERSION) $(LIBRARY_MODULE_OBJECTS) $(LFLAGS_LIBRARY) -lm -lc
@@ -518,6 +574,10 @@ dep :
 	@# Add dependencies for builtin shaders.
 	@echo shaders_builtin.cpp : $(SHADER_SOURCES) >> .depend
 	@echo shaders_builtin.o : shaders_builtin.cpp sre.h shader.h >> .depend
+
+.autodetect :
+	@echo Autodetecting platform
+	@echo "TARGET_MACHINE="`gcc -dumpmachine` >.autodetect
 
 include .rules
 include .depend

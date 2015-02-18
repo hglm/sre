@@ -19,6 +19,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#define __STDC_LIMIT_MACROS
+#include <stdint.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <malloc.h>
