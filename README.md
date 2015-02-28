@@ -3,10 +3,11 @@ engine using OpenGL or OpenGL-ES 2.0 with several device-specific
 back-ends. It currently runs on different Linux platforms but is
 portable to other platforms.
 
-The current version as of February works correctly with OpenGL on a PC
-platform; the OpenGL-ES 2.0 front-end with X11 (EGL) back-end
-also works well although shadow support is incomplete. Certain
-framebuffer OpenGL-ES 2.0 back-ends are also supported.
+The current version as of February 2015 works correctly with OpenGL
+on a PC platform; the OpenGL-ES 2.0 front-end with X11 (EGL) back-end
+also works well although shadow support is somewhat limited. Certain
+framebuffer OpenGL-ES 2.0 back-ends are also supported, including
+Raspberry Pi 1/2.
 
 An older version was ported to Windows (32-bit) using GLFW, and other
 platforms are feasable too given the seperation into front and back-ends
