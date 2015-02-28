@@ -203,12 +203,12 @@ ifeq ($(OPENGL_ES2), RPI_FB)
 # RPi as of 2013 requires specific include paths and libraries for
 # console (no pkgconfig configuration available).
 EXTRA_CFLAGS_LIB += -I/opt/vc/include/ \
--I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/libs/ilclient \
--I/opt/vc/libs/vgfont -I/opt/vc/include/interface/vmcs_host/linux
+-I/opt/vc/include/interface/vcos/pthreads \
+-I/opt/vc/include/interface/vmcs_host/linux
+
 EXTRA_CFLAGS_BACKEND = $(EXTRA_CFLAGS_LIB) 
-LFLAGS_DEMO += -L/opt/vc/lib/ -lopenmaxil -lbcm_host -lvcos -lvchiq_arm \
--L/opt/vc/libs/ilclient -L/opt/vc/libs/vgfont
-LFLAGS_LIBRARY += -lopenmaxil -lbcm_host -lvcos -lvchiq_arm
+LFLAGS_DEMO += -L/opt/vc/lib/ -lbcm_host -lvcos -lvchiq_arm
+LFLAGS_LIBRARY += -lbcm_host -lvcos -lvchiq_arm
 endif
 
 LFLAGS_DEMO += -lGLESv2 -lEGL
