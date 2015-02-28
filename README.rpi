@@ -1,0 +1,49 @@
+The Raspberry Pi X server does not provide an EGL/GLES interface to
+transparently support GLES applications. EGL/GLES are only available
+in the console, so SRE library applications only run properly in the
+console (and also uses a console mouse interface, which doesn't work well
+when X is active).
+
+When running Make, the RPi should automatically be detected and the
+console GLES2 Raspberry Pi back-end will be compiled in.
+
+Most of the general compilation/installion instructions apply (packages
+that need to be installed in order to compile).
+
+The Bullet physics library is required for proper collision detection
+in SRE. Although Bullet is available in most Debian distributions,
+including armhf for ARMv7, it is not available in Raspbian, so we have
+to compile it seperately:
+
+	git clone --depth 1 http://www.github.com/bulletphysics/bullet3
+	cd bullet3
+	
+We need to build the old, compatible version of Bullet (v2.83).
+To do so, install cmake if you don't have it yet:
+
+	sudo apt-get install cmake
+
+To compile Bullet cleanly, follow these steps:
+
+	cmake -G "Unix Makefiles"
+
+Edit CMakeCache.txt:
+
+	nano CMakeCache.txt
+
+Since we don't have OpenGL and don't want to build Bullet 3, change the
+following settings from ON to OFF, so that only the core Bullet 2 library
+is built:
+
+	BUILD_BULLET2_DEMOS
+	BUILD_BULLET3
+	BUILD_CPU_DEMOS
+	BUILD_EXTRAS
+	BUILD_OPENGL3_DEMOS
+	UNIT_TESTS
+
+Then compile and install:
+
+	make
+	sudo make install
+

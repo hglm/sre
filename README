@@ -3,7 +3,7 @@ OpenGL-ES 2.0 with several device-specific back-ends.
 
 Edit Makefile.conf to edit the configuration. It is possible to
 compile the library and demo program without installing by setting
-the library configuration to STATIC.
+the library configuration to STATIC (which is the default).
 
 The current version as of February 2015 has been tested and works
 correctly with full features with OpenGL on a Linux PC platform,
@@ -26,14 +26,17 @@ file. Installation is not necessary to compile or run the demo.
 Run "make dep" and "make rules" may be necessary after source changes.
 
 The demo program supports a few options, run it without arguments
-for help. There are about 15 different demo scenes/tests present,
-one of which must be supplied as an argument. For example,
+for help. By default, multi-pass rendering, shadows and multiple lights
+are enabled for OpenGL back-ends, while they are disabled for GLES2
+back-ends (but can be enabled with command line options). There are
+about 15 different demo scenes/tests present, one of which must be
+supplied as an argument. For example,
 "./sre-demo demo10".
 
 Demos that should work include demo1, demo2, demo5, demo6, demo7, demo8,
 demo9, demo10, demo11, demo12 and demo13.
 
-game is simple game in which a ball must be pushed onto the ground.
+game is a simple game in which balls must be pushed onto the ground.
 
 textdemo demonstrates the text drawing functions that use a highly
 optimized text shader.
@@ -55,7 +58,18 @@ For most practical purposes the game physics library Bullet is
 required. It can be disabled but is needed for proper scene
 navigation. Recently it has become available on some Debian
 repositories (including x86 and armhf). Install the libbullet-dev
-package.
+package. Specific instructions apply to the Raspberry Pi running
+Raspbian, where Bullet is not available as a package. See README.rpi.
+
+Assimp 3.x (asset import library) is required when assimp support
+is enabled (the default), allowing loading many different 3D model
+file formats. In Debian-based distributions, it is available as
+libassimp-dev.
+
+Another dependency is libpng (development package). The DataSetTurbo
+library is also required (also available from github,
+https://github.com/hglm/DataSetTurbo.git). Run make and then 'sudo make
+install'.
 
 Platform-specific development libraries are needed to compile the
 back-end. This includes:
@@ -69,13 +83,6 @@ back-end. This includes:
   back-ends.
 - Device-specific EGL/GLES2 development libraries for OpenGL-ES 2.0
   back-ends.
-- Assimp 3.x (asset import library) is required when assimp support
-  is enabled, allowing loading many different 3D model file formats.
-  In Debian-based distributions, it is available as libassimp-dev.
-
-Another dependency is libpng (development package). The DataSetTurbo
-library is also required (also available from github,
-https://github.com/hglm/DataSetTurbo.git).
 
 The Makefile uses sed and awk.
 
