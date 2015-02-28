@@ -126,6 +126,7 @@ typedef Matrix4x3RM MatrixTransform;
 // The maximum number of shadow map levels.
 #define SRE_MAX_SHADOW_MAP_LEVELS_OPENGL 6
 #define SRE_MAX_SHADOW_MAP_LEVELS_GLES2 5
+#define SRE_MIN_SPOT_LIGHT_SHADOW_MAP_NEAR_PLANE_DISTANCE 0.1f
 // The largest size of the shadow maps for point source light cube maps (GL 3+).
 #define SRE_MAX_CUBE_SHADOW_MAP_SIZE_OPENGL 2048
 // The largest size of the shadow maps for point source light cube maps (GL-ES 2.0).

@@ -784,10 +784,14 @@ void main() {
 #endif
 
 #ifdef SPOT_LIGHT_SHADOW_MAP
-	float bias = 0.00005 * slope_var * shadow_map_parameters_in[SHADOW_MAP_SIZE] / 2048.0;
+	float bias = 0.00005 * slope_var * shadow_map_parameters_in[SHADOW_MAP_SIZE] /
+		2048.0;
 #ifdef USE_SHADOW_SAMPLER
 	vec4 coords = shadow_map_coord_var;
-        coords.z += bias * coords.w;
+	// Technically, the bias is divided by coords.w before multiplied again by coords.w
+	// before the textureProj function, which divides by coords.w. The first two operations
+	// cancel out each other.
+        coords.z += bias;
 	shadow_light_factor = TEXTURE_PROJ_FUNC(shadow_map_in, coords);
         light_att *= shadow_light_factor;
 #else
@@ -796,13 +800,12 @@ void main() {
 	vec3 P_proj = P_trans.xyz / P_trans.w;
 	bool out_of_spotlight_bounds = any(lessThan(P_proj.xyz, vec3(0.0, 0.0, 0.0))) ||
 		any(greaterThan(P_proj.xyz, vec3(1.0, 1.0, 1.0)));
-#if 1
 	// Spotlight shadow map stores projected z coordinate.
 	// If the fragment is outside of the spot light volume, just discard it.
 	if (out_of_spotlight_bounds)
 		discard;
 	shadow_light_factor = CalculateShadow(P_proj, bias);
-#else
+#if 0
 	// Spotlight shadow map stores scaled distance from the spotlight.
 	if (out_of_spotlight_bounds)
 		discard;
@@ -859,7 +862,8 @@ void main() {
 	norm_z_comp = (f + n) / (f - n) - 2 * f * n / (local_z_comp * (f - n));
 #endif
 	float depth = (norm_z_comp + 1.0) * 0.5;
-	const float bias = 0.00005;
+	float bias = 0.00005 * shadow_map_parameters_in[SHADOW_MAP_SIZE] / 2048.0;
+//	bias /= local_z_comp;
 	// Since only back faces with respect to the light have been written to the shadow map,
 	// the bias value has to be added to the depth comparison value, so that the depth comparison
 	// will fail (shadow) for fragments very close but away from the back face surface.

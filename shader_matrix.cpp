@@ -235,9 +235,6 @@ Vector3D x_direction, Vector3D y_direction, float zmin, float zmax) {
     delete s3;
 #endif
     Vector3D fvec = light_direction;
-//    Vector3D up_vector = y_direction;
-//    Vector3D s = Cross(fvec, up_vector);
-//    Vector3D u = Cross(s, fvec);
     Vector3D s = x_direction;
     Vector3D u = y_direction;
     Matrix4D M;

@@ -528,56 +528,7 @@ const sreFrustum& frustum, const sreLight& light, BoundsCheckResult octree_bound
 }
 
 
-// dim_min multiplication vectors, depending on signs of the spotlight direction.
-// dim_max multiplication vector is derived by taking "reverse" (1.0 - x, 1.0 - y, 1.0 - z).
-
-static const Vector3D signs_table[8] = {
-    Vector3D(1.0f, 1.0f, 1.0f),      // -x, -y, -z
-    Vector3D(0.0f, 1.0f, 1.0f),      // +x, -y, -z 
-    Vector3D(1.0f, 0.0f, 1.0f),      // -x, +y, -z
-    Vector3D(0.0f, 0.0f, 1.0f),      // +x, +y, -z 
-    Vector3D(1.0f, 1.0f, 0.0f),      // -x, -y, +z
-    Vector3D(0.0f, 1.0f, 0.0f),      // +x, -y, +z 
-    Vector3D(1.0f, 0.0f, 0.0f),      // -x, +y, +z
-    Vector3D(0.0f, 0.0f, 0.0f)       // +x, +y, +z
-};
-
 void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, const sreFrustum &frustum) {
-#if 0
-    sreBoundingVolumeAABB relative_AABB;
-    relative_AABB.dim_min = AABB_shadow_caster.dim_min - light.vector.GetVector3D();
-    relative_AABB.dim_max = AABB_shadow_caster.dim_max - light.vector.GetVector3D();
-    int signs = (light.spotlight.x > 0) + (light.spotlight.y > 0) * 2 +
-        (light.spotlight.z > 0) * 4;
-    // Pick the AABB vertex that is furthest away in the direction of the light.
-    // Thanks to the properties of the AABB, it depends only on the spotlight direction
-    // signs.
-    Point3D V =
-        // Add dim_min components depending on the sign of the spotlight direction.
-        (relative_AABB.dim_min & signs_table[signs]) +
-        // Add dim_max components. We can simply take the "reverse" of the dim_min factor.
-        (relative_AABB.dim_max & (Vector3D(1.0f, 1.0f, 1.0f) - signs_table[signs]));
-    // Now calculate the distance to this vertex.
-    float zmax = Dot(light.spotlight.GetVector3D(), V);
-#else
-    float zmax;
-    if (light.type & SRE_LIGHT_BEAM)
-        zmax = light.cylinder.length;
-    else
-        zmax = light.sphere.radius;
-#endif
-
-    if (zmax <= 0) {
-        // This shouldn't happen due to earlier checks on the shadow caster and
-        // receiver volumes.
-        sreMessage(SRE_MESSAGE_WARNING,
-            "RenderSpotOrBeamLightShadowMap: Unexpect zmax <= 0 for light %d (zmax = %f).",
-            light.id, zmax);
-//        light.shadow_map_required = false;
-        return;
-    }
-    zmax = 1.001f * zmax;  // Avoid precision problems at the end of the z range.
-
     // Create a local coordinate system.
     Vector3D up;
     if (fabsf(light.spotlight.x) < 0.01f && fabsf(light.spotlight.z) < 0.01f) {
@@ -593,9 +544,6 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
     x_dir.Normalize();
     Vector3D y_dir = Cross(light.spotlight.GetVector3D(), x_dir);
     y_dir.Normalize();
-
-//    printf("Light %d, x_dir = (%f, %f, %f) y_dir = (%f, %f, %f) zmax = %f\n", light.id,
-//       x_dir.x, x_dir.y, x_dir.z, y_dir.x, y_dir.y, y_dir.z, zmax);
 
     // Pick a shadow map size appropriate for the projected size of the light volume.
     float threshold;
@@ -646,24 +594,25 @@ void RenderSpotOrBeamLightShadowMap(sreScene *scene, const sreLight& light, cons
         glDisable(GL_DEPTH_CLAMP);
 #endif
     glClear(GL_DEPTH_BUFFER_BIT);
-    Vector3D dim_min, dim_max;
-    // For both beam lights and spot lights the x and y extents of the shadow map area
-    // are defined by the cylinder radius.
-    dim_min.Set(- light.cylinder.radius, - light.cylinder.radius, 0);
-    dim_max.Set(light.cylinder.radius, light.cylinder.radius, zmax);
-    // Use an orthogonal transformation matrix for beam lights.
     if (light.type & SRE_LIGHT_BEAM) {
+    // Use an orthogonal transformation matrix for beam lights.
+        Vector3D dim_min, dim_max;
+        // For both beam lights and spot lights the x and y extents of the shadow map area
+        // are defined by the cylinder radius.
+        dim_min.Set(- light.cylinder.radius, - light.cylinder.radius, 0);
+        dim_max.Set(light.cylinder.radius, light.cylinder.radius, light.cylinder.length);
         GL3CalculateShadowMapMatrix(light.vector.GetPoint3D(), light.spotlight.GetVector3D(),
             x_dir, y_dir, dim_min, dim_max);
         sre_internal_current_shadow_map_dimensions = Vector3D(light.cylinder.radius,
-            light.cylinder.radius, zmax);
+            light.cylinder.radius, light.cylinder.length);
         GL3InitializeShadowMapShadersBeforeLight(Vector4D(sre_internal_current_shadow_map_dimensions,
             sre_internal_max_shadow_map_size >> sre_internal_current_shadow_map_index));
     }
     else {
         // Spotlight. Use a projection shadow map matrix.
         GL3CalculateProjectionShadowMapMatrix(light.vector.GetPoint3D(),
-            light.spotlight.GetVector3D(), x_dir, y_dir, 0.01f, light.spherical_sector.radius);
+            light.spotlight.GetVector3D(), x_dir, y_dir,
+            SRE_MIN_SPOT_LIGHT_SHADOW_MAP_NEAR_PLANE_DISTANCE, light.spherical_sector.radius);
         // Only the fourth component of the shadow map dimensions (the size in pixels of the
         // shadow map) is used (and only by the lighting pass shaders, not the shadow map shaders).
         sre_internal_current_shadow_map_dimensions = Vector3D(light.cylinder.radius,
@@ -1425,7 +1374,7 @@ void sreVisualizeCubeMap(int light_index) {
     // Set the source to a scratch texture. Rather than having the image drawing functions
     // explicitly support cube textures, just copy the cube texture faces into a scratch texture.
 #ifndef OPENGL_ES2
-    // Not supported with OpenGL ES2, non-functional with OpenGL.
+    // Not supported with OpenGL ES2.
 #if 1
     GLuint scratch_texture;
     glGenTextures(1, &scratch_texture);

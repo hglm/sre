@@ -201,7 +201,7 @@ void Demo1CreateScene(sreScene *scene, sreView *view) {
     sreTexture *marble_texture = new sreTexture("Marble9", TEXTURE_TYPE_NORMAL);
     scene->SetTexture(marble_texture);
     scene->SetFlags(SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_CAST_SHADOWS |
-        SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT);
+        SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT | SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_VIEW);
     // The pond model is technically not closed but it causes no problems with stencil shadows
     // because it is never lit from below (indicated with SRE_OBJECT_OPEN_SIDE_HIDDEN_FROM_LIGHT).
     sreModel *pond = sreCreateCompoundModel(scene, true, true, SRE_LOD_MODEL_NOT_CLOSED |

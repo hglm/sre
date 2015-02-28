@@ -152,7 +152,7 @@ void Demo2CreateScene(sreScene *scene, sreView *view) {
     scene->SetEmissionColor(Color(0, 0, 0));
 
     // Add cylinders in concentric circles.
-    sreModel *cylinder_model = sreCreateCylinderModel(scene, 5.0, true, false); // Without bottom.
+    sreModel *cylinder_model = sreCreateCylinderModel(scene, 15.0f, true, false); // Without bottom.
     for (int i = 0; i < 30; i++) {
        Color color = Color(
            rng->RandomFloat(1.0f) * 0.8 + 0.2,
