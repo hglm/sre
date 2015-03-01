@@ -157,7 +157,8 @@ int& actual_width, int& actual_height, unsigned int backend_flags) {
     // Clear application state
     memset(state, 0, sizeof(*state));
 
-    X11OpenDisplay();
+    if (!X11OpenDisplay())
+        sreFatalError("Failed to open X display.\n");
     state->XDisplay = (Display *)X11GetDisplay();
 //    XDestroyWindow(state->XDisplay, glut_window);
 
@@ -174,11 +175,11 @@ int& actual_width, int& actual_height, unsigned int backend_flags) {
     GLint visual_attributes[MAX_VISUAL_ATTRIBUTES_SIZE];
     visual_attributes[0] = None;
     AddAttributes(visual_attributes, visual_attributes_base);
-    if (backend_flags & SRE_BACKEND_FLAG_STENCIL_BUFFER)
+    if (backend_flags & SRE_BACKEND_INIT_FLAG_STENCIL_BUFFER)
         AddAttributes(visual_attributes, visual_attributes_stencil_buffer);
     else
         AddAttributes(visual_attributes, visual_attributes_no_stencil_buffer);
-    if (backend_flags & SRE_BACKEND_FLAG_MULTI_SAMPLE)
+    if (backend_flags & SRE_BACKEND_INIT_FLAG_MULTI_SAMPLE)
         AddAttributes(visual_attributes, visual_attributes_multi_sample);
 
     // Obtain appropriate GLX framebuffer configurations.

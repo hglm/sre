@@ -22,14 +22,23 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #endif
 
 enum {
-     SRE_BACKEND_FLAG_MULTI_SAMPLE = 0x1,
-     SRE_BACKEND_FLAG_STENCIL_BUFFER = 0x2,
+     SRE_BACKEND_INIT_FLAG_MULTI_SAMPLE = 0x1,
+     SRE_BACKEND_INIT_FLAG_STENCIL_BUFFER = 0x2,
+};
+
+enum {
+     SRE_BACKEND_FLAG_START_WITH_MOUSE_PANNING = 0x1,
 };
 
 class sreBackend {
 public :
     int index;
     const char *name;
+    int flags;
+    Vector2D mouse_sensitivity;
+
+    sreBackend();
+    // Initialize back-end
     virtual void Initialize(int *argc, char ***argv, int requested_width, int requested_height,
         int& actual_width, int& actual_height, unsigned int backend_flags) = 0;
     virtual void Finalize() = 0;
@@ -51,6 +60,7 @@ enum {
     SRE_BACKEND_GLES2_X11 = 0x100,
     SRE_BACKEND_GLES2_ALLWINNER_MALI_FB = 0x101,
     SRE_BACKEND_GLES2_RPI_FB = 0x102,
+    SRE_BACKEND_GLES2_RPI_FB_WITH_X11 = 0x103,
     SRE_BACKEND_DEFAULT = 0x1000
 };
 

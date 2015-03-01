@@ -195,9 +195,9 @@ int& actual_width, int& actual_height, unsigned int backend_flags) {
     glutInit(argc, *argv);
     glutInitWindowSize(requested_width, requested_height);
     int glut_display_mode = GLUT_RGBA | GLUT_DOUBLE | GLUT_ALPHA | GLUT_DEPTH;
-    if (backend_flags & SRE_BACKEND_FLAG_STENCIL_BUFFER)
+    if (backend_flags & SRE_BACKEND_INIT_FLAG_STENCIL_BUFFER)
         glut_display_mode |= GLUT_STENCIL;
-    if (backend_flags & SRE_BACKEND_FLAG_MULTI_SAMPLE)
+    if (backend_flags & SRE_BACKEND_INIT_FLAG_MULTI_SAMPLE)
         glut_display_mode |= GLUT_MULTISAMPLE;
     glutInitDisplayMode(glut_display_mode);
     glut_window = glutCreateWindow("SRE demo -- OpenGL rendering demo using GLUT");

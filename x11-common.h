@@ -17,7 +17,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
 
-void X11OpenDisplay();
+bool X11OpenDisplay();
 void X11CreateWindow(int width, int height, XVisualInfo *vi, const char *title);
 void *X11GetDisplay();
 long unsigned int X11GetWindow();

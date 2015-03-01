@@ -162,11 +162,11 @@ int requested_width, int requested_height, unsigned int backend_flags) {
     EGLint attribute_list[MAX_ATTRIBUTES_SIZE];
     attribute_list[0] = EGL_NONE;
     AddAttributes(attribute_list, attribute_list_base);
-    if (backend_flags & SRE_BACKEND_FLAG_STENCIL_BUFFER)
+    if (backend_flags & SRE_BACKEND_INIT_FLAG_STENCIL_BUFFER)
         AddAttributes(attribute_list, attribute_list_stencil_buffer);
     else
         AddAttributes(attribute_list, attribute_list_no_stencil_buffer);
-    if (backend_flags & SRE_BACKEND_FLAG_MULTI_SAMPLE)
+    if (backend_flags & SRE_BACKEND_INIT_FLAG_MULTI_SAMPLE)
         AddAttributes(attribute_list, attribute_list_multi_sample);
 
     // Get the number of appropriate EGL framebuffer configurations.

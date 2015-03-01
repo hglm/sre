@@ -40,6 +40,9 @@ sreBackend *sreCreateBackendGLES2AllwinnerMaliFB();
 #ifdef INCLUDE_BACKEND_GLES2_RPI_FB
 sreBackend *sreCreateBackendGLES2RPIFB();
 #endif
+#ifdef INCLUDE_BACKEND_GLES2_RPI_FB_WITH_X11
+sreBackend *sreCreateBackendGLES2RPIFBWITHX11();
+#endif
 
 sreBackend *sre_internal_backend = NULL;
 sreApplication *sre_internal_application;
@@ -64,6 +67,11 @@ static bool stencil_buffer = false;
 #else
 static bool stencil_buffer = true;
 #endif
+
+sreBackend::sreBackend() {
+    flags = 0;
+    mouse_sensitivity = Vector2D(1.0f, 1.0f);
+}
 
 void sreSelectBackend(int backend) {
     if (backend == SRE_BACKEND_DEFAULT)
@@ -98,6 +106,11 @@ void sreSelectBackend(int backend) {
 #ifdef INCLUDE_BACKEND_GLES2_RPI_FB
     case SRE_BACKEND_GLES2_RPI_FB :
         sre_internal_backend = sreCreateBackendGLES2RPIFB();
+        break;
+#endif
+#ifdef INCLUDE_BACKEND_GLES2_RPI_FB_WITH_X11
+    case SRE_BACKEND_GLES2_RPI_FB_WITH_X11 :
+        sre_internal_backend = sreCreateBackendGLES2RPIFBWITHX11();
         break;
 #endif
     default :
@@ -274,18 +287,18 @@ static void sreBackendInitialize(sreApplication *app, int *argc, char ***argv) {
 #endif
 
     // Initialize GUI and SRE library.
-    int backend_flags = 0;
+    int backend_init_flags = 0;
     if (multi_sample)
-         backend_flags |= SRE_BACKEND_FLAG_MULTI_SAMPLE;
+         backend_init_flags |= SRE_BACKEND_INIT_FLAG_MULTI_SAMPLE;
     if (stencil_buffer) {
-         backend_flags |= SRE_BACKEND_FLAG_STENCIL_BUFFER;
+         backend_init_flags |= SRE_BACKEND_INIT_FLAG_STENCIL_BUFFER;
          sreSetShadowVolumeSupport(true);
     }
     else
          sreSetShadowVolumeSupport(false);
     int actual_width, actual_height;
-    sre_internal_backend->Initialize(argc, argv, WINDOW_WIDTH, WINDOW_HEIGHT, actual_width,
-        actual_height, backend_flags);
+    sre_internal_backend->Initialize(argc, argv, WINDOW_WIDTH, WINDOW_HEIGHT,
+	actual_width, actual_height, backend_init_flags);
     app->window_width = actual_width;
     app->window_height = actual_height;
     sreInitialize(actual_width, actual_height, sreBackendGLSwapBuffers);
@@ -301,15 +314,13 @@ static void sreBackendInitialize(sreApplication *app, int *argc, char ***argv) {
         sreSetMultiPassMaxActiveLights(1);
 
     // Enable mouse panning by default for framebuffer back-ends.
-    if (sre_internal_backend->index == SRE_BACKEND_GLES2_ALLWINNER_MALI_FB ||
-    sre_internal_backend->index == SRE_BACKEND_GLES2_RPI_FB) {
-        sre_internal_application->SetFlags(sre_internal_application->GetFlags() |
+    if (sre_internal_backend->flags &
+    SRE_BACKEND_FLAG_START_WITH_MOUSE_PANNING)
+        sre_internal_application->SetFlags(
+	sre_internal_application->GetFlags() |
             SRE_APPLICATION_FLAG_PAN_WITH_MOUSE);
-        // The Linux console mouse interface has relatively low sensitivity.
-        // Also reverse the y movement.
-        sre_internal_application->mouse_sensitivity = Vector2D(2.0f, - 2.0f);
-    }
-
+    sre_internal_application->mouse_sensitivity =
+        sre_internal_backend->mouse_sensitivity;
 }
 
 static const char *shadow_str[3] = {

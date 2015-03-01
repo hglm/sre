@@ -135,11 +135,11 @@ int& actual_width, int& actual_height, unsigned int backend_flags) {
 //    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 0);
     // Because we use glBindAttribute for compability with OpenGL ES 2.0, we do not have forward compability.
 //    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    if (backend_flags & SRE_BACKEND_FLAG_MULTI_SAMPLE)
+    if (backend_flags & SRE_BACKEND_INIT_FLAG_MULTI_SAMPLE)
         // Enable multi-sample anti-aliasing
         glfwOpenWindowHint(GLFW_FSAA_SAMPLES, 4);
     int r;
-    if (backend_flags & SRE_BACKEND_FLAG_STENCIL_BUFFER)
+    if (backend_flags & SRE_BACKEND_INIT_FLAG_STENCIL_BUFFER)
         r = glfwOpenWindow(requested_width, requested_height, 8, 8, 8, 8, 24, 8, GLFW_WINDOW);
     else
         r = glfwOpenWindow(requested_width, requested_height, 8, 8, 8, 8, 24, 0, GLFW_WINDOW);

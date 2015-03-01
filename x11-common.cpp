@@ -38,12 +38,11 @@ static Display *XDisplay = NULL;
 static Window XWindow;
 static Colormap window_cmap;
 
-void X11OpenDisplay() {
-   XDisplay = XOpenDisplay(NULL);
-   if (!XDisplay) {
-       printf("Error: failed to open X display.\n");
-       exit(1);
-   }
+bool X11OpenDisplay() {
+    XDisplay = XOpenDisplay(NULL);
+    if (!XDisplay)
+        return false;
+    return true;
 }
 
 void *X11GetDisplay() {

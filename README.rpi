@@ -5,7 +5,14 @@ console (and also uses a console mouse interface, which doesn't work well
 when X is active).
 
 When running Make, the RPi should automatically be detected and the
-console GLES2 Raspberry Pi back-end will be compiled in.
+console GLES2 Raspberry Pi back-end will be compiled in. This back-end
+only supports mouse input, so control is mapped entirely to mouse movement
+and buttons. The X11-aware GLES2_RPI_FB_WITH_X11 back-end supports the more
+versatile mouse and keyboard input used by other X back-ends, which also
+supports changing various settings on the fly. When X is detected, the X
+mouse and keyboard input interface is used, otherwise console mode (mouse
+only) will be active. To enable the GLES2_RPI_FB_WITH_X11 back-end,
+edit DEFAULT_BACKEND in Makefile.conf.
 
 Most of the general compilation/installion instructions apply (packages
 that need to be installed in order to compile).

@@ -237,6 +237,10 @@ void sreBackendGLES2AllwinnerMaliFB::Initialize(int *argc, char ***argv, int req
 int requested_height, int& actual_width, int& actual_height, unsigned int backend_flags) {
     EGLInitialize(argc, argv, requested_width, requested_height, actual_width, actual_height,
         backend_flags);
+    // The Linux console mouse interface has relatively low sensitivity.
+    // Also reverse the y movement.
+    mouse_sensitivity = Vector2D(2.0f, - 2.0f);
+    flags |= SRE_BACKEND_FLAG_START_WITH_MOUSE_PANNING;
 }
 
 void sreBackendGLES2AllwinnerMaliFB::Finalize() {

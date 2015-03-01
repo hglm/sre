@@ -115,34 +115,49 @@ CFLAGS = -Wall -pipe $(OPTCFLAGS)
 # Select GLFW platform
 ifeq ($(DEFAULT_BACKEND), GL_GLFW)
 GLFW_PLATFORM = PURE_GLFW
-endif
+else
 ifeq ($(DEFAULT_BACKEND), GL_GLFW_X11)
 GLFW_PLATFORM = X11
 WINDOW_SYSTEM = X11
-endif
+else
 
 ifeq ($(DEFAULT_BACKEND), GL_X11)
 WINDOW_SYSTEM = X11
-endif
+else
 
 ifeq ($(DEFAULT_BACKEND), GL_GLUT)
 GLUT_PLATFORM = GLUT
-endif
+else
 ifeq ($(DEFAULT_BACKEND), GL_FREEGLUT)
 GLUT_PLATFORM = FREEGLUT
-endif
+else
 
 # Select OPENGL_ES2 platform if applicable
 ifeq ($(DEFAULT_BACKEND), GLES2_X11)
 OPENGL_ES2 = X11
 WINDOW_SYSTEM = X11
-endif
+else
 ifeq ($(DEFAULT_BACKEND), GLES2_ALLWINNER_MALI_FB)
 OPENGL_ES2 = ALLWINNER_MALI_FB
-endif
+else
 ifeq ($(DEFAULT_BACKEND), GLES2_RPI_FB)
 OPENGL_ES2 = RPI_FB
 OPENGL_ES2_PLATFORM = RPI
+else
+ifeq ($(DEFAULT_BACKEND), GLES2_RPI_FB_WITH_X11)
+OPENGL_ES2 = RPI_FB_WITH_X11
+OPENGL_ES2_PLATFORM = RPI
+WINDOW_SYSTEM = X11
+else
+$(error Invalid value for DEFAULT_BACKEND)
+endif
+endif
+endif
+endif
+endif
+endif
+endif
+endif
 endif
 
 ifeq ($(GLES2_PLATFORM), RPI)
@@ -175,6 +190,11 @@ ifeq ($(OPENGL_ES2), RPI_FB)
 OPENGL_ES2_PLATFORM = RPI
 PLATFORM_MODULE_OBJECTS += egl-rpi-fb.o
 endif
+ifeq ($(OPENGL_ES2), RPI_FB_WITH_X11)
+# Raspberry Pi with Broadcom VideoCore, with X11 input support.
+OPENGL_ES2_PLATFORM = RPI
+PLATFORM_MODULE_OBJECTS += egl-rpi-fb-with-x11.o
+endif
 ifeq ($(OPENGL_ES2_PLATFORM), RPI)
 # Raspberry Pi (console or X11)
 DEFINES_OPENGL_ES2 = -DOPENGL_ES2_PLATFORM_RPI
@@ -199,7 +219,7 @@ ifneq ($(OPENGL_ES2), X11)
 PLATFORM_MODULE_OBJECTS += $(FRAMEBUFFER_COMMON_MODULE_OBJECTS)
 endif
 
-ifeq ($(OPENGL_ES2), RPI_FB)
+ifeq ($(OPENGL_ES2_PLATFORM), RPI)
 # RPi as of 2013 requires specific include paths and libraries for
 # console (no pkgconfig configuration available).
 EXTRA_CFLAGS_LIB += -I/opt/vc/include/ \
@@ -395,7 +415,7 @@ demo5.o demo7.o demo8.o demo9.o demo10.o demo11.o demo12.o demo13.o demo14.o tex
 ALL_DEMO_MODULE_OBJECTS = $(DEMO_MODULE_OBJECTS) game.o
 ALL_BACKEND_MODULE_OBJECTS = sre_backend.o gui-common.o bullet.o glfw.o opengl-x11.o \
 x11-common.o glut.o egl-x11.o egl-common.o egl-allwinner-fb.o egl-rpi-fb.o \
-$(FRAMEBUFFER_COMMON_MODULE_OBJECTS)
+egl-rpi-fb-with-x11.o $(FRAMEBUFFER_COMMON_MODULE_OBJECTS)
 ORIGINAL_LIBRARY_MODULE_OBJECTS = $(CORE_LIBRARY_MODULE_OBJECTS) $(EXTRA_LIBRARY_MODULE_OBJECTS)
 LIBRARY_MODULE_OBJECTS = $(ORIGINAL_LIBRARY_MODULE_OBJECTS) $(EXTRA_GENERATED_LIBRARY_MODULE_OBJECTS)
 BACKEND_MODULE_OBJECTS = sre_backend.o gui-common.o $(PLATFORM_MODULE_OBJECTS)
