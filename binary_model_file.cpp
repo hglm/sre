@@ -229,7 +229,11 @@ static void sreSaveLODModelToSREBinaryLODModelFile(sreLODModel *lm, FILE *fp, in
 
         // Write the vertex attribute data, in order.
         if (lm->flags & SRE_POSITION_MASK) {
-            fwrite_with_check(lm->vertex, sizeof(Point3D) * lm->nu_vertices, 1, fp);
+            Point3D *position = new Point3D[lm->nu_vertices];
+            for (int i = 0; i < lm->nu_vertices; i++)
+                position[i] = lm->position[i];
+            fwrite_with_check(position, sizeof(Point3D) * lm->nu_vertices, 1, fp);
+            delete [] position;
         }
         if (lm->flags & SRE_NORMAL_MASK) {
             if (save_flags & SRE_MODEL_LOAD_FLAG_NO_VERTEX_NORMALS)
