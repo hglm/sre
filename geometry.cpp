@@ -1823,6 +1823,7 @@ void sreScene::MarkAllModelsReferenced() const {
 // uploading models.
 
 void sreScene::UploadModels() const {
+    sreMessage(SRE_MESSAGE_INFO, "Uploading models to GPU.");
     // Iterate all models.
     for (int i = 0; i < models.Size(); i++) {
         if (models.Get(i) == NULL)

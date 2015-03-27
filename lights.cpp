@@ -1172,7 +1172,8 @@ int *intersecting_object) const {
 // arrays which must be allocated.
 
 void sreScene::CalculateStaticLightObjectLists() {
-    printf("Calculating static shadow bounding volumes and static object lists for lights.\n");
+    sreMessage(SRE_MESSAGE_INFO,
+        "Calculating static shadow bounding volumes and static object lists for lights.");
     // Keep track of the number of static lights for which an object
     // is partially inside the light volume (this will be used to allocate
     // geometry scissors cache slots).
