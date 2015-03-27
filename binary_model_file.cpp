@@ -80,7 +80,8 @@ public :
     int32_t nu_vertices;
     int32_t nu_triangles;
     int32_t sorting_dimension;
-    uint32_t reserved[27];
+    int32_t cache_coherency_sorting_hint;
+    uint32_t reserved[26];
 };
 
 static void RemoveUnwantedAttributes(sreLODModel *lm, int load_flags) {
@@ -116,6 +117,7 @@ static sreLODModel *sreReadLODModelFromSREBinaryLODModelFile(FILE *fp, int load_
         lm->nu_vertices = lod_header.nu_vertices;
         lm->nu_triangles = lod_header.nu_triangles;
         lm->sorting_dimension = lod_header.sorting_dimension;
+        lm->cache_coherency_sorting_hint = lod_header.cache_coherency_sorting_hint;
 
         // Read the vertex attribute data, in order.
         if (lm->flags & SRE_POSITION_MASK) {
@@ -224,6 +226,7 @@ static void sreSaveLODModelToSREBinaryLODModelFile(sreLODModel *lm, FILE *fp, in
         lod_header.nu_vertices = lm->nu_vertices;
         lod_header.nu_triangles = lm->nu_triangles;
         lod_header.sorting_dimension = lm->sorting_dimension;
+        lod_header.cache_coherency_sorting_hint = lm->cache_coherency_sorting_hint;
 
         fwrite_with_check(&lod_header, 1, sizeof(sreBinaryLODModelHeader), fp);
 
