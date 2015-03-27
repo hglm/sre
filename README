@@ -79,10 +79,22 @@ back-end. This includes:
 - GFLW development library for GLFW support.
 - GLUT/freeglut for GLUT support. The pure OpenGL X11 back-end
   also requires freeglut (for initialization only).
-- OpenGL en GLEW development libraries when compiling for OpenGL
+- OpenGL and GLEW development libraries when compiling for OpenGL
   back-ends.
 - Device-specific EGL/GLES2 development libraries for OpenGL-ES 2.0
   back-ends.
+
+On a Debian/Ubuntu-based PC system using the OpenGL/X11 back-end, the
+following commands will install dependencies:
+
+	git clone https://github.com/DataSetTurbo.git
+	cd DataSetTurbo
+	make
+	sudo make install
+	cd ..
+	sudo apt-get install libX11-dev freeglut3-dev \
+	libglew-dev libpng1-dev libpng12-dev libassimp-dev \
+	libbullet-dev
 
 The Makefile uses sed and awk.
 
