@@ -26,7 +26,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // the highest precision. These are preceded by the macro MEDIUMP, which expands to
 // nothing when using OpenGL.
 #ifndef GL_ES
-#version 130
 #define MEDIUMP
 #else
 // When using OpenGL ES 2.0, the maximum precision in the fragment shader may be only

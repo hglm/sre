@@ -18,7 +18,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // HDR average luminance storage shader.
 
-#version 330
 uniform sampler2DRect texture_in;	// The source HDR calculated average/maximum luminance texture (1x1).
 uniform sampler2DRect average_lum_in;	// The actually used average/maximum luminance from the previous frame (1x1).
 varying vec2 texcoords;

@@ -18,7 +18,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // HDR luminance history comparison shader.
 
-#version 330
 uniform sampler2DRect texture_in;	// The source HDR average/maximum/actually used average/actually used maximum
 					// luminance history texture (16x1).
 uniform int slot_in;			// The luminance history slot where the last average luminance was stored.

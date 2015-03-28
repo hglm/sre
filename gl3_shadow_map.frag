@@ -20,9 +20,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 //
 // It has been written to be compatible with both OpenGL 2.0+ and OpenGL ES 2.0.
 
-#ifndef GL_ES
-#version 330
-#else
+#ifdef GL_ES
 precision mediump float;
 #endif
 

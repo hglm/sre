@@ -19,7 +19,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // HDR average/maximum luminance calculating shader.
 // Takes a texture that is a multiple of 4x4 blocks and calculates the average.
 
-#version 330
 uniform sampler2DRect texture_in;	// The source HDR average/maximum log luminance texture (red/green).
 varying vec2 texcoords;
 out vec2 average_luminance;

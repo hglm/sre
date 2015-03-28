@@ -1323,18 +1323,34 @@ void sreShader::Load() {
         origin_str = "(default path)";
     sreMessage(SRE_MESSAGE_INFO, "Loading shader %s %s", name, origin_str);
 
+    char *prologue_with_version;
+#ifdef OPENGL
+    prologue_with_version = new char[1];
+    prologue_with_version[0] = '\0';
+    // Add version definition as first statement.
+    AddPrologueDefinition("#version 400\n", prologue_with_version);
+    AddPrologueDefinition(prologue, prologue_with_version);
+#else
+    prologue_with_version = prologue;
+#endif
+
     char *vertex_source_str[1];
-    vertex_source_str[0] = new char[strlen(prologue) + strlen(vertexsource) + 1];
+    vertex_source_str[0] = new char[strlen(prologue_with_version)
+        + strlen(vertexsource) + 1];
     char *fragment_source_str[1];
-    fragment_source_str[0] = new char[strlen(prologue) + strlen(fragmentsource) + 1];
-    strcpy(vertex_source_str[0], prologue);
+    fragment_source_str[0] = new char[strlen(prologue_with_version)
+        + strlen(fragmentsource) + 1];
+    strcpy(vertex_source_str[0], prologue_with_version);
     strcat(vertex_source_str[0], vertexsource);
-    strcpy(fragment_source_str[0], prologue);
+    strcpy(fragment_source_str[0], prologue_with_version);
     strcat(fragment_source_str[0], fragmentsource);
     if (!builtin) {
         delete [] vertexsource;
         delete [] fragmentsource;
     }
+#ifdef OPENGL
+    delete [] prologue_with_version;
+#endif
 
     glShaderSource(v, 1, (const char **)&vertex_source_str[0], NULL);
     glShaderSource(f, 1, (const char **)&fragment_source_str[0], NULL);

@@ -18,7 +18,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // HDR average/maximum luminance calculating shader.
 
-#version 330
 attribute vec2 position_in;
 varying vec2 texcoords;
 

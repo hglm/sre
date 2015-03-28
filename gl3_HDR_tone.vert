@@ -18,7 +18,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // HDR tone mapping shader.
 
-#version 330
 uniform sampler2DRect average_lum_in;	// The average/max luminance input texture (1x1).
 uniform float key_value_in;
 attribute vec2 position_in;

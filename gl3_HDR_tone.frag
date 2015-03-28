@@ -18,7 +18,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // HDR tone mapping shader.
 
-#version 330
 uniform sampler2DRect texture_in;	// The source HDR framebuffer color texture.
 varying vec2 texcoords;
 varying float average_lum;	// The average luminance (constant).

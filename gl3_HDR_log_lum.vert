@@ -18,7 +18,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // HDR log-luminance calculating shader. Calculates a 256x256 texture with average and maximum log luminance values.
 
-#version 330
 attribute vec2 position_in;
 varying vec2 texcoords;
 

@@ -32,12 +32,6 @@ precision mediump float;
 #else
 #define MEDIUMP
 #define LOWP
-// Set GLSL version to 3.30 for OpenGL, 4.0 when cube maps are enabled.
-#ifdef SHADOW_CUBE_MAP
-#version 400
-#else
-#version 330
-#endif
 #endif
 #ifdef TEXTURE_MAP_OPTION
 uniform bool use_texture_map_in;

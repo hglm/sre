@@ -23,7 +23,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // It has been written to be compatible with both OpenGL 2.0+ and OpenGL ES 2.0.
 
 #ifndef GL_ES
-#version 150
 // We recognize the three levels of integer precision form the GLSL used in OpenGL-ES 2.0,
 // but all are defined as 32-bit integers in OpenGL GLSL.
 // In OpenGL-ES 2.0, lowp has the range (- 2^8, 2^8), mediump (- 2^10, 2^10),
