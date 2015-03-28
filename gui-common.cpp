@@ -154,7 +154,7 @@ static void SetSceneInfo(sreScene *scene, sreEngineSettingsInfo *settings_info) 
 }
 
 static void SetEngineSettingsInfo(sreEngineSettingsInfo *info) {
-    sprintf(scene_info_text_line[0], "SRE v0.4.2, %s, back-end: %s", opengl_str[info->opengl_version],
+    sprintf(scene_info_text_line[0], "SRE v0.4.3, %s, back-end: %s", opengl_str[info->opengl_version],
         sre_internal_backend->name);
     sprintf(scene_info_text_line[1], "");
     sprintf(scene_info_text_line[2], "Resolution: %dx%d", info->window_width, info->window_height);
