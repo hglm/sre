@@ -60,7 +60,8 @@ const char *uniform_str[MAX_UNIFORMS] = {
     "use_emission_map_in", "emission_map_in", "diffuse_fraction_in", "roughness_in",
     "roughness_weights_in",
     "anisotropic_in", "shadow_map_transformation_matrix", "shadow_map_in", "cube_shadow_map_in",
-    "", "spotlight_in", "uv_transform_in" };
+    "uv_transform_in", "", ""
+    };
 
 class ShaderInfo {
 public :
