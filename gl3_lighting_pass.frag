@@ -478,7 +478,7 @@ void main() {
 #if defined(EMISSION_COLOR_IN) && !defined(AMBIENT_COLOR_IN)
 	c = vec3(0, 0, 0);
 #endif
-#ifdef EMISSION_COLOR_IN
+#if defined(EMISSION_COLOR_IN) && !defined(EARTH_SHADER)
 #ifdef EMISSION_MAP_OPTION
         LOWP vec4 emission_map_color;
 	if (use_emission_map_in) {
