@@ -146,108 +146,80 @@ static void sreBackendProcessOptions(int *argcp, char ***argvp) {
     int argc = *argcp;
     char **argv = *argvp;
     for (;;) {
-        if (argc >= argi + 1 && strcmp(argv[argi], "--benchmark") == 0) {
+	if (argi >= argc)
+		break;
+        if (strcmp(argv[argi], "--benchmark") == 0) {
             benchmark_mode = true;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--multiple-lights") == 0) {
+        else if (strcmp(argv[argi], "--multiple-lights") == 0) {
             multiple_lights = true;
             multipass_rendering = true;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--single-light") == 0) {
+        else if (strcmp(argv[argi], "--single-light") == 0) {
             multiple_lights = false;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--no-shadows") == 0) {
+        else if (argc >= argi + 1 && strcmp(argv[argi], "--no-shadows") == 0) {
             shadows = SRE_SHADOWS_NONE;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--shadow-volumes") == 0) {
+        else if (argc >= argi + 1 && strcmp(argv[argi], "--shadow-volumes") == 0) {
             shadows = SRE_SHADOWS_SHADOW_VOLUMES;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--shadow-mapping") == 0) {
+        else if (argc >= argi + 1 && strcmp(argv[argi], "--shadow-mapping") == 0) {
             shadows = SRE_SHADOWS_SHADOW_MAPPING;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--multi-pass") == 0) {
+        else if (argc >= argi + 1 && strcmp(argv[argi], "--multi-pass") == 0) {
             multipass_rendering = true;
             argi++;
             continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--single-pass") == 0) {
+        else if (argc >= argi + 1 && strcmp(argv[argi], "--single-pass") == 0) {
             multipass_rendering = false;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--full-screen") == 0) {
+        else if (argc >= argi + 1 && strcmp(argv[argi], "--full-screen") == 0) {
             fullscreen_mode = true;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--preprocess") == 0) {
+        else if (argc >= argi + 1 && strcmp(argv[argi], "--preprocess") == 0) {
             preprocess = true;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--debug1") == 0) {
+        else if (argc >= argi + 1 && strcmp(argv[argi], "--debug1") == 0) {
             debug_level = 1;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--debug2") == 0) {
+        else if (argc >= argi + 1 && strcmp(argv[argi], "--debug2") == 0) {
             debug_level = 2;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--debug3") == 0) {
+        else if (argc >= argi + 1 && strcmp(argv[argi], "--debug3") == 0) {
             debug_level = 3;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--demand-load-shaders") == 0) {
+        else if (argc >= argi + 1 && strcmp(argv[argi], "--demand-load-shaders") == 0) {
             demand_load_shaders = true;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--large-shadow-maps") == 0) {
+        else if (argc >= argi + 1 && strcmp(argv[argi], "--large-shadow-maps") == 0) {
             large_shadow_maps = true;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--multi-sample") == 0) {
+        else if (argc >= argi + 1 && strcmp(argv[argi], "--multi-sample") == 0) {
             multi_sample = true;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--no-multi-sample") == 0) {
+        else if (argc >= argi + 1 && strcmp(argv[argi], "--no-multi-sample") == 0) {
             multi_sample = false;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--stencil-buffer") == 0) {
+        else if (argc >= argi + 1 && strcmp(argv[argi], "--stencil-buffer") == 0) {
             stencil_buffer = true;
-            argi++;
-            continue;
         }
-        if (argc >= argi + 1 && strcmp(argv[argi], "--no-stencil-buffer") == 0) {
+        else if (argc >= argi + 1 && strcmp(argv[argi], "--no-stencil-buffer") == 0) {
             stencil_buffer = false;
+        }
+        else {
+            // Unrecognized option; preserve for processing by the application.
             argi++;
             continue;
         }
-        break;
+        // Succesfully processed library option; remove option from argv.
+	if (argc - argi - 1 > 0)
+            memmove(&argv[argi], &argv[argi + 1], (argc - argi - 1) * sizeof(char *));
+        argc--;
+        // Go to the next option.
     }
-
-    if (argi > 1)
-        memcpy(argv + 1, argv + 1 + argi - 1, argi - 1);
-    *argcp = argc - (argi - 1);
+    *argcp = argc;
 }
 
 static double fps_table[10];
