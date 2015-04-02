@@ -241,6 +241,7 @@ static ShaderInfo multi_pass_shader_info[NU_MULTI_PASS_SHADERS] = {
     (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) |
     (1 << UNIFORM_LIGHT_PARAMETERS) | (1 << UNIFORM_SPECULAR_REFLECTION_COLOR) |
     (1 << UNIFORM_SPECULAR_EXPONENT) | (1 << UNIFORM_TEXTURE_MAP_SAMPLER) |
+    ((unsigned int)1 << UNIFORM_UV_TRANSFORM) |
     (1 << UNIFORM_SPECULARITY_MAP_SAMPLER) | (1 << UNIFORM_EMISSION_MAP_SAMPLER) |
     (1 << UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX) | (1 << UNIFORM_SHADOW_MAP_SAMPLER) |
     (1 << UNIFORM_SHADOW_MAP_PARAMETERS),
@@ -252,6 +253,7 @@ static ShaderInfo multi_pass_shader_info[NU_MULTI_PASS_SHADERS] = {
     (1 << UNIFORM_VIEWPOINT) | (1 << UNIFORM_LIGHT_PARAMETERS) |
     (1 << UNIFORM_SPECULAR_REFLECTION_COLOR) |
     (1 << UNIFORM_SPECULAR_EXPONENT) | (1 << UNIFORM_TEXTURE_MAP_SAMPLER) |
+    ((unsigned int)1 << UNIFORM_UV_TRANSFORM) |
     (1 << UNIFORM_SPECULARITY_MAP_SAMPLER) | (1 << UNIFORM_EMISSION_MAP_SAMPLER),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) }
 };
@@ -702,6 +704,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define SHADOW_MAP\n",
     // Earth shadow map lighting pass shader for directional light
     "#define TEXCOORD_IN\n"
+    "#define UV_TRANSFORM\n"
     "#define NORMAL_IN\n"
     "#define POSITION_WORLD_VAR\n"
     "#define NORMAL_VAR\n"
@@ -722,6 +725,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
 #endif
     // Earth lighting pass shader for directional light
     "#define TEXCOORD_IN\n"
+    "#define UV_TRANSFORM\n"
     "#define NORMAL_IN\n"
     "#define POSITION_WORLD_VAR\n"
     "#define NORMAL_VAR\n"

@@ -1947,6 +1947,8 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
             GL3InitializeShaderWithObjectTexture(so);
             GL3InitializeShaderWithObjectSpecularMap(so);
             GL3InitializeShaderWithObjectEmissionMap(so);
+            GL3InitializeShaderWithUVTransform(
+                multi_pass_shader[SHADER20].uniform_location[UNIFORM_UV_TRANSFORM], so);
             GL3InitializeShaderWithShadowMapTransformationMatrix(
                 multi_pass_shader[SHADER20].uniform_location[UNIFORM_SHADOW_MAP_TRANSFORMATION_MATRIX], so);
             break;
@@ -1968,6 +1970,8 @@ static void sreInitializeMultiPassShader(const sreObject& so, MultiPassShaderSel
             GL3InitializeShaderWithObjectTexture(so);
             GL3InitializeShaderWithObjectSpecularMap(so);
             GL3InitializeShaderWithObjectEmissionMap(so);
+            GL3InitializeShaderWithUVTransform(
+                multi_pass_shader[SHADER21].uniform_location[UNIFORM_UV_TRANSFORM], so);
             break;
         }
 }
