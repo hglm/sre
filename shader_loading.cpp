@@ -1331,7 +1331,7 @@ void sreShader::Load() {
     AddPrologueDefinition("#version 400\n", prologue_with_version);
     AddPrologueDefinition(prologue, prologue_with_version);
 #else
-    prologue_with_version = prologue;
+    prologue_with_version = strdup(prologue);
 #endif
 
     char *vertex_source_str[1];
@@ -1350,6 +1350,8 @@ void sreShader::Load() {
     }
 #ifdef OPENGL
     delete [] prologue_with_version;
+#else
+    free(prologue_with_version);
 #endif
 
     glShaderSource(v, 1, (const char **)&vertex_source_str[0], NULL);

@@ -1,4 +1,4 @@
-c/*
+/*
 
 Copyright (c) 2014 Harm Hanemaaijer <fgenfb@yahoo.com>
 
