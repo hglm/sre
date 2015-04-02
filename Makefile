@@ -5,7 +5,7 @@ TARGET_MACHINE := $(shell gcc -dumpmachine)
 
 include Makefile.conf
 
-VERSION = 0.4.3
+VERSION = 0.4.4
 VERSION_MAJOR = 0
 
 CCPLUSPLUS = g++
