@@ -306,8 +306,8 @@ const sreAttributeInfo& model_attribute_info) {
 // This function issue the actual draw commands. The attribute information in info must be
 // initialized.
 
-static void sreFinishDrawingObject(sreObject *so, sreLODModel *m,
-sreObjectAttributeInfo *info) {
+static void sreFinishDrawingObject(sreObject * DST_RESTRICT so, sreLODModel * DST_RESTRICT m,
+sreObjectAttributeInfo * DST_RESTRICT info) {
     if (info->attribute_masks & 0xFF)
         m->SetupAttributesNonInterleaved(info);
     if (info->attribute_masks & 0xFFFFFF00)
@@ -389,8 +389,8 @@ static void PrintAttributeList(sreObjectAttributeInfo *info, bool interleaved) {
     }
 }
 
-static void PrintShaderInfo(const sreObject *so, sreLODModel *m, sreObjectAttributeInfo *info,
-const char *pass,  int light_type_slot) {
+static void PrintShaderInfo(const sreObject * DST_RESTRICT so, sreLODModel * DST_RESTRICT m,
+sreObjectAttributeInfo * DST_RESTRICT info, const char * DST_RESTRICT pass,  int light_type_slot) {
     if (sre_internal_debug_message_level >= SRE_MESSAGE_LOG) {
         sreMessageNoNewline(SRE_MESSAGE_LOG,
             "object %d, model %d, %s shader %d (light type %d), "
@@ -405,16 +405,16 @@ const char *pass,  int light_type_slot) {
     }
 }
 
-static void PrintNewShaderInfo(const sreObject *so, sreLODModel *m, sreObjectAttributeInfo *info,
-const char *pass, int light_type_slot) {
+static void PrintNewShaderInfo(const sreObject * DST_RESTRICT so, sreLODModel * DST_RESTRICT m,
+sreObjectAttributeInfo * DST_RESTRICT info, const char * DST_RESTRICT pass, int light_type_slot) {
     if (sre_internal_debug_message_level >= SRE_MESSAGE_LOG) {
         sreMessageNoNewline(SRE_MESSAGE_LOG, "New shader selected: ");
         PrintShaderInfo(so, m, info, pass, light_type_slot);
     }
 }
 
-static void PrintDrawObjectInfo(const sreObject *so, sreLODModel *m, sreObjectAttributeInfo *info,
-const char *pass, int light_type_slot) {
+static void PrintDrawObjectInfo(const sreObject * DST_RESTRICT so, sreLODModel * DST_RESTRICT m,
+sreObjectAttributeInfo * DST_RESTRICT info, const char * DST_RESTRICT pass, int light_type_slot) {
     if (sre_internal_debug_message_level >= SRE_MESSAGE_VERBOSE_LOG) {
         sreMessageNoNewline(SRE_MESSAGE_VERBOSE_LOG, "sreDrawObject: ");
         PrintShaderInfo(so, m, info, pass, light_type_slot);

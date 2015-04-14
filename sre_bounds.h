@@ -29,8 +29,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // Update AABB1 with the union of AABB1 and AABB2.
 
-static inline void UpdateAABB(sreBoundingVolumeAABB& AABB1,
-const sreBoundingVolumeAABB& AABB2) {
+static inline void UpdateAABB(sreBoundingVolumeAABB& DST_RESTRICT AABB1,
+const sreBoundingVolumeAABB& DST_RESTRICT AABB2) {
     // Use of SSE for just this function produces larger and less efficient code,
     // so it is disabled. The packing/unpacking to and from SSE registers
     // causes most of the overhead. Any succesful SSE optimization need to integrate
@@ -45,8 +45,8 @@ const sreBoundingVolumeAABB& AABB2) {
     AABB1.dim_max.z = maxf(AABB1.dim_max.z, AABB2.dim_max.z);
 }
 
-static inline void UpdateAABBWithIntersection(sreBoundingVolumeAABB& AABB1,
-const sreBoundingVolumeAABB& AABB2) {
+static inline void UpdateAABBWithIntersection(sreBoundingVolumeAABB& DST_RESTRICT AABB1,
+const sreBoundingVolumeAABB& DST_RESTRICT AABB2) {
     AABB1.dim_min.x = maxf(AABB1.dim_min.x, AABB2.dim_min.x);
     AABB1.dim_max.x = minf(AABB1.dim_max.x, AABB2.dim_max.x);
     AABB1.dim_min.y = maxf(AABB1.dim_min.y, AABB2.dim_min.y);
@@ -57,7 +57,7 @@ const sreBoundingVolumeAABB& AABB2) {
 
 // Extend AABB so that point P is part of it.
 
-static inline void UpdateAABB(sreBoundingVolumeAABB& AABB, const Point3D& P) {
+static inline void UpdateAABB(sreBoundingVolumeAABB& DST_RESTRICT AABB, const Point3D& DST_RESTRICT P) {
     AABB.dim_min.x = minf(AABB.dim_min.x, P.x);
     AABB.dim_max.x = maxf(AABB.dim_max.x, P.x);
     AABB.dim_min.y = minf(AABB.dim_min.y, P.y);
@@ -91,8 +91,8 @@ public :
 
 // SIMD-optimized version that updates an AABB stored in SIMD registers.
 
-static inline void UpdateAABB(sreBoundingVolumeAABB_SIMD& AABB1_SIMD,
-const sreBoundingVolumeAABB& AABB2) {
+static inline void UpdateAABB(sreBoundingVolumeAABB_SIMD& DST_RESTRICT AABB1_SIMD,
+const sreBoundingVolumeAABB& DST_RESTRICT AABB2) {
     __simd128_float m_dim_min2 = simd128_set_float(
         AABB2.dim_min.x, AABB2.dim_min.y, AABB2.dim_min.z, 0.0f);
     __simd128_float m_dim_max2 = simd128_set_float(
@@ -103,8 +103,8 @@ const sreBoundingVolumeAABB& AABB2) {
 
 // SIMD-optimized version that updates an AABB stored in SIMD registers.
 
-static inline void UpdateAABBWithIntersection(sreBoundingVolumeAABB_SIMD& AABB1_SIMD,
-const sreBoundingVolumeAABB& AABB2) {
+static inline void UpdateAABBWithIntersection(sreBoundingVolumeAABB_SIMD& DST_RESTRICT AABB1_SIMD,
+const sreBoundingVolumeAABB& DST_RESTRICT AABB2) {
     __simd128_float m_dim_min2 = simd128_set_float(
         AABB2.dim_min.x, AABB2.dim_min.y, AABB2.dim_min.z, 0.0f);
     __simd128_float m_dim_max2 = simd128_set_float(
@@ -115,8 +115,8 @@ const sreBoundingVolumeAABB& AABB2) {
 
 // SIMD-optimized version that updates an AABB stored in SIMD registers.
 
-static inline void UpdateAABB(sreBoundingVolumeAABB_SIMD& AABB1_SIMD,
-const Point3D& P) {
+static inline void UpdateAABB(sreBoundingVolumeAABB_SIMD& DST_RESTRICT AABB1_SIMD,
+const Point3D& DST_RESTRICT P) {
     __simd128_float m_point = simd128_set_float(P.x, P.y, P.z, 0.0f);
     AABB1_SIMD.m_dim_min = simd128_min_float(AABB1_SIMD.m_dim_min, m_point);
     AABB1_SIMD.m_dim_max = simd128_max_float(AABB1_SIMD.m_dim_max, m_point);
@@ -146,7 +146,8 @@ int plane, float dist) {
 // Functions to calculate a bounding volume of another bounding volume of a different type.
 // These are defined in bounding_volume.cpp.
 
-static inline void CalculateAABB(const sreBoundingVolumeSphere& sphere, sreBoundingVolumeAABB& AABB) {
+static inline void CalculateAABB(const sreBoundingVolumeSphere& DST_RESTRICT sphere,
+sreBoundingVolumeAABB& DST_RESTRICT AABB) {
     AABB.dim_min = sphere.center - Vector3D(sphere.radius, sphere.radius, sphere.radius);
     AABB.dim_max = sphere.center + Vector3D(sphere.radius, sphere.radius, sphere.radius);
 }
@@ -154,7 +155,8 @@ static inline void CalculateAABB(const sreBoundingVolumeSphere& sphere, sreBound
 void CalculateAABB(const sreBoundingVolumeSphericalSector& spherical_sector,
     sreBoundingVolumeAABB& AABB);
 
-void CalculateAABB(const sreBoundingVolumeCylinder& cylinder, sreBoundingVolumeAABB& AABB);
+void CalculateAABB(const sreBoundingVolumeCylinder& cylinder,
+sreBoundingVolumeAABB& DST_RESTRICT AABB);
 
 void CalculateBoundingSphere(const sreBoundingVolumeSphericalSector& spherical_sector,
     sreBoundingVolumeSphere& sphere);
@@ -168,7 +170,8 @@ void CalculateBoundingCylinder(const sreBoundingVolumeSphericalSector& spherical
 // octree bounds. Any test involving object, light volume or octree bounds is decomposed into
 // bounding volume tests.
 
-static inline bool Intersects(const sreBoundingVolumeAABB& AABB1, const sreBoundingVolumeAABB& AABB2) {
+static inline bool Intersects(const sreBoundingVolumeAABB& DST_RESTRICT AABB1,
+const sreBoundingVolumeAABB& DST_RESTRICT AABB2) {
     if (AABB1.dim_min.x >= AABB2.dim_max.x || AABB1.dim_max.x <= AABB2.dim_min.x ||
     AABB1.dim_min.y >= AABB2.dim_max.y|| AABB1.dim_max.y <= AABB2.dim_min.y ||
     AABB1.dim_min.z >= AABB2.dim_max.z || AABB1.dim_max.z <= AABB2.dim_min.z)
@@ -176,12 +179,14 @@ static inline bool Intersects(const sreBoundingVolumeAABB& AABB1, const sreBound
     return true;
 }
 
-static inline bool Intersects(const Point3D& P, const sreBoundingVolumeAABB& AABB) {
+static inline bool Intersects(const Point3D& DST_RESTRICT P,
+const sreBoundingVolumeAABB& DST_RESTRICT AABB) {
     return P.x >= AABB.dim_min.x && P.y >= AABB.dim_min.y && P.z >= AABB.dim_min.z &&
         P.x <= AABB.dim_max.x && P.y <= AABB.dim_max.y && P.z <= AABB.dim_max.z;
 }
 
-static inline bool Intersects(const Point3D& point, const sreBoundingVolumeConvexHull &ch) {
+static inline bool Intersects(const Point3D& DST_RESTRICT point,
+const sreBoundingVolumeConvexHull& DST_RESTRICT ch) {
     for (int i = 0; i < ch.nu_planes; i++) {
         if (Dot(ch.plane[i], point) < 0)
             return false;
@@ -189,8 +194,8 @@ static inline bool Intersects(const Point3D& point, const sreBoundingVolumeConve
     return true;
 }
 
-static inline bool Intersects(const sreBoundingVolumeSphere& sphere1,
-const sreBoundingVolumeSphere& sphere2) {
+static inline bool Intersects(const sreBoundingVolumeSphere& DST_RESTRICT sphere1,
+const sreBoundingVolumeSphere& DST_RESTRICT sphere2) {
     float dist_squared = SquaredMag(sphere1.center - sphere2.center);
     if (dist_squared >= sqrf(sphere1.radius + sphere2.radius))
         // The two spheres do not intersect.
@@ -198,7 +203,8 @@ const sreBoundingVolumeSphere& sphere2) {
     return true;
 }
 
-static inline bool Intersects(const Point3D& P, const sreBoundingVolumeSphere& sphere) {
+static inline bool Intersects(const Point3D& DST_RESTRICT P,
+const sreBoundingVolumeSphere& DST_RESTRICT sphere) {
     if (SquaredMag(P - sphere.center) >= sqrf(sphere.radius))
         return false;
     return true;

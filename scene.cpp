@@ -500,8 +500,8 @@ int sreScene::AddObject(sreModel *model, Point3D pos, Vector3D rot, float scalin
     return AddObject(model, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, scaling);
 }
 
-int sreScene::AddParticleSystem(sreModel *model, int _nu_particles, Point3D center,
-float worst_case_bounding_sphere_radius, Vector3D *particles) {
+int sreScene::AddParticleSystem(sreModel * DST_RESTRICT model, int _nu_particles, Point3D center,
+float worst_case_bounding_sphere_radius, Vector3D * DST_RESTRICT particles) {
     int i = AddObject(model, center.x, center.y, center.z, 0, 0, 0, 1.0f);
     // Override the bounding sphere radius (which was set for a single billboard/particle.
     object[i]->sphere.radius = worst_case_bounding_sphere_radius;

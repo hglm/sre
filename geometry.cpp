@@ -244,7 +244,8 @@ void sreModel::ClearLODModelFlags(int flag_mask) {
 // vertices), the number of vertices will be reduced to n and _vertex_mapping2
 // provides an additional mapping from previous index to new index.
 
-void sreBaseModel::RemapVertices(int *vertex_mapping, int n, int *_vertex_mapping2) {
+void sreBaseModel::RemapVertices(int * DST_RESTRICT vertex_mapping, int n,
+int * DST_RESTRICT _vertex_mapping2) {
     // We have the mapping from new indices to the original index.
     // Now determine the vertex mapping from the original index to the new index.
     int *vertex_mapping2 ;
@@ -335,7 +336,7 @@ static int qsort_dimension_table[6][3] = {
     { 2, 1, 0 }
 };
 
-static int CompareVertices(const void *e1, const void *e2) {
+static int CompareVertices(const void * DST_RESTRICT e1, const void * DST_RESTRICT e2) {
     int i1 = *(int *)e1;
     int i2 = *(int *)e2;
     int sorting_dimension0 = qsort_sorting_dimension[0];
@@ -969,7 +970,7 @@ void sreBaseModel::RemoveEmptyTriangles() {
 // Library, 2005. http://www.terathon.com/code/edges.html
 
 static int BuildEdges(int vertexCount, int triangleCount,
-                const sreModelTriangle *triangleArray, ModelEdge *edgeArray)
+const sreModelTriangle * DST_RESTRICT triangleArray, ModelEdge * DST_RESTRICT edgeArray)
 {
     int maxEdgeCount = triangleCount * 3;
     unsigned int *firstEdge = new unsigned int[vertexCount + maxEdgeCount];

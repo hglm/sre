@@ -37,7 +37,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 // Intersection of a (convex or not) hull with vertex information with a convex hull.
 
-bool Intersects(const sreBoundingVolumeHull& h, const sreBoundingVolumeConvexHull& ch) {
+bool Intersects(const sreBoundingVolumeHull& DST_RESTRICT h,
+const sreBoundingVolumeConvexHull& DST_RESTRICT ch) {
     // For all planes of the convex hull.
     for (int i = 0; i < ch.nu_planes; i++) {
         // Check whether all vertices of the hull are outside the plane.
@@ -65,7 +66,8 @@ bool Intersects(const sreBoundingVolumeHull& h, const sreBoundingVolumeConvexHul
 
 // Intersection of a sphere and a convex hull. This test may miss some cases of non-intersection.
 
-bool Intersects(const sreBoundingVolumeSphere& sphere, const sreBoundingVolumeConvexHull& ch) {
+bool Intersects(const sreBoundingVolumeSphere& DST_RESTRICT sphere,
+const sreBoundingVolumeConvexHull& DST_RESTRICT ch) {
     for (int i = 0; i < ch.nu_planes; i++) {
         if (Dot(ch.plane[i], sphere.center) <= - sphere.radius)
             return false;
@@ -76,8 +78,8 @@ bool Intersects(const sreBoundingVolumeSphere& sphere, const sreBoundingVolumeCo
 // Test with more information for a sphere and a convex hull. This test may return
 // SRE_PARTIALLY_INSIDE in some cases when the sphere is actually completely outside.
 
-static BoundsCheckResult QueryIntersection(const sreBoundingVolumeSphere& sphere,
-const sreBoundingVolumeConvexHull& ch) {
+static BoundsCheckResult QueryIntersection(const sreBoundingVolumeSphere& DST_RESTRICT sphere,
+const sreBoundingVolumeConvexHull& DST_RESTRICT ch) {
     int count = 0;
     for (int i = 0; i < ch.nu_planes; i++) {
         float dot = Dot(ch.plane[i], sphere.center);
@@ -93,8 +95,8 @@ const sreBoundingVolumeConvexHull& ch) {
 
 // Intersection test of an ellipsoid and a convex hull.
 
-static bool Intersects(const sreBoundingVolumeEllipsoid& ellipsoid,
-const sreBoundingVolumeConvexHull& ch) {
+static bool Intersects(const sreBoundingVolumeEllipsoid& DST_RESTRICT ellipsoid,
+const sreBoundingVolumeConvexHull& DST_RESTRICT ch) {
     for (int i = 0; i < ch.nu_planes; i++) {
         float r_eff_squared = sqrf(Dot(ellipsoid.PCA[0].vector, ch.plane[i].GetVector3D())) +
             sqrf(Dot(ellipsoid.PCA[1].vector, ch.plane[i].GetVector3D())) +
@@ -106,8 +108,8 @@ const sreBoundingVolumeConvexHull& ch) {
     return true;
 }
 
-static bool Intersects(const sreBoundingVolumeLineSegment& segment,
-const sreBoundingVolumeConvexHull &ch) {
+static bool Intersects(const sreBoundingVolumeLineSegment& DST_RESTRICT segment,
+const sreBoundingVolumeConvexHull& DST_RESTRICT ch) {
     // Line segment bounds check.
     Point3D Q1 = segment.E1;
     Point3D Q2 = segment.E2;
@@ -138,7 +140,8 @@ const sreBoundingVolumeConvexHull &ch) {
 // accurate for a box extended in one direction) or a standard box test, depending on box.flags.
 // Like most plane distance based tests, it may miss some cases of non-intersection.
 
-static bool Intersects(const sreBoundingVolumeBox& box, const sreBoundingVolumeConvexHull &ch) {
+static bool Intersects(const sreBoundingVolumeBox& DST_RESTRICT box,
+const sreBoundingVolumeConvexHull& DST_RESTRICT ch) {
     // Bounding box check.
     if (box.flags & SRE_BOUNDS_PREFER_BOX_LINE_SEGMENT) {
         // Line segment box bounds check.
@@ -181,7 +184,8 @@ static bool Intersects(const sreBoundingVolumeBox& box, const sreBoundingVolumeC
 
 // Intersection of AABB against convex hull. It can miss some cases of non-intersection.
 
-bool Intersects(const sreBoundingVolumeAABB& AABB, const sreBoundingVolumeConvexHull &ch) {
+bool Intersects(const sreBoundingVolumeAABB& DST_RESTRICT AABB,
+const sreBoundingVolumeConvexHull& DST_RESTRICT ch) {
     Point3D center = (AABB.dim_min + AABB.dim_max) * 0.5f;
     Vector3D dim = AABB.dim_max - AABB.dim_min;
     for (int i = 0; i < ch.nu_planes; i++) {
@@ -200,8 +204,8 @@ bool Intersects(const sreBoundingVolumeAABB& AABB, const sreBoundingVolumeConvex
 // Intersection of a spherical sector (defined by center, axis, radius (length) and angular size)
 // with a convex hull.
 
-bool Intersects(const sreBoundingVolumeSphericalSector &spherical_sector,
-const sreBoundingVolumeConvexHull &ch) {
+bool Intersects(const sreBoundingVolumeSphericalSector& DST_RESTRICT spherical_sector,
+const sreBoundingVolumeConvexHull& DST_RESTRICT ch) {
     for (int i = 0; i < ch.nu_planes; i++) {
         float r_eff_squared;
         // Calculate the angle between the plane normal (pointing inside the hull)
@@ -257,7 +261,8 @@ const sreBoundingVolumeConvexHull &ch) {
 // Intersection of a cylinder with a convex hull. Because of the use of square root
 // calculations, this test may be somewhat expensive.
 
-bool Intersects(const sreBoundingVolumeCylinder& cyl, const sreBoundingVolumeConvexHull &ch) {
+bool Intersects(const sreBoundingVolumeCylinder& DST_RESTRICT cyl,
+const sreBoundingVolumeConvexHull& DST_RESTRICT ch) {
     Point3D Q1 = cyl.center - 0.5f * cyl.length * cyl.axis;
     Point3D Q2 = cyl.center + 0.5f * cyl.length * cyl.axis;
     for (int i = 0; i < ch.nu_planes; i++) {
@@ -283,7 +288,8 @@ bool Intersects(const sreBoundingVolumeCylinder& cyl, const sreBoundingVolumeCon
 // a convex hull. In practice this is used when testing shadow volumes produced by
 // directional lights against the view frustum.
 
-bool Intersects(const sreBoundingVolumeHalfCylinder& hc, const sreBoundingVolumeConvexHull &ch) {
+bool Intersects(const sreBoundingVolumeHalfCylinder& DST_RESTRICT hc,
+const sreBoundingVolumeConvexHull& DST_RESTRICT ch) {
     Point3D Q1 = hc.endpoint;
     Point3D Q2;
     bool infinite = true;
@@ -374,8 +380,8 @@ bool Intersects(const sreBoundingVolumeHalfCylinder& hc, const sreBoundingVolume
 // In practice, this is used to test intersection of a point/spot light shadow volume (pyramid)
 // against the view frustum.
 
-bool Intersects(const sreBoundingVolumeConvexHullFull& ch1,
-const sreBoundingVolumeConvexHull& ch2) {
+bool Intersects(const sreBoundingVolumeConvexHullFull& DST_RESTRICT ch1,
+const sreBoundingVolumeConvexHull& DST_RESTRICT ch2) {
     // For each target convex hull plane, check whether the source convex hull is completely outside.
     for (int i = 0; i < ch2.nu_planes; i++) {
         // Calculate the distance between the source convex hull center and the target
@@ -419,8 +425,9 @@ const sreBoundingVolumeConvexHull& ch2) {
 // plane of course, otherwise the test would always return false). The half angular size of the pyramid
 // cone is guaranteed to be less than 90 degrees.
 
-bool Intersects(const sreBoundingVolumeInfinitePyramidBase& pyramid_cone,
-const sreBoundingVolumeFrustum& fr, float cos_max_half_angular_size, float sin_max_half_angular_size) {
+bool Intersects(const sreBoundingVolumeInfinitePyramidBase& DST_RESTRICT pyramid_cone,
+const sreBoundingVolumeFrustum& DST_RESTRICT fr, float cos_max_half_angular_size,
+float sin_max_half_angular_size) {
     // When the angle of the pyramid cone base plane normal with the near frustum plane is within the
     // upper bound of the frustum's angular size (in a corner), the pyramid base is guaranteed
     // to be inside the frustum.
@@ -531,8 +538,9 @@ const sreBoundingVolumeFrustum& fr, float cos_max_half_angular_size, float sin_m
 
 // Intersection of the infinite projection of a spherical sector with a frustum (without far plane).
 
-bool Intersects(const sreBoundingVolumeInfiniteSphericalSector& spherical_sector,
-const sreBoundingVolumeFrustum& fr, float cos_max_half_angular_size, float sin_max_half_angular_size) {
+bool Intersects(const sreBoundingVolumeInfiniteSphericalSector& DST_RESTRICT spherical_sector,
+const sreBoundingVolumeFrustum& DST_RESTRICT fr, float cos_max_half_angular_size,
+float sin_max_half_angular_size) {
     float cos_near_plane_angle = Dot(fr.plane[0].GetVector3D(), spherical_sector.axis);
     // If the angle between the near plane normal and the spherical sector axis is smaller than
     // the frustum half angular size, then the infinite sector projection certainly intersects the
@@ -580,8 +588,8 @@ const sreBoundingVolumeFrustum& fr) {
 // When the following function returns SRE_COMPLETELY_INSIDE, it means that the sphere with
 // the smallest radius is inside the other sphere.
 
-static inline BoundsCheckResult QueryIntersectionUnified(const sreBoundingVolumeSphere& sphere1,
-const sreBoundingVolumeSphere& sphere2) {
+static inline BoundsCheckResult QueryIntersectionUnified(const sreBoundingVolumeSphere& DST_RESTRICT sphere1,
+const sreBoundingVolumeSphere& DST_RESTRICT sphere2) {
     float dist_squared = SquaredMag(sphere1.center - sphere2.center);
     if (dist_squared >= sqrf(sphere1.radius + sphere2.radius))
         // The two spheres do not intersect.
@@ -593,8 +601,8 @@ const sreBoundingVolumeSphere& sphere2) {
 
 // Test that seperates between which sphere is inside the other.
 
-static inline BoundsCheckResult QueryIntersection(const sreBoundingVolumeSphere& sphere1,
-const sreBoundingVolumeSphere& sphere2) {
+static inline BoundsCheckResult QueryIntersection(const sreBoundingVolumeSphere& DST_RESTRICT sphere1,
+const sreBoundingVolumeSphere& DST_RESTRICT sphere2) {
     float dist_squared = SquaredMag(sphere1.center - sphere2.center);
     if (dist_squared >= sqrf(sphere1.radius + sphere2.radius))
         // The two spheres do not intersect.
@@ -612,7 +620,8 @@ const sreBoundingVolumeSphere& sphere2) {
 // the test, some non-intersections may be missed especially when the box is small and the
 // sphere is large.
 
-bool Intersects(const sreBoundingVolumeBox& box, const sreBoundingVolumeSphere& sphere) {
+bool Intersects(const sreBoundingVolumeBox& DST_RESTRICT box,
+const sreBoundingVolumeSphere& DST_RESTRICT sphere) {
     for (int i = 0; i < 6; i++)
         if (Dot(box.plane[i], sphere.center) <= - sphere.radius)
             return false;
@@ -624,8 +633,8 @@ bool Intersects(const sreBoundingVolumeBox& box, const sreBoundingVolumeSphere& 
 // when the box is completely outside the sphere (it returns partially inside
 // in those cases).
 
-BoundsCheckResult QueryIntersection(const sreBoundingVolumeBox& box,
-const sreBoundingVolumeSphere& sphere) {
+BoundsCheckResult QueryIntersection(const sreBoundingVolumeBox& DST_RESTRICT box,
+const sreBoundingVolumeSphere& DST_RESTRICT sphere) {
     if (!Intersects(box, sphere))
         return SRE_COMPLETELY_OUTSIDE;
     // Check whether all corners of the box in inside the sphere.
@@ -651,7 +660,8 @@ const sreBoundingVolumeSphere& sphere) {
 // Quick intersection test of an AABB against a sphere. Uses the AABB of the sphere.
 // Can miss some cases of non-intersection.
 
-static bool Intersects(const sreBoundingVolumeAABB& AABB, const sreBoundingVolumeSphere& sphere) {
+static bool Intersects(const sreBoundingVolumeAABB& DST_RESTRICT AABB,
+const sreBoundingVolumeSphere& DST_RESTRICT sphere) {
     if (- sphere.center.x + AABB.dim_max.x <= - sphere.radius)  // x-positive AABB plane.
         return false;
     if (sphere.center.x - AABB.dim_min.x <= - sphere.radius)    // x-negative.
@@ -670,8 +680,8 @@ static bool Intersects(const sreBoundingVolumeAABB& AABB, const sreBoundingVolum
 // More detailed intersection test of an AABB against a sphere. Returns more exact information,
 // and will detect more non-intersections than the function above.
 
-static BoundsCheckResult QueryIntersection(const sreBoundingVolumeAABB& AABB,
-const sreBoundingVolumeSphere& sphere) {
+static BoundsCheckResult QueryIntersection(const sreBoundingVolumeAABB& DST_RESTRICT AABB,
+const sreBoundingVolumeSphere& DST_RESTRICT sphere) {
     // First perform a rough test using the sphere's AABB. This will catch AABB's that are
     // definitely completely outside of the sphere.
     if (!Intersects(AABB, sphere))
@@ -763,7 +773,7 @@ const sreBoundingVolumeSphere& sphere) {
 
 // Intersection tests against a cylinder.
 
-bool Intersects(const Point3D& P, const sreBoundingVolumeCylinder& cyl) {
+bool Intersects(const Point3D& DST_RESTRICT P, const sreBoundingVolumeCylinder& DST_RESTRICT cyl) {
     // Calculate the distance from P to the line defined by the cylinder's axis.
     float dist_Q_S_squared = SquaredMag(P - cyl.center);
     float d_squared = dist_Q_S_squared - sqrf(Dot(P - cyl.center, cyl.axis));
@@ -784,7 +794,8 @@ bool Intersects(const Point3D& P, const sreBoundingVolumeCylinder& cyl) {
 // Intersection test of a sphere and a cylinder. It is an accurate test, and should
 // be fairly quick.
 
-static bool Intersects(const sreBoundingVolumeSphere& sphere, const sreBoundingVolumeCylinder& cyl) {
+static bool Intersects(const sreBoundingVolumeSphere& DST_RESTRICT sphere,
+const sreBoundingVolumeCylinder& DST_RESTRICT cyl) {
     // Calculate the distance from sphere's center to the line defined by the cylinder's axis.
     float dist_Q_S_squared = SquaredMag(sphere.center - cyl.center);
     float d_squared = dist_Q_S_squared - sqrf(Dot(sphere.center - cyl.center, cyl.axis));
@@ -807,8 +818,8 @@ static bool Intersects(const sreBoundingVolumeSphere& sphere, const sreBoundingV
 // Intersection test of a sphere against a cylinder giving more detailed information.
 // It should be accurate.
 
-BoundsCheckResult QueryIntersection(const sreBoundingVolumeSphere& sphere,
-const sreBoundingVolumeCylinder& cyl) {
+BoundsCheckResult QueryIntersection(const sreBoundingVolumeSphere& DST_RESTRICT sphere,
+const sreBoundingVolumeCylinder& DST_RESTRICT cyl) {
     // Calculate the distance from sphere's center to the line defined by the cylinder's axis.
     float dist_Q_S_squared = SquaredMag(sphere.center - cyl.center);
     float d_squared = dist_Q_S_squared - sqrf(Dot(sphere.center - cyl.center, cyl.axis));
@@ -847,7 +858,8 @@ const sreBoundingVolumeCylinder& cyl) {
 // For an oriented box, one disadvantage is the use of a square root operation before
 // every pair of planes.
 
-bool Intersects(const sreBoundingVolumeBox& box, const sreBoundingVolumeCylinder& cyl) {
+bool Intersects(const sreBoundingVolumeBox& DST_RESTRICT box,
+const sreBoundingVolumeCylinder& DST_RESTRICT cyl) {
     Point3D Q1 = cyl.center - 0.5f * cyl.length * cyl.axis;
     Point3D Q2 = cyl.center + 0.5f * cyl.length * cyl.axis;
     // Process all six PCA planes of the box in pairs.
@@ -921,7 +933,8 @@ next_plane :
 // with vectors containing only + or - 1.0 or 0 can be largely eliminated), an optimizing
 // compiler should be able to handle this.
 
-bool Intersects(const sreBoundingVolumeAABB& AABB, const sreBoundingVolumeCylinder& cyl) {
+bool Intersects(const sreBoundingVolumeAABB& DST_RESTRICT AABB,
+const sreBoundingVolumeCylinder& DST_RESTRICT cyl) {
         Point3D Q1 = cyl.center - 0.5f * cyl.length * cyl.axis;
         Point3D Q2 = cyl.center + 0.5f * cyl.length * cyl.axis;
         Vector4D box_plane;
@@ -1049,7 +1062,8 @@ plane5 :
 
 // Test whether a point is inside a spherical sector.
 
-static bool Intersects(const Point3D& P, const sreBoundingVolumeSphericalSector &spherical_sector) {
+static bool Intersects(const Point3D& DST_RESTRICT P,
+const sreBoundingVolumeSphericalSector& DST_RESTRICT spherical_sector) {
     // First perform a few basic plane checks.
     // Calculate the plane through the sector center with axis as normal.
     Vector4D K = Vector4D(spherical_sector.axis, - Dot(spherical_sector.axis, spherical_sector.center));
@@ -1084,8 +1098,8 @@ static bool Intersects(const Point3D& P, const sreBoundingVolumeSphericalSector 
 // and angular size). Maximum angular size is 180 degrees, but usually limited to 90 degrees
 // (spotlights). This may use one square root calculation.
 
-static BoundsCheckResult QueryIntersection(const sreBoundingVolumeSphere& sphere,
-const sreBoundingVolumeSphericalSector &spherical_sector) {
+static BoundsCheckResult QueryIntersection(const sreBoundingVolumeSphere& DST_RESTRICT sphere,
+const sreBoundingVolumeSphericalSector& DST_RESTRICT spherical_sector) {
     // The effective radius of the spherical sector with respect to the source sphere depends
     // on the vector between the source sphere's center and the spherical sector's center. When
     // it falls within the spherical_sector's angular range, it will be equal to the spherical
@@ -1156,8 +1170,8 @@ const sreBoundingVolumeSphericalSector &spherical_sector) {
 // For just intersection, use the more detailed intersection test, it is not significantly
 // slower than a less detailed test would be.
 
-static bool Intersects(const sreBoundingVolumeSphere& sphere,
-const sreBoundingVolumeSphericalSector &spherical_sector) {
+static bool Intersects(const sreBoundingVolumeSphere& DST_RESTRICT sphere,
+const sreBoundingVolumeSphericalSector& DST_RESTRICT spherical_sector) {
     return QueryIntersection(sphere, spherical_sector) != SRE_COMPLETELY_OUTSIDE;
 }
 
@@ -1166,8 +1180,8 @@ const sreBoundingVolumeSphericalSector &spherical_sector) {
 // could be implemented by treating the AABB as a convex hull).
 // For now, only provide a test to determine whether an AABB is completely inside the sector.
 
-static bool IsCompletelyInside(const sreBoundingVolumeAABB& AABB,
-const sreBoundingVolumeSphericalSector &spherical_sector) {
+static bool IsCompletelyInside(const sreBoundingVolumeAABB& DST_RESTRICT AABB,
+const sreBoundingVolumeSphericalSector& DST_RESTRICT spherical_sector) {
     // Check whether each of the corners of the AABB is inside the sector.
     int intersection_count;
     intersection_count = Intersects(Point3D(AABB.dim_min.x, AABB.dim_min.y, AABB.dim_min.z),
@@ -1196,7 +1210,7 @@ const sreBoundingVolumeSphericalSector &spherical_sector) {
 // Whether a point is inside a box. Unlike tests of larger volumes against a box using the
 // plane distance approach, this should be an exact test.
 
-bool Intersects(const Point3D& P, const sreBoundingVolumeBox& box) {
+bool Intersects(const Point3D& DST_RESTRICT P, const sreBoundingVolumeBox& DST_RESTRICT box) {
     for (int i = 0; i < 6; i++)
         if (Dot(box.plane[i], P) <= 0)
             return false;
@@ -1207,7 +1221,8 @@ bool Intersects(const Point3D& P, const sreBoundingVolumeBox& box) {
 
 // Intersection test of two AABBs.
 
-bool IsCompletelyInside(const sreBoundingVolumeAABB& AABB1, const sreBoundingVolumeAABB& AABB2) {
+bool IsCompletelyInside(const sreBoundingVolumeAABB& DST_RESTRICT AABB1,
+const sreBoundingVolumeAABB& DST_RESTRICT AABB2) {
 #ifdef USE_SIMD
     __simd128_float m_dim_min1 = simd128_load(&AABB1.dim_min);
     __simd128_float m_dim_min2 = simd128_load(&AABB2.dim_min);
@@ -1239,7 +1254,8 @@ bool IsCompletelyInside(const sreBoundingVolumeAABB& AABB1, const sreBoundingVol
 
 // Whether a sphere is completely inside an AABB.
 
-static bool IsCompletelyInside(const sreBoundingVolumeSphere& sphere, const sreBoundingVolumeAABB& AABB) {
+static bool IsCompletelyInside(const sreBoundingVolumeSphere& DST_RESTRICT sphere,
+const sreBoundingVolumeAABB& DST_RESTRICT AABB) {
     sreBoundingVolumeAABB sphere_AABB;
     sphere_AABB.dim_min = Vector3D(sphere.center.x - sphere.radius, sphere.center.y - sphere.radius,
         sphere.center.z - sphere.radius);
@@ -1253,7 +1269,7 @@ static bool IsCompletelyInside(const sreBoundingVolumeSphere& sphere, const sreB
 // Test intersection of a scene object against a convex hull. This is heavily used
 // for visible object determination against the view frustum at the start of each frame.
 
-bool Intersects(const sreObject& so, const sreBoundingVolumeConvexHull& ch) {
+bool Intersects(const sreObject& DST_RESTRICT so, const sreBoundingVolumeConvexHull& DST_RESTRICT ch) {
     if (so.model->bounds_flags & SRE_BOUNDS_PREFER_SPECIAL) {
         // Use the special bounding volume shapes of ellipsoid or cylinder when defined.
         if (so.bv_special.type == SRE_BOUNDING_VOLUME_ELLIPSOID)
@@ -1279,7 +1295,7 @@ bool Intersects(const sreObject& so, const sreBoundingVolumeConvexHull& ch) {
 // Check whether the light volume of a light intersects with a convex hull
 // (such as the frustum).
 
-bool Intersects(const sreLight& light, const sreBoundingVolumeConvexHull& ch) {
+bool Intersects(const sreLight& DST_RESTRICT light, const sreBoundingVolumeConvexHull& DST_RESTRICT ch) {
     if (light.type & (SRE_LIGHT_POINT_SOURCE | SRE_LIGHT_DYNAMIC_SPOT_EXPONENT))
         // Perform a sphere check for a point source light, or a spot light
         // with a dynamic spot exponent, which is hard to pin down to a
@@ -1296,7 +1312,7 @@ bool Intersects(const sreLight& light, const sreBoundingVolumeConvexHull& ch) {
 // Test whether a scene object intersects a sphere. Used when testing an object
 // against a light volume.
 
-bool Intersects(const sreObject& so, const sreBoundingVolumeSphere& sphere) {
+bool Intersects(const sreObject& DST_RESTRICT so, const sreBoundingVolumeSphere& DST_RESTRICT sphere) {
     // Always try a sphere check first.
     if (!Intersects(so.sphere, sphere))
         return false;
@@ -1313,7 +1329,7 @@ bool Intersects(const sreObject& so, const sreBoundingVolumeSphere& sphere) {
 
 // Test intersection of a scene object against a light volume.
 
-bool Intersects(const sreObject& so, const sreLight& light) {
+bool Intersects(const sreObject& DST_RESTRICT so, const sreLight& DST_RESTRICT light) {
     if (light.type & SRE_LIGHT_DIRECTIONAL)
         return true;
     // For point source lights, check the object against the light volume sphere.
@@ -1356,7 +1372,7 @@ bool Intersects(const sreObject& so, const sreLight& light) {
 
 // More detailed intersection test of a scene object against a light volume.
 
-BoundsCheckResult QueryIntersection(const sreObject& so, const sreLight& light) {
+BoundsCheckResult QueryIntersection(const sreObject& DST_RESTRICT so, const sreLight& DST_RESTRICT light) {
     // Directional lights have an unbounded light volume (this function is not
     // normally called for directional lights, but it might still happen).
     if (light.type & SRE_LIGHT_DIRECTIONAL)
@@ -1416,7 +1432,7 @@ BoundsCheckResult QueryIntersection(const sreObject& so, const sreLight& light) 
 // Full (slow) intersection test of every object vertex against a light volume. Useful
 // for preprocessing.
 
-BoundsCheckResult QueryIntersectionFull(const sreObject& so, const sreLight& light,
+BoundsCheckResult QueryIntersectionFull(const sreObject& DST_RESTRICT so, const sreLight& DST_RESTRICT light,
 bool use_worst_case_bounds) {
     if (light.type & SRE_LIGHT_DIRECTIONAL)
         return SRE_COMPLETELY_INSIDE;
@@ -1508,11 +1524,12 @@ bool use_worst_case_bounds) {
     return r;
 }
 
-BoundsCheckResult QueryIntersectionFull(const sreObject& so, const sreLight& light) {
+BoundsCheckResult QueryIntersectionFull(const sreObject& DST_RESTRICT so, const sreLight& DST_RESTRICT light) {
     return QueryIntersectionFull(so, light, false);
 }
 
-BoundsCheckResult QueryIntersection(const sreObject& so, const sreBoundingVolumeSphere& sphere) {
+BoundsCheckResult QueryIntersection(const sreObject& DST_RESTRICT so,
+const sreBoundingVolumeSphere& DST_RESTRICT sphere) {
     // Always try a sphere check first.
     BoundsCheckResult r = QueryIntersectionUnified(so.sphere, sphere);
     if (r == SRE_COMPLETELY_OUTSIDE)
@@ -1528,8 +1545,8 @@ BoundsCheckResult QueryIntersection(const sreObject& so, const sreBoundingVolume
 // Octree intersection tests. These return not only false or true, but give more detail
 // (such as completely inside, partially inside or completely inside).
 
-BoundsCheckResult QueryIntersection(const sreOctreeNodeBounds& octree_bounds,
-const sreBoundingVolumeConvexHull& ch) {
+BoundsCheckResult QueryIntersection(const sreOctreeNodeBounds& DST_RESTRICT octree_bounds,
+const sreBoundingVolumeConvexHull& DST_RESTRICT ch) {
     // Check whether the bounding sphere of the octree is inside, partially inside or outside.
     BoundsCheckResult r = QueryIntersection(octree_bounds.sphere, ch);
     if (r != SRE_PARTIALLY_INSIDE)
@@ -1544,8 +1561,8 @@ const sreBoundingVolumeConvexHull& ch) {
 
 // Check whether the octree bounds intersect with a sphere.
 
-BoundsCheckResult QueryIntersection(const sreOctreeNodeBounds& octree_bounds,
-const sreBoundingVolumeSphere& sphere) {
+BoundsCheckResult QueryIntersection(const sreOctreeNodeBounds& DST_RESTRICT octree_bounds,
+const sreBoundingVolumeSphere& DST_RESTRICT sphere) {
     // First perform a sphere check, using the octree's bounding sphere.
     // This is not a definite test, but can quickly identify octrees that
     // have no chance of intersecting the sphere.
@@ -1568,7 +1585,8 @@ const sreBoundingVolumeSphere& sphere) {
 
 // Check whether the octree bounds intersect with a light volume.
 
-BoundsCheckResult QueryIntersection(const sreOctreeNodeBounds& octree_bounds, const sreLight& light) {
+BoundsCheckResult QueryIntersection(const sreOctreeNodeBounds& DST_RESTRICT octree_bounds,
+const sreLight& DST_RESTRICT light) {
     if (light.type & SRE_LIGHT_DIRECTIONAL)
         return SRE_COMPLETELY_INSIDE;
     if (light.type & SRE_LIGHT_POINT_SOURCE)
@@ -1607,7 +1625,7 @@ BoundsCheckResult QueryIntersection(const sreOctreeNodeBounds& octree_bounds, co
 
 // The following is necessary for octree creation.
 
-bool IsCompletelyInside(const sreLight& light, const sreBoundingVolumeAABB& AABB) {
+bool IsCompletelyInside(const sreLight& DST_RESTRICT light, const sreBoundingVolumeAABB& DST_RESTRICT AABB) {
     if (light.type & (SRE_LIGHT_SPOT | SRE_LIGHT_BEAM)) {
         if (!(light.type & (SRE_LIGHT_DYNAMIC_SPOT_EXPONENT | SRE_LIGHT_DYNAMIC_DIRECTION))) {
             // Construct two spheres at the endpoints.
@@ -1634,7 +1652,7 @@ bool IsCompletelyInside(const sreLight& light, const sreBoundingVolumeAABB& AABB
 
 // Intersection tests against frustum.
 
-bool Intersects(const sreObject& so, const sreBoundingVolumeFrustum& fr) {
+bool Intersects(const sreObject& DST_RESTRICT so, const sreBoundingVolumeFrustum& DST_RESTRICT fr) {
 #if SRE_NU_FRUSTUM_PLANES == 6
     // There is a meaningful bounding sphere defined for the frustum.
     if (fr.nu_planes == 6 && !Intersects(so.sphere, fr.sphere))

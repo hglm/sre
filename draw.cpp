@@ -35,7 +35,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "sre_internal.h"
 #include "sre_bounds.h"
 
-static void SetFrustum(sreScene *scene, sreFrustum *frustum, sreView *view) {
+static void SetFrustum(sreScene * DST_RESTRICT scene, sreFrustum * DST_RESTRICT frustum,
+sreView * DST_RESTRICT view) {
     // Update view lookat parameters based on current view mode.
     Point3D object_position;
     if (view->GetViewMode() == SRE_VIEW_MODE_FOLLOW_OBJECT)
@@ -426,7 +427,8 @@ static float NormalizedProjectedSize(const Point3D& P, float bounding_radius) {
 
 // More accurate determination of projected size on the screen.
 
-static float AccurateProjectedSize(const sreFrustum& f, const Point3D& P, float bounding_radius) {
+static float AccurateProjectedSize(const sreFrustum& DST_RESTRICT f,
+const Point3D& DST_RESTRICT P, float bounding_radius) {
     float z = Dot(sre_internal_view_matrix.GetRow(2), P);
     // z is the distance from the viewpoint in the view direction.
     float r = bounding_radius;
@@ -501,7 +503,7 @@ static int octree_objects_inside = 0;
 // - The object is added to final_pass_object[] if it should be drawn in the final
 //   pass.
 
-void sreScene::DetermineObjectIsVisible(sreObject& so, const sreFrustum& frustum,
+void sreScene::DetermineObjectIsVisible(sreObject& DST_RESTRICT so, const sreFrustum& DST_RESTRICT frustum,
 BoundsCheckResult bounds_check_result) {
     // Bounds checks on view frustum.
     if (bounds_check_result != SRE_COMPLETELY_INSIDE) {
@@ -565,8 +567,8 @@ BoundsCheckResult bounds_check_result) {
 // "fast strict" octree. nu_entities entities starting at fast_oct array index array_index
 // are processed.
 
-void sreScene::DetermineFastOctreeNodeVisibleEntities(const sreFastOctree& fast_oct,
-const sreFrustum& frustum, BoundsCheckResult bounds_check_result, int array_index, int nu_entities) {
+void sreScene::DetermineFastOctreeNodeVisibleEntities(const sreFastOctree& DST_RESTRICT fast_oct,
+const sreFrustum& DST_RESTRICT frustum, BoundsCheckResult bounds_check_result, int array_index, int nu_entities) {
     for (int i = 0; i < nu_entities; i++) {
         sreSceneEntityType type;
         int index;
@@ -631,8 +633,8 @@ const sreFrustum& frustum, BoundsCheckResult bounds_check_result, int array_inde
 // node. Allowing non-regular variation of the subnode sizes (as compared to a traditional
 // octree implementation) allows a lower total number of nodes and lower octree depth.
 
-void sreScene::DetermineVisibleEntitiesInFastOctree(const sreFastOctree& fast_oct, int array_index,
-const sreFrustum& frustum, BoundsCheckResult bounds_check_result) {
+void sreScene::DetermineVisibleEntitiesInFastOctree(const sreFastOctree& DST_RESTRICT fast_oct, int array_index,
+const sreFrustum& DST_RESTRICT frustum, BoundsCheckResult bounds_check_result) {
     int node_index = fast_oct.array[array_index];
     if (array_index != 0 && bounds_check_result != SRE_COMPLETELY_INSIDE) {
         // If it's not the root node, check the bounds of this node against the view frustum.
@@ -672,8 +674,8 @@ const sreFrustum& frustum, BoundsCheckResult bounds_check_result) {
 
 // Process all entities in the octree except the entities in the root node.
 
-void sreScene::DetermineVisibleEntitiesInFastOctreeNonRootNode(const sreFastOctree& fast_oct, int array_index,
-const sreFrustum& frustum, BoundsCheckResult bounds_check_result) {
+void sreScene::DetermineVisibleEntitiesInFastOctreeNonRootNode(const sreFastOctree& DST_RESTRICT fast_oct,
+int array_index, const sreFrustum& DST_RESTRICT frustum, BoundsCheckResult bounds_check_result) {
     int nu_octants = fast_oct.GetNumberOfOctants(array_index + 1);
     int nu_entities = fast_oct.array[array_index + 2];
     // Just skip the entities in the root node.
@@ -694,8 +696,8 @@ const sreFrustum& frustum, BoundsCheckResult bounds_check_result) {
 // When static frustum optimization is enabled, this function is also used to seperate the
 // root node objects of the main octree at the end of the visible objects array.
 
-void sreScene::DetermineVisibleEntitiesInFastOctreeRootNode(const sreFastOctree& fast_oct, int array_index,
-const sreFrustum& frustum, BoundsCheckResult bounds_check_result) {
+void sreScene::DetermineVisibleEntitiesInFastOctreeRootNode(const sreFastOctree& DST_RESTRICT fast_oct,
+int array_index, const sreFrustum& DST_RESTRICT frustum, BoundsCheckResult bounds_check_result) {
     int nu_entities = fast_oct.array[array_index + 2];
     DetermineFastOctreeNodeVisibleEntities(fast_oct, frustum, bounds_check_result,
         array_index + 3, nu_entities);
@@ -733,9 +735,9 @@ static Vector3D subnode_center_vector[8] = {
 
 // Process all entities in the fast strict octree except the entities in the root node.
 
-void sreScene::DetermineVisibleEntitiesInFastStrictOptimizedOctreeNonRootNode(const sreFastOctree& fast_oct,
-const sreOctreeNodeBounds& node_bounds, int array_index, const sreFrustum& frustum,
-BoundsCheckResult bounds_check_result) {
+void sreScene::DetermineVisibleEntitiesInFastStrictOptimizedOctreeNonRootNode(
+const sreFastOctree& DST_RESTRICT fast_oct, const sreOctreeNodeBounds& DST_RESTRICT node_bounds,
+int array_index, const sreFrustum& DST_RESTRICT frustum, BoundsCheckResult bounds_check_result) {
     // The optimized fast strict octree has no node index.
     unsigned int octant_data = (unsigned int)fast_oct.array[array_index];
     int nu_octants = octant_data & 0xFF;
@@ -853,8 +855,8 @@ BoundsCheckResult bounds_check_result) {
 #endif
 }
 
-void sreScene::DetermineVisibleEntitiesInFastStrictOptimizedOctree(const sreFastOctree& fast_oct,
-const sreOctreeNodeBounds& node_bounds, int array_index, const sreFrustum& frustum,
+void sreScene::DetermineVisibleEntitiesInFastStrictOptimizedOctree(const sreFastOctree& DST_RESTRICT fast_oct,
+const sreOctreeNodeBounds& DST_RESTRICT node_bounds, int array_index, const sreFrustum& DST_RESTRICT frustum,
 BoundsCheckResult bounds_check_result) {
     if (array_index != 0 && bounds_check_result != SRE_COMPLETELY_INSIDE) {
         // If it's not the root node, check the bounds of this node against the view frustum.
@@ -892,8 +894,8 @@ BoundsCheckResult bounds_check_result) {
 
 // Only process root-node entities in a fast strict octree.
 
-void sreScene::DetermineVisibleEntitiesInFastStrictOptimizedOctreeRootNode(const sreFastOctree& fast_oct,
-int array_index, const sreFrustum& frustum, BoundsCheckResult bounds_check_result) {
+void sreScene::DetermineVisibleEntitiesInFastStrictOptimizedOctreeRootNode(const sreFastOctree& DST_RESTRICT fast_oct,
+int array_index, const sreFrustum& DST_RESTRICT frustum, BoundsCheckResult bounds_check_result) {
     // The optimized fast strict octree has no node index.
     int nu_entities = fast_oct.array[array_index + 1];
     DetermineFastOctreeNodeVisibleEntities(fast_oct, frustum, bounds_check_result,
@@ -1090,7 +1092,7 @@ void sreScene::RenderVisibleObjectsSinglePass(const sreFrustum& frustum) const {
 //
 // These functions are also used for the final pass in multi-pass rendering.
 
-static void RenderFinalPassObject(sreObject &so) {
+static void RenderFinalPassObject(sreObject& so) {
     if (so.flags & SRE_OBJECT_PARTICLE_SYSTEM)
         GL3SetParticleSystem(&so);
     else
@@ -1102,7 +1104,7 @@ static void RenderFinalPassObject(sreObject &so) {
 
 // Compare function for sorting final pass objects.
 
-static int DistanceCompare(const void *e1, const void *e2) {
+static int DistanceCompare(const void * DST_RESTRICT e1, const void * DST_RESTRICT e2) {
     sreObject *so1 = sre_internal_scene->object[*(int *)e1];
     sreObject *so2 = sre_internal_scene->object[*(int *)e2];
     // If the SRE_OBJECT_INFINITE_DISTANCE_FLAG is set, meaning that the object
@@ -1239,8 +1241,8 @@ static int light_volume_intersection_test_count;
 // with the light volume is performed. If no check is required,
 // RenderVisibleObjectLightingPassCompletelyInside() should be used.
 
-static void RenderVisibleObjectLightingPass(sreObject& so,
-const sreLight& light, const sreFrustum &frustum) {
+static void RenderVisibleObjectLightingPass(sreObject& DST_RESTRICT so,
+const sreLight& DST_RESTRICT light, const sreFrustum& DST_RESTRICT frustum) {
     // Do an intersection test against the light volume.
     light_volume_intersection_test_count++;
     if (!Intersects(so, light))
@@ -1279,8 +1281,8 @@ static bool custom_depth_bounds_set;
 // (however, scissors may still need to be restored to the normal light scissors if
 // they are still set for a previous object).
 
-static void RenderVisibleObjectLightingPassWithSpecifiedScissors(sreObject& so,
-const sreLight& light, const sreFrustum &frustum, const sreScissors& object_scissors) {
+static void RenderVisibleObjectLightingPassWithSpecifiedScissors(sreObject& DST_RESTRICT so,
+const sreLight& DST_RESTRICT light, const sreFrustum& DST_RESTRICT frustum, const sreScissors& DST_RESTRICT object_scissors) {
     // Since the geometry scissors may still be set for a previously drawn object,
     // carefully check whether new scissors/depth bounds are required.
     bool viewport_adjusted = false;
@@ -1401,8 +1403,8 @@ const sreLight& light, const sreFrustum &frustum, const sreScissors& object_scis
 // Render a lighting pass visible object, using geometry scissors if possible,
 // without caching/storing the used scissors (useful for dynamic objects).
 
-static void RenderVisibleObjectLightingPassGeometryScissors(sreObject& so,
-const sreLight& light, const sreFrustum &frustum) {
+static void RenderVisibleObjectLightingPassGeometryScissors(sreObject& DST_RESTRICT so,
+const sreLight& DST_RESTRICT light, const sreFrustum& DST_RESTRICT frustum) {
     sreScissors object_scissors;
 
     // Decide whether to use geometry scissors using a heuristic.
@@ -1456,8 +1458,8 @@ const sreLight& light, const sreFrustum &frustum) {
 // are not used. This function is normally called only for static objects that
 // are partially within the light volume of a static light.
 
-static void RenderVisibleObjectLightingPassCacheGeometryScissors(sreObject& so,
-const sreLight& light, const sreFrustum &frustum) {
+static void RenderVisibleObjectLightingPassCacheGeometryScissors(sreObject& DST_RESTRICT so,
+const sreLight& DST_RESTRICT light, const sreFrustum& DST_RESTRICT frustum) {
     // Decide whether to use geometry scissors using a heuristic.
     bool use_geometry_scissors = false;
     // Use the projected size calculated for the object during visible object
@@ -1525,8 +1527,8 @@ const sreLight& light, const sreFrustum &frustum) {
 // This function is normally called only for static objects that
 // are partially within the light volume of a static light.
 
-static void RenderVisibleObjectLightingPassReuseGeometryScissors(sreObject& so,
-const sreLight& light, const sreFrustum &frustum) {
+static void RenderVisibleObjectLightingPassReuseGeometryScissors(sreObject& DST_RESTRICT so,
+const sreLight& DST_RESTRICT light, const sreFrustum& DST_RESTRICT frustum) {
     // When the last frustum change was before the current frame, as indicated
     // by the flag, any previously calculated geometry scissors information for
     // a static object/static light combination must still be valid.
@@ -1555,7 +1557,8 @@ static int intersection_tests_all_lights;
 // that have a limited sphere of influence.
 // This does directly affect any field in the sreScene class so is declared const.
 
-void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& frustum, const sreLight& light) const {
+void sreScene::RenderVisibleObjectsLightingPass(const sreFrustum& DST_RESTRICT frustum,
+const sreLight& DST_RESTRICT light) const {
     object_count = 0;
     light_volume_intersection_test_count = 0;
     if (light.type & SRE_LIGHT_DIRECTIONAL) {
@@ -1902,8 +1905,8 @@ void sreScene::RenderFinalPassObjectsMultiPass(const sreFrustum& frustum) const 
 // that have a variable light volume which has only just come into view (some time after
 // the last frustum change).
 
-void sreScene::UpdateGeometryScissorsCacheData(const sreFrustum& frustum,
-const sreLight& light) const {
+void sreScene::UpdateGeometryScissorsCacheData(const sreFrustum& DST_RESTRICT frustum,
+const sreLight& DST_RESTRICT light) const {
     if (sre_internal_current_frame > frustum.most_recent_frame_changed + 1)
         return;
     if (frustum.IsChangingEveryFrame(sre_internal_current_frame))
@@ -1943,7 +1946,7 @@ const sreLight& light) const {
 // Depth buffer updates aren't required and should be off (glDepthMask(GL_FALSE)).
 // The depth test should be configured as GL_EQUAL or GL_LEQUAL.
 
-void sreScene::RenderLightingPasses(sreFrustum *frustum, sreView *view) {
+void sreScene::RenderLightingPasses(sreFrustum * DST_RESTRICT frustum, sreView * DST_RESTRICT view) {
     object_count_all_lights = 0;
     intersection_tests_all_lights = 0;
 
@@ -2122,7 +2125,7 @@ do_lighting_pass :
 // Depth buffer updates aren't required and should be off (glDepthMask(GL_FALSE)).
 // The depth test should be configured as GL_EQUAL or GL_LEQUAL.
 
-void sreScene::RenderLightingPassesNoShadow(sreFrustum *frustum, sreView *view) {
+void sreScene::RenderLightingPassesNoShadow(sreFrustum * DST_RESTRICT frustum, sreView * DST_RESTRICT view) {
     CHECK_GL_ERROR("Error before RenderLightingPassesNoShadow\n");
     object_count_all_lights = 0;
     intersection_tests_all_lights = 0;

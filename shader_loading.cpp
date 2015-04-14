@@ -1472,13 +1472,13 @@ static const char *uniform_misc_str[MAX_MISC_UNIFORMS] = {
 
 class MiscShaderInfo {
 public :
-    const char *name;
+    const char * DST_RESTRICT name;
     int type;
     int uniform_mask;
     int attribute_mask;
-    const char *vsource;
-    const char *fsource;
-    const char *prologue;
+    const char * DST_RESTRICT vsource;
+    const char * DST_RESTRICT fsource;
+    const char * DST_RESTRICT prologue;
 };
 
 static const MiscShaderInfo misc_shader_info[] = {

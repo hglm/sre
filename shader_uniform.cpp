@@ -2397,7 +2397,7 @@ bool sreInitializeObjectShaderMultiPassShadowMapLightingPass(sreObject& so) {
 
 // Initialize a sub-mesh of an object.
 
-void sreInitializeShaderWithMesh(sreObject *so, sreModelMesh *mesh) {
+void sreInitializeShaderWithMesh(sreObject * DST_RESTRICT so, sreModelMesh * DST_RESTRICT mesh) {
     int render_flags = so->render_flags;
     if (render_flags & SRE_OBJECT_USE_TEXTURE)
         GL3InitializeShaderWithModelSubTexture(mesh->texture_opengl_id);
@@ -2420,7 +2420,8 @@ void GL3InitializeTextShader(Color *colorp) {
 }
 #endif
 
-void GL3InitializeImageShader(int update_mask, sreImageShaderInfo *info, Vector4D *rect) {
+void GL3InitializeImageShader(int update_mask, sreImageShaderInfo * DST_RESTRICT info,
+Vector4D * DST_RESTRICT rect) {
     int shader;
     if (info->source_flags & SRE_IMAGE_SOURCE_FLAG_ONE_COMPONENT_SOURCE) {
 #ifndef OPENGL_ES2
@@ -2471,8 +2472,8 @@ void GL3InitializeImageShader(int update_mask, sreImageShaderInfo *info, Vector4
 #define TEXT_ALLOW_UNALIGNED_INT_UNIFORM_ARRAY
 #define TEXT_ALLOW_BYTE_ACCESS_BEYOND_STRING
 
-void GL3InitializeTextShader(int update_mask, sreTextShaderInfo *info, Vector4D *rect,
-const char *string, int length) {
+void GL3InitializeTextShader(int update_mask, sreTextShaderInfo * DST_RESTRICT info,
+Vector4D * DST_RESTRICT rect, const char * DST_RESTRICT string, int length) {
 #ifdef OPENGL_ES2
 #ifdef FLOATING_POINT_TEXT_STRING
     float string_data[SRE_TEXT_MAX_REQUEST_LENGTH];
@@ -2608,7 +2609,8 @@ const char *string, int length) {
 
 // Initialization of shadow volume and shadow map generation shaders for each object.
 
-void GL3InitializeShadowVolumeShader(const sreObject& so, const Vector4D& light_position_model_space) {
+void GL3InitializeShadowVolumeShader(const sreObject& DST_RESTRICT so,
+const Vector4D& DST_RESTRICT light_position_model_space) {
     glUseProgram(misc_shader[SRE_MISC_SHADER_SHADOW_VOLUME].program);
     GL3InitializeShaderWithMVP(
         misc_shader[SRE_MISC_SHADER_SHADOW_VOLUME].uniform_location[UNIFORM_MISC_MVP], so);
