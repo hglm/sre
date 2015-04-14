@@ -329,14 +329,14 @@ public :
     int nu_vertices;
     int nu_triangles;
     union {
-        Point3DPadded *vertex;
-        Point3DPadded *position;
+        Point3DPadded * DST_RESTRICT vertex;
+        Point3DPadded * DST_RESTRICT position;
     };
-    sreModelTriangle *triangle;
-    Vector3D *vertex_normal;
-    Vector4D *vertex_tangent;
-    Point2D *texcoords;
-    Color *colors;
+    sreModelTriangle * DST_RESTRICT triangle;
+    Vector3D * DST_RESTRICT vertex_normal;
+    Vector4D * DST_RESTRICT vertex_tangent;
+    Point2D * DST_RESTRICT texcoords;
+    Color * DST_RESTRICT colors;
     int flags;
     unsigned char sorting_dimension;
     unsigned char cache_coherency_sorting_hint;
@@ -505,7 +505,7 @@ public :
     bool referenced; // LOD model is referred to by a scene object.
     // Multiple meshes.
     int nu_meshes;
-    sreModelMesh *mesh;
+    sreModelMesh * DST_RESTRICT mesh;
     // Vertex attribute information (for non-interleaved buffers, and up to
     // three interleaved buffers).
     sreAttributeInfo attribute_info;
@@ -535,7 +535,7 @@ public :
     int vertex_index_shadow_offset;
     // Edge information for shadow volumes.
     int nu_edges;
-    ModelEdge *edge;
+    ModelEdge * DST_RESTRICT edge;
 
     sreLODModelShadowVolume();
     ~sreLODModelShadowVolume();
@@ -553,10 +553,10 @@ private :
     int	height;			
     float k1, k2, k3;
 public :
-    Vector3D *buffer[2];
+    Vector3D * DST_RESTRICT buffer[2];
     int renderBuffer;
-    Vector3D *normal;
-    Vector3D *tangent;
+    Vector3D * DST_RESTRICT normal;
+    Vector3D * DST_RESTRICT tangent;
 
     sreFluid(int n, int m, float d, float t, float c, float mu);
     ~sreFluid();	
@@ -643,7 +643,7 @@ public:
     // Preprocessing stage structures.
     int nu_polygons;
     bool is_static;
-    sreModelPolygon *polygon;
+    sreModelPolygon * DST_RESTRICT polygon;
     // Bounding volume variables.
     int bounds_flags;
     // PCA components (R, S and T). Includes normalized PCA vector (PCA[i].vector)
@@ -659,13 +659,13 @@ public:
     // Collision/physics structures.
     int collision_shape_static;   // Collision shape type for static instances of this object.
     int collision_shape_dynamic;  // Collision shape type for dynamic instances of this object.
-    sreBoundingVolume *special_collision_shape; // Parameters for special collision shapes.
+    sreBoundingVolume * DST_RESTRICT special_collision_shape; // Parameters for special collision shapes.
     // Level of detail management.
     int nu_lod_levels;
     // Theshold scaling inherent to the LOD model. This will be compounded with any
     // treshold scaling defined for the referring sreObject.
     float lod_threshold_scaling;
-    sreLODModel *lod_model[SRE_MAX_LOD_LEVELS];
+    sreLODModel * DST_RESTRICT lod_model[SRE_MAX_LOD_LEVELS];
 
     sreModel();
     ~sreModel();
@@ -769,8 +769,8 @@ public:
     // the light volume.
     int nu_light_volume_objects;
     int nu_light_volume_objects_partially_inside;
-    int *light_volume_object;
-    int *shadow_caster_object;
+    int * DST_RESTRICT light_volume_object;
+    int * DST_RESTRICT shadow_caster_object;
     int nu_shadow_caster_objects;
     // State variables for shadow volume cache optimization.
     int most_recent_shadow_volume_change;
@@ -987,7 +987,7 @@ public :
 class SRE_API sreObject {
 public:
     // Pointer to the object definition of which sreObject is an instantiation.
-    sreModel *model;
+    sreModel * DST_RESTRICT model;
     int id;
     bool exists;
     // Instantiation parameters for world space position.
@@ -1032,13 +1032,13 @@ public:
     Vector2D roughness_values;
     Vector2D roughness_weights;
     bool anisotropic;
-    sreTexture *texture;
-    sreTexture *specularity_map;
-    sreTexture *normal_map;
-    sreTexture *emission_map;
+    sreTexture * DST_RESTRICT texture;
+    sreTexture * DST_RESTRICT specularity_map;
+    sreTexture * DST_RESTRICT normal_map;
+    sreTexture * DST_RESTRICT emission_map;
     // UV transformation matrix allows mirroring or selecting region within source texture
     // to apply to the object.
-    const Matrix3D *UV_transformation_matrix;
+    const Matrix3D * DST_RESTRICT UV_transformation_matrix;
     float texture3d_scale;
     int texture3d_type;
     float billboard_width;
@@ -1046,7 +1046,7 @@ public:
     float halo_size;
     // Particle system.
     int nu_particles;
-    Vector3D *particles;  // Displacements from the particle system position.
+    Vector3D * DST_RESTRICT particles;  // Displacements from the particle system position.
     // Model-space transformation matrices.
     MatrixTransform model_matrix;    // Transforms from model space to world space.
     Matrix4D inverted_model_matrix;  // Transforms from world space to model space.
@@ -1061,7 +1061,7 @@ public:
     float mass;
     Vector3D collision_shape_center_offset;
     Matrix3D *original_rotation_matrix;
-    sreSceneEntityList *octree_list;
+    sreSceneEntityList * DST_RESTRICT octree_list;
     // Keeping track of the frequency of position and orientation changes.
     int most_recent_position_change;
     int most_recent_transformation_change;
@@ -1069,7 +1069,7 @@ public:
     int rapid_change_flags;
     // Precalculated static shadow volumes (pyramids or half cylinders).
     int nu_shadow_volumes;
-    sreShadowVolume **shadow_volume;
+    sreShadowVolume ** DST_RESTRICT shadow_volume;
     // Rendering attributes.
     // Cache of geometry scissors for static lights.
     sreScissorsCacheEntry *geometry_scissors_cache;
@@ -1385,12 +1385,9 @@ public:
     int nu_objects;
 
     // The objects in the scene.
-    sreObject **object;
+    sreObject ** DST_RESTRICT object;
     // A registry of all higher-level models.
     sreModelPointerArray models;
-//    int nu_models;
-//    sreModel **model;
-//    int max_models;
     int max_objects;
     int nu_lod_models;
     sreFastOctree fast_octree_static;
@@ -1399,9 +1396,9 @@ public:
     sreFastOctree fast_octree_dynamic_infinite_distance;
     int nu_root_node_objects;
     // Array of (non-final pass) visible objects, updated each frame.
-    int *visible_object;
+    int * DST_RESTRICT visible_object;
     // Array of final-pass visible objects, updated each frame.
-    int *final_pass_object;
+    int * DST_RESTRICT final_pass_object;
     // Array of shadow caster objects, updated for each light within each frame.
     dstIntArray shadow_caster_array;
     // Array of visible lights, updated each frame.
@@ -1414,24 +1411,24 @@ public:
     Color ambient_color;
     int nu_lights;
     int max_scene_lights;
-    sreLight **light;
+    sreLight ** DST_RESTRICT light;
     // Active lights for shaders that are limited by the number of lights.
     int nu_active_lights;
     int active_light[SRE_MAX_ACTIVE_LIGHTS];
     // List of deleted scene objects.
-    sreObjectList *deleted_ids;
+    sreObjectList * DST_RESTRICT deleted_ids;
     // State variables used during scene construction.
     Color current_diffuse_reflection_color;
     int current_flags;
     Color current_specular_reflection_color;
     float current_specular_exponent;
-    sreTexture *current_texture;
-    sreTexture *current_specularity_map;
-    sreTexture *current_normal_map;
-    sreTexture *current_transparency_map;
-    sreTexture *current_emission_map;
+    sreTexture * DST_RESTRICT current_texture;
+    sreTexture * DST_RESTRICT current_specularity_map;
+    sreTexture * DST_RESTRICT current_normal_map;
+    sreTexture * DST_RESTRICT current_transparency_map;
+    sreTexture * DST_RESTRICT current_emission_map;
     // The UV transformation matrix is a dynamically allocated structure.
-    const Matrix3D *current_UV_transformation_matrix;
+    const Matrix3D * DST_RESTRICT current_UV_transformation_matrix;
     Color current_emission_color;
     int current_texture3d_type;
     float current_texture3d_scale;
@@ -1699,10 +1696,10 @@ public :
     int HDR_tone_mapping_shader;
     float max_anisotropy;
     int max_visible_active_lights;
-    const char *reflection_model_description;
-    const char *shadows_description;
-    const char *scissors_description;
-    const char *shader_path;
+    const char * DST_RESTRICT reflection_model_description;
+    const char * DST_RESTRICT shadows_description;
+    const char * DST_RESTRICT scissors_description;
+    const char * DST_RESTRICT shader_path;
 };
 
 class SRE_API sreShadowRenderingInfo {
