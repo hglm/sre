@@ -90,8 +90,12 @@ int main(int argc, char **argv) {
             "rendering, displaying the number of frames per second.\n"
             "Option --preprocess performs T-junction elimination on all static scenery at start-up.\n"
             "Option --demand-load-shaders enables demand-loading of shaders (experimental).\n"
-            "Option --large-shadow-maps enabled the use of very large shadow maps.\n";
-        const char *text2;
+            "Option --large-shadow-maps enables the use of very large shadow maps.\n"
+	    "Option --multi-sample enables multi-sampling anti-aliasing.\n"
+	    "Option --no-multi-sample disables multi-sampling.\n"
+	    "Option --stencil-buffer enables the creation of a stencil buffer.\n"
+	    "Option --no-stencil-buffer disables creation of a stencil buffer.\n";
+       const char *text2;
         if (strcmp(sre_internal_backend->name, "GLFW") == 0)
             text2 = 
                 "Option --full-screen enables full-screen mode (GLFW only). Not recommended, \n"

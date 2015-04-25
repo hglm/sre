@@ -89,7 +89,6 @@ void X11CreateWindow(int width, int height, XVisualInfo *vi, const char *title) 
     XSetWindowAttributes XWinAttr;
     XWinAttr.event_mask  =  ExposureMask | PointerMotionMask | KeyPressMask |
         KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | StructureNotifyMask;
-    printf( "Creating colormap\n" );
     XWinAttr.colormap = window_cmap = XCreateColormap(XDisplay,
         XRoot, vinfo.visual, AllocNone);
     XWinAttr.background_pixmap = None;

@@ -305,6 +305,9 @@ static void PrintConfigurationInfo() {
         multiple_lights == true ? "Unlimited" : "Single");
     sreMessage(SRE_MESSAGE_INFO, "Rendering method: %s",
         multipass_rendering == true ? "Multi-pass" : "Single-pass");
+    sreMessage(SRE_MESSAGE_INFO, "Multi-sampling: %s, Stencil buffer: %s",
+        multi_sample ? "Enabled" : "Disabled",
+	stencil_buffer ? "Enabled" : "Disabled");
     if (debug_level > 0)
         sreMessage(SRE_MESSAGE_INFO, "SRE library debug message level = %d.", debug_level);
     if (benchmark_mode)
@@ -320,8 +323,8 @@ void sreInitializeApplication(sreApplication *app, int *argc, char ***argv) {
     sreBackendProcessOptions(argc, argv);
     if (preprocess)
         app->SetFlags(app->GetFlags() | SRE_APPLICATION_FLAG_PREPROCESS);
-    sreBackendInitialize(app, argc, argv);
     PrintConfigurationInfo();
+    sreBackendInitialize(app, argc, argv);
 
     sreMessage(SRE_MESSAGE_INFO, "Initializing scene.");
     // Create a scene with initial default maximums of 1024 objects, 256 models and 128 lights.
