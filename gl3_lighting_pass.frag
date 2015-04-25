@@ -786,7 +786,7 @@ void main() {
 	// before the textureProj function, which divides by coords.w. The first two operations
 	// cancel out each other.
         coords.z += bias;
-	shadow_light_factor = TEXTURE_PROJ_FUNC(shadow_map_in, coords).r;
+	shadow_light_factor = TEXTURE_PROJ_FUNC(shadow_map_in, coords);
         light_att *= shadow_light_factor;
 #else
 	// Spotlight shadow map. Only one shadow map is used.
