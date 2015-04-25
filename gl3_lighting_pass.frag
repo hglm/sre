@@ -786,7 +786,7 @@ void main() {
 	// before the textureProj function, which divides by coords.w. The first two operations
 	// cancel out each other.
         coords.z += bias;
-	shadow_light_factor = TEXTURE_PROJ_FUNC(shadow_map_in, coords);
+	shadow_light_factor = TEXTURE_PROJ_FUNC(shadow_map_in, coords).r;
         light_att *= shadow_light_factor;
 #else
 	// Spotlight shadow map. Only one shadow map is used.
@@ -834,7 +834,7 @@ void main() {
 #ifdef USE_SHADOW_SAMPLER
 	// Use cube shadow texture lookup with texture compare mode.
 	shadow_light_factor = TEXTURE_CUBE_FUNC(cube_shadow_map_in,
-		vec4(space_vector_from_light, radial_dist_compare + bias));
+		vec4(space_vector_from_light, radial_dist_compare + bias)).r;
 #else
 	// Look up radial distance where shadow begins from the cube map.
 	float shadow_radial_dist = TEXTURE_CUBE_FUNC(cube_shadow_map_in, space_vector_from_light).r;
@@ -866,7 +866,7 @@ void main() {
 	shadow_light_factor = TEXTURE_CUBE_FUNC(cube_shadow_map_in, vec4(space_vector_from_light,
 		depth));
 #else
-	float shadow_map_depth = TEXTURE_CUBE_FUNC(cube_shadow_map_in, space_vector_from_light);
+	float shadow_map_depth = TEXTURE_CUBE_FUNC(cube_shadow_map_in, space_vector_from_light).r;
 	shadow_light_factor = float(shadow_map_depth >= depth);
 #endif
 #endif	// !defined(CUBE_MAP_STORES_DISTANCE)

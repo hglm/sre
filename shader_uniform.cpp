@@ -1320,7 +1320,7 @@ static MultiPassShaderSelection sreSelectMultiPassShader(const sreObject& so) {
             shader = SHADER8;
         else if (sre_internal_current_light->type & SRE_LIGHT_BEAM)
             shader = SHADER2;
-        else // Not a linear attenuation range.
+        else // Not a linear attenuation range. No longer supported.
         if ((flags & (SRE_OBJECT_MULTI_COLOR | SRE_OBJECT_USE_TEXTURE | SRE_OBJECT_USE_NORMAL_MAP |
         SRE_OBJECT_USE_SPECULARITY_MAP)) == SRE_OBJECT_MULTI_COLOR)
             shader = SHADER6;

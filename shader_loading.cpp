@@ -99,8 +99,8 @@ static ShaderInfo multi_pass_shader_info[NU_MULTI_PASS_SHADERS] = {
     (1 << UNIFORM_USE_EMISSION_MAP) | (1 << UNIFORM_EMISSION_MAP_SAMPLER))),
     (1 << ATTRIBUTE_POSITION) | (1 << ATTRIBUTE_TEXCOORDS) | (1 << ATTRIBUTE_NORMAL) |
     (1 << ATTRIBUTE_TANGENT) | (1 << ATTRIBUTE_COLOR) },
-    { "Plain texture mapped object multi-pass lighting shader for local lights "
-    "with classic attenuation", (1 << UNIFORM_MVP) |
+    { "Plain texture mapped object multi-pass lighting shader for point source lights",
+    (1 << UNIFORM_MVP) |
     (1 << UNIFORM_MODEL_MATRIX) | (1 << UNIFORM_MODEL_ROTATION_MATRIX) |
     (1 << UNIFORM_DIFFUSE_REFLECTION_COLOR) | (1 << UNIFORM_VIEWPOINT) |
     UNIFORM_LIGHT_PARAMETERS_MASK | (1 << UNIFORM_TEXTURE_MAP_SAMPLER) | ((unsigned int)1 << UNIFORM_UV_TRANSFORM),
@@ -313,7 +313,7 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_ALPHA\n"
     "#define BEAM_LIGHT\n"
     "#define LINEAR_ATTENUATION_RANGE\n",
-    // Lighting pass shader for plain textured objects for local lights.
+    // Lighting pass shader for plain textured objects for point source lights.
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
     "#define NORMAL_IN\n"
@@ -324,7 +324,8 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define VIEWPOINT_IN\n"
     "#define LIGHT_PARAMETERS\n"
     "#define TEXTURE_MAP_SAMPLER\n"
-    "#define GENERAL_LOCAL_LIGHT\n",
+    "#define POINT_SOURCE_LIGHT\n",
+    "#define LINEAR_ATTENUATION_RANGE\n"
     // Complete versatile lighting pass shader for directional lights.
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
@@ -358,8 +359,9 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define LIGHT_PARAMETERS\n"
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define DIRECTIONAL_LIGHT\n",
+    // SHADER6
     // Complete lighting pass shader with support for all options except emission color and map,
-    // for local lights.
+    // for point source lights (unused, duplicate of SHADER7).
     "#define TEXCOORD_IN\n"
     "#define UV_TRANSFORM\n"
     "#define NORMAL_IN\n"
@@ -378,7 +380,8 @@ const char *multi_pass_shader_prologue[NU_MULTI_PASS_SHADERS] = {
     "#define TEXTURE_MAP_SAMPLER\n"
     "#define NORMAL_MAP_SAMPLER\n"
     "#define SPECULARITY_MAP_SAMPLER\n"
-    "#define GENERAL_LOCAL_LIGHT\n",
+    "#define POINT_SOURCE_LIGHT\n"
+    "#define LINEAR_ATTENUATION_RANGE\n",
     // SHADER7
     // Lighting pass shader with support for all options except emission color and map, for
     // point light sources with a linear attenuation range.
