@@ -56,7 +56,7 @@ void main() {
 	gl_FragDepth = distance(position_world_var, light_position_in) *
 		segment_distance_scaling_in;
 #else
-#ifdef ADD_BIAS
+#if defined(ADD_BIAS) && !defined(GL_ES)
 	gl_FragDepth = gl_FragCoord.z + bias;
 #else
 	// The color value written doesn't matter. The fixed-function depth value is written as

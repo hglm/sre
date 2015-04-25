@@ -80,7 +80,7 @@ static const EGLint attribute_list_base[] = {
     EGL_GREEN_SIZE, 8,
     EGL_BLUE_SIZE, 8,
     EGL_ALPHA_SIZE, 8,
-    EGL_NATIVE_RENDERABLE, EGL_TRUE,
+//    EGL_NATIVE_RENDERABLE, EGL_TRUE,
     EGL_NONE,
 };
 
@@ -181,7 +181,8 @@ int requested_width, int requested_height, unsigned int backend_flags) {
     result = eglChooseConfig(state->display, attribute_list, egl_config, num_config, &num_config);
     assert(result != EGL_FALSE);
     check();
-    printf("EGL: %d framebuffer configurations returned.\n", num_config);
+    sreMessage(SRE_MESSAGE_INFO,
+        "EGL: %d framebuffer configurations returned.\n", num_config);
 
     // Always pick the first one.
     egl_chosen_config = 0;
