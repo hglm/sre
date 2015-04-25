@@ -142,8 +142,8 @@ varying vec3 L_tangent_var;
 #endif
 
 #ifdef GL_ES
-#define TEXTURE_CUBE_FUNC textureCube
-#define TEXTURE_PROJ_FUNC texture2DProj
+#define TEXTURE_CUBE_FUNC(x, vector) textureCube(x, vector).r
+#define TEXTURE_PROJ_FUNC(x, vector) texture2DProj(x, vector).r
 #else
 // With recent versions of GLSL, textureCube is not allowed.
 #define TEXTURE_CUBE_FUNC texture
@@ -834,10 +834,10 @@ void main() {
 #ifdef USE_SHADOW_SAMPLER
 	// Use cube shadow texture lookup with texture compare mode.
 	shadow_light_factor = TEXTURE_CUBE_FUNC(cube_shadow_map_in,
-		vec4(space_vector_from_light, radial_dist_compare + bias)).r;
+		vec4(space_vector_from_light, radial_dist_compare + bias));
 #else
 	// Look up radial distance where shadow begins from the cube map.
-	float shadow_radial_dist = TEXTURE_CUBE_FUNC(cube_shadow_map_in, space_vector_from_light).r;
+	float shadow_radial_dist = TEXTURE_CUBE_FUNC(cube_shadow_map_in, space_vector_from_light);
 	// Set shadow light factor to 0.0 if shadow, 1.0 if no shadow.
 	shadow_light_factor = float(shadow_radial_dist >= radial_dist_compare + bias);
 #endif
@@ -866,7 +866,7 @@ void main() {
 	shadow_light_factor = TEXTURE_CUBE_FUNC(cube_shadow_map_in, vec4(space_vector_from_light,
 		depth));
 #else
-	float shadow_map_depth = TEXTURE_CUBE_FUNC(cube_shadow_map_in, space_vector_from_light).r;
+	float shadow_map_depth = TEXTURE_CUBE_FUNC(cube_shadow_map_in, space_vector_from_light);
 	shadow_light_factor = float(shadow_map_depth >= depth);
 #endif
 #endif	// !defined(CUBE_MAP_STORES_DISTANCE)
