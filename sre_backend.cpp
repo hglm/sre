@@ -169,8 +169,6 @@ static void sreBackendProcessOptions(int *argcp, char ***argvp) {
         }
         else if (argc >= argi + 1 && strcmp(argv[argi], "--multi-pass") == 0) {
             multipass_rendering = true;
-            argi++;
-            continue;
         }
         else if (argc >= argi + 1 && strcmp(argv[argi], "--single-pass") == 0) {
             multipass_rendering = false;
